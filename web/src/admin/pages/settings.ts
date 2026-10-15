@@ -4,7 +4,6 @@ import { E } from '../e';
 import { api, type Backup, type SettingsData } from '../api';
 import { attempt, button, closeModal, confirmDialog, modal } from '../ui';
 import { icon } from '../../shared/icons';
-import { installPalette } from '../palette';
 import { group, input, isOn, row, sw } from '../kit';
 import { CATEGORIES, CATEGORY_HELP, CATEGORY_LABEL, clearLogDialog, exportEvents, resetUsageDialog } from '../logs';
 import { retentionText } from './activity';
@@ -60,7 +59,6 @@ export class SettingsPage {
 
   render(d: SettingsData): HTMLElement {
     this.d = d;
-    installPalette();
     this.paint();
     this.loadBackups().then(() => {
       if (new URLSearchParams(location.search).get('section') === 'backups')

@@ -8,11 +8,11 @@ import { api } from '../api';
 import { attempt, button, closeModal, confirmDialog, copyText, dropdown, iconButton, modal, notify, type MenuItem } from '../ui';
 import { addDevice, openDevice } from '../device';
 import { inviteCard } from '../invite';
-import { installPalette, personUrl } from '../palette';
+import { personUrl } from '../urls';
 import { scoped } from './overview';
 import { attachTip } from '../charts';
 import { icon } from '../../shared/icons';
-import { ACCESS_LABEL, KIND_LABEL, STATE_LABEL, ago, bits, bytes, date, daysLeft, initials } from '../../shared/format';
+import { ACCESS_LABEL, KIND_LABEL, STATE_LABEL, ago, bits, byDeviceState, bytes, date, daysLeft, initials } from '../../shared/format';
 
 type Sid = string;
 
@@ -32,6 +32,23 @@ export function stateBadge(p: Person): HTMLElement | '' {
   const el = E('span', { class: `dl-ibadge ${stateTone(p)}`, 'aria-label': STATE_LABEL[p.state] }, icon(STATE_ICON[p.state] || 'alert'));
   attachTip(el, () => [E('div', { class: 'dl-tip-title' }, STATE_LABEL[p.state])]);
   return el;
+}
+
+/** Device slots as a row of segments (one per allowed device, used ones lit) and "2 of 10". */
+function slotBar(p: Person): HTMLElement {
+  const used = p.devices.length;
+  // Devices added over the limit get their own (soft orange) segments after the allowed ones.
+  const n = Math.max(1, p.device_limit, used);
+  // 22px a segment until the bar is 160px long; past that the segments get thinner, so the count stays close.
+  const width = Math.min(160, n * 22 + (n - 1) * 3);
+  return E('div', { class: 'dl-slotbar', title: `${used} of ${p.device_limit} devices` }, [
+    E(
+      'span',
+      { class: 'dl-slotbar-segs', style: `width: ${width}px` },
+      Array.from({ length: n }, (_, i) => E('i', { class: i >= p.device_limit ? 'over' : i < used ? 'used' : '' })),
+    ),
+    E('span', { class: 'dl-slotbar-text' }, `${used} of ${p.device_limit}`),
+  ]);
 }
 
 /** What the person can reach, as icons: home network, internet, or both. */
@@ -117,7 +134,6 @@ let addOpened = false;
 export class PeoplePage {
   st!: Status;
   map: any;
-  query = '';
   // `?filter=online` (from Overview) preselects a tab.
   filter: Filter =
     (['all', 'online', 'attention', 'paused'] as Filter[]).find((f) => f === new URLSearchParams(location.search).get('filter')) ?? 'all';
@@ -215,16 +231,6 @@ export class PeoplePage {
 
     return m.render().then((node: HTMLElement) => {
       node.classList.add('dl-map', 'dl-root');
-      installPalette(st);
-      const search = E('input', {
-        type: 'search',
-        class: 'dl-search-input',
-        placeholder: 'Search people, devices, IPs',
-        input: (ev: Event) => {
-          page.query = (ev.target as HTMLInputElement).value.trim().toLowerCase();
-          page.decorate();
-        },
-      });
       const sort = E(
         'select',
         {
@@ -256,9 +262,8 @@ export class PeoplePage {
             ]),
         E('div', { class: 'dl-toolbar' }, [
           E('div', { class: 'dl-seg', id: 'dl-people-tabs', role: 'tablist' }),
-          // Search, sort and add stay together on the right, wrapping as one group.
+          // Sort and add stay together on the right, wrapping as one group.
           E('div', { class: 'dl-toolbar-end' }, [
-            E('label', { class: 'dl-search' }, [icon('search'), search, E('kbd', {}, '/')]),
             sort,
             page.serverId ? button([icon('plus'), ' Add person'], () => page.openCreate(), 'add') : '',
           ]),
@@ -286,7 +291,7 @@ export class PeoplePage {
     return `${t.people} ${t.people === 1 ? 'person' : 'people'} · ${t.devices} device${t.devices === 1 ? '' : 's'} · ${t.online} online`;
   }
 
-  /** Row classes, counters, filter tabs, search and sort order. */
+  /** Row classes, counters, filter tabs and sort order. */
   decorate() {
     const c = document.getElementById('dl-people-count');
     if (c) c.textContent = this.countText();
@@ -323,9 +328,7 @@ export class PeoplePage {
       if (this.filter === 'online' && !p.online) return false;
       if (this.filter === 'attention' && !needsAttention(p)) return false;
       if (this.filter === 'paused' && !(p.state !== 'active' && p.state !== 'quota' && p.state !== 'expired')) return false;
-      if (!this.query) return true;
-      const hay = [p.name, p.id, ...p.devices.flatMap((d) => [d.name, d.address, d.endpoint, d.hostname])].join(' ').toLowerCase();
-      return hay.includes(this.query);
+      return true;
     };
     const order = [...people].sort((a, b) =>
       this.sort === 'name'
@@ -349,12 +352,12 @@ export class PeoplePage {
       row.classList.toggle('dl-filtered', !hit);
       if (hit) shown++;
     }
-    // Say so when the filter or search leaves nobody.
+    // Say so when the filter leaves nobody.
     const table = tbody?.closest('.cbi-section-table') ?? tbody;
     let none = document.getElementById('dl-people-none');
     if (table && people.length && !shown) {
       none ??= E('div', { id: 'dl-people-none', class: 'dl-empty' });
-      dom.content(none, E('p', {}, this.query ? `No one matches “${this.query}”.` : 'No one here right now.'));
+      dom.content(none, E('p', {}, 'No one here right now.'));
       if (none.parentElement !== table.parentElement) table.after(none);
     } else none?.remove();
   }
@@ -395,7 +398,7 @@ export class PeoplePage {
     }
     if (p.hours) pills.push(E('span', { class: 'dl-pill-ic', title: 'Allowed hours' }, [icon('clock'), p.hours.replace('-', '–')]));
 
-    const chips = p.devices.map((d) => {
+    const chips = byDeviceState(p.devices).map((d) => {
       return E(
         'button',
         {
@@ -415,22 +418,24 @@ export class PeoplePage {
         ],
       );
     });
-    if (free > 0)
-      chips.push(
-        E(
-          'button',
-          {
-            type: 'button',
-            class: 'dl-chip add',
-            title: `${p.devices.length} of ${p.device_limit} devices`,
-            click: (ev: Event) => {
-              ev.preventDefault();
-              addDevice(p, () => this.refresh());
-            },
+    // Always there: over the limit the admin can still add one (the slot bar turns orange).
+    chips.push(
+      E(
+        'button',
+        {
+          type: 'button',
+          // Just a "+": the slots above say how many there are.
+          class: 'dl-chip add',
+          'aria-label': 'Add device',
+          title: free > 0 ? 'Add device' : 'Add device · over the limit, admins can still add',
+          click: (ev: Event) => {
+            ev.preventDefault();
+            addDevice(p, () => this.refresh());
           },
-          [icon('plus'), E('span', { class: 'dl-chip-name' }, 'Add device')],
-        ),
-      );
+        },
+        icon('plus'),
+      ),
+    );
 
     const fixes: Node[] = [];
     if (p.state === 'quota' && p.quota_period === 'month')
@@ -498,17 +503,18 @@ export class PeoplePage {
       node,
       E('div', { class: 'dl-pcard' }, [
         E('div', { class: 'dl-pcard-main' }, [
-          E('div', { class: 'dl-card-head' }, [
+          // The avatar is centred on the name and the slots; devices follow under the name.
+          E('div', { class: 'dl-pcard-top' }, [
             E('span', { class: `dl-avatar${p.online ? ' online' : ''}` }, initials(p.name)),
-            E('a', { class: 'dl-card-name', href: personUrl(p.id) }, p.name),
-            stateBadge(p),
-            accessBadge(p),
-            ...pills,
-          ]),
-          E('div', { class: 'dl-meta' }, [
-            E('span', {}, `${p.devices.length} of ${p.device_limit} devices`),
-            E('span', { class: 'dl-sep' }, '·'),
-            E('span', {}, p.online ? 'online now' : p.last_seen ? `seen ${ago(p.last_seen, this.st.now)}` : 'never connected'),
+            E('div', { class: 'dl-pcard-who' }, [
+              E('div', { class: 'dl-card-head' }, [
+                E('a', { class: 'dl-card-name', href: personUrl(p.id) }, p.name),
+                stateBadge(p),
+                accessBadge(p),
+                ...pills,
+              ]),
+              slotBar(p),
+            ]),
           ]),
           E('div', { class: 'dl-chips' }, chips),
           fixes.length ? E('div', { class: 'dl-fixes' }, fixes) : '',
@@ -572,8 +578,8 @@ export class PeoplePage {
     return E('div', { class: 'dl-pside' }, [
       E('div', { class: 'dl-pside-top' }, [
         live
-          ? E('span', { class: 'dl-pside-state live' }, [E('i', { class: 'dl-dot online' }), 'Live'])
-          : E('span', { class: 'dl-pside-state' }, p.online ? 'Online' : p.last_seen ? 'Offline' : 'Not connected'),
+          ? E('span', { class: 'dl-pside-state live' }, 'Online')
+          : E('span', { class: 'dl-pside-state' }, p.online ? 'Online' : p.last_seen ? 'Offline' : 'Never connected'),
         actions,
       ]),
       E('div', { class: 'dl-use-num' }, [

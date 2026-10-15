@@ -27,7 +27,7 @@
 
 import { readfile, writefile, readlink, stat, unlink } from 'fs';
 import { cursor } from 'uci';
-import { sh, sh_out, q, ip2int, int2ip, ensure_dir, read_json, write_json, uniq, RUN_DIR } from 'dawnline.util';
+import { sh, sh_out, q, ip2int, int2ip, ensure_dir, read_json, write_json, uniq, slog, RUN_DIR } from 'dawnline.util';
 import * as net from 'dawnline.net';
 
 export const NS = 'dawnline';
@@ -40,8 +40,10 @@ const RESOLVER_PID = '/var/run/dawnline-dns.pid';
 const STATE = `${RUN_DIR}/loop.json`;
 const FALLBACK_DNS = [ '1.1.1.1', '8.8.8.8' ];
 
-function log(msg) {
-	system(`logger -t dawnline ${q(msg)}`);
+const WHO = 'Internet like a home device';
+
+function log(msg, level, detail) {
+	slog('dawnline', level ?? 'info', msg, detail, WHO);
 }
 
 function run(cmds) {
@@ -289,8 +291,9 @@ table inet dawnline {
 function current_rules(ifnames) {
 	let out = [];
 	try {
+		// Ours, plus ours left behind by a removed tunnel (its interface is gone).
 		for (let r in json(sh_out('ip -j -4 rule show') || '[]') ?? [])
-			if (r.priority >= 5200 && r.priority < 5300 && r.iif && index(ifnames, r.iif) >= 0)
+			if (r.priority >= 5200 && r.priority < 5300 && r.iif && (index(ifnames, r.iif) >= 0 || 'iif_detached' in r))
 				push(out, r);
 	}
 	catch (e) {}
@@ -299,6 +302,9 @@ function current_rules(ifnames) {
 
 
 function rule_key(pref, iif, to, table) {
+	// `ip -j rule` shows a /32 destination without its length.
+	if (to && index(to, '/') < 0)
+		to += '/32';
 	return `${pref} ${iif} ${to ?? 'all'} ${table}`;
 }
 
@@ -360,9 +366,10 @@ export function ensure(m, force) {
 		if (stat(STATE) || exists(TX_ROOT) || exists(LAN_ROOT) || length(current_rules(ifnames)))
 			remove(ifnames);
 		ensure_dir(RUN_DIR);
+		let was = read_json(STATE, {});
 		write_json(STATE, { error: p.error, off: !!p.off }, 0o644);
-		if (p.error)
-			log(`like-home routing off: ${p.error}`);
+		if (p.error && p.error != was.error)
+			log('is off', 'error', p.error);
 		return p;
 	}
 	let last = read_json(STATE, {});
@@ -410,7 +417,8 @@ export function ensure(m, force) {
 	push(errs, ...run(sync_rules(p, ifnames)));
 
 	if (length(errs)) {
-		log(`like-home routing failed, using the direct path: ${errs[0]}`);
+		if (read_json(STATE, {}).error != `Setup failed: ${errs[0]}`)
+			log('failed — internet goes out directly for now', 'error', errs[0]);
 		remove(ifnames);
 		write_json(STATE, { error: `Setup failed: ${errs[0]}` }, 0o644);
 		return { error: errs[0] };
@@ -426,7 +434,10 @@ export function ensure(m, force) {
 	}
 	ensure_dir(RUN_DIR);
 	write_json(STATE, { applied: time(), plan: p, transit: p.transit }, 0o644);
-	log(`like-home routing: ${p.dev} as ${p.address}`);
+	if (!last.applied || last.plan?.dev != p.dev || last.plan?.address != p.address)
+		log(`is on · traffic enters ${p.dev} as ${p.address}`, 'up');
+	else if (!healthy)
+		log(`was broken — set up again (${p.dev} as ${p.address})`, 'repair');
 	return p;
 };
 

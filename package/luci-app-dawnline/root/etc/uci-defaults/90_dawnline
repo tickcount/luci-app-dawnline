@@ -24,6 +24,13 @@ rm -rf /usr/share/dawnline/portal/www/assets
 rm -f /tmp/luci-indexcache* /tmp/luci-modulecache/* 2>/dev/null
 touch /usr/lib/opkg/status 2>/dev/null
 
+# Cron restarts the agent when it stops ticking (Health → Watchdog).
+mkdir -p /etc/crontabs
+grep -qs /usr/libexec/dawnline/heartbeat /etc/crontabs/root || {
+	echo '*/5 * * * * /usr/libexec/dawnline/heartbeat' >> /etc/crontabs/root
+	/etc/init.d/cron restart 2>/dev/null
+}
+
 /etc/init.d/rpcd reload
 # A reload keeps LuCI logins but sometimes misses the plugin; restart only then.
 sleep 2

@@ -87,6 +87,8 @@ export function load(c) {
 			hostnames: bool(s.hostnames, true),
 			domain: s.domain ?? 'lan',
 			log_connections: bool(s.log_connections, true),
+			// Repair tunnels and services on its own (the agent, every minute).
+			watchdog: bool(s.watchdog, true),
 			// Second DNS for "home names" devices, used by the device when the tunnel is down.
 			home_dns_fallback: s.home_dns_fallback == 'none' ? '' : (s.home_dns_fallback ?? '1.1.1.1'),
 			// Raw retention values; dawnline.live policy() interprets them.
@@ -126,6 +128,8 @@ export function load(c) {
 			detected_wan: r.detected_wan ?? '',
 			detected_lan: r.detected_lan ?? '',
 			lan_like: bool(r.lan_like, true),
+			// Devices of people with home access reach each other through the tunnel.
+			device_mesh: bool(r.device_mesh, true),
 			enabled: bool(r.enabled, true),
 			obf: {},
 		};
@@ -459,8 +463,12 @@ export function client_dns(m, srv, p) {
 export function allowed_ips(m, srv, p) {
 	if (p.access == 'lan') {
 		let nets = net.server_net(srv).nets;
+		// With devices reaching each other, the whole tunnel network (the router's
+		// address is in it); otherwise only the router's own address.
 		let a = server_address(srv);
-		if (a)
+		if (srv.device_mesh && srv.subnet)
+			push(nets, srv.subnet);
+		else if (a)
 			push(nets, `${a}/32`);
 		// The resolver address must be reachable through the tunnel too (not the fallback).
 		let dns = client_dns(m, srv, p)[0];

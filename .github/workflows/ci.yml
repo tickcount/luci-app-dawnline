@@ -87,6 +87,7 @@ jobs:
             package/luci-app-dawnline/root/etc/init.d/dawnline \
             package/luci-app-dawnline/root/etc/uci-defaults/90_dawnline \
             package/luci-app-dawnline/root/etc/hotplug.d/iface/95-dawnline \
+            package/luci-app-dawnline/root/usr/libexec/dawnline/heartbeat \
             scripts/*.sh
 
   ucode:
@@ -102,7 +103,7 @@ jobs:
       - name: Executables keep their mode
         run: |
           cd package/luci-app-dawnline/root
-          for f in usr/bin/dawnline usr/libexec/dawnline/agent usr/libexec/dawnline/updater usr/libexec/dawnline/resolver \
+          for f in usr/bin/dawnline usr/libexec/dawnline/agent usr/libexec/dawnline/updater usr/libexec/dawnline/resolver usr/libexec/dawnline/heartbeat \
                    etc/init.d/dawnline etc/uci-defaults/90_dawnline usr/share/dawnline/portal/www/cgi-bin/portal; do
             [ -x "$f" ] || { echo "::error file=$f::not executable (git update-index --chmod=+x $f)"; exit 1; }
           done

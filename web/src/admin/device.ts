@@ -9,6 +9,7 @@ import { qrSvg } from '../shared/qr';
 import { vpnKey } from '../shared/vpnkey';
 import { ago, bytes, KIND_LABEL, KINDS } from '../shared/format';
 import { icon } from '../shared/icons';
+import { eventBy } from './pages/overview';
 import { spark } from './charts';
 import { clearLogDialog, exportEvents, resetUsageDialog } from './logs';
 
@@ -20,7 +21,7 @@ function iso(ts: number): string {
     : '—';
 }
 
-function copyRow(label: string, value: string, mono = true): HTMLElement {
+function copyRow(label: string, value: string, mono = false): HTMLElement {
   return E('div', { class: 'dl-kvrow' }, [
     E('span', { class: 'dl-kvrow-k' }, label),
     E(
@@ -106,8 +107,8 @@ function fileCard(cfg: ClientConfig): HTMLElement {
   ]);
 }
 
-/** QR / key / file switcher for a client configuration. */
-export async function connectBlock(cfg: ClientConfig): Promise<HTMLElement> {
+/** File / key / QR switcher for a client configuration; opens on the file unless asked otherwise. */
+export async function connectBlock(cfg: ClientConfig, initial: 'file' | 'key' | 'qr' = 'file'): Promise<HTMLElement> {
   if (!cfg.has_private_key)
     return E(
       'div',
@@ -135,12 +136,12 @@ export async function connectBlock(cfg: ClientConfig): Promise<HTMLElement> {
     dom.content(body, panes[id]());
   };
   for (const [id, label] of [
-    ['qr', 'QR code'],
-    ['key', 'Key'],
     ['file', 'File'],
+    ['key', 'Key'],
+    ['qr', 'QR code'],
   ])
     seg.appendChild(E('button', { type: 'button', 'data-id': id, click: () => show(id) }, label));
-  show('qr');
+  show(initial);
   return E('div', { class: 'dl-stack gap12' }, [seg, body]);
 }
 
@@ -183,12 +184,13 @@ function drawer(title: Node, body: Node, foot: Node | null, onClose: () => void)
   return handle;
 }
 
-const DEV_EVENT: Record<string, [string, string]> = {
-  connect: ['ok', 'Connected'],
-  disconnect: ['', 'Went offline'],
-  roam: ['', 'Changed network'],
-  device_added: ['accent', 'Added'],
-  device_removed: ['', 'Removed'],
+const DEV_EVENT: Record<string, [string, string, string]> = {
+  connect: ['ok', 'Connected', 'plug'],
+  disconnect: ['', 'Went offline', 'plug'],
+  roam: ['', 'Changed network', 'network'],
+  device_added: ['ok', 'Added', 'plus'],
+  device_removed: ['', 'Removed', 'trash'],
+  device_keys: ['', 'New keys', 'reset'],
 };
 
 /** Activity of one device, newest first. */
@@ -202,21 +204,24 @@ function deviceEvents(events: LogEvent[], id: string): HTMLElement {
     'div',
     { class: 'dl-dev-log' },
     mine.map((e) => {
-      const [tone, label] = DEV_EVENT[e.type];
+      const [tone, label, ic] = DEV_EVENT[e.type];
+      // As in the main log: what happened in the text colour, the details muted.
       const extra =
         e.type === 'connect'
           ? [
-              e.detail ? E('span', { class: 'dl-mono' }, ` ${e.detail}`) : '',
-              e.where ? E('span', { class: 'dl-faint' }, ` · ${e.where}`) : '',
+              e.detail ? E('span', { class: 'dl-muted' }, ` from ${e.detail}`) : '',
+              e.where ? E('span', { class: 'dl-muted' }, ` · ${e.where}`) : '',
             ]
           : e.type === 'roam'
-            ? [E('span', { class: 'dl-mono dl-faint' }, ` ${e.detail ?? ''}`)]
-            : e.type === 'device_added'
-              ? [E('span', { class: 'dl-faint' }, (e.detail ?? '').includes('(portal)') ? ' from the portal' : ' by you')]
+            ? [E('span', { class: 'dl-muted' }, ` · ${e.detail ?? ''}`)]
+            : e.type === 'device_added' || e.type === 'device_removed' || e.type === 'device_keys'
+              ? [E('span', { class: 'dl-muted' }, eventBy(e) === 'portal' ? ' on the portal' : eventBy(e) === 'admin' ? ' by you' : '')]
               : [];
       const t = new Date(e.ts * 1000);
-      return E('div', { class: 'dl-dev-log-row' }, [
-        E('span', { class: `dl-ev-dot ${tone}` }),
+      return E('div', { class: `dl-dev-log-row${eventBy(e) === 'admin' ? ' dl-ev-by-admin' : ''}` }, [
+        eventBy(e) === 'admin'
+          ? E('span', { class: 'dl-ev-tile', title: 'Done by you in LuCI' }, icon('admin'))
+          : E('span', { class: `dl-ev-tile ev ${tone}` }, icon(ic)),
         E('span', { class: 'dl-row-main' }, [E('span', {}, label), ...extra]),
         E('span', { class: 'dl-faint dl-nowrap', title: t.toLocaleString() }, ago(e.ts)),
       ]);
@@ -225,10 +230,11 @@ function deviceEvents(events: LogEvent[], id: string): HTMLElement {
 }
 
 function statusLine(d: Device): HTMLElement {
-  if (d.disabled) return E('span', { class: 'dl-dstat' }, [E('i', { class: 'dot' }), 'Disabled']);
-  if (d.online) return E('span', { class: 'dl-dstat ok' }, [E('i', { class: 'dot ok' }), `Online from ${d.endpoint}`]);
-  if (!d.handshake) return E('span', { class: 'dl-dstat warn' }, [E('i', { class: 'dot warn' }), 'Waiting for the first connection']);
-  return E('span', { class: 'dl-dstat' }, [E('i', { class: 'dot' }), `Last seen ${ago(d.handshake)}`]);
+  // Status as coloured text, no dots (only avatars carry one).
+  if (d.disabled) return E('span', { class: 'dl-dstat' }, 'Disabled');
+  if (d.online) return E('span', { class: 'dl-dstat ok' }, 'Connected');
+  if (!d.handshake) return E('span', { class: 'dl-dstat warn' }, 'Waiting for the first connection');
+  return E('span', { class: 'dl-dstat' }, `Last seen ${ago(d.handshake)}`);
 }
 
 /** Device drawer; `refresh` reloads the page after changes. */
@@ -241,7 +247,6 @@ export async function openDevice(person: Person, dev: Device, refresh: () => unk
   const titleEl = E('div', { class: 'dl-drawer-title' });
   const stats = E('div', {});
   const details = E('div', {});
-  const live = E('div', { class: 'dl-live' });
   const log = E('div', {}, E('div', { class: 'dl-sub' }, 'Loading…'));
   let logEvents: LogEvent[] = [];
   const loadLog = async () => {
@@ -289,8 +294,8 @@ export async function openDevice(person: Person, dev: Device, refresh: () => unk
           ? row(
               'Client IP',
               E('span', {}, [
-                E('span', { class: 'dl-mono' }, d.endpoint),
-                place ? E('span', { class: 'dl-faint' }, ` · ${[place.city, place.org].filter(Boolean).join(' · ')}`) : '',
+                d.endpoint,
+                place ? E('span', { class: 'dl-muted' }, ` · ${[place.city, place.org].filter(Boolean).join(' · ')}`) : '',
               ]),
             )
           : '',
@@ -315,14 +320,6 @@ export async function openDevice(person: Person, dev: Device, refresh: () => unk
           E('span', { class: 'dl-mono dl-faint' }, cfg.amnezia.client_pub_key ? `${cfg.amnezia.client_pub_key.slice(0, 16)}…` : '—'),
         ),
       ]),
-    );
-    dom.content(
-      live,
-      d.online
-        ? [E('i', { class: 'dot ok' }), E('span', { class: 'dl-ok' }, 'Connected')]
-        : d.handshake
-          ? [E('i', { class: 'dot' }), E('span', { class: 'dl-muted' }, `Last connected ${ago(d.handshake)}`)]
-          : [E('i', { class: 'dot warn pulse' }), E('span', { class: 'dl-muted' }, 'Waiting for the first connection…')],
     );
     dom.content(foot, [
       button(
@@ -413,47 +410,49 @@ export async function openDevice(person: Person, dev: Device, refresh: () => unk
   };
 
   const foot = E('div', { class: 'dl-drawer-actions' });
-  const body = E('div', { class: 'dl-stack gap16' }, [
-    stats,
-    E('section', { class: 'dl-dsec' }, [
-      E('div', { class: 'dl-dsec-head' }, [E('h4', {}, 'Connect'), live]),
-      d.config_stale
-        ? E('div', { class: 'dl-note warn' }, [
-            icon('alert'),
-            E(
-              'span',
-              {},
-              'This device has an older configuration: networks or DNS changed since it was set up. Import it again with the QR code, key or file below.',
-            ),
-          ])
-        : '',
-      connect,
-    ]),
-    E('section', { class: 'dl-dsec' }, [
-      E('div', { class: 'dl-dsec-head' }, [
-        E('h4', {}, 'Activity'),
-        E('div', { class: 'dl-dsec-actions' }, [
+  const connectSec = E('section', { class: 'dl-dsec' }, [
+    // Whether it is connected (or still waiting) is in Status above.
+    E('div', { class: 'dl-dsec-head' }, [E('h4', {}, 'Connect')]),
+    d.config_stale
+      ? E('div', { class: 'dl-note warn' }, [
+          icon('alert'),
           E(
-            'button',
-            { type: 'button', class: 'dl-linkbtn', click: () => exportEvents({ people: [p] }, logEvents, 'csv', d.id) },
-            'Export',
+            'span',
+            {},
+            'This device has an older configuration: networks or DNS changed since it was set up. Import it again with the QR code, key or file below.',
           ),
-          E(
-            'button',
-            {
-              type: 'button',
-              class: 'dl-linkbtn danger',
-              click: () => clearLogDialog(`Clear ${d.name}'s activity`, `Removes events about ${d.name}.`, { device: d.id }, loadLog),
-            },
-            'Clear',
-          ),
-          E('a', { href: L.url('admin/network/dawnline/activity') }, 'All activity'),
-        ]),
-      ]),
-      log,
-    ]),
-    E('section', { class: 'dl-dsec' }, [E('div', { class: 'dl-dsec-head' }, E('h4', {}, 'Details')), details]),
+        ])
+      : '',
+    connect,
   ]);
+  const activitySec = E('section', { class: 'dl-dsec' }, [
+    E('div', { class: 'dl-dsec-head' }, [
+      E('h4', {}, 'Activity'),
+      E('div', { class: 'dl-dsec-actions' }, [
+        E('button', { type: 'button', class: 'dl-linkbtn', click: () => exportEvents({ people: [p] }, logEvents, 'csv', d.id) }, 'Export'),
+        E(
+          'button',
+          {
+            type: 'button',
+            class: 'dl-linkbtn danger',
+            click: () => clearLogDialog(`Clear ${d.name}'s activity`, `Removes events about ${d.name}.`, { device: d.id }, loadLog),
+          },
+          'Clear',
+        ),
+        E('a', { href: `${L.url('admin/network/dawnline/diagnostics')}?tab=log` }, 'All activity'),
+      ]),
+    ]),
+    log,
+  ]);
+  const detailsSec = E('section', { class: 'dl-dsec' }, [E('div', { class: 'dl-dsec-head' }, E('h4', {}, 'Details')), details]);
+  // Connecting is what the drawer is for until the device is set up (or its configuration is old);
+  // after that it goes to the bottom.
+  const setUp = !d.handshake || d.config_stale;
+  const body = E(
+    'div',
+    { class: 'dl-stack gap16' },
+    setUp ? [stats, connectSec, detailsSec, activitySec] : [stats, detailsSec, activitySec, connectSec],
+  );
   loadLog();
   const watch = window.setInterval(() => {
     reload();

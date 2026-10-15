@@ -4,9 +4,9 @@
 import { PeoplePage } from './pages/people';
 import { ServerPage } from './pages/server';
 import { SettingsPage } from './pages/settings';
-import { HealthPage, UpdatesPage } from './pages/maintenance';
+import { UpdatesPage } from './pages/maintenance';
 import { PersonPage } from './pages/person';
-import { ActivityPage } from './pages/activity';
+import { DiagnosticsPage } from './pages/diagnostics';
 import { styleNode } from './styles';
 
 interface Page {
@@ -44,8 +44,24 @@ const people = factory(PeoplePage, true);
 const server = factory(ServerPage, false);
 const settings = factory(SettingsPage, false);
 const person = factory(PersonPage, false);
-const activity = factory(ActivityPage, false);
-const health = factory(HealthPage, false);
+const diagnostics = factory(DiagnosticsPage, false);
 const updates = factory(UpdatesPage, false);
 
-export { overview, people, person, activity, server, settings, health, updates };
+/** Health and Activity became Diagnostics tabs: old addresses and bookmarks go there. */
+function moved(tab: '' | 'log') {
+  return () => ({
+    load: () => {
+      ui.menu?.flushCache();
+      location.replace(`${L.url('admin/network/dawnline/diagnostics')}${tab ? `?tab=${tab}` : ''}`);
+      return new Promise(() => {});
+    },
+    render: () => document.createElement('div'),
+    handleSave: null,
+    handleSaveApply: null,
+    handleReset: null,
+  });
+}
+const health = moved('');
+const activity = moved('log');
+
+export { overview, people, person, activity, server, settings, health, diagnostics, updates };

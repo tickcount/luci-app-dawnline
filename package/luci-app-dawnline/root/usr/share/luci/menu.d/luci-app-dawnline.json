@@ -28,8 +28,6 @@
 		}
 	},
 	"admin/network/dawnline/activity": {
-		"title": "Activity",
-		"order": 25,
 		"action": {
 			"type": "view",
 			"path": "dawnline/activity"
@@ -49,9 +47,15 @@
 			"path": "dawnline/server"
 		}
 	},
-	"admin/network/dawnline/health": {
-		"title": "Health",
+	"admin/network/dawnline/diagnostics": {
+		"title": "Diagnostics",
 		"order": 40,
+		"action": {
+			"type": "view",
+			"path": "dawnline/diagnostics"
+		}
+	},
+	"admin/network/dawnline/health": {
 		"action": {
 			"type": "view",
 			"path": "dawnline/health"

@@ -7,7 +7,8 @@ import * as live from 'dawnline.live';
 import * as apply from 'dawnline.apply';
 import * as view from 'dawnline.view';
 import * as ops from 'dawnline.ops';
-import { VERSION } from 'dawnline.util';
+import * as watchdog from 'dawnline.watchdog';
+import { VERSION, slog, sh_out, q, take_iface_intent } from 'dawnline.util';
 
 const args = ARGV;
 const cmd = args[0] ?? 'help';
@@ -42,6 +43,7 @@ Usage: dawnline <command>
   backup                    Create a backup in /etc/dawnline/backups
   portal-cert               Print the certificate and key the portal uses
   portal-http-port          Print the plain-HTTP port when an IP is among the portal addresses
+  log                       Service log: tunnel and service starts, stops, repairs (newest first)
   teardown                  Remove everything Dawnline created on the router
   version`);
 }
@@ -111,6 +113,46 @@ try {
 		let m = core.load();
 		if (core.portal_http(m))
 			out(`${core.portal_http_port(m)}`);
+	}
+	else if (cmd == 'log') {
+		for (let e in watchdog.view(core.load()).log) {
+			let t = localtime(e.ts);
+			let text = e.by == 'admin'
+				? join(' ', filter([ 'You', e.msg, e.kind, e.who, e.note ? '· ' + e.note : null ], (x) => x))
+				: (e.who ? e.who + ' ' : '') + e.msg;
+			out(sprintf('%02d-%02d %02d:%02d  %-8s %-6s %s', t.mon, t.mday, t.hour, t.min, e.src, e.level, text));
+			if (e.detail)
+				out('    ' + replace(e.detail, '\n', '\n    '));
+		}
+	}
+	else if (cmd == 'iface-event') {
+		// From the iface hotplug script: a tunnel started, stopped or failed to start.
+		let ifname = args[2] ?? '';
+		if (!match(ifname, /^[a-z][a-z0-9_]{0,15}$/))
+			die('Bad interface.');
+		// Dawnline leaves a note before it takes a tunnel down itself; anything else is unexpected.
+		let it = args[1] == 'ifdown' ? take_iface_intent(ifname) : null;
+		let who = it?.name ?? ifname;
+		for (let id, srv in core.load().servers)
+			if (srv.ifname == ifname)
+				who = srv.name;
+		if (args[1] == 'ifup') {
+			let port = sh_out(`awg show ${q(ifname)} listen-port 2>/dev/null`);
+			slog('awg', 'up', port ? `started · accepting connections on port ${port}` : 'started', null, who);
+		}
+		else if (args[1] == 'ifdown') {
+			// Stops Dawnline made itself are explained by the admin's own line
+			// (changed, turned off, removed); only an AmneziaWG update gets one here.
+			if (it?.reason == 'update')
+				slog('awg', 'info', 'restarting for the AmneziaWG update', null, who);
+			else if (!it)
+				slog('awg', 'down', 'stopped unexpectedly', join('\n', filter([
+					"Dawnline didn't stop it: the router's network restarted, someone stopped it by hand, or it failed.",
+					watchdog.iface_errors(ifname),
+				], (x) => x)), who);
+		}
+		else if (args[1] == 'ifup-failed')
+			slog('awg', 'error', "couldn't start", watchdog.iface_errors(ifname), who);
 	}
 	else if (cmd == 'teardown')
 		apply.teardown();

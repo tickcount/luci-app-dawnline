@@ -48,6 +48,8 @@ interface WidgetOptions {
 }
 
 interface LuciUI {
+  /** The menu is cached for the session; flush it after Dawnline's pages change. */
+  menu?: { flushCache(): void };
   showModal(title: string | null, children: Child, ...classes: string[]): HTMLElement;
   hideModal(): void;
   addNotification(title: string | null, children: Child, ...classes: string[]): HTMLElement;

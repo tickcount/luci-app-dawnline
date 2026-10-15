@@ -5,17 +5,21 @@
 //   * keeps the "like a home device" path and the Home-only resolver up
 //   * logs connects, disconnects and roaming
 //   * enforces end dates, quotas, schedules and pauses (peers + nft sets)
-//   * watches the tunnel interfaces
+//   * watches the tunnel interfaces and repairs what it can (dawnline.watchdog)
 'use strict';
 
 import * as uloop from 'uloop';
-import { readfile, stat, unlink } from 'fs';
-import { read_json, write_json, ensure_dir, sh_out, q, DATA_DIR, RUN_DIR } from 'dawnline.util';
+import { readfile, writefile, stat, unlink } from 'fs';
+import {
+	read_json, write_json, ensure_dir, sh_out, q, slog, slog_trim, slog_restore, DATA_DIR, RUN_DIR, VERSION
+} from 'dawnline.util';
 import * as core from 'dawnline.core';
 import * as live from 'dawnline.live';
 import * as apply from 'dawnline.apply';
 import * as ops from 'dawnline.ops';
 import * as geo from 'dawnline.geo';
+import * as watchdog from 'dawnline.watchdog';
+import * as net from 'dawnline.net';
 
 const TICK = 60 * 1000;
 const FLUSH_EVERY = 3600;
@@ -30,7 +34,6 @@ let presence = read_json(`${RUN_DIR}/presence.json`, {});
 let last_online = presence.online ?? {};
 let last_endpoint = presence.endpoint ?? {};
 let offline_ticks = {};
-let iface_down = {};
 let last_flush = time();
 let last_log_flush = time();
 let last_net = null;
@@ -103,7 +106,10 @@ function check_people(m, states, events) {
 	let ts = time();
 	for (let id, p in m.people) {
 		let st = states[id], prev = last_states?.[id];
-		if (prev != null && prev != st)
+		// The admin's own pauses are logged by rpcd when they happen; here only
+		// what changes on its own (end date, data limit, allowed hours).
+		let by_admin = (x) => x == 'paused' || x == 'paused_all';
+		if (prev != null && prev != st && !by_admin(prev) && !by_admin(st))
 			push(events, { type: st == 'active' ? 'resumed' : 'paused', person: id, detail: REASON[st] ?? st });
 		// "Remove their devices" when the end date passes.
 		if (core.person_expired(p, ts) && p.expire_action == 'remove' && length(p.devices)) {
@@ -182,24 +188,22 @@ function check_devices(m, lv, events) {
 	write_json(`${RUN_DIR}/presence.json`, { online: last_online, endpoint: last_endpoint }, 0o600);
 }
 
-function check_servers(m, dmp, events) {
-	for (let id, srv in m.servers) {
-		if (!srv.enabled || !srv.private_key)
-			continue;
-		let up = dmp.ifaces[srv.ifname] != null;
-		if (!up) {
-			iface_down[id] = (iface_down[id] ?? 0) + 1;
-			if (iface_down[id] == 2) {
-				push(events, { type: 'server_down', server: id, detail: srv.ifname });
-			}
-		}
-		else {
-			if ((iface_down[id] ?? 0) >= 2) {
-				push(events, { type: 'server_up', server: id, detail: srv.ifname });
-			}
-			iface_down[id] = 0;
-		}
-	}
+// What the service log was already told. On flash: the public address often
+// changes with a reboot (PPPoE), and that is when it matters. Written rarely.
+const NOTES = `${DATA_DIR}/notes.json`;
+let notes = read_json(NOTES, {});
+let last_cert_check = 0;
+
+function note(k, v) {
+	notes[k] = v;
+	ensure_dir(DATA_DIR, 0o700);
+	write_json(NOTES, notes, 0o600);
+}
+
+/** "Jan 1 2027" from the certificate, or null. */
+function cert_end(path) {
+	let m = match(sh_out(`openssl x509 -enddate -noout -in ${q(path)} 2>/dev/null`) ?? '', /notAfter=([A-Za-z]+) +([0-9]+) [0-9:]+ ([0-9]+)/);
+	return m ? `${m[1]} ${m[2]} ${m[3]}` : null;
 }
 
 function check_cert(m) {
@@ -207,9 +211,42 @@ function check_cert(m) {
 		return;
 	let c = ops.portal_cert(m.settings);
 	let mt = stat(c.cert)?.mtime;
-	if (cert_mtime != null && mt != null && mt != cert_mtime)
+	if (cert_mtime != null && mt != null && mt != cert_mtime) {
+		slog('portal', 'up', `certificate renewed · valid until ${cert_end(c.cert) ?? '?'}`, null, 'Personal portal');
 		system('/etc/init.d/dawnline reload >/dev/null 2>&1 &');
+	}
 	cert_mtime = mt;
+	// Running out soon (ACME did not renew it): once per certificate, checked hourly.
+	if (mt == null || c.self_signed || time() - last_cert_check < 3600)
+		return;
+	last_cert_check = time();
+	if (notes.cert_warned != mt && system(`openssl x509 -checkend 604800 -noout -in ${q(c.cert)} >/dev/null 2>&1`) != 0) {
+		slog('portal', 'error', `certificate expires ${cert_end(c.cert) ?? 'within 7 days'}`,
+			'Browsers will refuse the portal after that. Renew it with ACME, or choose another certificate in Settings.', 'Personal portal');
+		note('cert_warned', mt);
+	}
+}
+
+/**
+ * The router's public IPv4 changed. Devices whose configuration holds the
+ * address itself (a server's public address is an IP) cannot connect until
+ * they get a new one; with a hostname only the DNS record must follow.
+ */
+function check_wan(m) {
+	let srv = filter(values(m.servers), (x) => x.enabled && x.private_key)[0];
+	let ip = srv ? net.wan_address(srv) : null;
+	if (!ip || ip == notes.wan)
+		return;
+	let was = notes.wan;
+	note('wan', ip);
+	if (!was)
+		return;
+	let stuck = map(filter(values(m.servers), (x) => core.endpoint_host(m, x) == was), (x) => x.name);
+	if (length(stuck))
+		slog('dawnline', 'error', `public address changed · ${was} → ${ip}`,
+			`${join(', ', stuck)} still give${length(stuck) == 1 ? 's' : ''} devices the old address: set the public address in the server settings (a DDNS name keeps working), then devices need new configurations.`, 'Router');
+	else
+		slog('dawnline', 'info', `public address changed · ${was} → ${ip}`, null, 'Router');
 }
 
 let last_backup_day = null;
@@ -247,6 +284,8 @@ function check_usage_reset(m) {
 }
 
 function tick() {
+	ensure_dir(RUN_DIR);
+	writefile(watchdog.BEAT, `${time()}`);
 	// A restore or import drops the live counters; start over from flash.
 	if (!stat(`${RUN_DIR}/usage.json`) && usage.updated)
 		usage = live.load_usage();
@@ -264,7 +303,7 @@ function tick() {
 
 	check_devices(m, lv, events);
 	check_people(m, states, events);
-	check_servers(m, dmp, events);
+	// Tunnels going down and up are in the service log (hotplug, watchdog), with names and reasons.
 
 	let changed = last_states == null || sprintf('%J', states) != sprintf('%J', last_states);
 	if (changed || time() - last_sync > RESYNC_EVERY) {
@@ -277,6 +316,7 @@ function tick() {
 
 	let persist = reset || time() - last_flush >= FLUSH_EVERY;
 	live.save_usage(usage, persist);
+	slog_trim(persist);
 	if (persist)
 		last_flush = time();
 	if (pol.persist == 'off' || time() - last_log_flush >= LOG_FLUSH[pol.persist]) {
@@ -288,16 +328,26 @@ function tick() {
 		// The router's network changed under us: re-derive everything.
 		let sig = apply.net_signature(m);
 		if (last_net != null && sig != last_net) {
-			system(`logger -t dawnline-agent 'network changed, re-applying'`);
+			slog('dawnline', 'info', 'network changed — Dawnline set itself up again', null, 'Router');
 			apply.apply();
 			sig = apply.net_signature(core.load());
 		}
 		last_net = sig;
 	}
 	catch (e) {
-		system(`logger -t dawnline-agent ${q('like-home: ' + e.message)}`);
+		slog('dawnline', 'error', `failed: ${e.message}`, null, 'Internet like a home device');
+	}
+	try {
+		watchdog.run(core.load());
+	}
+	catch (e) {
+		slog('dawnline', 'error', `failed: ${e.message}`, null, 'Watchdog');
 	}
 	check_cert(m);
+	try {
+		check_wan(m);
+	}
+	catch (e) {}
 	nightly_backup();
 	try {
 		check_geo(m);
@@ -310,7 +360,35 @@ function tick() {
 function shutdown() {
 	live.save_usage(usage, true);
 	live.persist_events();
+	slog_trim(true);
+	// A clean stop: the next start is not a crash.
+	unlink(watchdog.BEAT);
 }
+
+// Why this start: the heartbeat file outlives an agent that died (crash, out
+// of memory, kill -9); the init script notes a stop; the version on flash
+// changes with an update; a fresh uptime means the router just booted.
+let crashed = stat(watchdog.BEAT) != null;
+let stopped = +(readfile(`${RUN_DIR}/agent.stopped`) ?? 0);
+unlink(`${RUN_DIR}/agent.stopped`);
+let was = trim(readfile(`${DATA_DIR}/version`) ?? '');
+if (was != VERSION) {
+	ensure_dir(DATA_DIR, 0o700);
+	writefile(`${DATA_DIR}/version`, VERSION);
+}
+slog_restore();
+if (was && was != VERSION)
+	slog('dawnline', 'up', `updated · ${was} → ${VERSION}`, null, 'Dawnline');
+else if (crashed)
+	slog('dawnline', 'repair', 'stopped unexpectedly — started again',
+		// Why, when syslog knows: procd, the kernel (out of memory, segfault), ucode errors.
+		sh_out('logread -l 400 2>/dev/null | grep -iE "kernel:.*(out of memory|killed process|oom-kill|segfault)|procd:.*dawnline|dawnline/agent" | tail -n 6'), 'Dawnline');
+else if (stopped && time() - stopped < 300)
+	slog('dawnline', 'info', `restarted · version ${VERSION}`, null, 'Dawnline');
+else if (live.uptime() < 600)
+	slog('dawnline', 'info', `started with the router · version ${VERSION}`, null, 'Dawnline');
+else
+	slog('dawnline', 'info', `started · version ${VERSION}`, null, 'Dawnline');
 
 uloop.init();
 
@@ -320,7 +398,7 @@ timer = uloop.timer(1000, function() {
 		tick();
 	}
 	catch (e) {
-		system(`logger -t dawnline-agent ${q('tick failed: ' + e.message)}`);
+		slog('dawnline', 'error', `background check failed: ${e.message}`, e.stacktrace?.[0]?.context, 'Dawnline');
 	}
 	timer.set(TICK);
 });

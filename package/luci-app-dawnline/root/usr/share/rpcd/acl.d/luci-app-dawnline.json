@@ -7,6 +7,7 @@
 					"status",
 					"setup_defaults",
 					"health",
+					"service_log",
 					"backup_list",
 					"updates_status",
 					"person_usage",

@@ -1,0 +1,24 @@
+#!/bin/sh
+# Cron, every 5 minutes: the watchdog lives in the agent, so this looks after
+# the agent itself and kills it when it runs but has stopped ticking (procd
+# starts it again). Off with the watchdog (Health → Watchdog).
+[ "$(uci -q get dawnline.settings.watchdog)" = 0 ] && exit 0
+pid="$(ubus call service list '{"name":"dawnline"}' 2>/dev/null | jsonfilter -q -e '@.dawnline.instances.agent.pid')"
+[ -n "$pid" ] && [ -r "/proc/$pid/stat" ] || exit 0
+
+now="$(date +%s)"
+last="$(cat /var/run/dawnline/agent.beat 2>/dev/null)"
+# Seconds the agent has been running: uptime minus its start time (field 22, in 1/100 s).
+age="$(awk -v up="$(cut -d. -f1 /proc/uptime)" '{ print up - int($22 / 100) }' "/proc/$pid/stat")"
+[ "${age:-0}" -gt 300 ] || exit 0
+[ $((now - ${last:-0})) -gt 300 ] || exit 0
+
+kill -9 "$pid"
+# Logged here; the restarted agent should not report a crash as well.
+rm -f /var/run/dawnline/agent.beat
+if [ -n "$last" ]; then detail="No check for $((now - last)) s."
+else detail="It never completed a check."; fi
+msg="stopped responding — restarted"
+mkdir -p /var/run/dawnline
+printf '{"ts":%s,"src":"dawnline","level":"repair","who":"Dawnline","msg":"%s","detail":"%s"}\n' "$now" "$msg" "$detail" >> /var/run/dawnline/service.log
+logger -t dawnline "Dawnline $msg"

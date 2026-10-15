@@ -454,6 +454,9 @@ h2 {
 .slots i.used {
   background: var(--text);
 }
+.slots i.over {
+  background: color-mix(in srgb, var(--warn) 80%, transparent);
+}
 
 /* devices */
 .dgrid {
@@ -511,6 +514,21 @@ h2 {
 .dcard.online .dic {
   background: var(--ok-wash);
   color: var(--ok);
+}
+/* The device this page was opened from: blue tile, blue status, blue border. */
+.dcard.here {
+  border: 1.5px dotted color-mix(in srgb, var(--accent) 80%, transparent);
+}
+.dcard.here .dic {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--info);
+}
+.dstat.here {
+  color: var(--info);
+}
+.dot.here {
+  background: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
 }
 .dname {
   font-weight: 500;
@@ -586,78 +604,70 @@ h2 {
   opacity: 1;
   filter: brightness(1.2);
 }
-.dfoot {
+/* Names at home (access card) */
+.names {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding-top: 12px;
-  border-top: 1px solid var(--line);
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
 }
-.dfoot > .faint {
-  white-space: nowrap;
+.names-head {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
 }
-.lan-pill {
-  all: unset;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  height: 26px;
-  padding: 0 3px;
-  border-radius: 999px;
-  max-width: 100%;
-  min-width: 0;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--text) 6%, transparent), color-mix(in srgb, var(--text) 2.5%, transparent));
-  box-shadow:
-    inset 0 0 0 1px var(--line),
-    0 1px 2px #0003;
-}
-.lan-pill:hover {
-  box-shadow:
-    inset 0 0 0 1px var(--input),
-    0 1px 2px #0003;
-}
-.lan-pill:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-.lan-ic {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
+.names-ic {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 auto;
+  flex: none;
   background: color-mix(in srgb, var(--info) 14%, transparent);
   color: var(--info);
 }
-.lan-ic .ic-svg {
-  width: 11px;
-  height: 11px;
+.names-ic .ic-svg {
+  width: 15px;
+  height: 15px;
 }
-.lan-pill .mono {
-  padding: 0 8px 0 7px;
-  font-weight: 500;
-  white-space: nowrap;
+.names-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.name-chip {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  max-width: 100%;
+  padding: 0 9px 0 10px;
+  border-radius: 999px;
+  background: var(--soft);
+}
+.name-chip:hover {
+  background: var(--soft-hover);
+}
+.name-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.name-chip .mono {
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
-.lan-sep {
-  width: 1px;
-  height: 14px;
-  background: var(--line);
-  flex: 0 0 auto;
-}
-.lan-pill > .ic:last-child {
-  width: 22px;
-  justify-content: center;
-  color: var(--muted);
-}
-.lan-pill > .ic:last-child .ic-svg {
-  width: 12px;
-  height: 12px;
+.name-chip .ic-svg {
+  width: 13px;
+  height: 13px;
+  color: var(--faint);
 }
 .slot.add {
   all: unset;

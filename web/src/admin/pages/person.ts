@@ -23,10 +23,10 @@ import { addDevice, connectBlock, openDevice } from '../device';
 import { inviteCard } from '../invite';
 import { icon } from '../../shared/icons';
 import { qrSvg } from '../../shared/qr';
-import { ACCESS_LABEL, KIND_LABEL, ago, bytes, date, daysLeft, initials } from '../../shared/format';
+import { ACCESS_LABEL, KIND_LABEL, ago, byDeviceState, bytes, date, daysLeft, initials } from '../../shared/format';
 import { ConnectionMap, rangeControl } from '../map';
 import { attachTip } from '../charts';
-import { installPalette, peopleUrl } from '../palette';
+import { peopleUrl } from '../urls';
 import { daysTile, eventRow, eventText, speedTile } from './overview';
 import { stateBadge } from './people';
 
@@ -48,9 +48,9 @@ export function shiftDate(cur: string, step: Step, n: number, customDays = 30): 
 }
 
 const ACCESS_TEXT: Record<Person['access'], string> = {
-  internet: 'Browse the internet through your router. No access to devices at home.',
-  lan: 'Reach devices at home. Internet stays on their own connection.',
-  both: 'Home devices and the internet, all through your router.',
+  internet: 'Browse the internet through your router. No access to devices at home, and home cannot reach theirs.',
+  lan: 'Reach devices at home, and home reaches theirs. Internet stays on their own connection.',
+  both: 'Home devices and the internet, all through your router. Home reaches their devices too.',
 };
 
 export class PersonPage {
@@ -82,7 +82,6 @@ export class PersonPage {
   render([st, events]: [Status, LogEvent[]]): HTMLElement {
     this.st = st;
     this.events = events;
-    installPalette(st);
     const p = st.people.find((x) => x.id === this.id);
     if (!p)
       return E('div', { class: 'dl-empty' }, [
@@ -275,10 +274,10 @@ export class PersonPage {
       const e = latest[i];
       let n = 1;
       while (e.type === 'roam' && latest[i + n]?.type === 'roam' && latest[i + n].device === e.device) n++;
-      const row = eventRow(st, e);
+      const row = eventRow(st, e, { server: false });
       if (n > 1) {
         const main = row.querySelector('.dl-row-main') as HTMLElement;
-        dom.content(main, [...eventText(st, e).slice(0, 2), E('span', { class: 'dl-muted' }, `${n} times`)]);
+        dom.content(main, [...eventText(st, e).slice(0, 3), E('span', { class: 'dl-muted' }, `${n} times`)]);
         main.title = latest
           .slice(i, i + n)
           .map((x) => x.detail ?? '')
@@ -322,34 +321,14 @@ export class PersonPage {
   }
 
   deviceStatus(d: Device): HTMLElement {
-    if (d.disabled) return E('span', { class: 'dl-dstat' }, [E('i', { class: 'dot' }), 'Disabled']);
-    if (d.online)
-      return E('span', { class: 'dl-dstat ok' }, [
-        E('i', { class: 'dot ok' }),
-        `Online · ${ago(d.handshake, this.st.now).replace(' ago', '')}`,
-      ]);
-    if (!d.handshake)
-      return E('span', { class: 'dl-dstat warn', title: 'Waiting for the first connection' }, [
-        E('i', { class: 'dot warn' }),
-        'Not set up yet',
-      ]);
-    return E('span', { class: 'dl-dstat' }, [E('i', { class: 'dot' }), `Last seen ${ago(d.handshake, this.st.now)}`]);
+    // Status as coloured text, no dots (only avatars carry one).
+    if (d.disabled) return E('span', { class: 'dl-dstat' }, 'Disabled');
+    if (d.online) return E('span', { class: 'dl-dstat ok' }, 'Connected');
+    if (!d.handshake) return E('span', { class: 'dl-dstat warn', title: 'Waiting for the first connection' }, 'Not set up yet');
+    return E('span', { class: 'dl-dstat' }, `Last seen ${ago(d.handshake, this.st.now)}`);
   }
 
   /** While online: the client IP (copyable). Tunnel address and home name live in the device drawer. */
-  addrs(d: Device): HTMLElement | '' {
-    if (!d.online || !d.endpoint) return '';
-    const where = this.st.geo?.points.find((g) => g.device === d.id && g.ip === d.endpoint);
-    const tip = where?.city ? `Client IP · ${where.city}${where.org ? ` · ${where.org}` : ''}` : 'Client IP';
-    const b = E(
-      'button',
-      { type: 'button', class: 'dl-addr wan', 'aria-label': `Copy ${d.endpoint}`, click: () => copyText(d.endpoint, 'Client IP copied') },
-      [icon('globe'), E('span', {}, d.endpoint)],
-    );
-    attachTip(b, () => [E('div', { class: 'dl-tip-title' }, tip), E('div', { class: 'dl-muted' }, 'Click to copy')]);
-    return E('div', { class: 'dl-addrs' }, b);
-  }
-
   /** Daily traffic of one device over the last 30 days, today on the right. */
   deviceBars(id: string): HTMLElement {
     const days = (this.devSeries[id] ?? []).slice(-30);
@@ -374,7 +353,7 @@ export class PersonPage {
   paintDevices() {
     const p = this.p;
     const refresh = () => this.refresh();
-    const cards = p.devices.map((d) => {
+    const cards = byDeviceState(p.devices).map((d) => {
       const open = () => openDevice(p, d, refresh, this.st.geo);
       return E('article', { class: `dl-dcard${d.online ? ' online' : ''}${d.disabled ? ' off' : ''}` }, [
         E('div', { class: 'dl-dcard-head' }, [
@@ -404,31 +383,23 @@ export class PersonPage {
                 E('button', { type: 'button', class: 'dl-chipbtn', click: () => this.showDeviceQr(d) }, [icon('qr'), 'Show QR']),
                 E('button', { type: 'button', class: 'dl-chipbtn', click: () => this.downloadConfig(d) }, [icon('download'), 'Config']),
               ]),
-        this.addrs(d),
       ]);
     });
-    const free = Math.max(0, p.device_limit - p.devices.length);
-    if (free)
-      cards.push(
-        E('button', { type: 'button', class: 'dl-dslot add', click: () => addDevice(p, refresh) }, [
-          E('span', { class: 'dl-dslot-ic' }, icon('plus')),
+    // Always the last card: admins may add over the person's limit, it says so.
+    const over = p.devices.length >= p.device_limit;
+    cards.push(
+      E('button', { type: 'button', class: 'dl-dslot add', click: () => addDevice(p, refresh) }, [
+        E('span', { class: 'dl-dslot-ic' }, icon('plus')),
+        E('span', { class: 'dl-stack' }, [
           E('b', {}, 'Add device'),
+          over ? E('span', { class: 'dl-sub' }, `Over the limit · ${p.devices.length} of ${p.device_limit}`) : '',
         ]),
-      );
+      ]),
+    );
     dom.content(
       this.parts.devices,
       E('section', { class: 'dl-devsec' }, [
-        E('div', { class: 'dl-panel-head' }, [
-          E('h3', {}, 'Devices'),
-          E('span', { class: 'dl-sub' }, `${p.online} online`),
-          E('span', { class: 'dl-spacer' }),
-          // Over the limit there is no Add card; the admin can still add one.
-          free
-            ? ''
-            : button([icon('plus'), ' Add device'], () => addDevice(p, refresh), 'neutral', {
-                title: 'Over the limit — admins can still add',
-              }),
-        ]),
+        E('div', { class: 'dl-panel-head' }, [E('h3', {}, 'Devices'), E('span', { class: 'dl-sub' }, `${p.online} online`)]),
         E('div', { class: 'dl-dgrid' }, cards),
       ]),
     );
@@ -677,16 +648,19 @@ export class PersonPage {
 
     dom.content(
       this.parts.limits,
-      E('section', { class: 'dl-panel', 'aria-label': 'Access and limits' }, [
+      // Heading above the card, like "Devices", so both columns line up (as on the portal).
+      E('section', { class: 'dl-devsec', 'aria-label': 'Access and limits' }, [
         E('div', { class: 'dl-panel-head' }, [E('h3', {}, 'Access & limits')]),
-        E('div', { class: 'dl-stack gap8' }, [
-          E('span', { class: 'dl-tile2-label' }, 'Can reach'),
-          seg,
-          E('span', { class: 'dl-sub' }, ACCESS_TEXT[p.access]),
-          p.access === 'lan' && this.st.services.length ? this.servicesPicker() : '',
-          p.access === 'lan' ? this.dnsPicker() : '',
+        E('div', { class: 'dl-panel' }, [
+          E('div', { class: 'dl-stack gap8' }, [
+            E('span', { class: 'dl-tile2-label' }, 'Can reach'),
+            seg,
+            E('span', { class: 'dl-sub' }, ACCESS_TEXT[p.access]),
+            p.access === 'lan' && this.st.services.length ? this.servicesPicker() : '',
+            p.access === 'lan' ? this.dnsPicker() : '',
+          ]),
+          E('div', { class: 'dl-tiles2' }, [this.devTile(), endTile, dataTile, hoursTile]),
         ]),
-        E('div', { class: 'dl-tiles2' }, [this.devTile(), endTile, dataTile, hoursTile]),
       ]),
     );
   }
@@ -782,17 +756,19 @@ export class PersonPage {
   devTile(): HTMLElement {
     const p = this.p;
     const slots = E('div', { class: 'dl-slots' });
-    for (let i = 0; i < p.device_limit; i++) {
+    // Devices added over the limit get their own soft orange slots after the allowed ones.
+    for (let i = 0; i < Math.max(p.device_limit, p.devices.length); i++) {
       const d = p.devices[i];
-      const slot = E('i', { class: d ? 'used' : '' });
+      const over = i >= p.device_limit;
+      const slot = E('i', { class: over ? 'over' : d ? 'used' : '' });
       attachTip(slot, () => [
-        E('div', { class: 'dl-tip-title' }, d ? d.name : 'Free slot'),
+        E('div', { class: 'dl-tip-title' }, d ? `${d.name}${over ? ' · over the limit' : ''}` : 'Free slot'),
         E(
           'div',
           { class: 'dl-muted' },
           d
             ? d.online
-              ? 'Online'
+              ? 'Connected'
               : d.handshake
                 ? `Last seen ${ago(d.handshake, this.st.now)}`
                 : 'Not set up yet'
@@ -929,7 +905,7 @@ export class PersonPage {
   async showDeviceQr(d: Device) {
     const cfg = await attempt(() => api.deviceConfig(d.id));
     if (!cfg) return;
-    modal(`Set up ${d.name}`, [await connectBlock(cfg)], [E('button', { class: 'cbi-button', click: closeModal }, 'Close')]);
+    modal(`Set up ${d.name}`, [await connectBlock(cfg, 'qr')], [E('button', { class: 'cbi-button', click: closeModal }, 'Close')]);
   }
 
   async downloadConfig(d: Device) {

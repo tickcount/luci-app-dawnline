@@ -14,7 +14,6 @@ import { card, group, input, row, sw } from '../kit';
 import { methodInfo, methodPicker, type Method } from '../disguise';
 import { ServerOverview } from './overview';
 import { PeoplePage } from './people';
-import { installPalette, openPalette } from '../palette';
 
 type Section = 'overview' | 'people' | 'connection' | 'access' | 'disguise' | 'tunnel';
 const SECTIONS: [Section, string][] = [
@@ -176,7 +175,6 @@ export class ServerPage {
     const want = (OLD_SECTIONS[raw] ?? raw) as Section;
     if (SECTIONS.some(([k]) => k === want)) this.section = want;
     this.srvId = (st.servers.find((x) => x.id === q.get('server')) ?? st.servers[0]).id;
-    installPalette(st);
     dom.content(this.root, [this.tabsEl, this.headEl, this.secEl, this.bodyEl]);
     this.paint();
     // Live numbers on the Overview; settings forms are left alone while open.
@@ -336,13 +334,10 @@ export class ServerPage {
     const st = this.st;
     const seg = (ic: string, body: (Node | string)[]) => E('span', { class: 'dl-addrbar-seg' }, [icon(ic), ...body]);
     const addr = `${srv.endpoint || '—'}:${srv.port}`;
-    // Search, plus "Turn on" while the server is off (turning off lives in Tunnel;
-    // the same button also lifts an old router-wide pause).
+    // "Turn on" while the server is off (turning off lives in Tunnel; the same
+    // button also lifts an old router-wide pause).
     const off = !srv.enabled || st.settings.paused_all;
     const actions = E('div', { class: 'dl-actions' }, [
-      button([icon('search'), ' Search ', E('kbd', {}, '⌘K')], () => openPalette(), 'neutral', {
-        class: 'cbi-button cbi-button-neutral dl-searchbtn',
-      }),
       off
         ? button(
             [icon('play'), ' Turn on'],
@@ -359,10 +354,11 @@ export class ServerPage {
     return E('div', { class: 'dl-srvpagehead' }, [
       E('div', { class: 'dl-title-row' }, [
         E('h2', { class: 'dl-h1' }, srv.name),
-        E('span', { class: `dl-pill ${!srv.enabled ? 'off' : srv.up ? 'ok' : 'bad'}` }, [
-          E('i', { class: 'dl-pill-dot' }),
-          !srv.enabled ? 'Disabled' : srv.up ? 'Ready' : 'Down',
-        ]),
+        E(
+          'span',
+          { class: `dl-pill ${!srv.enabled ? 'off' : srv.up ? 'ok' : 'bad'}` },
+          !srv.enabled ? 'Turned off' : srv.up ? 'Running' : 'Not running',
+        ),
         st.settings.paused_all && srv.enabled ? E('span', { class: 'dl-pill warn' }, 'Off') : '',
         E('span', { class: 'dl-spacer' }),
         actions,

@@ -55,6 +55,12 @@ start_service() {
 	start_resolver
 }
 
+# Noted for the service log: the next agent start is a restart, not a crash or a boot.
+stop_service() {
+	mkdir -p /var/run/dawnline
+	date +%s > /var/run/dawnline/agent.stopped
+}
+
 reload_service() {
 	/usr/bin/dawnline apply >/dev/null 2>&1
 	start

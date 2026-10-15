@@ -3,7 +3,7 @@
 
 import { open, readfile, writefile, rename, mkdir, stat, unlink, popen, lsdir } from 'fs';
 
-export const VERSION = '0.1.1';
+export const VERSION = '0.2.0';
 /** GitHub repository with Dawnline releases (updates and the installer). */
 export const REPO = 'tickcount/luci-app-dawnline';
 export const RUN_DIR = '/var/run/dawnline';
@@ -123,6 +123,131 @@ export function unlock(f) {
 	if (f) {
 		f.lock('u');
 		f.close();
+	}
+};
+
+/* ---------- service log ---------- */
+
+/*
+ * Tunnel and service starts and stops, watchdog repairs and errors: one JSON
+ * object per line in tmpfs (appends from several processes stay whole), a
+ * copy on flash that the agent refreshes hourly, and a line in syslog.
+ * src: awg | dawnline | portal; level: info | up | down | repair | error.
+ */
+export const SLOG = `${RUN_DIR}/service.log`;
+export const SLOG_SAVED = `${DATA_DIR}/service.log`;
+const SLOG_KEEP = 300;
+
+export function slog(src, level, msg, detail, who, extra) {
+	let e = { ts: time(), src, level, msg };
+	// The subject, shown first and bold: a server's name, "Personal portal", "Dawnline".
+	if (who)
+		e.who = `${who}`;
+	// The admin's own changes: { by: 'admin', kind: 'server', note: 'port 50115' }
+	// read "You <msg> <kind> <who> · <note>".
+	for (let k in [ 'by', 'kind', 'note' ])
+		if (extra?.[k])
+			e[k] = `${extra[k]}`;
+	if (detail)
+		e.detail = substr(trim(`${detail}`), 0, 2000);
+	ensure_dir(RUN_DIR);
+	let f = open(SLOG, 'a', 0o600);
+	if (f) {
+		f.write(sprintf('%J\n', e));
+		f.close();
+	}
+	let line = e.by == 'admin' ? join(' ', filter([ 'admin', msg, e.kind, who, e.note ? '· ' + e.note : null ], (x) => x)) : who ? `${who} ${msg}` : msg;
+	system(`logger -t dawnline${level == 'error' ? ' -p user.err' : ''} ${q(line)}`);
+};
+
+/** A change the admin made in LuCI, for the service log. */
+export function admin_log(src, msg, kind, who, note, detail) {
+	slog(src, 'info', msg, detail, who, { by: 'admin', kind, note });
+};
+
+/*
+ * Why Dawnline itself is about to take a tunnel down, so the hotplug log can
+ * tell that from a tunnel that stopped on its own. reason: settings | off |
+ * removed | update. Kept for two minutes.
+ */
+const INTENT = `${RUN_DIR}/iface-intent.json`;
+
+export function iface_intent(ifname, reason, name) {
+	let all = read_json(INTENT, {});
+	all[ifname] = { reason, name, ts: time() };
+	ensure_dir(RUN_DIR);
+	write_json(INTENT, all, 0o600);
+};
+
+export function take_iface_intent(ifname) {
+	let all = read_json(INTENT, {});
+	let it = all[ifname];
+	if (!it)
+		return null;
+	delete all[ifname];
+	write_json(INTENT, all, 0o600);
+	return time() - it.ts < 120 ? it : null;
+};
+
+/** Newest first. */
+export function slog_read(limit) {
+	let lines = split(readfile(SLOG) ?? readfile(SLOG_SAVED) ?? '', '\n');
+	let out = [];
+	for (let i = length(lines) - 1; i >= 0 && length(out) < (limit ?? SLOG_KEEP); i--) {
+		if (lines[i] == '')
+			continue;
+		try {
+			let e = json(lines[i]);
+			if (type(e) == 'object' && e.ts)
+				push(out, e);
+		}
+		catch (err) {}
+	}
+	return out;
+};
+
+/** Keep the last entries only, and save them to flash when asked. */
+export function slog_trim(save) {
+	let lines = filter(split(readfile(SLOG) ?? '', '\n'), (l) => l != '');
+	if (length(lines) > SLOG_KEEP + 50) {
+		lines = slice(lines, -SLOG_KEEP);
+		write_file(SLOG, join('\n', lines) + '\n');
+	}
+	if (save && length(lines) && stat(SLOG)?.mtime > (stat(SLOG_SAVED)?.mtime ?? 0)) {
+		ensure_dir(DATA_DIR, 0o700);
+		write_file(SLOG_SAVED, join('\n', lines) + '\n');
+	}
+};
+
+/** Remove entries (all, or older than `days`); returns how many went. */
+export function slog_clear(days) {
+	let keep = [], removed = 0, cut = days > 0 ? time() - days * 86400 : null;
+	for (let l in split(readfile(SLOG) ?? readfile(SLOG_SAVED) ?? '', '\n')) {
+		if (l == '')
+			continue;
+		let e = null;
+		try {
+			e = json(l);
+		}
+		catch (err) {}
+		if (cut != null && e?.ts >= cut)
+			push(keep, l);
+		else
+			removed++;
+	}
+	let data = length(keep) ? join('\n', keep) + '\n' : '';
+	ensure_dir(RUN_DIR);
+	write_file(SLOG, data);
+	if (stat(SLOG_SAVED))
+		write_file(SLOG_SAVED, data);
+	return removed;
+};
+
+/** After a reboot tmpfs is empty: continue the log saved on flash. */
+export function slog_restore() {
+	if (!stat(SLOG) && stat(SLOG_SAVED)) {
+		ensure_dir(RUN_DIR);
+		write_file(SLOG, readfile(SLOG_SAVED) ?? '');
 	}
 };
 

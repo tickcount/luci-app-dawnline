@@ -93,15 +93,15 @@ function check(id, title, status, detail, fix) {
 	return { id, title, status, detail: detail ?? '', fix: fix ?? null };
 }
 
-function udp_listening(port) {
+export function udp_listening(port) {
 	let hex = sprintf(':%04X ', port);
 	for (let f in [ '/proc/net/udp', '/proc/net/udp6' ])
 		if (index(readfile(f) ?? '', hex) >= 0)
 			return true;
 	return false;
-}
+};
 
-function tcp_listening(port) {
+export function tcp_listening(port) {
 	let hex = sprintf(':%04X ', port);
 	for (let f in [ '/proc/net/tcp', '/proc/net/tcp6' ])
 		for (let line in split(readfile(f) ?? '', '\n'))
@@ -109,7 +109,7 @@ function tcp_listening(port) {
 			if (index(line, hex) > 0 && match(line, / 0A /))
 				return true;
 	return false;
-}
+};
 
 /** Processes other than our portal listening on a TCP port: [ "name" ]. */
 export function tcp_port_owners(port) {
@@ -202,7 +202,7 @@ export function portal_candidates(m) {
 	return sort(out, (a, b) => score(b) - score(a));
 };
 
-function service_running(name, instance) {
+export function service_running(name, instance) {
 	let s = sh_out(`ubus call service list '{"name":"${name}"}' 2>/dev/null`);
 	if (!s)
 		return false;
@@ -214,7 +214,7 @@ function service_running(name, instance) {
 	catch (e) {
 		return false;
 	}
-}
+};
 
 function other_subnets(srv_id) {
 	let out = [];

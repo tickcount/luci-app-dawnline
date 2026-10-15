@@ -75,6 +75,8 @@ export interface Server {
   enabled: boolean;
   /** Internet traffic enters the router from the LAN, like a home device's. */
   lan_like: boolean;
+  /** Devices of people with home access reach each other through the tunnel. */
+  device_mesh: boolean;
   preset: string;
   mtu: number;
   keepalive: number;
@@ -107,6 +109,12 @@ export interface LogEvent {
   detail?: string;
   /** City · network operator, when known at the time of the event. */
   where?: string | null;
+  /** Who did it, when a person did: the admin in LuCI or the person on their portal. */
+  by?: 'admin' | 'portal';
+  /** Names at the time of the event, for people and devices removed since. */
+  pname?: string;
+  dname?: string;
+  dkind?: string;
 }
 
 export interface GeoPoint {

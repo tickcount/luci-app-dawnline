@@ -21,12 +21,14 @@ const KEEP_EVENTS = 2000;
 /** Event type → log category (what Settings lets you switch off or clear). */
 export const CATEGORY = {
 	connect: 'connections', disconnect: 'connections', roam: 'connections',
-	device_added: 'devices', device_removed: 'devices', devices_removed: 'devices',
+	// People and their devices: one category (devices used to have their own).
+	device_added: 'people', device_removed: 'people', devices_removed: 'people',
+	device_changed: 'people', device_keys: 'people', link_changed: 'people',
 	person_added: 'people', person_removed: 'people', person_changed: 'people',
 	paused: 'people', resumed: 'people', paused_all: 'people', resumed_all: 'people',
 	server_down: 'problems', server_up: 'problems', portal_blocked: 'problems',
 };
-export const CATEGORIES = [ 'connections', 'devices', 'people', 'problems' ];
+export const CATEGORIES = [ 'connections', 'people', 'problems' ];
 
 export function category_of(type) {
 	return CATEGORY[type] ?? 'problems';
@@ -55,7 +57,7 @@ export function policy(s) {
 		cats = (s.log_connections == '0') ? filter(CATEGORIES, (x) => x != 'connections') : CATEGORIES;
 	else if (type(cats) != 'array')
 		cats = split(cats, /[ ,]+/);
-	cats = filter(cats, (x) => index(CATEGORIES, x) >= 0);
+	cats = uniq(filter(map(cats, (x) => x == 'devices' ? 'people' : x), (x) => index(CATEGORIES, x) >= 0));
 	return {
 		keep_days: int_or(s.log_keep_days, 30),
 		max: min(max(int_or(s.log_max, KEEP_EVENTS), 100), 20000),
@@ -298,17 +300,33 @@ export function load_events() {
 	return read_json(`${RUN_DIR}/events.json`, null) ?? read_json(`${DATA_DIR}/events.json`, []);
 };
 
+/*
+ * Names as they are now (pname, dname, dkind), so the log still reads well
+ * once the person or device is gone. Callers that delete first pass them.
+ */
+function with_names(e, c) {
+	if (e.person && !e.pname)
+		e.pname = c.get('dawnline', e.person, 'name');
+	if (e.device && !e.dname)
+		e.dname = c.get('dawnline', e.device, 'name');
+	if (e.device && !e.dkind)
+		e.dkind = c.get('dawnline', e.device, 'kind');
+	return e;
+}
+
 export function add_events(list, pol) {
 	pol ??= policy();
 	list = filter(list ?? [], (e) => index(pol.categories, category_of(e.type)) >= 0);
 	if (!length(list))
 		return;
+	let c = cursor();
+	c.load('dawnline');
 	let l = lock('events');
 	let ev = load_events();
 	let ts = time();
 	for (let e in list) {
 		e.ts ??= ts;
-		push(ev, e);
+		push(ev, with_names(e, c));
 	}
 	ev = trim_events(ev, pol);
 	ensure_dir(RUN_DIR);
@@ -335,8 +353,10 @@ export function add_event_merged(e, window) {
 		last.ts = ts;
 	}
 	else {
+		let c = cursor();
+		c.load('dawnline');
 		e.ts = ts;
-		push(ev, e);
+		push(ev, with_names(e, c));
 	}
 	ev = trim_events(ev, pol);
 	ensure_dir(RUN_DIR);

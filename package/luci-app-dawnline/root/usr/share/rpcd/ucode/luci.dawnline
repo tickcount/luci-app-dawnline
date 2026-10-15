@@ -5,7 +5,7 @@ import { cursor } from 'uci';
 import { readfile, stat } from 'fs';
 import {
 	q, sh, sh_out, sh_bg, ensure_dir, read_json, write_json, parse_cidr, cidr_str, cidr_overlaps, int2ip,
-	ip2int, valid_host, rand_int, lock, unlock, uniq, VERSION, RUN_DIR, DATA_DIR
+	ip2int, valid_host, rand_int, lock, unlock, uniq, slog_clear, admin_log, VERSION, RUN_DIR, DATA_DIR
 } from 'dawnline.util';
 import * as core from 'dawnline.core';
 import * as live from 'dawnline.live';
@@ -15,6 +15,7 @@ import * as ops from 'dawnline.ops';
 import * as geo from 'dawnline.geo';
 import * as net from 'dawnline.net';
 import * as loop from 'dawnline.loop';
+import * as watchdog from 'dawnline.watchdog';
 
 function wrap(fn) {
 	return function(req) {
@@ -116,7 +117,7 @@ function status(a) {
 		push(servers, {
 			id, name: srv.name, ifname: srv.ifname, port: srv.port, subnet: srv.subnet,
 			endpoint: core.endpoint_host(m, srv), public_key: srv.public_key, enabled: srv.enabled,
-			lan_like: srv.lan_like, preset: srv.preset, mtu: srv.mtu, keepalive: srv.keepalive, dns: srv.dns,
+			lan_like: srv.lan_like, device_mesh: srv.device_mesh, preset: srv.preset, mtu: srv.mtu, keepalive: srv.keepalive, dns: srv.dns,
 			address: core.server_address(srv), up: !!st?.up, uptime: st?.uptime ?? 0,
 			peers, online, obf: srv.obf,
 			// Bytes per second, one point a minute: [ts, rx, tx] (rx = from devices).
@@ -365,6 +366,8 @@ function server_create(a) {
 		l = null;
 		let r = apply.apply();
 		system('/etc/init.d/dawnline enabled || /etc/init.d/dawnline enable');
+		let made = core.load().servers[id];
+		admin_log('awg', 'created', 'server', made?.name ?? id, made ? `port ${made.port}` : null);
 		sh_bg('/etc/init.d/dawnline restart');
 		return { id, applied: r };
 	}
@@ -402,7 +405,8 @@ function interfaces_view(srv, snap) {
 		ifname: srv.ifname,
 		detected: { wan: snap.wan, lan: snap.lan },
 		saved: { wan: srv.detected_wan, lan: srv.detected_lan },
-		config: { auto_wan: srv.auto_wan, wan_device: srv.wan_device, auto_lan: srv.auto_lan, lan_devices: srv.lan_devices, lan_like: srv.lan_like },
+		config: { auto_wan: srv.auto_wan, wan_device: srv.wan_device, auto_lan: srv.auto_lan, lan_devices: srv.lan_devices, lan_like: srv.lan_like,
+			device_mesh: srv.device_mesh },
 		like_home: loop.status(),
 		needs: ops.needs().home,
 		effective: sn,
@@ -451,6 +455,8 @@ function server_interfaces(a) {
 	lans = uniq(lans);
 	if (a.lan_like != null)
 		c.set('dawnline', srv.id, 'lan_like', a.lan_like === false || a.lan_like === '0' ? '0' : '1');
+	if (a.device_mesh != null)
+		c.set('dawnline', srv.id, 'device_mesh', a.device_mesh === false || a.device_mesh === '0' ? '0' : '1');
 	c.set('dawnline', srv.id, 'auto_wan', auto_wan ? '1' : '0');
 	c.set('dawnline', srv.id, 'auto_lan', auto_lan ? '1' : '0');
 	if (auto_wan || wan_dev == '')
@@ -476,6 +482,19 @@ function server_interfaces(a) {
 	c.commit('dawnline');
 	system('chmod 600 /etc/config/dawnline');
 	let before = join(',', net.server_net(srv, snap).nets);
+	// What the admin changed here: the networks, and/or whether devices reach each other.
+	let mesh = a.device_mesh == null ? srv.device_mesh : !(a.device_mesh === false || a.device_mesh === '0');
+	let sig = (x) => {
+		let sn = net.server_net(x, snap);
+		return `${join(',', sn.nets)}|${sn.wan.dev}|${x.lan_like}`;
+	};
+	let what = [];
+	if (sig(core.load(c).servers[srv.id]) != sig(srv))
+		push(what, 'home network and internet path');
+	if (mesh != srv.device_mesh)
+		push(what, mesh ? 'devices reach each other' : 'devices kept apart');
+	if (length(what))
+		admin_log('awg', 'changed', 'server', srv.name, join(', ', what));
 	apply.apply();
 	let m3 = core.load();
 	let view = interfaces_view(m3.servers[srv.id], net.snapshot(true));
@@ -513,6 +532,8 @@ function server_update(a) {
 	}
 	if (v.enabled != null)
 		set('enabled', v.enabled === true || v.enabled == '1' ? '1' : '0');
+	if (v.device_mesh != null)
+		set('device_mesh', v.device_mesh === true || v.device_mesh == '1' ? '1' : '0');
 	if (v.mtu != null) {
 		if (str(v.mtu) != '' && (!match(str(v.mtu), /^[0-9]+$/) || +v.mtu < 1280 || +v.mtu > 1500))
 			die('MTU must be 1280-1500.');
@@ -533,7 +554,28 @@ function server_update(a) {
 		else
 			c.delete('dawnline', srv.id, 'dns');
 	}
-	return commit(c, true);
+	// For the log: what changed, in words. Turning on or off is its own line.
+	let labels = { name: 'name', endpoint: 'public address', port: 'port', mtu: 'MTU', keepalive: 'keep-alive', dns: 'DNS' };
+	let what = [];
+	for (let k, label in labels) {
+		if (v[k] == null)
+			continue;
+		let was = k == 'dns' ? join(' ', srv.dns ?? []) : `${srv[k] ?? ''}`;
+		let now = k == 'dns' ? join(' ', type(v.dns) == 'array' ? v.dns : split(str(v.dns), /[ ,]+/)) : str(v[k]);
+		if (trim(was) != trim(now))
+			push(what, label);
+	}
+	let on = v.enabled == null ? null : (v.enabled === true || v.enabled == '1');
+	let mesh = v.device_mesh == null ? null : (v.device_mesh === true || v.device_mesh == '1');
+	let name = v.name != null ? str(v.name) : srv.name;
+	let r = commit(c, true);
+	if (on != null && on != srv.enabled)
+		admin_log('awg', on ? 'turned on' : 'turned off', 'server', name);
+	if (length(what))
+		admin_log('awg', 'changed', 'server', name, join(', ', what));
+	if (mesh != null && mesh != srv.device_mesh)
+		admin_log('awg', 'changed', 'server', name, mesh ? 'devices reach each other' : 'devices kept apart');
+	return r;
 }
 
 function server_obfuscation(a) {
@@ -548,7 +590,9 @@ function server_obfuscation(a) {
 	for (let k, v in o)
 		c.set('dawnline', a.id, k, v);
 	c.set('dawnline', a.id, 'preset', a.preset ?? 'standard');
-	return commit(c, true);
+	let r = commit(c, true);
+	admin_log('awg', 'changed', 'server', srv.name, `disguise: ${a.preset || 'standard'}`);
+	return r;
 }
 
 function server_delete(a) {
@@ -557,11 +601,16 @@ function server_delete(a) {
 	if (!m.servers[a.id])
 		die('Unknown server.');
 	ops.backup_create('pre-delete');
+	let gone = 0;
 	for (let pid, p in m.people)
-		if (p.server == a.id)
+		if (p.server == a.id) {
 			core.delete_person(c, m, pid);
+			gone++;
+		}
 	c.delete('dawnline', a.id);
-	return commit(c, true);
+	let r = commit(c, true);
+	admin_log('awg', 'removed', 'server', m.servers[a.id].name, gone ? `with ${gone} ${gone == 1 ? 'person' : 'people'}` : null);
+	return r;
 }
 
 /* ---------- people ---------- */
@@ -580,7 +629,7 @@ function person_create(a) {
 		unlock(l);
 		l = null;
 		let m2 = core.load();
-		live.add_event({ type: 'person_added', person: slug, detail: m2.people[slug].name });
+		live.add_event({ type: 'person_added', person: slug, detail: m2.people[slug].name, by: 'admin' });
 		return { id: slug, link: core.portal_url(m2, m2.people[slug]) };
 	}
 	catch (e) {
@@ -600,7 +649,7 @@ function person_pause(a) {
 		c.set('dawnline', a.id, 'paused', '1');
 	else
 		c.delete('dawnline', a.id, 'paused');
-	live.add_event({ type: a.paused ? 'paused' : 'resumed', person: a.id, detail: 'by admin' });
+	live.add_event({ type: a.paused ? 'paused' : 'resumed', person: a.id, by: 'admin' });
 	return commit(c);
 }
 
@@ -612,6 +661,7 @@ function person_regen(a) {
 		die('Unknown person.');
 	c.set('dawnline', a.id, 'code', core.new_code());
 	c.commit('dawnline');
+	live.add_event({ type: 'link_changed', person: a.id, by: 'admin' });
 	// The old link stops working at once: every portal request carries the code.
 	let m2 = core.load();
 	return { link: core.portal_url(m2, m2.people[a.id]) };
@@ -622,7 +672,7 @@ function person_delete(a) {
 	let m = core.load(c);
 	let name = m.people[a.id]?.name;
 	core.delete_person(c, m, a.id);
-	live.add_event({ type: 'person_removed', person: a.id, detail: name });
+	live.add_event({ type: 'person_removed', person: a.id, detail: name, pname: name, by: 'admin' });
 	return commit(c);
 }
 
@@ -630,7 +680,7 @@ function pause_all(a) {
 	let c = core.open_cursor();
 	c.set('dawnline', 'settings', 'settings');
 	c.set('dawnline', 'settings', 'paused_all', a.paused ? '1' : '0');
-	live.add_event({ type: a.paused ? 'paused_all' : 'resumed_all' });
+	live.add_event({ type: a.paused ? 'paused_all' : 'resumed_all', by: 'admin' });
 	return commit(c);
 }
 
@@ -647,7 +697,7 @@ function device_create(a) {
 		unlock(l);
 		l = null;
 		apply.sync();
-		live.add_event({ type: 'device_added', person: a.person, device: id, detail: `${a.name} (admin)` });
+		live.add_event({ type: 'device_added', person: a.person, device: id, detail: a.name, by: 'admin' });
 		let m2 = core.load();
 		core.mark_issued(m2, id);
 		return { id, config: core.client_config(m2, m2.devices[id]) };
@@ -682,7 +732,12 @@ function device_update(a) {
 		else
 			c.delete('dawnline', a.id, 'disabled');
 	}
-	return commit(c);
+	let r = commit(c);
+	if (a.disabled != null && !!a.disabled != !!d.disabled)
+		live.add_event({ type: 'device_changed', person: d.person, device: a.id, detail: a.disabled ? 'turned off' : 'turned on', by: 'admin' });
+	else if (a.name != null && a.name != d.name)
+		live.add_event({ type: 'device_changed', person: d.person, device: a.id, detail: `renamed from ${d.name}`, by: 'admin' });
+	return r;
 }
 
 function device_delete(a) {
@@ -690,7 +745,7 @@ function device_delete(a) {
 	let m = core.load(c);
 	let d = m.devices[a.id];
 	core.delete_device(c, m, a.id);
-	live.add_event({ type: 'device_removed', person: d?.person, device: a.id, detail: `${d?.name} (admin)` });
+	live.add_event({ type: 'device_removed', person: d?.person, device: a.id, detail: d?.name, dname: d?.name, dkind: d?.kind, by: 'admin' });
 	return commit(c);
 }
 
@@ -699,6 +754,7 @@ function device_rotate(a) {
 	let m = core.load(c);
 	core.rotate_device(c, m, a.id);
 	commit(c);
+	live.add_event({ type: 'device_keys', person: m.devices[a.id]?.person, device: a.id, detail: m.devices[a.id]?.name, by: 'admin' });
 	let m2 = core.load();
 	core.mark_issued(m2, a.id);
 	return core.client_config(m2, m2.devices[a.id]);
@@ -775,7 +831,7 @@ function person_update(a) {
 		l = null;
 		let changes = join(', ', filter(keys(fields), (k) => k != 'note'));
 		if (changes)
-			live.add_event_merged({ type: 'person_changed', person: a.id, detail: changes }, 120);
+			live.add_event_merged({ type: 'person_changed', person: a.id, detail: changes, by: 'admin' }, 120);
 		// Access changes affect the nft sets and client AllowedIPs.
 		apply.sync();
 		let m2 = core.load();
@@ -790,7 +846,7 @@ function person_update(a) {
 }
 
 const SETTING_KEYS = [ 'portal_enabled', 'portal_host', 'portal_alt', 'portal_port', 'portal_443', 'portal_title', 'portal_redirect', 'portal_cert', 'portal_key',
-	'default_device_limit', 'hostnames', 'domain', 'geo_enabled', 'geo_provider', 'log_connections',
+	'default_device_limit', 'hostnames', 'domain', 'geo_enabled', 'geo_provider', 'log_connections', 'watchdog',
 	'log_keep_days', 'log_max', 'log_persist', 'usage_keep_days', 'usage_keep_months', 'home_dns_fallback' ];
 
 function file_size(path) {
@@ -928,6 +984,29 @@ function settings_update(a) {
 		system('/etc/init.d/dawnline reload >/dev/null 2>&1');
 	else
 		apply.sync();
+	// The changes worth a line: the portal and the watchdog (other settings are housekeeping).
+	let now = core.load().settings, was = m.settings;
+	if (now.portal_enabled != was.portal_enabled)
+		admin_log('portal', now.portal_enabled ? 'turned on' : 'turned off', null, 'the personal portal', now.portal_enabled ? `port ${now.portal_port}` : null);
+	else if (now.portal_enabled) {
+		let what = [];
+		if (now.portal_port != was.portal_port)
+			push(what, `port ${now.portal_port}`);
+		if (now.portal_host != was.portal_host)
+			push(what, `address ${now.portal_host}`);
+		if (join(' ', now.portal_alt) != join(' ', was.portal_alt))
+			push(what, 'other addresses');
+		if (now.portal_cert != was.portal_cert || now.portal_key != was.portal_key)
+			push(what, 'certificate');
+		if (now.portal_443 != was.portal_443)
+			push(what, now.portal_443 ? 'links without a port' : 'links with the port');
+		if (now.portal_redirect != was.portal_redirect)
+			push(what, 'redirect');
+		if (length(what))
+			admin_log('portal', 'changed', null, 'the personal portal', join(', ', what));
+	}
+	if (now.watchdog != was.watchdog)
+		admin_log('dawnline', now.watchdog ? 'turned on' : 'turned off', null, 'the watchdog', now.watchdog ? null : 'problems are only logged, nothing is repaired');
 	return settings_get({});
 }
 
@@ -978,7 +1057,8 @@ function service_delete(a) {
 }
 
 function events_list(a) {
-	let ev = live.load_events();
+	// Tunnel down/up events of older versions: the service log tells it better (names, reasons).
+	let ev = filter(live.load_events(), (e) => e.type != 'server_down' && e.type != 'server_up');
 	let n = +a.limit || 300;
 	return { events: slice(ev, length(ev) > n ? length(ev) - n : 0), total: length(ev), policy: live.policy() };
 }
@@ -1004,7 +1084,12 @@ function logs_clear(a) {
 			die('Older than must be a number of days.');
 		f.before = time() - +a.older_days * 86400;
 	}
-	return { ok: true, removed: live.clear_events(f) };
+	let removed = live.clear_events(f);
+	if (removed)
+		admin_log('dawnline', 'cleared', null, 'the activity log',
+			join(' · ', filter([ `${removed} event${removed == 1 ? '' : 's'}`, f.category, f.person ? m.people[f.person].name : null,
+				a.older_days ? `older than ${a.older_days} days` : null ], (x) => x)));
+	return { ok: true, removed };
 }
 
 /**
@@ -1032,6 +1117,8 @@ function usage_clear(a) {
 		live.reset_usage(usage, m, a.scope, a.id);
 		write_json(`${RUN_DIR}/usage.json`, usage, 0o600);
 	}
+	admin_log('dawnline', 'reset traffic history', null,
+		a.scope == 'all' ? 'for everyone' : a.scope == 'person' ? `for ${m.people[a.id].name}` : `for ${m.devices[a.id].name} (${m.people[m.devices[a.id].person]?.name})`);
 	return { ok: true };
 }
 
@@ -1065,7 +1152,7 @@ const methods = {
 	server_obfuscation: { args: { id: '', preset: '' }, call: wrap(server_obfuscation) },
 	server_update: { args: { id: '', values: {} }, call: wrap(server_update) },
 	interfaces: { args: { id: '' }, call: wrap(interfaces_get) },
-	server_interfaces: { args: { id: '', auto_wan: false, wan_device: '', auto_lan: false, lan_devices: [], lan_like: false }, call: wrap(server_interfaces) },
+	server_interfaces: { args: { id: '', auto_wan: false, wan_device: '', auto_lan: false, lan_devices: [], lan_like: false, device_mesh: true }, call: wrap(server_interfaces) },
 	server_delete: { args: { id: '' }, call: wrap(server_delete) },
 	person_create: {
 		args: { name: '', slug: '', server: '', access: '', device_limit: 0, expires: '', quota_gb: 0, quota_period: '' },
@@ -1082,16 +1169,39 @@ const methods = {
 	device_delete: { args: { id: '' }, call: wrap(device_delete) },
 	device_rotate: { args: { id: '' }, call: wrap(device_rotate) },
 	apply: { call: wrap((a) => apply.apply()) },
-	health: { call: wrap((a) => ({ checks: ops.health() })) },
-	health_fix: { args: { id: '' }, call: wrap((a) => ({ result: ops.fix(a.id), checks: ops.health() })) },
+	health: { call: wrap((a) => ({ checks: ops.health(), ...watchdog.view(core.load()) })) },
+	health_fix: { args: { id: '' }, call: wrap((a) => ({ result: ops.fix(a.id), checks: ops.health(), ...watchdog.view(core.load()) })) },
+	service_log: { call: wrap((a) => watchdog.view(core.load())) },
+	service_log_clear: { args: { older_days: '' }, call: wrap((a) => {
+		let removed = slog_clear(+a.older_days || 0);
+		if (removed)
+			admin_log('dawnline', 'cleared', null, 'the service log', `${removed} entr${removed == 1 ? 'y' : 'ies'}${+a.older_days ? ` older than ${a.older_days} days` : ''}`);
+		return { removed };
+	}) },
 	backup_list: { call: wrap((a) => ({ backups: ops.backup_list() })) },
 	backup_create: { call: wrap((a) => ({ name: ops.backup_create(null) })) },
-	backup_restore: { args: { name: '' }, call: wrap((a) => ops.backup_restore(a.name)) },
+	backup_restore: { args: { name: '' }, call: wrap((a) => {
+		let r = ops.backup_restore(a.name);
+		admin_log('dawnline', 'restored', 'backup', a.name);
+		return r;
+	}) },
 	backup_delete: { args: { name: '' }, call: wrap((a) => ({ ok: ops.backup_delete(a.name) })) },
 	backup_read: { args: { name: '' }, call: wrap((a) => ({ data: ops.backup_read(a.name) })) },
-	backup_upload: { args: { data: '' }, call: wrap((a) => ops.backup_upload(a.data)) },
-	export: { call: wrap((a) => ops.export_json()) },
-	import: { args: { data: {} }, call: wrap((a) => ops.import_json(a.data)) },
+	backup_upload: { args: { data: '' }, call: wrap((a) => {
+		let r = ops.backup_upload(a.data);
+		admin_log('dawnline', 'restored', 'backup', 'from a file');
+		return r;
+	}) },
+	export: { call: wrap((a) => {
+		let r = ops.export_json();
+		admin_log('dawnline', 'exported', null, 'all settings', 'the file holds private keys');
+		return r;
+	}) },
+	import: { args: { data: {} }, call: wrap((a) => {
+		let r = ops.import_json(a.data);
+		admin_log('dawnline', 'imported', null, 'settings from a file');
+		return r;
+	}) },
 	updates_status: { call: wrap(updates_status) },
 	updates_run: { args: { what: '' }, call: wrap(updates_run) },
 	person_update: {

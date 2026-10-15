@@ -52,9 +52,14 @@ limits, live traffic and a LuCI admin that follows a modern design.
   per-tool integration.
 - **Overview.** Who is online with what, speed now, today and the last 30 days,
   and a map of where people connect from (city level).
-- **Health** checks with one-click fixes, including the ones that matter for
-  reaching the portal from outside (DNS, port forwards, reply routing behind
-  proxies such as SSClash/Mihomo, certificate coverage).
+- **Diagnostics.** Health checks with one-click fixes, including the ones that
+  matter for reaching the portal from outside (DNS, port forwards, reply
+  routing behind proxies such as SSClash/Mihomo, certificate coverage). A
+  watchdog checks the tunnels, access rules, portal, resolver and LuCI link
+  every minute and repairs them on its own (a cron job looks after the agent
+  itself). One log holds people's activity and the service log: tunnel starts
+  and stops with netifd's reasons, repairs and errors (`dawnline log` on the
+  router).
 - **Updates.** Dawnline itself, AmneziaWG builds for your firmware (choose
   between [Slava-Shchipunov](https://github.com/Slava-Shchipunov/awg-openwrt)
   and [2Grey](https://github.com/2Grey/awg-openwrt), AmneziaWG 2.0 or 3.1), and
@@ -110,8 +115,9 @@ sections named `dawnline_*`, the `inet dawnline` nft table, `/tmp/hosts/dawnline
 the `dawnline` network namespace with its two veth links (`dlx0`, `dll0`, the
 latter a port of the LAN bridge), policy rules for the tunnel interfaces with
 one routing table, a second dnsmasq instance on port 5354
-(`/var/etc/dawnline-dns.conf`) and, while the portal is on, a uhttpd instance
-for it. `dawnline teardown` removes all of them.
+(`/var/etc/dawnline-dns.conf`), a cron line for the agent's heartbeat check
+and, while the portal is on, a uhttpd instance for it. `dawnline teardown`
+removes all of them.
 
 Data lives in `/etc/config/dawnline` (mode 0600, contains private keys) and
 `/etc/dawnline/` (usage, events, issued configurations, backups). Live counters

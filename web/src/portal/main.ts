@@ -5,7 +5,7 @@
 // devices on the left, access on the right.
 
 import type { ClientConfig, Device, Kind, Person } from '../shared/types';
-import { ACCESS_LABEL, KIND_LABEL, STATE_LABEL, ago, bytes, date, daysLeft, initials } from '../shared/format';
+import { ACCESS_LABEL, KIND_LABEL, STATE_LABEL, ago, byDeviceState, bytes, date, daysLeft, initials } from '../shared/format';
 import { iconSvg } from '../shared/icons';
 import { qrSvg } from '../shared/qr';
 import { vpnKey } from '../shared/vpnkey';
@@ -13,7 +13,10 @@ import { vpnKey } from '../shared/vpnkey';
 interface State {
   title: string;
   person: Person;
-  server: { name: string; endpoint: string };
+  /** device_mesh: devices with home access reach each other through the tunnel. */
+  server: { name: string; endpoint: string; device_mesh?: boolean };
+  /** The device this page was opened from (through the tunnel), if any. */
+  here?: string | null;
   can_add: boolean;
   kinds: Kind[];
   version: string;
@@ -312,7 +315,9 @@ function accessCard(st: State): HTMLElement {
   if (p.quota_limit) tip(bar, () => [`${pct.toFixed(1)}% used`, `${bytes(Math.max(0, p.quota_limit - p.quota_used))} left`]);
   const left = daysLeft(p.expires);
   const slots = h('div', { class: 'slots' });
-  for (let i = 0; i < p.device_limit; i++) slots.appendChild(h('i', { class: i < p.devices.length ? 'used' : '' }));
+  // Devices the admin added over the limit get their own orange slots after the allowed ones.
+  for (let i = 0; i < Math.max(p.device_limit, p.devices.length); i++)
+    slots.appendChild(h('i', { class: i >= p.device_limit ? 'over' : i < p.devices.length ? 'used' : '' }));
   const used = p.quota_used || p.month[0] + p.month[1];
   const icon = p.access === 'internet' ? 'globe' : p.access === 'lan' ? 'home' : 'shield';
   // Heading outside the card, like "Your devices", so both columns line up.
@@ -338,6 +343,7 @@ function accessCard(st: State): HTMLElement {
           h('span', { class: 'muted s' }, ACCESS_TEXT[p.access]),
         ),
       ),
+      namesAtHome(p, !!st.server.device_mesh),
       h(
         'div',
         { class: 'tile' },
@@ -389,31 +395,76 @@ function accessCard(st: State): HTMLElement {
 }
 
 function deviceStatus(d: Device): HTMLElement {
-  if (d.disabled) return h('span', { class: 'dstat' }, h('i', { class: 'dot' }), 'Disabled by the admin');
-  if (d.online) return h('span', { class: 'dstat ok' }, h('i', { class: 'dot ok' }), 'Connected');
-  if (!d.handshake) return h('span', { class: 'dstat warn' }, h('i', { class: 'dot warn' }), 'Not set up yet');
-  return h('span', { class: 'dstat' }, h('i', { class: 'dot' }), `Last connected ${ago(d.handshake)}`);
+  // Status as coloured text, no dots (only the avatar carries one).
+  if (d.disabled) return h('span', { class: 'dstat' }, 'Disabled by the admin');
+  if (d.online) return h('span', { class: 'dstat ok' }, 'Connected');
+  if (!d.handshake) return h('span', { class: 'dstat warn' }, 'Not set up yet');
+  return h('span', { class: 'dstat' }, `Last connected ${ago(d.handshake)}`);
 }
 
-function localAddress(d: Device, p: Person): HTMLElement | null {
-  if (!d.hostname || p.access === 'internet') return null;
+/**
+ * How other devices at home reach this person's devices: once, in the access card,
+ * instead of an address on every device card. Only with access to the home network.
+ */
+/**
+ * Whether the home network can open connections to this device: the router lets
+ * it through only for people with home access who are active, and devices on.
+ */
+function reachableFromHome(p: Person, d: Device): boolean {
+  return p.access !== 'internet' && p.state === 'active' && !d.disabled;
+}
+
+function namesAtHome(p: Person, mesh: boolean): HTMLElement | null {
+  const named = byDeviceState(p.devices).filter((d) => d.hostname && reachableFromHome(p, d));
+  if (!named.length) return null;
+  const first = named[0].hostname;
+  const domain = first.slice(first.indexOf('.'));
   return h(
     'div',
-    { class: 'dfoot' },
-    h('span', { class: 'faint s' }, 'Local address'),
+    { class: 'names' },
     h(
-      'button',
-      { type: 'button', class: 'lan-pill', 'aria-label': `Copy ${d.hostname}`, onclick: () => copy(d.hostname, 'Address copied') },
-      h('span', { class: 'lan-ic' }, ic('home')),
-      h('span', { class: 'mono' }, d.hostname),
-      h('span', { class: 'lan-sep' }),
-      ic('copy'),
+      'div',
+      { class: 'names-head' },
+      h('span', { class: 'names-ic' }, ic('home')),
+      h(
+        'div',
+        { class: 'stack' },
+        h('span', { class: 'strong s' }, 'Names at home'),
+        h(
+          'span',
+          { class: 'faint s' },
+          mesh ? 'Devices at home and on this VPN reach yours as ' : 'Other devices at home reach yours as ',
+          h('span', { class: 'mono' }, `name${domain}`),
+        ),
+      ),
+    ),
+    h(
+      'div',
+      { class: 'names-list' },
+      named.map((d) => {
+        const dot = d.hostname.indexOf('.');
+        return h(
+          'button',
+          {
+            type: 'button',
+            class: 'name-chip',
+            title: d.name,
+            'aria-label': `Copy ${d.hostname}`,
+            onclick: () => copy(d.hostname, 'Address copied'),
+          },
+          h(
+            'span',
+            { class: 'mono' },
+            dot > 0 ? [d.hostname.slice(0, dot), h('span', { class: 'faint' }, d.hostname.slice(dot))] : d.hostname,
+          ),
+          ic('copy'),
+        );
+      }),
     ),
   );
 }
 
 function deviceCard(d: Device, st: State): HTMLElement {
-  const p = st.person;
   const more = h('button', { type: 'button', class: 'icon-btn soft', 'aria-label': `${d.name} options` }, ic('more'));
   more.addEventListener('click', (ev) => {
     ev.stopPropagation();
@@ -422,20 +473,37 @@ function deviceCard(d: Device, st: State): HTMLElement {
       { label: 'Copy AmneziaVPN key', icon: 'key', run: () => copyKey(d) },
       { label: 'Download .conf', icon: 'download', run: () => downloadConf(d) },
       null,
+      // How devices at home reach it: only where the router actually lets them through.
+      ...(reachableFromHome(st.person, d)
+        ? [
+            { label: 'Copy IP address', icon: 'copy', run: () => copy(d.address, 'IP address copied') },
+            ...(d.hostname ? [{ label: 'Copy local address', icon: 'home', run: () => copy(d.hostname, 'Address copied') }] : []),
+            null,
+          ]
+        : []),
       { label: 'Rename', icon: 'edit', run: () => rename(d) },
+      ...(d.disabled ? [] : [{ label: 'New keys', icon: 'reset', run: () => rotateKeys(d, st) }]),
       { label: 'Remove', icon: 'trash', danger: true, run: () => removeDevice(d) },
     ]);
   });
   const week = d.spark.reduce((a, b) => a + b, 0);
   const setUp = !d.handshake && !d.disabled;
+  // The device this page was opened from (through the tunnel): blue, and says so.
+  const here = st.here === d.id;
   return h(
     'article',
-    { class: `dcard${d.online ? ' online' : ''}${d.disabled ? ' off' : ''}` },
+    { class: `dcard${d.online ? ' online' : ''}${d.disabled ? ' off' : ''}${here ? ' here' : ''}` },
     h(
       'div',
       { class: 'dhead' },
       h('span', { class: 'dic' }, ic(d.kind)),
-      h('div', { class: 'stack grow' }, h('span', { class: 'dname' }, d.name), deviceStatus(d)),
+      h(
+        'div',
+        { class: 'stack grow' },
+        h('span', { class: 'dname' }, d.name),
+        // Opened through the tunnel, so it is connected: say which one it is instead.
+        here ? h('span', { class: 'dstat here' }, 'This device') : deviceStatus(d),
+      ),
       more,
     ),
     setUp
@@ -446,7 +514,6 @@ function deviceCard(d: Device, st: State): HTMLElement {
             ic(isMobile() ? 'open' : 'qr'),
             h('span', {}, isMobile() ? 'Open in AmneziaVPN' : 'Connect this device'),
           ),
-          h('span', { class: 'faint s center' }, 'Setting up another device? QR, key and file are under ⋯'),
         ]
       : h(
           'div',
@@ -463,7 +530,6 @@ function deviceCard(d: Device, st: State): HTMLElement {
           h('button', { type: 'button', class: 'btn small', onclick: () => connect(d) }, 'Update'),
         )
       : null,
-    localAddress(d, p),
   );
 }
 
@@ -497,7 +563,9 @@ function main(st: State) {
           )
         : null;
 
-  const cards: HTMLElement[] = p.devices.map((d) => deviceCard(d, st));
+  // The device this page was opened from comes first.
+  const order = byDeviceState(p.devices).sort((a, b) => Number(b.id === st.here) - Number(a.id === st.here));
+  const cards: HTMLElement[] = order.map((d) => deviceCard(d, st));
   const free = Math.max(0, p.device_limit - p.devices.length);
   if (free)
     cards.push(
@@ -505,12 +573,8 @@ function main(st: State) {
         'button',
         { type: 'button', class: 'slot add', onclick: addDevice },
         h('span', { class: 'slot-ic' }, ic('plus')),
-        h(
-          'span',
-          { class: 'stack' },
-          h('span', { class: 'strong' }, 'Add device'),
-          h('span', { class: 'faint s' }, `${free} slot${free === 1 ? '' : 's'} free`),
-        ),
+        // How many are left is in "Your devices 3 of 10" and the Devices tile.
+        h('span', { class: 'strong' }, 'Add device'),
       ),
     );
 
@@ -523,8 +587,8 @@ function main(st: State) {
       h(
         'div',
         { class: 'row-baseline' },
+        // How many (the Devices tile) and which are online (the cards) are shown already.
         h('h2', {}, 'Your devices'),
-        h('span', { class: 'faint s' }, `${p.devices.length} of ${p.device_limit} · ${p.online} online`),
       ),
     ),
     h('div', { class: 'dgrid' }, cards),
@@ -548,11 +612,12 @@ function main(st: State) {
       h(
         'div',
         { class: 'stack' },
-        h('div', { class: 'row' }, h('h1', {}, `Hi, ${p.name}`), h('span', { class: `pill ${stateTone(p)}` }, STATE_LABEL[p.state])),
+        // Only when something is wrong: an "Active" pill says nothing.
         h(
-          'span',
-          { class: 'faint s' },
-          `${p.online ? `${p.online} device${p.online === 1 ? '' : 's'} online` : 'Nothing connected right now'} · ${bytes(p.month[0] + p.month[1])} this month`,
+          'div',
+          { class: 'row' },
+          h('h1', {}, `Hi, ${p.name}`),
+          p.state === 'active' ? null : h('span', { class: `pill ${stateTone(p)}` }, STATE_LABEL[p.state]),
         ),
       ),
     ),
@@ -720,10 +785,9 @@ async function connect(d: Device, initial?: 'app' | 'qr' | 'key' | 'file', cfgIn
 
   const live = h('div', { class: 'waiting' });
   const paintLive = (dev: Device | undefined) => {
-    if (dev?.online) live.replaceChildren(h('i', { class: 'dot ok' }), h('span', { class: 'ok' }, `${d.name} is connected`));
-    else if (dev?.handshake)
-      live.replaceChildren(h('i', { class: 'dot' }), h('span', { class: 'muted' }, `Last connected ${ago(dev.handshake)}`));
-    else live.replaceChildren(h('i', { class: 'dot warn pulse' }), h('span', { class: 'muted' }, 'Waiting for the first connection…'));
+    if (dev?.online) live.replaceChildren(h('span', { class: 'ok' }, `${d.name} is connected`));
+    else if (dev?.handshake) live.replaceChildren(h('span', { class: 'muted' }, `Last connected ${ago(dev.handshake)}`));
+    else live.replaceChildren(h('span', { class: 'warn' }, 'Waiting for the first connection…'));
   };
   paintLive(d);
   const watch = window.setInterval(async () => {
@@ -775,6 +839,44 @@ function rename(d: Device) {
     ),
   );
   setTimeout(() => name.select(), 50);
+}
+
+/** New keys for a device: the old configuration stops working, the new one is shown right away. */
+function rotateKeys(d: Device, st: State) {
+  const here = st.here === d.id;
+  sheet(
+    `New keys for ${d.name}?`,
+    null,
+    h(
+      'p',
+      { class: 'muted' },
+      here
+        ? 'This device is connected through the configuration it has now: it disconnects a few seconds after you confirm. Import the new configuration that opens next.'
+        : 'Its current configuration stops working. Set the device up again with the new one that opens next.',
+    ),
+    h(
+      'div',
+      { class: 'row gap' },
+      h('button', { class: 'btn block', onclick: () => closeSheet() }, 'Cancel'),
+      h(
+        'button',
+        {
+          class: 'btn primary block',
+          onclick: async () => {
+            try {
+              const r = await call<{ config: ClientConfig; state: State }>(`devices/${d.id}`, { action: 'rotate' });
+              state = r.state;
+              main(state);
+              connect(d, undefined, r.config);
+            } catch (er) {
+              toast((er as Error).message, true);
+            }
+          },
+        },
+        'New keys',
+      ),
+    ),
+  );
 }
 
 function removeDevice(d: Device) {

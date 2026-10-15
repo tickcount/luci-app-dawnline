@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { inflateSync } from 'node:zlib';
-import { bytes, daysLeft, initials, quotaText, slugify } from '../src/shared/format';
+import { byDeviceState, bytes, daysLeft, initials, quotaText, slugify } from '../src/shared/format';
 import { amneziaJson, base64Url, fromBase64Url, vpnKey, withPrivateKey } from '../src/shared/vpnkey';
 import type { ClientConfig } from '../src/shared/types';
 
@@ -87,5 +87,13 @@ describe('vpn:// keys', () => {
     );
     expect(c.conf).toContain('PrivateKey = ZZZ=');
     expect(c.amnezia.client_priv_key).toBe('ZZZ=');
+  });
+});
+
+describe('byDeviceState', () => {
+  it('puts online first, then offline, not set up and turned off, keeping the order within each', () => {
+    const d = (name: string, online: boolean, handshake: number, disabled = false) => ({ name, online, handshake, disabled });
+    const list = [d('off', false, 5, true), d('new', false, 0), d('away1', false, 9), d('live', true, 10), d('away2', false, 3)];
+    expect(byDeviceState(list).map((x) => x.name)).toEqual(['live', 'away1', 'away2', 'new', 'off']);
   });
 });

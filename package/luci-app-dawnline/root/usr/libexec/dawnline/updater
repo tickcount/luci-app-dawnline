@@ -11,7 +11,7 @@
 import * as fs from 'fs';
 import { cursor } from 'uci';
 import { connect } from 'ubus';
-import { VERSION, REPO } from 'dawnline.util';
+import { VERSION, REPO, slog, iface_intent } from 'dawnline.util';
 
 const STATE_DIR = '/var/run/dawnline';
 const JOB_FILE = `${STATE_DIR}/update-job.json`;
@@ -358,8 +358,10 @@ function install_awg(arg) {
 				push(ifaces, s['.name']);
 		});
 		phase(`Reloading the kernel module (${length(ifaces)} tunnel(s) restart)`);
-		for (let i in ifaces)
+		for (let i in ifaces) {
+			iface_intent(i, 'update', c.get('network', i, '_dawnline_name') ?? i);
 			run(`ifdown ${q(i)}`);
+		}
 		run('rmmod amneziawg');
 		run_logged('modprobe amneziawg');
 		for (let i in ifaces)
@@ -472,6 +474,19 @@ function install_pkgs(arg) {
 
 const CHECKS = { app: check_app, amneziawg: check_awg, packages: check_pkgs };
 const INSTALLS = { app: install_app, amneziawg: install_awg, pkgs: install_pkgs };
+const UPDATE_WHO = { app: 'Dawnline', amneziawg: 'AmneziaWG', pkgs: 'System packages' };
+
+/** A line in the service log for each finished update (nothing when there was nothing to do). */
+function log_update(name, r) {
+	// Dawnline's own update is logged by the new agent when it starts (also after install.sh).
+	if (name == 'amneziawg') {
+		let b = r?.before?.['kmod-amneziawg'], a = r?.after?.['kmod-amneziawg'];
+		slog('awg', 'up', b && a && b != a ? `updated · ${b} → ${a}` : `installed the ${AWG_SOURCES[r?.build]?.label ?? r?.build} build${a ? ' · ' + a : ''}`,
+			null, 'AmneziaWG');
+	}
+	else if (name == 'pkgs' && length([ ...(r?.updated ?? []), ...(r?.installed ?? []) ]))
+		slog('dawnline', 'up', `updated · ${join(', ', [ ...(r.updated ?? []), ...(r.installed ?? []) ])}`, null, 'System packages');
+}
 
 
 if (!fs.access(STATE_DIR))
@@ -503,6 +518,7 @@ try {
 				die(`Unknown component ${name}`);
 			phase(`Updating ${name}`);
 			job.result[name] = INSTALLS[name](arg);
+			log_update(name, job.result[name]);
 		}
 	}
 	else
@@ -514,6 +530,10 @@ catch (e) {
 	job.state = 'failed';
 	job.error = e.message;
 	log(`Error: ${e.message}`);
+	if (job.action == 'install') {
+		let name = split(job.component, ':')[0];
+		slog(name == 'amneziawg' ? 'awg' : 'dawnline', 'error', 'update failed', e.message, UPDATE_WHO[name] ?? 'Dawnline');
+	}
 }
 
 run(`rm -rf ${WORK_DIR}`);

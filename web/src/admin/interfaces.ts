@@ -56,11 +56,12 @@ export function interfacesCard(serverId: string, title = 'Interfaces'): HTMLElem
   let autoWan = true,
     wanDev = '',
     autoLan = true,
-    lanLike = true;
+    lanLike = true,
+    mesh = true;
   let lans = new Set<string>();
   let initial = '';
 
-  const snapshot = () => JSON.stringify([lanLike, autoWan, autoWan ? '' : wanDev, autoLan, [...lans].sort()]);
+  const snapshot = () => JSON.stringify([lanLike, mesh, autoWan, autoWan ? '' : wanDev, autoLan, [...lans].sort()]);
   const liveLan = () => d.detected.lan || d.saved.lan || '';
   const currentWan = () => (autoWan ? d.detected.wan || d.saved.wan : wanDev) || '';
   const byName = () => new Map(d.devices.map((x) => [x.name, x]));
@@ -79,6 +80,7 @@ export function interfacesCard(serverId: string, title = 'Interfaces'): HTMLElem
       wanDev = r.config.wan_device || r.detected.wan || r.saved.wan || '';
       autoLan = r.config.auto_lan;
       lanLike = r.config.lan_like;
+      mesh = r.config.device_mesh;
       lans = new Set(r.config.lan_devices);
       initial = snapshot();
     }
@@ -129,11 +131,7 @@ export function interfacesCard(serverId: string, title = 'Interfaces'): HTMLElem
       [
         E('span', { class: 'dl-if-ic' }, icon(ICON[x.kind] ?? 'link')),
         E('span', { class: 'dl-if-main' }, [E('span', { class: 'dl-if-name' }, x.name), E('span', { class: 'dl-if-sub' }, sub)]),
-        isAuto
-          ? E('span', { class: 'dl-if-badge ok' }, [E('i', { class: 'dot ok' }), 'Auto'])
-          : sel
-            ? E('span', { class: 'dl-if-check' }, icon('check'))
-            : '',
+        isAuto ? E('span', { class: 'dl-if-badge ok' }, 'Auto') : sel ? E('span', { class: 'dl-if-check' }, icon('check')) : '',
       ],
     );
     attachTip(el, () => [
@@ -197,8 +195,12 @@ export function interfacesCard(serverId: string, title = 'Interfaces'): HTMLElem
         .map((x) => E('option', { value: x.name, selected: x.name === wanDev ? 'selected' : null }, `${x.name} · zone ${x.zone}`)),
     ) as HTMLSelectElement;
 
-    const hint = (live: string | null, saved: string) =>
-      E('span', {}, [' Live: ', E('span', { class: 'dl-mono' }, live || '—'), ' · Saved: ', E('span', { class: 'dl-mono' }, saved || '—')]);
+    // What auto-detection finds now; the remembered one (used when nothing is found) only when it differs.
+    const hint = (live: string | null, saved: string) => {
+      const mono = (t: string) => E('span', { class: 'dl-mono' }, t);
+      if (live) return E('span', {}, [' Now: ', mono(live), ...(saved && saved !== live ? [', was ', mono(saved)] : []), '.']);
+      return E('span', {}, saved ? [' Not found now: using ', mono(saved), '.'] : [' Not found.']);
+    };
 
     const groups = GROUPS.map(([cat, label]) => {
       const list = d.devices.filter((x) => x.category === cat);
@@ -212,7 +214,7 @@ export function interfacesCard(serverId: string, title = 'Interfaces'): HTMLElem
       'Save',
       async () => {
         const r = await attempt(
-          () => api.serverInterfaces(serverId, autoWan, autoWan ? '' : wanDev, autoLan, [...lans], lanLike),
+          () => api.serverInterfaces(serverId, autoWan, autoWan ? '' : wanDev, autoLan, [...lans], lanLike, mesh),
           'Interfaces saved',
         );
         if (!r) return;
@@ -250,6 +252,27 @@ export function interfacesCard(serverId: string, title = 'Interfaces'): HTMLElem
               paint();
             }),
           ]),
+        ]),
+        E('div', { class: 'dl-setrow' }, [
+          E('div', { class: 'dl-lh-main' }, [
+            E('span', { class: 'dl-need-ic' }, icon('link')),
+            E('div', { class: 'dl-stack' }, [
+              E('span', { class: 'dl-setrow-label' }, 'Devices reach each other'),
+              E(
+                'span',
+                { class: 'dl-sub' },
+                'Devices of people with Home access can open connections to each other on this server, like home devices do. Internet-only people never.',
+              ),
+            ]),
+          ]),
+          E(
+            'div',
+            { class: 'dl-setrow-ctl' },
+            sw(mesh, 'Devices reach each other', (v) => {
+              mesh = v;
+              paint();
+            }),
+          ),
         ]),
         E('div', { class: 'dl-setrow' }, [
           E('div', { class: 'dl-lh-main' }, [
@@ -292,7 +315,7 @@ export function interfacesCard(serverId: string, title = 'Interfaces'): HTMLElem
           E(
             'span',
             { class: 'dl-sub' },
-            'What people with Home access can reach. Click to add an interface; bridge ports and Wi-Fi in a bridge come with the bridge.',
+            'What people with Home access can reach, and where their devices can be reached from. Click to add an interface; bridge ports and Wi-Fi in a bridge come with the bridge.',
           ),
         ]),
         ...groups,

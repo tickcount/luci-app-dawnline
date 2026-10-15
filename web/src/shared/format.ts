@@ -118,3 +118,12 @@ export function slugify(s: string): string {
     .replace(/^-+|-+$/g, '')
     .slice(0, 32);
 }
+
+/** Online, then offline, then not set up yet, then turned off; the order they were added within each. */
+export function byDeviceState<T extends { online: boolean; handshake: number; disabled: boolean }>(list: T[]): T[] {
+  const rank = (d: T) => (d.disabled ? 3 : d.online ? 0 : d.handshake ? 1 : 2);
+  return list
+    .map((d, i) => [d, i] as const)
+    .sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1])
+    .map(([d]) => d);
+}

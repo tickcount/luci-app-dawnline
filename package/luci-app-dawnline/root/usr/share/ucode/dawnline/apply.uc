@@ -10,7 +10,7 @@ import { cursor } from 'uci';
 import { readfile, writefile, stat, unlink } from 'fs';
 import {
 	q, sh, sh_out, sh_bg, ensure_dir, write_file, write_json, read_json, parse_cidr, int2ip, uniq,
-	lock, unlock, RUN_DIR
+	lock, unlock, slog, iface_intent, RUN_DIR
 } from 'dawnline.util';
 import * as core from 'dawnline.core';
 import * as net from 'dawnline.net';
@@ -26,8 +26,8 @@ const HOSTS_FILE = '/tmp/hosts/dawnline';
  */
 const PREF_REPLY = 90;
 
-function log(msg) {
-	system(`logger -t dawnline ${q(msg)}`);
+function log(who, msg, level, detail) {
+	slog('dawnline', level ?? 'info', msg, detail, who);
 }
 
 /* ---------- helpers ---------- */
@@ -103,20 +103,30 @@ function sync_network(m) {
 		want[ifn] = true;
 		let addr = core.server_address(srv);
 		let pc = parse_cidr(srv.subnet);
-		let before = changed;
-		changed = ensure_section(c, 'network', ifn, 'interface') || changed;
-		changed = put(c, 'network', ifn, 'proto', 'amneziawg') || changed;
-		changed = put(c, 'network', ifn, 'private_key', srv.private_key) || changed;
-		changed = put(c, 'network', ifn, 'listen_port', srv.port) || changed;
-		changed = put(c, 'network', ifn, 'addresses', [ `${addr}/${pc.prefix}` ]) || changed;
-		changed = put(c, 'network', ifn, 'mtu', srv.mtu) || changed;
-		changed = put(c, 'network', ifn, 'disabled', srv.enabled ? null : '1') || changed;
-		changed = put(c, 'network', ifn, 'auto', srv.enabled ? null : '0') || changed;
-		changed = put(c, 'network', ifn, '_dawnline', id) || changed;
+		// Per server: with several, each changed one has to be brought up again.
+		let mine = ensure_section(c, 'network', ifn, 'interface');
+		let set = (opt, val) => {
+			if (put(c, 'network', ifn, opt, val))
+				mine = true;
+		};
+		set('proto', 'amneziawg');
+		set('private_key', srv.private_key);
+		set('listen_port', srv.port);
+		set('addresses', [ `${addr}/${pc.prefix}` ]);
+		set('mtu', srv.mtu);
+		set('disabled', srv.enabled ? null : '1');
+		set('auto', srv.enabled ? null : '0');
+		set('_dawnline', id);
+		// For the log once the server is gone.
+		set('_dawnline_name', srv.name);
 		for (let k in core.OBF_KEYS)
-			changed = put(c, 'network', ifn, `awg_${k}`, srv.obf[k]) || changed;
-		if (changed != before)
+			set(`awg_${k}`, srv.obf[k]);
+		if (mine) {
+			changed = true;
 			push(touched, ifn);
+			// The hotplug log says why the tunnel goes down (not a failure).
+			iface_intent(ifn, srv.enabled ? 'settings' : 'off', srv.name);
+		}
 	}
 
 	// Remove interfaces Dawnline created for servers that no longer exist.
@@ -126,6 +136,7 @@ function sync_network(m) {
 			push(stale, s['.name']);
 	});
 	for (let ifn in stale) {
+		iface_intent(ifn, 'removed', c.get('network', ifn, '_dawnline_name') ?? ifn);
 		system(`ifdown ${q(ifn)} 2>/dev/null`);
 		c.delete('network', ifn);
 		changed = true;
@@ -138,7 +149,8 @@ function sync_network(m) {
 		for (let ifn in touched)
 			if (m.servers[c.get('network', ifn, '_dawnline')]?.enabled)
 				system(`ifup ${q(ifn)}`);
-		log(`network updated (${join(', ', touched) || 'removed ' + join(', ', stale)})`);
+		// Each tunnel's own line (restarting, turned off, removed) comes from hotplug.
+		system(`logger -t dawnline ${q('network updated: ' + join(', ', [ ...touched, ...stale ]))}`);
 	}
 	return changed;
 }
@@ -147,7 +159,8 @@ function sync_network(m) {
 
 const LOOP_ZONE = 'dl_loop';
 
-function sync_firewall(m) {
+/** With `dry`, only says whether the firewall config differs from what Dawnline wants. */
+function sync_firewall(m, dry) {
 	let c = cursor();
 	c.load('firewall');
 	let changed = false, want = {};
@@ -168,14 +181,20 @@ function sync_firewall(m) {
 		let sn = net.server_net(srv, snap);
 		portal_zone ??= sn.wan.zone;
 		sec(`${z}_zone`, 'zone', {
+			// Forward within the zone (device to device) is decided by the inet dawnline table.
 			name: srv.ifname, network: [ srv.ifname ],
-			input: 'ACCEPT', output: 'ACCEPT', forward: 'REJECT',
+			input: 'ACCEPT', output: 'ACCEPT', forward: 'ACCEPT',
 		});
 		// Access per person is enforced by the inet dawnline table; the zone
 		// only needs to be allowed to reach each home-network zone and WAN.
+		// The home network may open connections to the devices too (a router
+		// or a NAS on the tunnel); their answers pass the table as established.
 		for (let i, zone in sn.zones)
-			if (zone != sn.wan.zone && zone != srv.ifname)
-				sec(i == 0 ? `${z}_lan` : `${z}_lan_${replace(zone, /[^A-Za-z0-9_]/g, '_')}`, 'forwarding', { src: srv.ifname, dest: zone });
+			if (zone != sn.wan.zone && zone != srv.ifname) {
+				let sfx = i == 0 ? '' : `_${replace(zone, /[^A-Za-z0-9_]/g, '_')}`;
+				sec(`${z}_lan${sfx}`, 'forwarding', { src: srv.ifname, dest: zone });
+				sec(`${z}_from_lan${sfx}`, 'forwarding', { src: zone, dest: srv.ifname });
+			}
 		sec(`${z}_wan`, 'forwarding', { src: srv.ifname, dest: sn.wan.zone });
 		if (srv.lan_like) {
 			sec(`${z}_loop`, 'forwarding', { src: srv.ifname, dest: LOOP_ZONE });
@@ -232,12 +251,14 @@ function sync_firewall(m) {
 		c.delete('firewall', s);
 		changed = true;
 	}
+	if (dry)
+		return changed;
 
 	if (changed) {
 		c.commit('firewall');
 		ack_config([ 'firewall' ]);
 		system('fw4 -q reload');
-		log('firewall updated');
+		system("logger -t dawnline 'firewall updated'");
 	}
 	return changed;
 }
@@ -313,10 +334,31 @@ function nft_table(m, sets) {
 		// DNS through the netns (it forwards to the LAN's DNS), for everyone.
 		push(t, `		ip daddr ${dns_addr} meta l4proto { tcp, udp } th dport 53 accept`);
 	push(t, '		ip daddr @lan_nets ip saddr @lan_ok accept');
+	// Devices with home access are part of home: they reach each other, where the
+	// server allows it. Within one server: the firewall has no forwarding between
+	// different servers' zones.
+	for (let id, srv in m.servers)
+		if (srv.private_key && srv.device_mesh)
+			push(t, `		iifname "${srv.ifname}" ip saddr @lan_ok ip daddr @lan_ok accept`);
 	push(t, '		meta l4proto { tcp, udp } ip saddr . ip daddr . th dport @svc_ok accept');
 	push(t, `		ip daddr { ${join(', ', PRIVATE4)} } counter drop`);
 	push(t, '		ip saddr @inet_ok accept');
 	push(t, '		counter drop');
+	push(t, '	}');
+	// The other way: fw4 lets the server's home zones reach the tunnel; here
+	// only connections from its home networks to people with home access pass
+	// (paused, ended and internet-only people are not reachable). The admin's
+	// own port forwards (DNAT) stay with fw4.
+	push(t, '	chain inbound {');
+	push(t, '		type filter hook forward priority filter - 5; policy accept;');
+	if (length(ifs))
+		push(t, `		oifname { ${join(', ', ifs)} } iifname != { ${join(', ', ifs)} } ct state new jump to_device`);
+	push(t, '	}');
+	push(t, '	chain to_device {');
+	push(t, '		meta nfproto ipv6 drop');
+	push(t, '		ct status dnat accept');
+	push(t, '		ip saddr @lan_nets ip daddr @lan_ok accept');
+	push(t, '		counter reject with icmpx admin-prohibited');
 	push(t, '	}');
 	// Devices ask the tunnel address; send each query where it belongs.
 	let to_resolver = rt.mode == 'ns' ? `dnat ip to ${rt.address}:53` : `redirect to :${rt.port}`;
@@ -345,7 +387,7 @@ function nft_load(script) {
 	writefile(f, script);
 	let r = sh(`nft -f ${f}`);
 	if (r.code != 0)
-		log(`nft failed: ${trim(r.out)}`);
+		log('Access rules', "couldn't load", 'error', trim(r.out));
 	return r.code == 0;
 }
 
@@ -399,7 +441,7 @@ export function sync_peers(m, states) {
 		unlink(f);
 		res[id] = r.code == 0 ? 'ok' : trim(r.out);
 		if (r.code != 0)
-			log(`awg syncconf ${srv.ifname}: ${trim(r.out)}`);
+			slog('awg', 'error', "couldn't load devices into the tunnel", trim(r.out), srv.name);
 	}
 	return res;
 };
@@ -514,9 +556,44 @@ function sync_uhttpd(m) {
 	if (changed) {
 		c.commit('uhttpd');
 		system('/etc/init.d/uhttpd reload >/dev/null 2>&1');
-		log(want ? 'portal answers on 443 at home too' : 'portal removed from the LuCI web server');
+		system(`logger -t dawnline ${q(want ? 'portal answers through the LuCI web server' : 'portal removed from the LuCI web server')}`);
 	}
 }
+
+/**
+ * For the watchdog: what is wrong with Dawnline's firewall, or null.
+ * 'off': fw4 is not running at all (not ours to start); 'changed': the config
+ * lost or changed Dawnline's sections; 'not loaded': fw4 runs without them.
+ */
+export function firewall_drift(m) {
+	let t = sh_out('nft -t list table inet fw4 2>/dev/null') ?? '';
+	if (t == '')
+		return 'off';
+	if (sync_firewall(m, true))
+		return 'changed';
+	// Named rules show up in fw4's ruleset as comments.
+	let names = [];
+	for (let id, srv in m.servers)
+		if (srv.private_key && srv.enabled)
+			push(names, `Dawnline-${srv.ifname}`);
+	if (m.settings.portal_enabled)
+		push(names, 'Dawnline-Portal');
+	for (let n in names)
+		if (index(t, `${n}"`) < 0)
+			return 'not loaded';
+	return null;
+};
+
+/** For the watchdog: LuCI's web server should hand portal links to the portal, but does not. */
+export function uhttpd_drift(m) {
+	if (!(m.settings.portal_enabled && core.portal_public_port(m) == 443 && m.settings.portal_port != 443))
+		return false;
+	let c = cursor();
+	c.load('uhttpd');
+	let cur = c.get('uhttpd', 'main', 'error_page');
+	// Someone else's error page is theirs: Health explains, nothing to repair.
+	return cur == null || (cur == LAN_CGI_URL && !stat(LAN_CGI));
+};
 
 /** One `ipproto <p> sport <port> lookup main` rule per listening port and family. */
 function sync_reply_routes(m) {
@@ -580,7 +657,7 @@ function ensure_word_codes() {
 	if (changed) {
 		c.commit('dawnline');
 		system('chmod 600 /etc/config/dawnline');
-		log('personal links moved to word codes');
+		log('Personal links', 'moved to word codes');
 	}
 }
 
@@ -618,4 +695,7 @@ export function teardown() {
 	remove_nft();
 	unlink(HOSTS_FILE);
 	system('killall -HUP dnsmasq 2>/dev/null');
+	// The agent's heartbeat check.
+	if (system('grep -qs /usr/libexec/dawnline/heartbeat /etc/crontabs/root') == 0)
+		system("sed -i '\\#/usr/libexec/dawnline/heartbeat#d' /etc/crontabs/root; /etc/init.d/cron restart >/dev/null 2>&1");
 };

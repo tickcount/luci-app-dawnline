@@ -114,7 +114,7 @@ export interface SettingsData {
   logs: LogsInfo;
 }
 
-export type LogCategory = 'connections' | 'devices' | 'people' | 'problems';
+export type LogCategory = 'connections' | 'people' | 'problems';
 
 export interface LogsInfo {
   policy: {
@@ -178,7 +178,7 @@ export interface InterfacesData {
   ifname: string;
   detected: { wan: string | null; lan: string | null };
   saved: { wan: string; lan: string };
-  config: { auto_wan: boolean; wan_device: string; auto_lan: boolean; lan_devices: string[]; lan_like: boolean };
+  config: { auto_wan: boolean; wan_device: string; auto_lan: boolean; lan_devices: string[]; lan_like: boolean; device_mesh: boolean };
   like_home: LikeHome;
   effective: {
     wan: { dev: string | null; zone: string; auto: boolean; missing: boolean };
@@ -275,6 +275,37 @@ async function status(days?: number): Promise<Status> {
   return st;
 }
 
+/** One line of the service log: tunnel and service starts, stops, watchdog repairs, errors. */
+export interface ServiceLogEntry {
+  ts: number;
+  src: 'awg' | 'dawnline' | 'portal';
+  level: 'info' | 'up' | 'down' | 'repair' | 'error';
+  msg: string;
+  detail?: string;
+  /** Subject shown first: a server's name, "Personal portal", "Dawnline" (older entries have none). */
+  who?: string;
+  /** The admin's own changes read "You <msg> <kind> <who> · <note>". */
+  by?: 'admin';
+  kind?: string;
+  note?: string;
+}
+
+export interface ServiceLog {
+  watchdog: {
+    enabled: boolean;
+    /** Last watchdog pass and last agent tick (null: never). */
+    last: number | null;
+    beat: number | null;
+    now: number;
+    targets: { id: string; name: string; ok: boolean; tries: number }[];
+    /** Repairs in the last 24 hours; id is the Health check id. */
+    repairs: { ts: number; id: string; name: string }[];
+  };
+  log: ServiceLogEntry[];
+}
+
+export type Health = { checks: HealthCheck[] } & ServiceLog;
+
 export const api = {
   personUpdate,
   settingsGet: call<SettingsData>('settings_get'),
@@ -285,7 +316,15 @@ export const api = {
   events: call<{ events: LogEvent[]; total: number; policy: LogsInfo['policy'] }>('events', ['limit']),
   logsClear,
   interfaces: call<InterfacesData>('interfaces', ['id']),
-  serverInterfaces: call<InterfacesData>('server_interfaces', ['id', 'auto_wan', 'wan_device', 'auto_lan', 'lan_devices', 'lan_like']),
+  serverInterfaces: call<InterfacesData>('server_interfaces', [
+    'id',
+    'auto_wan',
+    'wan_device',
+    'auto_lan',
+    'lan_devices',
+    'lan_like',
+    'device_mesh',
+  ]),
   usageClear: call<unknown>('usage_clear', ['scope', 'id']),
   uninstall: call<unknown>('uninstall', ['confirm']),
   status,
@@ -329,8 +368,10 @@ export const api = {
   deviceDelete: call<unknown>('device_delete', ['id']),
   deviceRotate: call<ClientConfig>('device_rotate', ['id']),
   apply: call<unknown>('apply'),
-  health: call<{ checks: HealthCheck[] }>('health'),
-  healthFix: call<{ checks: HealthCheck[] }>('health_fix', ['id']),
+  health: call<Health>('health'),
+  healthFix: call<Health>('health_fix', ['id']),
+  serviceLog: call<ServiceLog>('service_log'),
+  serviceLogClear: call<{ removed: number }>('service_log_clear', ['older_days']),
   backupList: call<{ backups: Backup[] }>('backup_list'),
   backupCreate: call<{ name: string }>('backup_create'),
   backupRestore: call<unknown>('backup_restore', ['name']),
