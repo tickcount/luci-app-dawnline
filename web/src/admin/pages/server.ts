@@ -10,7 +10,7 @@ import { attempt, button, callout, closeModal, confirmDialog, copyText, modal, n
 import { icon } from '../../shared/icons';
 import { duration } from '../../shared/format';
 import { interfacesCard } from '../interfaces';
-import { card, group, input, row } from '../kit';
+import { card, group, input, row, sw } from '../kit';
 import { methodInfo, methodPicker, type Method } from '../disguise';
 import { ServerOverview } from './overview';
 import { PeoplePage } from './people';
@@ -27,29 +27,6 @@ const SECTIONS: [Section, string][] = [
 ];
 /** Section names from before the regrouping, for old links. */
 const OLD_SECTIONS: Record<string, Section> = { general: 'connection', network: 'connection', interfaces: 'access', advanced: 'tunnel' };
-function choices<T extends string>(items: { v: T; title: string; text: string; ic?: string }[], initial: T, onChange: (v: T) => void) {
-  const el = E(
-    'div',
-    { class: 'dl-choices' },
-    items.map((o) =>
-      E(
-        'button',
-        {
-          type: 'button',
-          class: `dl-choice${o.v === initial ? ' selected' : ''}`,
-          'data-v': o.v,
-          click: () => {
-            el.querySelectorAll('.dl-choice').forEach((c) => c.classList.toggle('selected', (c as HTMLElement).dataset.v === o.v));
-            onChange(o.v);
-          },
-        },
-        [E('span', { class: 'dl-choice-title' }, [o.ic ? icon(o.ic) : '', o.title]), E('span', { class: 'dl-choice-text' }, o.text)],
-      ),
-    ),
-  );
-  return el;
-}
-
 /** `.conf` names of the disguise parameters, in file order. */
 const CONF: [string, string][] = [
   ['jc', 'Jc'],
@@ -303,6 +280,16 @@ export class ServerPage {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
+  /**
+   * Overview and People stay alive between tab switches. Take them out before
+   * dom.content() runs: it forgets LuCI's registry of every node it removes,
+   * and a form put back afterwards fails on its next render ("setting '_class'").
+   */
+  detachKept() {
+    const kept = [...Object.values(this.ov).map((o) => o.el), ...Object.values(this.pp).map((p) => p.el)];
+    for (const el of kept) if (el && this.bodyEl.contains(el)) el.remove();
+  }
+
   /** Swap only the section body; the rest of the page stays as it is. */
   showSection(k: Section) {
     this.section = k;
@@ -339,7 +326,9 @@ export class ServerPage {
       disguise: () => this.disguise(srv),
       tunnel: () => this.tunnel(srv),
     };
-    dom.content(this.bodyEl, body[k]());
+    const node = body[k]();
+    this.detachKept();
+    dom.content(this.bodyEl, node);
   }
 
   /** Name and state, the address bar, and the page actions. */
@@ -579,7 +568,6 @@ export class ServerPage {
               }),
             ]),
           ),
-          row('Link path', E('span', { class: 'dl-mono' }, `/${srv.id}/`), 'Changing it would break every personal link already sent.'),
         ],
         [],
       ),
@@ -678,8 +666,10 @@ export class ServerPage {
       port: d.port,
       subnet: d.subnet,
       preset: 'standard' as Method,
-      portal: true,
+      // Off by default: the portal opens a port on WAN, so it is a choice.
+      portal: false,
       portal_port: d.portal_port || 8443,
+      lan_like: true,
       lan_zone: d.lan_zone,
       wan_zone: d.wan_zone,
     };
@@ -696,33 +686,32 @@ export class ServerPage {
     const steps = extra ? ['Connection', 'Disguise'] : ['Connection', 'Disguise', 'Portal'];
     const pages: (() => Node)[] = [
       () =>
-        E('div', {}, [
+        E('div', { class: 'dl-wizard-groups' }, [
           E(
             'p',
-            {},
-            'Where devices connect to. Use a hostname that always points at your router (DDNS), so links keep working when your IP changes.',
+            { class: 'dl-muted' },
+            'Where devices connect to. A hostname that always points at your router (DDNS) keeps links working when your IP changes.',
           ),
-          row('Name', field('name'), 'Shown to people in their portal.'),
-          row(
-            'Link path',
-            field('id', { maxlength: 24, class: 'cbi-input-text dl-mono' }),
-            'First part of personal links: https://address:port/<path>/<person>.',
-          ),
-          row(
-            'Public address',
-            field('endpoint', { placeholder: 'vpn.example.com', class: 'cbi-input-text dl-mono' }),
-            'Hostname or IP address of your router on the internet.',
-          ),
-          row(
-            'UDP port',
-            field('port', { inputmode: 'numeric', class: 'cbi-input-text dl-w-port dl-mono' }),
-            'Opened on the WAN firewall automatically. A random high port is fine.',
-          ),
-          row(
-            'Tunnel subnet',
-            field('subnet', { class: 'cbi-input-text dl-mono' }),
-            `Addresses for devices. Must not overlap your networks (${d.taken.join(', ') || 'none found'}).`,
-          ),
+          group('router', 'Server', 'What people see', [row('Name', field('name'), 'Shown to people in their portal.')]),
+          group('globe', 'Devices connect to', 'Where the tunnel answers from the internet', [
+            row(
+              'Public address',
+              field('endpoint', { placeholder: 'vpn.example.com', class: 'cbi-input-text dl-mono' }),
+              'Hostname or IP address of your router on the internet.',
+            ),
+            row(
+              'UDP port',
+              field('port', { inputmode: 'numeric', class: 'cbi-input-text dl-w-port dl-mono' }),
+              'Opened on the WAN firewall automatically. A random high port is fine.',
+            ),
+          ]),
+          group('network', 'Tunnel network', 'Addresses devices get inside the tunnel', [
+            row(
+              'Tunnel subnet',
+              field('subnet', { class: 'cbi-input-text dl-mono' }),
+              `Must not overlap your networks (${d.taken.join(', ') || 'none found'}).`,
+            ),
+          ]),
         ]),
       () =>
         E('div', {}, [
@@ -735,25 +724,46 @@ export class ServerPage {
         ]),
       () => {
         const portalPort = field('portal_port', { inputmode: 'numeric', class: 'cbi-input-text dl-w-port dl-mono' });
-        return E('div', {}, [
-          callout(
-            'info',
-            'Devices reach the internet the way devices on your home network do: whatever handles home traffic on this router handles theirs too. You can change this later under Servers → Access.',
+        const portRow = row('Listening port', portalPort, 'TCP port on WAN for the portal; the whole port belongs to it.');
+        portRow.hidden = !state.portal;
+        // Off | On, Off first: the same segmented control as in Settings.
+        const onOff = E(
+          'div',
+          { class: 'dl-seg', role: 'radiogroup', 'aria-label': 'Personal portal' },
+          (['off', 'on'] as const).map((v) =>
+            E(
+              'button',
+              {
+                type: 'button',
+                role: 'radio',
+                class: (v === 'on') === state.portal ? 'on' : '',
+                'aria-checked': (v === 'on') === state.portal ? 'true' : 'false',
+                click: (ev: Event) => {
+                  state.portal = v === 'on';
+                  portRow.hidden = !state.portal;
+                  onOff.querySelectorAll('button').forEach((x) => {
+                    const sel = x === ev.currentTarget;
+                    x.classList.toggle('on', sel);
+                    x.setAttribute('aria-checked', sel ? 'true' : 'false');
+                  });
+                },
+              },
+              v === 'on' ? 'On' : 'Off',
+            ),
           ),
-          E('h4', {}, 'Personal portal'),
-          E('p', {}, 'A small page where each person adds their own devices, with their personal link. It gets its own HTTPS port on WAN.'),
-          choices(
-            [
-              { v: 'on', title: 'On', ic: 'link', text: 'People manage their devices themselves within the limits you set.' },
-              { v: 'off', title: 'Off', ic: 'x', text: 'Only you add devices, from LuCI.' },
-            ],
-            'on',
-            (v) => {
-              state.portal = v === 'on';
-              portalPort.disabled = !state.portal;
-            },
-          ),
-          row('Portal port', portalPort, 'TCP port on WAN. The whole port belongs to the portal.'),
+        );
+        return E('div', { class: 'dl-wizard-groups' }, [
+          group('home', 'Internet like a home device', 'How devices reach the internet', [
+            row(
+              'Through the home network',
+              sw(state.lan_like, 'Internet like a home device', (v) => (state.lan_like = v)),
+              'Whatever handles home traffic on this router (proxies, filters, DNS) handles theirs too. Change it later under Servers → Access.',
+            ),
+          ]),
+          group('link', 'Personal portal', 'A page where each person adds their own devices with their personal link', [
+            row('Portal', onOff, 'Off: only you add devices, from LuCI. On: people manage their devices within the limits you set.'),
+            portRow,
+          ]),
         ]);
       },
     ];
@@ -812,7 +822,7 @@ export class ServerPage {
                         state.preset,
                         state.lan_zone,
                         state.wan_zone,
-                        true,
+                        state.lan_like,
                         extra ? undefined : state.portal,
                         extra ? undefined : state.portal_port,
                       ),

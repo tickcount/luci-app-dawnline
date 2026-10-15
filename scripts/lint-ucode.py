@@ -32,5 +32,17 @@ for f in files:
             line = code[: m.start()].count('\n') + 1
             print(f"{f}:{line}: {name}() is used before its definition")
             bad = 1
+    # In a module an exported function is an expression statement: its closing
+    # brace needs a semicolon ("Expecting ';'" breaks the whole module).
+    lines = open(f, encoding='utf-8').read().split('\n')
+    inside = None
+    for n, text in enumerate(lines, 1):
+        if inside is None and re.match(r'^export function \w+\(', text):
+            inside = n
+        elif inside is not None and re.match(r'^}', text):
+            if not text.startswith('};'):
+                print(f"{f}:{n}: exported function from line {inside} must end with '}};'")
+                bad = 1
+            inside = None
 print(f"lint-ucode: {checked} files checked" + (", problems found" if bad else ", ok"))
 sys.exit(bad)

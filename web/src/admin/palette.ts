@@ -77,7 +77,7 @@ function build(st: Status, q: string, done: () => void): Item[] {
     items.push({
       group: 'People',
       label: p.name,
-      hint: `${ACCESS_SHORT[p.access]} · ${p.online ? `${p.online} online` : `${p.devices.length} devices`}`,
+      hint: `${ACCESS_SHORT[p.access]} · ${p.online ? `${p.online} online` : `${p.devices.length} device${p.devices.length === 1 ? '' : 's'}`}`,
       avatar: initials(p.name),
       run: () => (location.href = personUrl(p.id)),
     });

@@ -115,11 +115,7 @@ export function methodPicker(caps: AwgCaps, selected: Method, onSelect: (m: Meth
             E('div', { class: 'dl-method-head' }, [
               E('span', { class: 'dl-method-ic' }, icon(m.ic)),
               E('b', {}, m.title),
-              m.id === current
-                ? E('span', { class: 'dl-pill ok' }, 'Current')
-                : m.id === 'standard' && !current
-                  ? E('span', { class: 'dl-pill' }, 'Recommended')
-                  : '',
+              m.id === current ? E('span', { class: 'dl-pill ok' }, 'Current') : '',
             ]),
             E('p', {}, m.text),
             E('div', { class: 'dl-method-meters' }, [dots(m.stealth, 'Stealth'), dots(m.speed, 'Speed')]),

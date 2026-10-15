@@ -472,6 +472,19 @@ export function allowed_ips(m, srv, p) {
 };
 
 /** Everything a client needs; `conf` is the .conf text. */
+/** True when the obfuscation settings change nothing on the wire (plain WireGuard). */
+export function obf_neutral(o) {
+	for (let k in OBF_KEYS) {
+		let v = o?.[k];
+		if (v == null || v == '')
+			continue;
+		let want = { h1: '1', h2: '2', h3: '3', h4: '4' }[k] ?? '0';
+		if (`${v}` != want)
+			return false;
+	}
+	return true;
+};
+
 export function client_config(m, dev) {
 	let p = m.people[dev.person];
 	let srv = p ? m.servers[p.server] : null;
@@ -487,9 +500,12 @@ export function client_config(m, dev) {
 	if (length(dns))
 		push(lines, `DNS = ${join(', ', dns)}`);
 	push(lines, `MTU = ${srv.mtu}`);
-	for (let k in OBF_KEYS)
-		if (srv.obf[k] != null && srv.obf[k] != '')
-			push(lines, `${OBF_CONF[k]} = ${srv.obf[k]}`);
+	// "Off" is plain WireGuard: neutral values (no junk, H1-H4 = 1-4) are left
+	// out, so any WireGuard app accepts the file.
+	if (!obf_neutral(srv.obf))
+		for (let k in OBF_KEYS)
+			if (srv.obf[k] != null && srv.obf[k] != '')
+				push(lines, `${OBF_CONF[k]} = ${srv.obf[k]}`);
 	push(lines, '', '[Peer]');
 	push(lines, `PublicKey = ${srv.public_key}`);
 	if (dev.preshared_key)
@@ -916,7 +932,8 @@ export function portal_public_port(m) {
 
 /** The link on one address: https for names, plain http for IP addresses. */
 export function portal_link(m, p, host) {
-	if (!host || !m.servers[p.server] || !match(p.code ?? '', WORD_CODE))
+	// No portal, no link: the page would not answer.
+	if (!m.settings.portal_enabled || !host || !m.servers[p.server] || !match(p.code ?? '', WORD_CODE))
 		return null;
 	if (ip2int(host) != null) {
 		let hp = portal_http_public(m);

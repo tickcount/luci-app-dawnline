@@ -377,6 +377,8 @@ export function health(m) {
 				stv = 'warn';
 				det = `WAN address ${wan} is private: forward UDP ${srv.port} on the upstream router, or clients cannot connect.`;
 			}
+			else if (length(filter(ips, (a) => cloudflare_ip(a))))
+				det = `${host} → ${join(', ', ips)} (Cloudflare). The tunnel is UDP: it reaches the router only if this name is DNS-only there.`;
 			else if (wan && index(ips, wan) < 0) {
 				stv = 'warn';
 				det = `${host} resolves to ${join(', ', ips)}, but the WAN address is ${wan}. Check your DNS / DDNS.`;
@@ -425,7 +427,7 @@ export function health(m) {
 		else {
 			let ips = resolve(s.portal_host), wan = router_wan(m);
 			let cf = filter(ips, (x) => cloudflare_ip(x));
-			push(out, check('portal_dns', 'Portal address points here', !length(ips) ? 'error' : length(cf) ? 'warn' : wan && index(ips, wan) < 0 ? 'warn' : 'ok',
+			push(out, check('portal_dns', 'Portal address points here', !length(ips) ? 'error' : length(cf) ? 'ok' : wan && index(ips, wan) < 0 ? 'warn' : 'ok',
 				!length(ips) ? `${s.portal_host} does not resolve.` :
 				length(cf) ? `${s.portal_host} goes through Cloudflare; in Russia such connections often stall after ~16 KB.` :
 				wan && index(ips, wan) < 0 ? `${s.portal_host} points at ${join(', ', ips)}, not this router (${wan}).` :
