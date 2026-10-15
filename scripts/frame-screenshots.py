@@ -24,6 +24,7 @@ SHOTS = {
     'person': 'router.lan · Dawnline · Myata',
     'portal': 'vpn.example.com/kamiro-telosu-bavine',
     'map': 'router.lan · Dawnline · Overview',
+    'access': 'router.lan · Dawnline · Home · Access',
 }
 PAD_X, PAD_Y, BAR = 120, 96, 40
 

@@ -20,9 +20,11 @@ limits, live traffic and a LuCI admin that follows a modern design.
 |---|---|
 | ![People](docs/screenshots/people.png) | ![Person](docs/screenshots/person.png) |
 
-| Personal portal | Where people connect from |
+| Personal portal | Home network access |
 |---|---|
-| ![Personal portal](docs/screenshots/portal.png) | ![Map](docs/screenshots/map.png) |
+| ![Personal portal](docs/screenshots/portal.png) | ![Access](docs/screenshots/access.png) |
+
+![Where people connect from](docs/screenshots/map.png)
 
 ## Features
 
