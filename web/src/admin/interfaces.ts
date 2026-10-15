@@ -374,7 +374,6 @@ export function accessCards(srv: Server, st: Status, reload: () => void): HTMLEl
           '',
           mesh === 'circles' ? circleChips(st, serverId, reload) : undefined,
         ),
-        bonjourRow(),
         services,
       ]),
       E('div', { class: 'dl-setsec-foot' }, [
@@ -395,34 +394,6 @@ export function accessCards(srv: Server, st: Status, reload: () => void): HTMLEl
     dom.content(root, [internet, homeCard]);
     root.style.minHeight = '';
     window.scrollTo({ top: y });
-  }
-
-  /** Find home devices: AirPlay, printers and shared Macs listed on Apple devices over the tunnel. */
-  function bonjourRow(): HTMLElement {
-    const b = d.bonjour;
-    const set = async (on: boolean) => {
-      if (await attempt(() => api.serverUpdate(serverId, { bonjour: on }), on ? 'Finding home devices' : 'Home devices no longer listed'))
-        load(false);
-    };
-    const state = b.needs.length
-      ? E('span', { class: 'dl-warn' }, ` Needs ${b.needs.join(', ')}.`)
-      : b.on && !b.running
-        ? E('span', { class: 'dl-warn' }, ' umdns is not running.')
-        : b.on
-          ? ` Listing ${b.services} service${b.services === 1 ? '' : 's'} from home now.`
-          : '';
-    return setrow(
-      'wifi',
-      ['Find home devices ', E('span', { class: 'dl-faint dl-w400' }, '· Bonjour')],
-      [
-        'iPhone, iPad and Mac on the VPN see AirPlay, printers and shared Macs at home, as on Wi-Fi. Android and Chromecast look only on the local network.',
-        state,
-      ],
-      b.needs.length
-        ? button('Install', () => installMissing('bonjour', b.needs, () => load(false)), 'positive')
-        : sw(b.on, 'Find home devices', (v) => set(v)),
-      b.on && b.running ? 'ok' : '',
-    );
   }
 
   /** Interfaces that can be home networks as tiles; the rest folded, by kind. */

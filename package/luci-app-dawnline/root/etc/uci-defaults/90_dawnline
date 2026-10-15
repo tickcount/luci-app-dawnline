@@ -20,6 +20,14 @@ rm -f /www/luci-static/resources/view/dawnline/backups.js
 # Portal assets moved out of the web root (served only with a valid code).
 rm -rf /usr/share/dawnline/portal/www/assets
 
+# "Find home devices" (0.3.0) is gone: its option and dnsmasq records too.
+for s in $(uci -q show dawnline | sed -n 's/^dawnline\.\([^.]*\)\.bonjour=.*/\1/p'); do uci -q delete "dawnline.$s.bonjour"; done
+uci -q commit dawnline
+if ls /tmp/dnsmasq*.d/dawnline-bonjour.conf >/dev/null 2>&1; then
+	rm -f /tmp/dnsmasq*.d/dawnline-bonjour.conf /var/run/dawnline/bonjour.json
+	/etc/init.d/dnsmasq restart 2>/dev/null
+fi
+
 # LuCI caches: menu index, and module URLs (?v= follows the opkg status time).
 rm -f /tmp/luci-indexcache* /tmp/luci-modulecache/* 2>/dev/null
 touch /usr/lib/opkg/status 2>/dev/null

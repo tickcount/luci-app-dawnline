@@ -20,7 +20,6 @@ import * as ops from 'dawnline.ops';
 import * as geo from 'dawnline.geo';
 import * as watchdog from 'dawnline.watchdog';
 import * as net from 'dawnline.net';
-import * as bonjour from 'dawnline.bonjour';
 
 const TICK = 60 * 1000;
 const FLUSH_EVERY = 3600;
@@ -357,12 +356,6 @@ function tick() {
 		check_wan(m);
 	}
 	catch (e) {}
-	try {
-		bonjour.sync(m);
-	}
-	catch (e) {
-		slog('dawnline', 'error', `failed: ${e.message}`, null, 'Find home devices');
-	}
 	nightly_backup();
 	try {
 		check_geo(m);

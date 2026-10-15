@@ -137,8 +137,6 @@ export function load(c) {
 			// (Older configs: device_mesh 0/1.)
 			mesh: index(MESH, r.mesh) >= 0 ? r.mesh : (bool(r.device_mesh, true) ? 'all' : 'off'),
 			enabled: bool(r.enabled, true),
-			// Home devices found over Bonjour are published as DNS-SD records (needs umdns).
-			bonjour: bool(r.bonjour, false),
 			obf: {},
 		};
 		// A person's own devices reach each other whenever the mesh is not off.

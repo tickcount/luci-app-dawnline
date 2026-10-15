@@ -95,7 +95,6 @@ export interface Needs {
   https: string[];
   acme: string[];
   home: string[];
-  bonjour: string[];
 }
 
 export interface SettingsData {
@@ -189,8 +188,6 @@ export interface InterfacesData {
     mesh: MeshMode;
   };
   like_home: LikeHome;
-  /** Find home devices: published from umdns as DNS-SD records. */
-  bonjour: { on: boolean; needs: string[]; running: boolean; services: number };
   effective: {
     wan: { dev: string | null; zone: string; auto: boolean; missing: boolean };
     home: { dev: string; auto: boolean; nets: string[]; zone: string | null; missing: boolean }[];

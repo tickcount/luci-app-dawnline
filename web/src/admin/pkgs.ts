@@ -8,7 +8,6 @@ const WHAT: Record<keyof Needs, string> = {
   https: 'HTTPS for the portal',
   acme: 'ACME certificates',
   home: 'the home-like link',
-  bonjour: 'Bonjour for home devices',
 };
 const WAIT_MS = 5 * 60 * 1000;
 

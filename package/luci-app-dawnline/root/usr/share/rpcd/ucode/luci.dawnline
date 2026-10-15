@@ -17,7 +17,6 @@ import * as net from 'dawnline.net';
 import * as loop from 'dawnline.loop';
 import * as watchdog from 'dawnline.watchdog';
 import * as access from 'dawnline.access';
-import * as bonjour from 'dawnline.bonjour';
 
 function wrap(fn) {
 	return function(req) {
@@ -426,7 +425,6 @@ function interfaces_view(srv, snap) {
 			device_mesh: srv.device_mesh, mesh: srv.mesh },
 		like_home: loop.status(),
 		needs: ops.needs().home,
-		bonjour: { on: srv.bonjour, needs: ops.needs().bonjour, ...bonjour.view(core.load()) },
 		effective: sn,
 		zones: snap.zones,
 		devices,
@@ -551,12 +549,6 @@ function server_update(a) {
 	}
 	if (v.enabled != null)
 		set('enabled', v.enabled === true || v.enabled == '1' ? '1' : '0');
-	let bj = v.bonjour == null ? null : (v.bonjour === true || v.bonjour == '1');
-	if (bj != null) {
-		if (bj && length(ops.needs().bonjour))
-			die('Install umdns first.');
-		set('bonjour', bj ? '1' : null);
-	}
 	if (v.device_mesh != null && v.mesh == null)
 		v.mesh = v.device_mesh === true || v.device_mesh == '1' ? 'all' : 'off';
 	if (v.mesh != null) {
@@ -604,12 +596,6 @@ function server_update(a) {
 		admin_log('awg', on ? 'turned on' : 'turned off', 'server', name);
 	if (length(what))
 		admin_log('awg', 'changed', 'server', name, join(', ', what));
-	if (bj != null && bj != srv.bonjour) {
-		admin_log('awg', bj ? 'turned on' : 'turned off', 'server', name, 'finding home devices (Bonjour)');
-		if (bj)
-			bonjour.start_mdns();
-		bonjour.sync(core.load(), true);
-	}
 	if (mesh != null && mesh != srv.mesh)
 		admin_log('awg', 'changed', 'server', name,
 			{ off: 'devices kept apart', all: 'devices reach each other', circles: 'devices reach each other in circles' }[mesh]);

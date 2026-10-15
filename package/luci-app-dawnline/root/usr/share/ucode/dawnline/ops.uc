@@ -34,7 +34,6 @@ export function needs() {
 		acme: miss([ [ file_exists('/usr/lib/acme/client/acme.sh'), 'acme' ], [ file_exists('/usr/lib/acme/client/dnsapi/dns_cf.sh'), 'acme-acmesh-dnsapi' ],
 			[ file_exists('/www/luci-static/resources/view/acme.js'), 'luci-app-acme' ] ]),
 		home: miss([ [ file_exists('/usr/libexec/ip-full'), 'ip-full' ], [ veth, 'kmod-veth' ] ]),
-		bonjour: miss([ [ file_exists('/usr/sbin/umdns'), 'umdns' ] ]),
 	};
 };
 
@@ -52,7 +51,7 @@ export function mdns_services() {
 		return [];
 	let r = {};
 	try {
-		r = json(sh_out(`ubus call umdns browse '{"address":true}' 2>/dev/null`) || '{}') ?? {};
+		r = json(sh_out(`ubus call umdns browse '{"address":true,"array":true}' 2>/dev/null`) || '{}') ?? {};
 	}
 	catch (e) {
 		r = {};
