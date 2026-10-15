@@ -1,0 +1,35 @@
+{
+	"luci-app-dawnline": {
+		"description": "Grant access to Dawnline",
+		"read": {
+			"ubus": {
+				"luci.dawnline": [
+					"status",
+					"setup_defaults",
+					"health",
+					"backup_list",
+					"updates_status",
+					"person_usage",
+					"settings_get",
+					"interfaces",
+					"events"
+				]
+			},
+			"uci": [
+				"dawnline",
+				"network",
+				"firewall"
+			]
+		},
+		"write": {
+			"ubus": {
+				"luci.dawnline": [
+					"*"
+				]
+			},
+			"uci": [
+				"dawnline"
+			]
+		}
+	}
+}

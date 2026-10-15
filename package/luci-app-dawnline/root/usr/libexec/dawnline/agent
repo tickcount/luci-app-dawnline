@@ -1,0 +1,334 @@
+#!/usr/bin/ucode
+// Dawnline agent (procd instance). Every minute it:
+//   * folds AmneziaWG counters into usage (tmpfs; flushed to flash hourly)
+//   * saves the activity log to flash as often as Settings says (or never)
+//   * keeps the "like a home device" path and the Home-only resolver up
+//   * logs connects, disconnects and roaming
+//   * enforces end dates, quotas, schedules and pauses (peers + nft sets)
+//   * watches the tunnel interfaces
+'use strict';
+
+import * as uloop from 'uloop';
+import { readfile, stat, unlink } from 'fs';
+import { read_json, write_json, ensure_dir, sh_out, q, DATA_DIR, RUN_DIR } from 'dawnline.util';
+import * as core from 'dawnline.core';
+import * as live from 'dawnline.live';
+import * as apply from 'dawnline.apply';
+import * as ops from 'dawnline.ops';
+import * as geo from 'dawnline.geo';
+
+const TICK = 60 * 1000;
+const FLUSH_EVERY = 3600;
+const LOG_FLUSH = { '10min': 600, hourly: 3600 };
+const RESYNC_EVERY = 600;
+
+let usage = live.load_usage();
+let last_states = null;
+// Who was online, kept in tmpfs so an agent restart (update, reload) does not
+// swallow connects that happened in between.
+let presence = read_json(`${RUN_DIR}/presence.json`, {});
+let last_online = presence.online ?? {};
+let last_endpoint = presence.endpoint ?? {};
+let offline_ticks = {};
+let iface_down = {};
+let last_flush = time();
+let last_log_flush = time();
+let last_net = null;
+let rate_prev = null;
+
+/**
+ * Throughput per server for the Overview's "Speed now": bytes per second
+ * over the last minute, newest 30 points, kept in tmpfs only.
+ */
+function record_rate(m) {
+	let ts = time();
+	let now = {};
+	for (let pid, p in m.people) {
+		let t = usage.people?.[pid]?.total;
+		if (!t)
+			continue;
+		now[p.server] ??= [ 0, 0 ];
+		now[p.server][0] += t[0];
+		now[p.server][1] += t[1];
+	}
+	let hist = read_json(`${RUN_DIR}/rate.json`, {});
+	// Per person: the last 15 points (People list, person page).
+	let people = read_json(`${RUN_DIR}/rate_people.json`, {});
+	if (type(people) != 'object')
+		people = {};
+	if (rate_prev) {
+		let dt = ts - rate_prev.ts;
+		if (dt > 0 && dt < 600) {
+			for (let s, v in now) {
+				let p = rate_prev.v[s] ?? v;
+				push(hist[s] ??= [], [ ts, int(max(0, v[0] - p[0]) / dt), int(max(0, v[1] - p[1]) / dt) ]);
+				while (length(hist[s]) > 30)
+					shift(hist[s]);
+			}
+			for (let pid in keys(m.people)) {
+				let t = usage.people?.[pid]?.total, p = rate_prev.p?.[pid];
+				if (!t || !p)
+					continue;
+				if (type(people[pid]?.[0]) != 'array')
+					people[pid] = [];
+				push(people[pid], [ ts, int(max(0, t[0] - p[0]) / dt), int(max(0, t[1] - p[1]) / dt) ]);
+				while (length(people[pid]) > 15)
+					shift(people[pid]);
+			}
+		}
+	}
+	for (let s in keys(hist))
+		if (!m.servers[s])
+			delete hist[s];
+	for (let pid in keys(people))
+		if (!m.people[pid])
+			delete people[pid];
+	let totals = {};
+	for (let pid in keys(m.people))
+		if (usage.people?.[pid]?.total)
+			totals[pid] = [ ...usage.people[pid].total ];
+	rate_prev = { ts, v: now, p: totals };
+	write_json(`${RUN_DIR}/rate.json`, hist, 0o644);
+	write_json(`${RUN_DIR}/rate_people.json`, people, 0o644);
+}
+let last_sync = 0;
+let cert_mtime = null;
+
+const REASON = {
+	paused: 'paused by admin', paused_all: 'everyone paused', expired: 'end date reached',
+	quota: 'data limit reached', hours: 'outside allowed hours', no_server: 'no server', active: 'active',
+};
+
+function check_people(m, states, events) {
+	let ts = time();
+	for (let id, p in m.people) {
+		let st = states[id], prev = last_states?.[id];
+		if (prev != null && prev != st)
+			push(events, { type: st == 'active' ? 'resumed' : 'paused', person: id, detail: REASON[st] ?? st });
+		// "Remove their devices" when the end date passes.
+		if (core.person_expired(p, ts) && p.expire_action == 'remove' && length(p.devices)) {
+			let c = core.open_cursor();
+			let mm = core.load(c);
+			for (let d in mm.people[id]?.devices ?? [])
+				core.delete_device(c, mm, d);
+			c.commit('dawnline');
+			system('chmod 600 /etc/config/dawnline');
+			push(events, { type: 'devices_removed', person: id, detail: 'end date reached' });
+			last_sync = 0;
+		}
+	}
+}
+
+let last_home = 0;
+
+/** Locate new client addresses for the admin map (a couple per minute). */
+function check_geo(m) {
+	if (!m.settings.geo_enabled)
+		return;
+	let cache = geo.load();
+	let ips = [];
+	for (let id, rec in usage.devices)
+		for (let ip in keys(rec.ips ?? {}))
+			push(ips, ip);
+	let changed = geo.resolve(m.settings, cache, ips, 2);
+	if (time() - last_home > 3600) {
+		last_home = time();
+		let wan = live.iface_status('wan')?.['ipv4-address']?.[0]?.address;
+		changed = geo.resolve_home(m.settings, cache, wan) || changed;
+	}
+	if (changed)
+		geo.save(cache);
+}
+
+function place_of(ip) {
+	let pl = geo.place(geo.load(), ip);
+	return pl ? join(' · ', filter([ pl.city, pl.org ], (x) => x)) : null;
+}
+
+function check_devices(m, lv, events) {
+	for (let id, d in lv) {
+		let dev = m.devices[id];
+		let was = last_online[id];
+		// A device we have never seen before that is online now counts as a connect.
+		if (was == null && d.online && d.present)
+			was = false;
+		// Debounce: a device has to look offline on two ticks in a row before
+		// a disconnect is logged (handshakes are renewed only every 2-3 min).
+		if (was && !d.online) {
+			offline_ticks[id] = (offline_ticks[id] ?? 0) + 1;
+			if (offline_ticks[id] < 2)
+				continue;
+		}
+		else
+			delete offline_ticks[id];
+		if (was != null && was != d.online) {
+			if (d.online)
+				push(events, { type: 'connect', person: dev.person, device: id, detail: d.endpoint, where: place_of(d.endpoint) });
+			else
+				push(events, { type: 'disconnect', person: dev.person, device: id });
+		}
+		else if (d.online && last_endpoint[id] && d.endpoint && last_endpoint[id] != d.endpoint)
+			push(events, { type: 'roam', person: dev.person, device: id, detail: `${last_endpoint[id]} → ${d.endpoint}` });
+		last_online[id] = d.online;
+		if (d.endpoint)
+			last_endpoint[id] = d.endpoint;
+	}
+	for (let id in keys(last_online))
+		if (!m.devices[id]) {
+			delete last_online[id];
+			delete last_endpoint[id];
+		}
+	ensure_dir(RUN_DIR);
+	write_json(`${RUN_DIR}/presence.json`, { online: last_online, endpoint: last_endpoint }, 0o600);
+}
+
+function check_servers(m, dmp, events) {
+	for (let id, srv in m.servers) {
+		if (!srv.enabled || !srv.private_key)
+			continue;
+		let up = dmp.ifaces[srv.ifname] != null;
+		if (!up) {
+			iface_down[id] = (iface_down[id] ?? 0) + 1;
+			if (iface_down[id] == 2) {
+				push(events, { type: 'server_down', server: id, detail: srv.ifname });
+			}
+		}
+		else {
+			if ((iface_down[id] ?? 0) >= 2) {
+				push(events, { type: 'server_up', server: id, detail: srv.ifname });
+			}
+			iface_down[id] = 0;
+		}
+	}
+}
+
+function check_cert(m) {
+	if (!m.settings.portal_enabled)
+		return;
+	let c = ops.portal_cert(m.settings);
+	let mt = stat(c.cert)?.mtime;
+	if (cert_mtime != null && mt != null && mt != cert_mtime)
+		system('/etc/init.d/dawnline reload >/dev/null 2>&1 &');
+	cert_mtime = mt;
+}
+
+let last_backup_day = null;
+
+function nightly_backup() {
+	let t = localtime();
+	if (t.hour != 3 || last_backup_day == t.mday)
+		return;
+	last_backup_day = t.mday;
+	let sum = sh_out('md5sum /etc/config/dawnline | cut -d" " -f1');
+	let st = read_json(`${DATA_DIR}/backup-state.json`, {});
+	if (sum && sum != st.auto) {
+		try {
+			ops.backup_create('auto');
+			write_json(`${DATA_DIR}/backup-state.json`, { auto: sum }, 0o600);
+		}
+		catch (e) {}
+	}
+}
+
+/**
+ * Traffic history resets requested from LuCI (rpcd cannot touch the
+ * counters this process holds in memory). Applied, then saved to flash.
+ */
+function check_usage_reset(m) {
+	let path = `${RUN_DIR}/usage.reset`;
+	let req = read_json(path, null);
+	if (req == null)
+		return false;
+	unlink(path);
+	for (let r in (type(req) == 'array' ? req : [ req ])) {
+		live.reset_usage(usage, m, r.scope, r.id);
+	}
+	return true;
+}
+
+function tick() {
+	// A restore or import drops the live counters; start over from flash.
+	if (!stat(`${RUN_DIR}/usage.json`) && usage.updated)
+		usage = live.load_usage();
+	let m = core.load();
+	let reset = check_usage_reset(m);
+	let pol = live.policy(m.settings.retention);
+	let dmp = live.dump();
+	let lv = live.collect(m, usage, dmp);
+	try {
+		record_rate(m);
+	}
+	catch (e) {}
+	let states = apply.states_for(m, usage);
+	let events = [];
+
+	check_devices(m, lv, events);
+	check_people(m, states, events);
+	check_servers(m, dmp, events);
+
+	let changed = last_states == null || sprintf('%J', states) != sprintf('%J', last_states);
+	if (changed || time() - last_sync > RESYNC_EVERY) {
+		apply.sync(m, usage);
+		last_sync = time();
+	}
+	last_states = states;
+
+	live.add_events(events, pol);
+
+	let persist = reset || time() - last_flush >= FLUSH_EVERY;
+	live.save_usage(usage, persist);
+	if (persist)
+		last_flush = time();
+	if (pol.persist == 'off' || time() - last_log_flush >= LOG_FLUSH[pol.persist]) {
+		live.persist_events(pol);
+		last_log_flush = time();
+	}
+	try {
+		apply.sync_loop(m, usage);
+		// The router's network changed under us: re-derive everything.
+		let sig = apply.net_signature(m);
+		if (last_net != null && sig != last_net) {
+			system(`logger -t dawnline-agent 'network changed, re-applying'`);
+			apply.apply();
+			sig = apply.net_signature(core.load());
+		}
+		last_net = sig;
+	}
+	catch (e) {
+		system(`logger -t dawnline-agent ${q('like-home: ' + e.message)}`);
+	}
+	check_cert(m);
+	nightly_backup();
+	try {
+		check_geo(m);
+	}
+	catch (e) {
+		system(`logger -t dawnline-agent ${q('geo: ' + e.message)}`);
+	}
+}
+
+function shutdown() {
+	live.save_usage(usage, true);
+	live.persist_events();
+}
+
+uloop.init();
+
+let timer;
+timer = uloop.timer(1000, function() {
+	try {
+		tick();
+	}
+	catch (e) {
+		system(`logger -t dawnline-agent ${q('tick failed: ' + e.message)}`);
+	}
+	timer.set(TICK);
+});
+
+if (type(uloop.signal) == 'function') {
+	uloop.signal('TERM', () => { shutdown(); uloop.end(); });
+	uloop.signal('INT', () => { shutdown(); uloop.end(); });
+}
+
+uloop.run();
+shutdown();

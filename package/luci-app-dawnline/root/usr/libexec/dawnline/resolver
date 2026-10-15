@@ -1,0 +1,9 @@
+#!/bin/sh
+# Dawnline: run the Home-only resolver where its config says (inside the
+# dawnline netns while it exists, otherwise on the router itself).
+CONF=/var/etc/dawnline-dns.conf
+[ -f "$CONF" ] || exit 1
+if head -n1 "$CONF" | grep -q '^# mode=ns' && [ -e /var/run/netns/dawnline ]; then
+	exec ip netns exec dawnline /usr/sbin/dnsmasq -k -C "$CONF"
+fi
+exec /usr/sbin/dnsmasq -k -C "$CONF"

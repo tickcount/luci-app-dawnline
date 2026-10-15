@@ -1,0 +1,408 @@
+// Dawnline — live data: peer status from `awg show all dump`, traffic
+// accounting and the connection/event log.
+//
+// Counters live in RUN_DIR (tmpfs) and are flushed to DATA_DIR at most once
+// an hour, so flash is not worn by the 60-second agent loop.
+
+import { readfile, stat, unlink } from 'fs';
+import { cursor } from 'uci';
+import {
+	q, sh, sh_out, sh_bg, ensure_dir, read_json, write_json, lock, unlock, month_key, day_key, uniq,
+	RUN_DIR, DATA_DIR
+} from 'dawnline.util';
+
+export const ONLINE_WINDOW = 300;
+const KEEP_DAYS = 62;
+const KEEP_MONTHS = 24;
+const KEEP_EVENTS = 2000;
+
+/* ---------- retention policy ---------- */
+
+/** Event type → log category (what Settings lets you switch off or clear). */
+export const CATEGORY = {
+	connect: 'connections', disconnect: 'connections', roam: 'connections',
+	device_added: 'devices', device_removed: 'devices', devices_removed: 'devices',
+	person_added: 'people', person_removed: 'people', person_changed: 'people',
+	paused: 'people', resumed: 'people', paused_all: 'people', resumed_all: 'people',
+	server_down: 'problems', server_up: 'problems', portal_blocked: 'problems',
+};
+export const CATEGORIES = [ 'connections', 'devices', 'people', 'problems' ];
+
+export function category_of(type) {
+	return CATEGORY[type] ?? 'problems';
+};
+
+function int_or(v, d) {
+	return (v == null || v == '' || match(`${v}`, /[^0-9]/)) ? d : +v;
+}
+
+/**
+ * Log and history retention from /etc/config/dawnline (read fresh, the
+ * portal and rpcd call add_event without a loaded model).
+ *   log_keep_days  days of activity to keep, 0 = until log_max
+ *   log_max        newest N events kept
+ *   log_category   categories that are recorded
+ *   log_persist    how often the log is saved to flash: 10min | hourly | off
+ *   usage_keep_days / usage_keep_months  daily / monthly traffic buckets
+ */
+export function policy(s) {
+	if (s == null) {
+		let c = cursor();
+		s = c.get_all('dawnline', 'settings') ?? {};
+	}
+	let cats = s.log_category;
+	if (cats == null)
+		cats = (s.log_connections == '0') ? filter(CATEGORIES, (x) => x != 'connections') : CATEGORIES;
+	else if (type(cats) != 'array')
+		cats = split(cats, /[ ,]+/);
+	cats = filter(cats, (x) => index(CATEGORIES, x) >= 0);
+	return {
+		keep_days: int_or(s.log_keep_days, 30),
+		max: min(max(int_or(s.log_max, KEEP_EVENTS), 100), 20000),
+		categories: cats,
+		persist: index([ '10min', 'hourly', 'off' ], s.log_persist) >= 0 ? s.log_persist : 'hourly',
+		usage_days: min(max(int_or(s.usage_keep_days, KEEP_DAYS), 7), 1830),
+		usage_months: min(max(int_or(s.usage_keep_months, KEEP_MONTHS), 1), 120),
+	};
+};
+
+/** Drop events older than keep_days and beyond max. */
+function trim_events(ev, pol) {
+	if (pol.keep_days > 0) {
+		let cut = time() - pol.keep_days * 86400;
+		ev = filter(ev, (e) => (e.ts ?? 0) >= cut);
+	}
+	if (length(ev) > pol.max)
+		ev = slice(ev, length(ev) - pol.max);
+	return ev;
+}
+
+/* ---------- awg dump ---------- */
+
+/**
+ * Parse `awg show all dump`. Returns { ifaces: { ifname: {...} }, peers: { pubkey: {...} } }.
+ * Interface lines have many fields (AmneziaWG adds obfuscation values); peer
+ * lines always have 9.
+ */
+export function dump() {
+	let r = sh('awg show all dump');
+	let out = { ifaces: {}, peers: {} };
+	if (r.code != 0)
+		return out;
+	for (let line in split(r.out, '\n')) {
+		let f = split(line, '\t');
+		if (length(f) == 9) {
+			let ep = f[3] == '(none)' ? '' : f[3];
+			out.peers[f[1]] = {
+				ifname: f[0],
+				endpoint: ep,
+				handshake: +f[5],
+				rx: +f[6],
+				tx: +f[7],
+			};
+		}
+		else if (length(f) >= 5) {
+			out.ifaces[f[0]] = { public_key: f[2], port: +f[3] };
+		}
+	}
+	return out;
+};
+
+export function endpoint_ip(ep) {
+	let m = match(ep ?? '', /^\[?([^\]]+?)\]?:[0-9]+$/);
+	return m ? m[1] : ep;
+};
+
+/* ---------- usage ---------- */
+
+function empty_usage() {
+	return { devices: {}, people: {}, updated: 0, flushed: 0 };
+}
+
+export function load_usage() {
+	return read_json(`${RUN_DIR}/usage.json`, null) ?? read_json(`${DATA_DIR}/usage.json`, null) ?? empty_usage();
+};
+
+function add(bucket, key, rx, tx) {
+	let v = bucket[key] ?? [ 0, 0 ];
+	bucket[key] = [ v[0] + rx, v[1] + tx ];
+}
+
+function prune(obj, keep) {
+	let ks = sort(keys(obj));
+	for (let i = 0; i < length(ks) - keep; i++)
+		delete obj[ks[i]];
+}
+
+function account(rec, rx, tx, ts) {
+	rec.total = [ (rec.total?.[0] ?? 0) + rx, (rec.total?.[1] ?? 0) + tx ];
+	rec.months ??= {};
+	rec.days ??= {};
+	add(rec.months, month_key(ts), rx, tx);
+	add(rec.days, day_key(ts), rx, tx);
+}
+
+/** Apply the traffic history retention to every record. */
+export function prune_usage(usage, pol) {
+	pol ??= policy();
+	for (let grp in [ usage.devices, usage.people ])
+		for (let id, rec in grp) {
+			if (rec.months)
+				prune(rec.months, pol.usage_months);
+			if (rec.days)
+				prune(rec.days, pol.usage_days);
+		}
+};
+
+/** Forget a record's traffic history; kernel counters (raw) and the last handshake stay. */
+function wipe(rec) {
+	if (!rec)
+		return;
+	delete rec.total;
+	delete rec.months;
+	delete rec.days;
+}
+
+/**
+ * Reset traffic history. scope: all | person | device. A person reset also
+ * clears their devices and restarts their data limit; a device reset leaves
+ * the person's totals (and so their limit) alone.
+ */
+export function reset_usage(usage, m, scope, id) {
+	if (scope == 'all') {
+		for (let k, rec in usage.devices)
+			wipe(rec);
+		for (let k, rec in usage.people)
+			wipe(rec);
+	}
+	else if (scope == 'person') {
+		wipe(usage.people[id]);
+		for (let did in m.people[id]?.devices ?? [])
+			wipe(usage.devices[did]);
+	}
+	else if (scope == 'device') {
+		wipe(usage.devices[id]);
+	}
+};
+
+/**
+ * Fold the current kernel counters into `usage`. Counters restart from zero
+ * when a peer is re-added or the interface restarts; a drop is treated as a
+ * reset. Returns the per-device live view keyed by device id.
+ */
+export function collect(m, usage, d) {
+	d ??= dump();
+	let ts = time();
+	let live = {};
+	let by_key = {};
+	for (let id, dev in m.devices)
+		by_key[dev.public_key] = id;
+
+	for (let id, dev in m.devices) {
+		let rec = usage.devices[id] ??= { raw: [ 0, 0 ] };
+		let peer = d.peers[dev.public_key];
+		if (!peer) {
+			rec.raw = [ 0, 0 ];
+			live[id] = { online: false, handshake: rec.handshake ?? 0, endpoint: rec.endpoint ?? '', present: false };
+			continue;
+		}
+		let raw = rec.raw ?? [ 0, 0 ];
+		let drx = peer.rx >= raw[0] ? peer.rx - raw[0] : peer.rx;
+		let dtx = peer.tx >= raw[1] ? peer.tx - raw[1] : peer.tx;
+		rec.raw = [ peer.rx, peer.tx ];
+		if (drx > 0 || dtx > 0) {
+			account(rec, drx, dtx, ts);
+			let p = usage.people[dev.person] ??= {};
+			account(p, drx, dtx, ts);
+		}
+		if (peer.handshake > 0) {
+			rec.handshake = peer.handshake;
+			rec.endpoint = endpoint_ip(peer.endpoint);
+			// Recent client addresses (for the map): ip → last seen, newest 8.
+			rec.ips ??= {};
+			if (rec.endpoint)
+				rec.ips[rec.endpoint] = peer.handshake;
+			let ips = sort(keys(rec.ips), (x, y) => rec.ips[y] - rec.ips[x]);
+			for (let i = 8; i < length(ips); i++)
+				delete rec.ips[ips[i]];
+		}
+		live[id] = {
+			online: peer.handshake > 0 && ts - peer.handshake < ONLINE_WINDOW,
+			handshake: peer.handshake || rec.handshake || 0,
+			endpoint: endpoint_ip(peer.endpoint) || rec.endpoint || '',
+			present: true,
+		};
+	}
+
+	// Forget counters of devices that no longer exist (their bytes stay in
+	// the person's totals).
+	for (let id in keys(usage.devices))
+		if (!m.devices[id])
+			delete usage.devices[id];
+
+	prune_usage(usage, policy(m.settings.retention));
+	usage.updated = ts;
+	return live;
+};
+
+export function save_usage(usage, persist) {
+	ensure_dir(RUN_DIR);
+	write_json(`${RUN_DIR}/usage.json`, usage, 0o600);
+	if (persist) {
+		usage.flushed = time();
+		ensure_dir(DATA_DIR, 0o700);
+		write_json(`${DATA_DIR}/usage.json`, usage, 0o600);
+	}
+};
+
+/** Sum of [rx, tx] over the last `days` days for a usage record. */
+export function recent(rec, days) {
+	let out = [ 0, 0 ];
+	let ts = time();
+	for (let i = 0; i < days; i++) {
+		let v = rec?.days?.[day_key(ts - i * 86400)];
+		if (v) {
+			out[0] += v[0];
+			out[1] += v[1];
+		}
+	}
+	return out;
+};
+
+export function month(rec) {
+	return rec?.months?.[month_key()] ?? [ 0, 0 ];
+};
+
+/** Daily series for the last `days` days: [{ day, rx, tx }]. */
+export function series(recs, days) {
+	let out = [];
+	let ts = time();
+	for (let i = days - 1; i >= 0; i--) {
+		let k = day_key(ts - i * 86400);
+		let rx = 0, tx = 0;
+		for (let r in recs) {
+			let v = r?.days?.[k];
+			if (v) {
+				rx += v[0];
+				tx += v[1];
+			}
+		}
+		push(out, { day: k, rx, tx });
+	}
+	return out;
+};
+
+/* ---------- events ---------- */
+
+export function load_events() {
+	return read_json(`${RUN_DIR}/events.json`, null) ?? read_json(`${DATA_DIR}/events.json`, []);
+};
+
+export function add_events(list, pol) {
+	pol ??= policy();
+	list = filter(list ?? [], (e) => index(pol.categories, category_of(e.type)) >= 0);
+	if (!length(list))
+		return;
+	let l = lock('events');
+	let ev = load_events();
+	let ts = time();
+	for (let e in list) {
+		e.ts ??= ts;
+		push(ev, e);
+	}
+	ev = trim_events(ev, pol);
+	ensure_dir(RUN_DIR);
+	write_json(`${RUN_DIR}/events.json`, ev, 0o600);
+	unlock(l);
+};
+
+export function add_event(e) {
+	add_events([ e ]);
+};
+
+/** Like add_event, but folds into the previous event of the same kind and person within `window` s. */
+export function add_event_merged(e, window) {
+	let pol = policy();
+	if (index(pol.categories, category_of(e.type)) < 0)
+		return;
+	let l = lock('events');
+	let ev = load_events();
+	let last = ev[length(ev) - 1];
+	let ts = time();
+	if (last && last.type == e.type && last.person == e.person && ts - last.ts < (window ?? 120)) {
+		let parts = uniq([ ...split(last.detail ?? '', ', '), ...split(e.detail ?? '', ', ') ]);
+		last.detail = join(', ', filter(parts, (x) => x != ''));
+		last.ts = ts;
+	}
+	else {
+		e.ts = ts;
+		push(ev, e);
+	}
+	ev = trim_events(ev, pol);
+	ensure_dir(RUN_DIR);
+	write_json(`${RUN_DIR}/events.json`, ev, 0o600);
+	unlock(l);
+};
+
+/** Save the log to flash, or drop the flash copy when it is kept in RAM only. */
+export function persist_events(pol) {
+	pol ??= policy();
+	if (pol.persist == 'off') {
+		if (stat(`${DATA_DIR}/events.json`))
+			unlink(`${DATA_DIR}/events.json`);
+		return;
+	}
+	let ev = read_json(`${RUN_DIR}/events.json`, null);
+	if (ev != null) {
+		ensure_dir(DATA_DIR, 0o700);
+		write_json(`${DATA_DIR}/events.json`, trim_events(ev, pol), 0o600);
+	}
+};
+
+/**
+ * Remove events matching every given filter (person, device, category,
+ * older than `before` ts); no filters clears the whole log. Edits both the
+ * live copy and the one on flash. Returns how many were removed.
+ */
+export function clear_events(f) {
+	f ??= {};
+	let hit = (e) =>
+		(!f.person || e.person == f.person) &&
+		(!f.device || e.device == f.device) &&
+		(!f.category || category_of(e.type) == f.category) &&
+		(!f.before || (e.ts ?? 0) < f.before);
+	let l = lock('events');
+	let removed = 0;
+	for (let path in [ `${RUN_DIR}/events.json`, `${DATA_DIR}/events.json` ]) {
+		let ev = read_json(path, null);
+		if (ev == null)
+			continue;
+		let keep = filter(ev, (e) => !hit(e));
+		if (path == `${RUN_DIR}/events.json` || removed == 0)
+			removed = max(removed, length(ev) - length(keep));
+		write_json(path, keep, 0o600);
+	}
+	unlock(l);
+	return removed;
+};
+
+/* ---------- health ---------- */
+
+export function iface_status(ifname) {
+	if (!match(ifname ?? '', /^[A-Za-z0-9_.@-]{1,32}$/))
+		return null;
+	let s = sh_out(`ubus call network.interface.${ifname} status 2>/dev/null`);
+	if (!s)
+		return null;
+	try {
+		return json(s);
+	}
+	catch (e) {
+		return null;
+	}
+};
+
+export function uptime() {
+	let s = readfile('/proc/uptime');
+	return s ? int(+split(s, ' ')[0]) : 0;
+};

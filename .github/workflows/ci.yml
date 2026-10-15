@@ -1,0 +1,115 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Web (format, types, tests, bundles)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check formatting
+        id: format
+        run: |
+          if ! npm run --silent format:check; then
+            echo "::error::Code is not formatted. Run 'npm run format' in web/."
+            exit 1
+          fi
+
+      - name: Type check
+        id: types
+        run: npm run --silent typecheck
+
+      - name: Tests
+        id: tests
+        run: npm test
+
+      - name: Build bundles and check they are committed
+        id: build
+        run: |
+          npm run --silent build
+          if ! git diff --exit-code -- ../package; then
+            echo "::error::The committed bundles are out of date. Run 'npm run build' in web/ and commit the result."
+            exit 1
+          fi
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Web"
+            echo ""
+            echo "| Check | Result |"
+            echo "|---|---|"
+            echo "| Formatting | ${{ steps.format.outcome }} |"
+            echo "| Types | ${{ steps.types.outcome }} |"
+            echo "| Tests | ${{ steps.tests.outcome }} |"
+            echo "| Bundles | ${{ steps.build.outcome }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  shell:
+    name: ShellCheck
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: ShellCheck
+        run: |
+          shellcheck --version
+          shellcheck -S warning \
+            install.sh \
+            package/luci-app-dawnline/root/etc/init.d/dawnline \
+            package/luci-app-dawnline/root/etc/uci-defaults/90_dawnline \
+            package/luci-app-dawnline/root/etc/hotplug.d/iface/95-dawnline \
+            scripts/*.sh
+
+  ucode:
+    name: ucode static checks
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Use before definition
+        run: python3 scripts/lint-ucode.py
+
+      - name: Executables keep their mode
+        run: |
+          cd package/luci-app-dawnline/root
+          for f in usr/bin/dawnline usr/libexec/dawnline/agent usr/libexec/dawnline/updater usr/libexec/dawnline/resolver \
+                   etc/init.d/dawnline etc/uci-defaults/90_dawnline usr/share/dawnline/portal/www/cgi-bin/portal; do
+            [ -x "$f" ] || { echo "::error file=$f::not executable (git update-index --chmod=+x $f)"; exit 1; }
+          done
+
+      - name: Versions agree
+        run: |
+          v="$(sed -n 's/^PKG_VERSION:=//p' package/luci-app-dawnline/Makefile)"
+          grep -q "^export const VERSION = '$v';" package/luci-app-dawnline/root/usr/share/ucode/dawnline/util.uc
+          grep -q "\"version\": \"$v\"" web/package.json
+          echo "Version $v"

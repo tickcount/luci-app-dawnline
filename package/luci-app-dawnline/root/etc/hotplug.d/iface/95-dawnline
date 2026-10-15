@@ -1,0 +1,5 @@
+#!/bin/sh
+# Load devices into a Dawnline tunnel whenever netifd (re)creates it.
+[ "$ACTION" = ifup ] || exit 0
+[ -n "$(uci -q get "network.$INTERFACE._dawnline")" ] || exit 0
+/usr/bin/dawnline sync >/dev/null 2>&1 &

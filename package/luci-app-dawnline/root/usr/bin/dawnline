@@ -1,0 +1,125 @@
+#!/usr/bin/ucode
+// Dawnline command line: `dawnline help`.
+'use strict';
+
+import * as core from 'dawnline.core';
+import * as live from 'dawnline.live';
+import * as apply from 'dawnline.apply';
+import * as view from 'dawnline.view';
+import * as ops from 'dawnline.ops';
+import { VERSION } from 'dawnline.util';
+
+const args = ARGV;
+const cmd = args[0] ?? 'help';
+
+function out(v) {
+	print(type(v) == 'string' ? v + '\n' : sprintf('%.J\n', v));
+}
+
+function opt(name, dflt) {
+	for (let i = 1; i < length(args); i++)
+		if (args[i] == `--${name}`)
+			return args[i + 1];
+	return dflt;
+}
+
+function help() {
+	out(`Dawnline ${VERSION}
+
+Usage: dawnline <command>
+
+  apply                     Reconcile router configuration and runtime state
+  sync                      Push devices and access rules to the tunnel
+  status                    People and devices with live state (JSON)
+  health                    Run health checks (JSON)
+  person add <name> [--slug s] [--access lan|internet|both] [--devices n]
+                            [--expires YYYY-MM-DD] [--quota GB]
+  person link <slug>        Print the personal portal link
+  person rm <slug>          Remove a person and their devices
+  device add <slug> <name> [--kind phone|computer|tablet|router]
+  device conf <id>          Print a device configuration
+  device rm <id>            Remove a device
+  backup                    Create a backup in /etc/dawnline/backups
+  portal-cert               Print the certificate and key the portal uses
+  portal-http-port          Print the plain-HTTP port when an IP is among the portal addresses
+  teardown                  Remove everything Dawnline created on the router
+  version`);
+}
+
+function commit(c) {
+	c.commit('dawnline');
+	system('chmod 600 /etc/config/dawnline');
+}
+
+try {
+	if (cmd == 'apply')
+		out(apply.apply());
+	else if (cmd == 'sync')
+		out(apply.sync());
+	else if (cmd == 'status') {
+		let m = core.load(), u = core.load_usage(), d = live.dump(), st = view.states(m, u);
+		out(map(values(m.people), (p) => view.person_view(m, p, u, d, st, { admin: true })));
+	}
+	else if (cmd == 'health')
+		out(ops.health());
+	else if (cmd == 'person' && args[1] == 'add') {
+		let c = core.open_cursor(), m = core.load(c);
+		let id = core.create_person(c, m, {
+			name: args[2], slug: opt('slug'), access: opt('access', 'internet'),
+			device_limit: opt('devices'), expires: opt('expires'), quota_gb: opt('quota'),
+		});
+		commit(c);
+		let m2 = core.load();
+		out(core.portal_url(m2, m2.people[id]) ?? id);
+	}
+	else if (cmd == 'person' && args[1] == 'link') {
+		let m = core.load();
+		let p = m.people[args[2]] ?? die('Unknown person.');
+		out(core.portal_url(m, p) ?? 'Set settings.portal_host first.');
+	}
+	else if (cmd == 'person' && args[1] == 'rm') {
+		let c = core.open_cursor(), m = core.load(c);
+		core.delete_person(c, m, args[2]);
+		commit(c);
+		apply.sync();
+	}
+	else if (cmd == 'device' && args[1] == 'add') {
+		let c = core.open_cursor(), m = core.load(c);
+		let id = core.create_device(c, m, args[2], args[3], opt('kind', 'phone'), { by: 'admin' });
+		commit(c);
+		apply.sync();
+		out(id);
+	}
+	else if (cmd == 'device' && args[1] == 'conf') {
+		let m = core.load();
+		let d = m.devices[args[2]] ?? die('Unknown device.');
+		print(core.client_config(m, d).conf);
+	}
+	else if (cmd == 'device' && args[1] == 'rm') {
+		let c = core.open_cursor(), m = core.load(c);
+		core.delete_device(c, m, args[2]);
+		commit(c);
+		apply.sync();
+	}
+	else if (cmd == 'backup')
+		out(ops.backup_create(opt('reason')));
+	else if (cmd == 'portal-cert') {
+		let c = ops.portal_cert(core.load().settings);
+		out(`${c.cert} ${c.key}`);
+	}
+	else if (cmd == 'portal-http-port') {
+		let m = core.load();
+		if (core.portal_http(m))
+			out(`${core.portal_http_port(m)}`);
+	}
+	else if (cmd == 'teardown')
+		apply.teardown();
+	else if (cmd == 'version')
+		out(VERSION);
+	else
+		help();
+}
+catch (e) {
+	warn(`dawnline: ${e.message}\n`);
+	exit(1);
+}

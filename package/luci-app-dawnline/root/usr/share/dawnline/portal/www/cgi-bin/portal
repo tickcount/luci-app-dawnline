@@ -1,0 +1,344 @@
+#!/usr/bin/ucode
+// Dawnline personal portal (CGI behind a dedicated uhttpd instance).
+//
+//   GET  /<code>                          the app shell (<code> = three words, the personal link)
+//   GET  /<code>/assets/<file>            its script, styles, fonts
+//   GET  /<code>/api/state
+//   POST /<code>/api/devices              { name, kind, public_key? }
+//   GET  /<code>/api/devices/<id>/config
+//   POST /<code>/api/devices/<id>         { action: rename|delete, name? }
+//
+// The personal link is the key: every request carries its code, there are
+// no sessions. Without a valid code every path answers the same bare 404 —
+// the root, a person's link, the API and the assets alike — so nothing tells
+// a scanner there is a portal here. Wrong codes are rate-limited per IP
+// (blocked addresses get the same 404 even with the right code).
+// Regenerating the code in LuCI locks the old link out at once. POST bodies
+// must be JSON from the same origin; Referrer-Policy keeps the code out of
+// other sites' logs.
+//
+// The portal can only manage the person's own devices within their limit.
+'use strict';
+
+import { stdin, stat, unlink, readfile } from 'fs';
+import {
+	read_json, write_json, ensure_dir, lock, unlock, cloudflare_ip, ip2int, VERSION, RUN_DIR, DATA_DIR
+} from 'dawnline.util';
+import * as core from 'dawnline.core';
+import * as live from 'dawnline.live';
+import * as apply from 'dawnline.apply';
+import * as view from 'dawnline.view';
+
+const RATE = `${RUN_DIR}/portal-rate.json`;
+const ASSETS = '/usr/share/dawnline/portal/assets';
+const TYPES = { js: 'text/javascript', css: 'text/css', svg: 'image/svg+xml', woff2: 'font/woff2' };
+const FAIL_LIMIT = 8;
+const FAIL_WINDOW = 900;
+
+const SECURITY_HEADERS = {
+	'X-Content-Type-Options': 'nosniff',
+	'Referrer-Policy': 'no-referrer',
+	'X-Frame-Options': 'DENY',
+	'Cache-Control': 'no-store',
+	'Strict-Transport-Security': 'max-age=31536000',
+};
+
+function headers(status, extra) {
+	let h = `Status: ${status}\r\n`;
+	for (let k, v in { ...SECURITY_HEADERS, ...(extra ?? {}) })
+		h += `${k}: ${v}\r\n`;
+	print(h + '\r\n');
+}
+
+function send_json(status, obj, extra) {
+	headers(status, { 'Content-Type': 'application/json', ...(extra ?? {}) });
+	print(sprintf('%J', obj));
+	exit(0);
+}
+
+function fail(status, msg) {
+	send_json(status, { error: msg });
+}
+
+function html_escape(s) {
+	return replace(`${s}`, /[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+}
+
+function page(status, base, title, code) {
+	// The build's time joins the version so every update busts the hour-long asset cache.
+	let q = `?v=${VERSION}.${stat(`${ASSETS}/portal.js`)?.mtime ?? 0}`;
+	headers(status, {
+		'Content-Type': 'text/html; charset=utf-8',
+		'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; " +
+			"connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+	});
+	print(`<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex, nofollow">
+<title>${html_escape(title)}</title>
+<link rel="icon" href="${base}/assets/icon.svg${q}" type="image/svg+xml">
+<link rel="stylesheet" href="${base}/assets/portal.css${q}">
+</head>
+<body>
+<div id="app" data-base="${html_escape(base ?? '')}" data-title="${html_escape(title)}"></div>
+<script src="${base}/assets/portal.js${q}" defer></script>
+</body>
+</html>
+`);
+	exit(0);
+}
+
+/* ---------- request ---------- */
+
+const method = getenv('REQUEST_METHOD') ?? 'GET';
+const uri = getenv('REQUEST_URI') ?? '/';
+// Behind a Cloudflare-proxied hostname every request comes from Cloudflare,
+// and uhttpd does not hand CF-Connecting-IP to CGI: all those visitors share
+// one bucket with a higher limit (three-word codes can't be guessed anyway).
+const peer = getenv('REMOTE_ADDR') ?? '';
+const via_cf = cloudflare_ip(peer);
+const ip = via_cf ? 'cloudflare' : peer;
+const fail_limit = via_cf ? FAIL_LIMIT * 25 : FAIL_LIMIT;
+const qpos = index(uri, '?');
+const path = qpos >= 0 ? substr(uri, 0, qpos) : uri;
+const query = qpos >= 0 ? substr(uri, qpos + 1) : '';
+const segs = filter(split(path, '/'), (s) => s != '');
+
+function query_param(name) {
+	for (let kv in split(query, '&')) {
+		let eq = index(kv, '=');
+		if (eq > 0 && substr(kv, 0, eq) == name)
+			return substr(kv, eq + 1);
+	}
+	return null;
+}
+
+function body() {
+	let len = +(getenv('CONTENT_LENGTH') ?? 0);
+	if (len <= 0)
+		return {};
+	if (len > 8192)
+		fail('413 Payload Too Large', 'Request too large.');
+	let raw = stdin.read(len);
+	try {
+		let j = json(raw);
+		return type(j) == 'object' ? j : {};
+	}
+	catch (e) {
+		fail('400 Bad Request', 'Invalid JSON.');
+	}
+}
+
+/* ---------- rate limiting ---------- */
+
+function rate_state() {
+	let st = read_json(RATE, {});
+	let now = time();
+	for (let k, v in st)
+		if (now - v.first > FAIL_WINDOW)
+			delete st[k];
+	return st;
+}
+
+function rate_blocked() {
+	let v = rate_state()[ip];
+	return v != null && v.count >= fail_limit;
+}
+
+function rate_fail() {
+	let l = lock('portal-rate');
+	let st = rate_state();
+	let v = st[ip] ?? { first: time(), count: 0 };
+	v.count++;
+	st[ip] = v;
+	ensure_dir(RUN_DIR);
+	write_json(RATE, st, 0o600);
+	unlock(l);
+	if (v.count == fail_limit)
+		live.add_event({ type: 'portal_blocked', detail: ip });
+}
+
+// Older versions kept sign-in sessions on flash; they mean nothing now.
+if (stat(`${DATA_DIR}/sessions.json`))
+	unlink(`${DATA_DIR}/sessions.json`);
+
+/* ---------- routing ---------- */
+
+let m = core.load();
+const redirect = m.settings.portal_redirect;
+
+/**
+ * The one answer for anything without a valid code: a bare 404, or the redirect from Settings.
+ * Files and LuCI's own paths always get the 404: at home this script is LuCI's error page, and a
+ * missing script must not turn into someone's website.
+ */
+function not_found() {
+	let parts = split(split(uri, '?')[0], '/');
+	let file = match(uri, /^\/(luci-static|cgi-bin|ubus)(\/|$)/) || match(parts[length(parts) - 1], /\./);
+	if (redirect && !file) {
+		headers('302 Found', { 'Location': redirect, 'Cache-Control': 'no-store', 'Content-Type': 'text/plain' });
+		print('Moved\n');
+	}
+	else {
+		headers('404 Not Found', { 'Content-Type': 'text/plain' });
+		print('Not found\n');
+	}
+	exit(0);
+}
+
+const title = m.settings.portal_title || 'Dawnline';
+// Plain HTTP only for an IP address chosen in Settings (no certificate exists
+// for it); names, and LuCI's web server at home, stay HTTPS-only.
+if (getenv('HTTPS') != 'on') {
+	let h = getenv('HTTP_HOST') ?? '';
+	h = match(h, /^\[/) ? h : split(h, ':')[0];
+	if (ip2int(h) == null || index(core.portal_hosts(m), h) < 0)
+		not_found();
+}
+// The link is /<word-code>[/assets/…|/api/…]: the code is the address.
+if (length(segs) < 1 || !match(segs[0], core.WORD_CODE))
+	not_found();
+const code = segs[0];
+const base = `/${code}`;
+const rest = slice(segs, 1);
+let person = null;
+for (let id, p in m.people)
+	if (p.code == code)
+		person = p;
+
+// A wrong code or a blocked address: indistinguishable from a path that does
+// not exist. Only well-formed guesses count towards the limit.
+if (rate_blocked())
+	not_found();
+if (person == null) {
+	rate_fail();
+	not_found();
+}
+
+const person_id = person.id;
+
+// The app shell; it reads the code from its own URL and sends it along.
+if (length(rest) == 0 && method == 'GET')
+	page('200 OK', base, title, code);
+
+// Script, styles, icon and fonts (kept outside the web root).
+if (rest[0] == 'assets' && length(rest) == 2 && method == 'GET') {
+	let name = rest[1];
+	let ext = match(name, /^[a-z0-9-]+\.(js|css|svg|woff2)$/)?.[1];
+	let data = ext ? readfile(`${ASSETS}/${name}`) : null;
+	if (data == null)
+		not_found();
+	headers('200 OK', { 'Content-Type': TYPES[ext], 'Cache-Control': 'private, max-age=3600' });
+	print(data);
+	exit(0);
+}
+
+if (rest[0] != 'api')
+	not_found();
+
+// CSRF: only same-origin JSON requests (uhttpd passes no custom headers to
+// CGI; a cross-site page cannot send application/json without CORS, and it
+// would need the code anyway).
+if (method == 'POST') {
+	let origin = getenv('HTTP_ORIGIN');
+	if (!match(getenv('CONTENT_TYPE') ?? '', /^application\/json/) ||
+	    (origin != null && origin != `${getenv('HTTPS') == 'on' ? 'https' : 'http'}://${getenv('HTTP_HOST')}`))
+		fail('403 Forbidden', 'Cross-site request refused.');
+}
+else if (method != 'GET')
+	fail('405 Method Not Allowed', 'Method not allowed.');
+
+const api = slice(rest, 1);
+
+function state() {
+	let usage = core.load_usage();
+	let dmp = live.dump();
+	let v = view.person_view(m, person, usage, dmp, view.states(m, usage));
+	let srv = m.servers[person.server];
+	return {
+		title,
+		person: v,
+		server: { name: srv?.name, endpoint: core.endpoint_host(m, srv) },
+		can_add: length(person.devices) < person.device_limit,
+		kinds: core.KINDS,
+		version: VERSION,
+	};
+}
+
+function own_device(id) {
+	let d = m.devices[id];
+	if (!d || d.person != person.id)
+		fail('404 Not Found', 'Device not found.');
+	return d;
+}
+
+if (api[0] == 'state' && method == 'GET')
+	send_json('200 OK', state());
+
+if (api[0] == 'devices' && length(api) == 1 && method == 'POST') {
+	let b = body();
+	let l = lock('config');
+	let id;
+	try {
+		let c = core.open_cursor();
+		m = core.load(c);
+		person = m.people[person_id];
+		id = core.create_device(c, m, person.id, b.name, b.kind, { by: 'portal', public_key: b.public_key || null });
+		c.commit('dawnline');
+		system('chmod 600 /etc/config/dawnline');
+	}
+	catch (e) {
+		unlock(l);
+		fail('400 Bad Request', e.message);
+	}
+	unlock(l);
+	apply.sync();
+	m = core.load();
+	person = m.people[person_id];
+	live.add_event({ type: 'device_added', person: person.id, device: id, detail: `${m.devices[id].name} (portal)` });
+	core.mark_issued(m, id);
+	send_json('200 OK', { id, config: core.client_config(m, m.devices[id]), state: state() });
+}
+
+if (api[0] == 'devices' && length(api) == 3 && api[2] == 'config' && method == 'GET') {
+	let d = own_device(api[1]);
+	core.mark_issued(m, d.id);
+	send_json('200 OK', core.client_config(m, d));
+}
+
+if (api[0] == 'devices' && length(api) == 2 && method == 'POST') {
+	own_device(api[1]);
+	let b = body();
+	let l = lock('config');
+	try {
+		let c = core.open_cursor();
+		m = core.load(c);
+		if (b.action == 'rename')
+			core.rename_device(c, m, api[1], b.name);
+		else if (b.action == 'delete') {
+			let d = m.devices[api[1]];
+			core.delete_device(c, m, api[1]);
+			live.add_event({ type: 'device_removed', person: person.id, device: api[1], detail: `${d.name} (portal)` });
+		}
+		else
+			die('Unknown action.');
+		c.commit('dawnline');
+		system('chmod 600 /etc/config/dawnline');
+	}
+	catch (e) {
+		unlock(l);
+		fail('400 Bad Request', e.message);
+	}
+	unlock(l);
+	if (b.action == 'delete')
+		apply.sync();
+	m = core.load();
+	person = m.people[person_id];
+	send_json('200 OK', { ok: true, state: state() });
+}
+
+fail('404 Not Found', 'Not found.');

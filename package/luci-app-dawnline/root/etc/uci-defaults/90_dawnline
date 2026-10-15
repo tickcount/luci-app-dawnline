@@ -1,0 +1,33 @@
+#!/bin/sh
+# Dawnline first-run / upgrade housekeeping.
+
+[ -f /etc/config/dawnline ] || cat > /etc/config/dawnline <<'CFG'
+config settings 'settings'
+	option portal_enabled '0'
+	option portal_port '8443'
+	option default_device_limit '3'
+	option hostnames '1'
+CFG
+chmod 600 /etc/config/dawnline
+mkdir -p /etc/dawnline && chmod 700 /etc/dawnline
+# Webhook alerts were removed.
+uci -q delete dawnline.settings.webhook_url
+uci -q delete dawnline.settings.alert
+uci -q commit dawnline
+rm -f /etc/dawnline/alerts.json
+# Backups moved into Settings.
+rm -f /www/luci-static/resources/view/dawnline/backups.js
+# Portal assets moved out of the web root (served only with a valid code).
+rm -rf /usr/share/dawnline/portal/www/assets
+
+# LuCI caches: menu index, and module URLs (?v= follows the opkg status time).
+rm -f /tmp/luci-indexcache* /tmp/luci-modulecache/* 2>/dev/null
+touch /usr/lib/opkg/status 2>/dev/null
+
+/etc/init.d/rpcd reload
+# A reload keeps LuCI logins but sometimes misses the plugin; restart only then.
+sleep 2
+ubus list luci.dawnline >/dev/null 2>&1 || { /etc/init.d/rpcd restart; sleep 2; }
+/etc/init.d/dawnline enable
+/etc/init.d/dawnline restart
+exit 0

@@ -1,0 +1,113 @@
+name: Build packages
+
+# A tag vX.Y.Z builds luci-app-dawnline as .ipk (OpenWrt 24.10, opkg) and .apk
+# (OpenWrt 25.12, apk) with the OpenWrt SDK and publishes a GitHub release with
+# both packages and sha256sums.txt, the files install.sh and the in-app updater
+# download. Run it by hand to get the packages as workflow artifacts only.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  version:
+    name: Version
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Read and check the version
+        id: version
+        run: |
+          v="$(sed -n 's/^PKG_VERSION:=//p' package/luci-app-dawnline/Makefile)"
+          grep -q "^export const VERSION = '$v';" package/luci-app-dawnline/root/usr/share/ucode/dawnline/util.uc ||
+            { echo "::error::util.uc VERSION differs from the Makefile ($v)"; exit 1; }
+          grep -q "\"version\": \"$v\"" web/package.json ||
+            { echo "::error::web/package.json version differs from the Makefile ($v)"; exit 1; }
+          if [ "${GITHUB_REF_TYPE}" = tag ] && [ "${GITHUB_REF_NAME}" != "v$v" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match the package version v$v"
+            exit 1
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build ${{ matrix.type }}
+    runs-on: ubuntu-24.04
+    needs: version
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { type: ipk, sdk: 'itdoginfo/openwrt-sdk-ipk:24.10.6' }
+          - { type: apk, sdk: 'itdoginfo/openwrt-sdk-apk:25.12.3' }
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build the web bundles
+        working-directory: web
+        run: |
+          npm ci
+          npm run --silent build
+
+      - name: Build the ${{ matrix.type }} with the OpenWrt SDK
+        env:
+          IPK_SDK: ${{ matrix.sdk }}
+          APK_SDK: ${{ matrix.sdk }}
+        run: scripts/build-packages.sh ${{ matrix.type }}
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-${{ matrix.type }}
+          path: dist/luci-app-dawnline-${{ needs.version.outputs.version }}.${{ matrix.type }}
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: Release
+    runs-on: ubuntu-24.04
+    needs: [version, build]
+    if: github.ref_type == 'tag'
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: package-*
+          path: release
+          merge-multiple: true
+
+      - name: Checksums
+        working-directory: release
+        run: |
+          sha256sum luci-app-dawnline-* > sha256sums.txt
+          cat sha256sums.txt
+
+      - name: Publish the release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Dawnline ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          files: release/*
+          generate_release_notes: true
+          body: |
+            Install or upgrade on the router (OpenWrt 24.10 with opkg, or 25.12 with apk):
+
+            ```sh
+            sh -c "$(wget -qO- https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh)"
+            ```
+
+            Or upgrade from LuCI → Network → Dawnline → Updates.

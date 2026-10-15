@@ -1,0 +1,76 @@
+{
+	"admin/network/dawnline": {
+		"title": "Dawnline",
+		"order": 65,
+		"action": {
+			"type": "alias",
+			"path": "admin/network/dawnline/server"
+		},
+		"depends": {
+			"acl": [
+				"luci-app-dawnline"
+			],
+			"uci": {
+				"dawnline": true
+			}
+		}
+	},
+	"admin/network/dawnline/overview": {
+		"action": {
+			"type": "view",
+			"path": "dawnline/server"
+		}
+	},
+	"admin/network/dawnline/people": {
+		"action": {
+			"type": "view",
+			"path": "dawnline/people"
+		}
+	},
+	"admin/network/dawnline/activity": {
+		"title": "Activity",
+		"order": 25,
+		"action": {
+			"type": "view",
+			"path": "dawnline/activity"
+		}
+	},
+	"admin/network/dawnline/person": {
+		"action": {
+			"type": "view",
+			"path": "dawnline/person"
+		}
+	},
+	"admin/network/dawnline/server": {
+		"title": "Servers",
+		"order": 10,
+		"action": {
+			"type": "view",
+			"path": "dawnline/server"
+		}
+	},
+	"admin/network/dawnline/health": {
+		"title": "Health",
+		"order": 40,
+		"action": {
+			"type": "view",
+			"path": "dawnline/health"
+		}
+	},
+	"admin/network/dawnline/settings": {
+		"title": "Settings",
+		"order": 60,
+		"action": {
+			"type": "view",
+			"path": "dawnline/settings"
+		}
+	},
+	"admin/network/dawnline/updates": {
+		"title": "Updates",
+		"order": 70,
+		"action": {
+			"type": "view",
+			"path": "dawnline/updates"
+		}
+	}
+}
