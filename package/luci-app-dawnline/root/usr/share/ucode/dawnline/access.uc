@@ -1,0 +1,252 @@
+// Dawnline: "Check access" — walks the same rules the nft table and the
+// client configuration apply, and says in words where a connection stops.
+
+'use strict';
+
+import { ip2int } from 'dawnline.util';
+import * as core from 'dawnline.core';
+import * as net from 'dawnline.net';
+import * as live from 'dawnline.live';
+import * as view from 'dawnline.view';
+
+const STATE_TEXT = {
+	no_server: 'their server is turned off',
+	paused: 'they are paused',
+	paused_all: 'everyone is paused',
+	expired: 'their access has ended',
+	quota: 'they used up their data',
+	hours: 'it is outside their allowed hours',
+};
+
+const ACCESS_TEXT = { lan: 'Home only', internet: 'Internet only', both: 'Home and Internet' };
+
+function step(ok, title, detail) {
+	return { ok: !!ok, title, detail: detail ?? '' };
+}
+
+/** Add the step where it stops and end the walk. */
+function stop(steps, s) {
+	push(steps, s);
+	return steps;
+}
+
+/** The first of `nets` (IPv4 CIDRs, any prefix) that holds `ip`. */
+function in_any(ip, nets) {
+	let n = ip2int(ip);
+	if (n == null)
+		return null;
+	for (let c in nets) {
+		let mm = match(c, /^([0-9.]+)\/([0-9]+)$/);
+		let base = mm ? ip2int(mm[1]) : null;
+		if (base == null)
+			continue;
+		let size = 1 << (32 - +mm[2]);
+		if (+mm[2] == 0 || (n >= base - base % size && n < base - base % size + size))
+			return c;
+	}
+	return null;
+}
+
+/** "10.0.1.20:445" → [ip, port]; a device id → its address. */
+function parse_target(m, s) {
+	s = trim(`${s ?? ''}`);
+	if (m.devices[s])
+		return { dev: m.devices[s], ip: m.devices[s].address, port: null };
+	let mm = match(s, /^([0-9.]+)(:([0-9]{1,5}))?$/);
+	if (!mm || ip2int(mm[1]) == null)
+		return null;
+	let ip = mm[1];
+	for (let id, d in m.devices)
+		if (d.address == ip)
+			return { dev: d, ip, port: mm[3] ? +mm[3] : null };
+	return { ip, port: mm[3] ? +mm[3] : null };
+}
+
+function home_access(p) {
+	return p.access == 'both' || (p.access == 'lan' && !length(p.services));
+}
+
+function peer_of(dmp, d) {
+	return dmp.peers[d.public_key];
+}
+
+/** The home network (interface) of a server that holds an address. */
+function home_dev_of(srv, ip, snap) {
+	for (let h in net.server_net(srv, snap).home)
+		if (in_any(ip, h.nets))
+			return h.dev;
+	return null;
+}
+
+function router_addrs(snap) {
+	let out = [];
+	for (let dev, d in snap.devices)
+		for (let a in d.addrs ?? [])
+			push(out, split(a, '/')[0]);
+	return out;
+}
+
+function person_ok(m, p, d, states) {
+	let st = states[p.id] ?? 'active';
+	if (d.disabled)
+		return step(false, `${d.name} is turned off`, 'Turn the device on again on its page.');
+	if (st != 'active')
+		return step(false, `${p.name} can't connect: ${STATE_TEXT[st] ?? st}`, '');
+	return step(true, `${p.name} is active`, ACCESS_TEXT[p.access]);
+}
+
+function connected(dmp, d, who) {
+	let peer = peer_of(dmp, d);
+	if (!peer || !(peer.handshake > 0))
+		return step(false, `${who} has never connected`, 'There is no session the router could reach.');
+	if (time() - peer.handshake >= live.ONLINE_WINDOW)
+		return step(false, `${who} isn't connected right now`, 'The router reaches it only while its VPN is on.');
+	return step(true, `${who} is connected`, '');
+}
+
+/** A device → somewhere: the router, home, another device or the internet. */
+function from_device(m, d, t, states, dmp, snap) {
+	let p = m.people[d.person];
+	let srv = p ? m.servers[p.server] : null;
+	if (!p || !srv)
+		return [ step(false, `${d.name} has no server`, '') ];
+	let steps = [ person_ok(m, p, d, states) ];
+	if (!steps[0].ok)
+		return steps;
+	let allowed = core.allowed_ips(m, srv, p);
+	let via = (ip) => {
+		let hit = in_any(ip, allowed);
+		return hit
+			? step(true, 'Its configuration sends it through the tunnel', `AllowedIPs ${join(', ', filter(allowed, (x) => index(x, ':') < 0))}`)
+			: step(false, "Its configuration doesn't send it through the tunnel", `AllowedIPs ${join(', ', allowed)}: the device's own network handles it.`);
+	};
+
+	// Another device.
+	if (t.dev) {
+		let q = m.people[t.dev.person];
+		let who = `${q?.name ?? '?'} · ${t.dev.name}`;
+		if (t.dev.id == d.id)
+			return [ step(false, 'That is the same device', '') ];
+		if (!q || q.server != p.server)
+			return stop(steps, step(false, `${who} is on another server`, 'Devices of different servers never reach each other.'));
+		if (!home_access(p))
+			return stop(steps, step(false, `${p.name} has ${ACCESS_TEXT[p.access]}`, 'Only people with home access reach other devices.'));
+		if (!home_access(q))
+			return stop(steps, step(false, `${q.name} has ${ACCESS_TEXT[q.access]}`, 'Only devices of people with home access can be reached.'));
+		if (srv.mesh == 'off')
+			return stop(steps, step(false, `"Devices reach each other" is off on ${srv.name}`, 'Server → Access → Home network.'));
+		if (srv.mesh == 'circles' && q.id != p.id) {
+			let a = core.person_circle(m, p), b = core.person_circle(m, q);
+			if (!a || !b || a.id != b.id)
+				return stop(steps, step(false, `${p.name} and ${q.name} are not in one circle`,
+					`${p.name}: ${a?.name ?? 'no circle'} · ${q.name}: ${b?.name ?? 'no circle'}`));
+			push(steps, step(true, `Both are in ${a.name}`, 'Devices in one circle reach each other.'));
+		}
+		else
+			push(steps, step(true, q.id == p.id ? `Both are ${p.name}'s devices` : 'Devices reach each other on this server', ''));
+		let st = states[q.id] ?? 'active';
+		if (st != 'active' || t.dev.disabled)
+			return stop(steps, step(false, `${who} can't be reached: ${t.dev.disabled ? 'it is turned off' : STATE_TEXT[st] ?? st}`, ''));
+		push(steps, via(t.ip));
+		push(steps, connected(dmp, t.dev, who));
+		return steps;
+	}
+
+	// The router itself.
+	if (index(router_addrs(snap), t.ip) >= 0) {
+		if (home_access(p))
+			push(steps, step(true, `${t.ip} is this router`, 'Home access includes the router.'));
+		else if (t.port == 53)
+			push(steps, step(true, `${t.ip} is this router: DNS is open to everyone`, ''));
+		else
+			return stop(steps, step(false, `${t.ip} is this router`, `${p.name} has ${ACCESS_TEXT[p.access]}: only DNS on the router.`));
+		push(steps, via(t.ip));
+		return steps;
+	}
+
+	// Home.
+	let sn = net.server_net(srv, snap);
+	let hdev = home_dev_of(srv, t.ip, snap);
+	if (hdev) {
+		if (p.access == 'internet')
+			return stop(steps, step(false, `${t.ip} is at home (${hdev})`, `${p.name} has Internet only.`));
+		if (p.access == 'lan' && length(p.services)) {
+			let hit = null;
+			for (let sid in p.services) {
+				let s = m.services[sid];
+				if (s?.address == t.ip && (!length(s.ports) || t.port == null || index(s.ports, `${t.port}`) >= 0))
+					hit = s;
+			}
+			let names = join(', ', map(filter(map(p.services, (x) => m.services[x]), (x) => x), (x) => x.name));
+			if (!hit)
+				return stop(steps, step(false, `${t.ip}${t.port ? `:${t.port}` : ''} is not one of ${p.name}'s home services`, `Allowed: ${names}`));
+			push(steps, step(true, `${t.ip} is ${hit.name}, one of ${p.name}'s home services`,
+				length(hit.ports) ? `Ports ${join(', ', hit.ports)}` : 'All ports'));
+		}
+		else {
+			let h = core.person_home(srv, p, snap);
+			if (!in_any(t.ip, h.nets))
+				return stop(steps, step(false, `${t.ip} is in ${hdev}, which ${p.name} doesn't reach`, `${p.name} reaches ${join(', ', h.devs) || 'no home network'}.`));
+			push(steps, step(true, `${t.ip} is in ${hdev}`, h.all ? 'Home access reaches every home network.' : `One of the networks ${p.name} reaches.`));
+		}
+		push(steps, via(t.ip));
+		push(steps, step(true, 'The firewall lets it through', `${srv.ifname} → ${join(', ', sn.zones) || 'home'}`));
+		return steps;
+	}
+
+	// Another private address, or the internet.
+	if (in_any(t.ip, [ '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '100.64.0.0/10', '169.254.0.0/16' ]))
+		return stop(steps, step(false, `${t.ip} isn't in ${srv.name}'s home network`, 'Private addresses outside the home network are blocked.'));
+	if (p.access == 'lan')
+		return stop(steps, step(true, `${t.ip} is on the internet`, `${p.name} has Home only: their device's own internet reaches it, not the tunnel.`));
+	push(steps, via(t.ip));
+	push(steps, step(true, `${t.ip} is on the internet`, srv.lan_like ? 'It leaves like a home device would.' : `It leaves through ${sn.wan.dev ?? 'the WAN'}.`));
+	return steps;
+}
+
+/** A home address → a device. */
+function to_device(m, ip, d, states, dmp, snap) {
+	let p = m.people[d.person];
+	let srv = p ? m.servers[p.server] : null;
+	if (!p || !srv)
+		return [ step(false, `${d.name} has no server`, '') ];
+	let who = `${p.name} · ${d.name}`;
+	let hdev = home_dev_of(srv, ip, snap);
+	if (!hdev)
+		return [ step(false, `${ip} isn't in ${srv.name}'s home network`, 'Only home devices reach people\'s devices.') ];
+	let steps = [ step(true, `${ip} is at home (${hdev})`, '') ];
+	if (!home_access(p))
+		return stop(steps, step(false, `${p.name} has ${p.access == 'lan' ? 'only some home services' : ACCESS_TEXT[p.access]}`,
+			'Home devices reach only people with home access.'));
+	let h = core.person_home(srv, p, snap);
+	if (!in_any(ip, h.nets))
+		return stop(steps, step(false, `${p.name} doesn't reach ${hdev}`, 'Networks a person does not reach cannot reach them either.'));
+	push(steps, person_ok(m, p, d, states));
+	if (!steps[length(steps) - 1].ok)
+		return steps;
+	push(steps, step(true, 'The firewall lets it through', `${join(', ', net.server_net(srv, snap).zones) || 'home'} → ${srv.ifname}`));
+	push(steps, connected(dmp, d, who));
+	return steps;
+}
+
+/** `from` and `to`: a device id, or an IPv4 address (optionally :port). */
+export function check(m, from, to) {
+	let a = parse_target(m, from), b = parse_target(m, to);
+	if (!a)
+		die(`"${from}" is not a device or an IPv4 address.`);
+	if (!b)
+		die(`"${to}" is not a device or an IPv4 address.`);
+	let usage = core.load_usage();
+	let states = view.states(m, usage);
+	let dmp = live.dump();
+	let snap = net.snapshot(true);
+	let steps;
+	if (a.dev)
+		steps = from_device(m, a.dev, b, states, dmp, snap);
+	else if (b.dev)
+		steps = to_device(m, a.ip, b.dev, states, dmp, snap);
+	else
+		die('Choose a device on at least one side.');
+	let ok = length(filter(steps, (s) => !s.ok)) == 0;
+	return { ok, steps };
+};

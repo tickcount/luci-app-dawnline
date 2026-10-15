@@ -90,6 +90,8 @@ export function person_view(m, p, usage, dmp, states, opts) {
 		v.links = core.portal_urls(m, p);
 		v.note = p.note;
 		v.services = p.services;
+		v.home_nets = p.home_nets;
+		v.circle = p.circle;
 		v.created = p.created;
 	}
 	return v;

@@ -1,6 +1,6 @@
 // luci.dawnline RPC bindings. The backend reports failures as { error }.
 
-import type { AwgCaps, ClientConfig, DayUsage, HealthCheck, LogEvent, Person, Status } from '../shared/types';
+import type { AwgCaps, Circle, ClientConfig, DayUsage, HealthCheck, LogEvent, MeshMode, Person, Status } from '../shared/types';
 
 function call<T>(method: string, params: string[] = []) {
   const fn = rpc.declare<any>({ object: 'luci.dawnline', method, params });
@@ -95,6 +95,7 @@ export interface Needs {
   https: string[];
   acme: string[];
   home: string[];
+  bonjour: string[];
 }
 
 export interface SettingsData {
@@ -178,8 +179,18 @@ export interface InterfacesData {
   ifname: string;
   detected: { wan: string | null; lan: string | null };
   saved: { wan: string; lan: string };
-  config: { auto_wan: boolean; wan_device: string; auto_lan: boolean; lan_devices: string[]; lan_like: boolean; device_mesh: boolean };
+  config: {
+    auto_wan: boolean;
+    wan_device: string;
+    auto_lan: boolean;
+    lan_devices: string[];
+    lan_like: boolean;
+    device_mesh: boolean;
+    mesh: MeshMode;
+  };
   like_home: LikeHome;
+  /** Find home devices: published from umdns as DNS-SD records. */
+  bonjour: { on: boolean; needs: string[]; running: boolean; services: number };
   effective: {
     wan: { dev: string | null; zone: string; auto: boolean; missing: boolean };
     home: { dev: string; auto: boolean; nets: string[]; zone: string | null; missing: boolean }[];
@@ -191,6 +202,20 @@ export interface InterfacesData {
   /** People on this server with Home-only access (their AllowedIPs follow the home networks). */
   lan_only: number;
   nets_changed?: boolean;
+}
+
+/** "Check access": each rule on the way, in order; it stops at the first that fails. */
+export interface AccessCheck {
+  ok: boolean;
+  steps: { ok: boolean; title: string; detail: string }[];
+}
+
+/** A device at home (DHCP lease or static host) and the services it announces over Bonjour. */
+export interface HomeHost {
+  address: string;
+  name: string;
+  mac: string;
+  services: { type: string; name: string; port: number }[];
 }
 
 /** Filters for logs_clear; all empty clears the whole log. */
@@ -221,7 +246,7 @@ export type PersonPatch = Partial<
     | 'dns_mode',
     string
   >
-> & { paused?: boolean; services?: string[] };
+> & { paused?: boolean; services?: string[]; circle?: string; home_nets?: string[] };
 
 const personUpdateRaw = rpc.declare<any>({
   object: 'luci.dawnline',
@@ -242,6 +267,8 @@ const personUpdateRaw = rpc.declare<any>({
     'dns_mode',
     'paused',
     'services',
+    'circle',
+    'home_nets',
   ],
 });
 
@@ -260,7 +287,7 @@ async function personUpdate(id: string, patch: PersonPatch): Promise<{ person: P
     'note',
     'dns_mode',
   ] as const;
-  const args: unknown[] = [id, ...keys.map((k) => patch[k]), patch.paused, patch.services];
+  const args: unknown[] = [id, ...keys.map((k) => patch[k]), patch.paused, patch.services, patch.circle, patch.home_nets];
   const r = await personUpdateRaw(...args);
   if (r && typeof r.error === 'string') throw new Error(r.error);
   return r;
@@ -324,7 +351,12 @@ export const api = {
     'lan_devices',
     'lan_like',
     'device_mesh',
+    'mesh',
   ]),
+  circleSet: call<{ id: string; circles: Circle[] }>('circle_set', ['id', 'server', 'name', 'color', 'members']),
+  circleDelete: call<{ circles: Circle[] }>('circle_delete', ['id']),
+  accessCheck: call<AccessCheck>('access_check', ['from', 'to']),
+  homeHosts: call<{ hosts: HomeHost[]; mdns: boolean }>('home_hosts', ['id']),
   usageClear: call<unknown>('usage_clear', ['scope', 'id']),
   uninstall: call<unknown>('uninstall', ['confirm']),
   status,

@@ -29,6 +29,7 @@ import { attachTip } from '../charts';
 import { peopleUrl } from '../urls';
 import { daysTile, eventRow, eventText, speedTile } from './overview';
 import { stateBadge } from './people';
+import { circleDialog, circleDot, homeAccess } from '../access';
 
 type Step = 'day' | 'week' | 'month' | 'year' | 'custom';
 
@@ -657,9 +658,10 @@ export class PersonPage {
             seg,
             E('span', { class: 'dl-sub' }, ACCESS_TEXT[p.access]),
             p.access === 'lan' && this.st.services.length ? this.servicesPicker() : '',
+            homeAccess(p) ? this.netsPicker() : '',
             p.access === 'lan' ? this.dnsPicker() : '',
           ]),
-          E('div', { class: 'dl-tiles2' }, [this.devTile(), endTile, dataTile, hoursTile]),
+          E('div', { class: 'dl-tiles2' }, [this.devTile(), this.circleTile(), endTile, dataTile, hoursTile]),
         ]),
       ]),
     );
@@ -716,6 +718,87 @@ export class PersonPage {
                 : ' — with no fallback set, they stop when it is down.',
             ]
           : 'Internet keeps working exactly as without the VPN. Reach home devices by IP address.',
+      ),
+    ]);
+  }
+
+  /** Home networks this person reaches, when the server has more than one. */
+  netsPicker(): HTMLElement | '' {
+    const p = this.p;
+    const srv = this.st.servers.find((x) => x.id === p.server);
+    const all = srv?.home ?? [];
+    if (all.length < 2) return '';
+    const picked = new Set(p.home_nets?.length ? p.home_nets : all.map((h) => h.dev));
+    return E('div', { class: 'dl-stack gap4' }, [
+      E(
+        'div',
+        { class: 'dl-chips-row' },
+        all.map((h) =>
+          E(
+            'button',
+            {
+              type: 'button',
+              class: `dl-chipbtn${picked.has(h.dev) ? ' on' : ''}`,
+              'aria-pressed': picked.has(h.dev) ? 'true' : 'false',
+              title: h.nets.join(', '),
+              click: () => {
+                const next = new Set(picked);
+                if (!next.delete(h.dev)) next.add(h.dev);
+                if (!next.size) return notify('Keep at least one network, or choose Internet only.', 'warning', 5000);
+                const list = next.size === all.length ? [] : [...next];
+                this.patch(
+                  { home_nets: list },
+                  list.length ? `${p.name} reaches ${list.join(', ')}` : `${p.name} reaches every home network`,
+                );
+              },
+            },
+            h.dev,
+          ),
+        ),
+      ),
+      E(
+        'span',
+        { class: 'dl-sub' },
+        p.home_nets?.length
+          ? `Home networks ${p.name} reaches. Networks added to the server later stay out.`
+          : `Home networks ${p.name} reaches: all of them. Untick one to keep ${p.name} out of it.`,
+      ),
+    ]);
+  }
+
+  /** The circle this person's devices share (servers where devices reach each other in circles). */
+  circleTile(): HTMLElement | '' {
+    const p = this.p;
+    const srv = this.st.servers.find((x) => x.id === p.server);
+    if (srv?.mesh !== 'circles' || !homeAccess(p)) return '';
+    const circles = this.st.circles.filter((c) => c.server === p.server);
+    const ci = circles.find((c) => c.id === p.circle);
+    const mates = ci ? this.st.people.filter((x) => x.id !== p.id && x.circle === ci.id && homeAccess(x)).map((x) => x.name) : [];
+    const change: HTMLElement = button('Change', () =>
+      dropdown(change, [
+        ...circles.map((c) => ({
+          label: c.name,
+          icon: circleDot(c),
+          run: () => c.id !== p.circle && this.patch({ circle: c.id }, `${p.name} is in ${c.name}`),
+        })),
+        p.circle ? { label: 'No circle', icon: icon('x'), run: () => this.patch({ circle: '' }, `${p.name} is in no circle`) } : null,
+        { label: 'New circle', icon: icon('plus'), run: () => circleDialog(this.st, p.server, null, () => this.refresh()) },
+      ]),
+    );
+    return E('div', { class: 'dl-tile2' }, [
+      E('span', { class: 'dl-tile2-label' }, ['Devices see each other', E('span', { class: 'dl-faint dl-w400' }, 'circle')]),
+      E('div', { class: 'dl-tile2-row' }, [
+        E('span', { class: 'dl-circle-name' }, ci ? [circleDot(ci), ci.name] : E('span', { class: 'dl-muted' }, 'No circle')),
+        change,
+      ]),
+      E(
+        'span',
+        { class: 'dl-sub' },
+        !ci
+          ? `Only ${p.name}'s own devices see each other.`
+          : mates.length
+            ? `${p.name}'s devices and ${mates.join(', ')}'s see each other. Others don't.`
+            : `Nobody else in ${ci.name} yet: only ${p.name}'s own devices see each other.`,
       ),
     ]);
   }

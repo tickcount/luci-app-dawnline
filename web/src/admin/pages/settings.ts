@@ -2,7 +2,7 @@
 
 import { E } from '../e';
 import { api, type Backup, type SettingsData } from '../api';
-import { attempt, button, closeModal, confirmDialog, modal } from '../ui';
+import { attempt, button, closeModal, modal } from '../ui';
 import { icon } from '../../shared/icons';
 import { group, input, isOn, row, sw } from '../kit';
 import { CATEGORIES, CATEGORY_HELP, CATEGORY_LABEL, clearLogDialog, exportEvents, resetUsageDialog } from '../logs';
@@ -525,43 +525,6 @@ export class SettingsPage {
 
     const logs = this.logsSection();
 
-    // Home services
-    const svcRows = this.d.services.map((sv) =>
-      E('div', { class: 'dl-row' }, [
-        icon('home'),
-        E('span', { class: 'dl-row-main dl-stack' }, [
-          E('b', {}, sv.name),
-          E('span', { class: 'dl-mono dl-faint' }, `${sv.address}${sv.ports.length ? ` · ports ${sv.ports.join(', ')}` : ' · all ports'}`),
-        ]),
-        button('Edit', () => this.editService(sv)),
-        button(
-          [icon('trash')],
-          async () => {
-            if (
-              (await confirmDialog(`Remove ${sv.name}?`, 'People limited to this service lose access to it.', 'Remove', true)) &&
-              (await attempt(() => api.serviceDelete(sv.id), 'Removed'))
-            )
-              this.reload();
-          },
-          'negative',
-          { title: 'Remove' },
-        ),
-      ]),
-    );
-    const services = this.section(
-      'services',
-      'Home services',
-      [
-        E(
-          'p',
-          { class: 'dl-muted' },
-          'Give people with home-network access only specific services instead of the whole network (choose them per person).',
-        ),
-        E('div', { class: 'dl-list' }, svcRows.length ? svcRows : [E('div', { class: 'dl-row dl-muted' }, 'No services yet.')]),
-      ],
-      [E('span'), button([icon('plus'), ' Add service'], () => this.editService(null), 'add')],
-    );
-
     const danger = this.section(
       'danger',
       'Remove Dawnline from this router',
@@ -580,7 +543,7 @@ export class SettingsPage {
       this.reload();
       this.loadBackups();
     });
-    dom.content(this.root, [portal, defaults, map, logs, services, backups, danger]);
+    dom.content(this.root, [portal, defaults, map, logs, backups, danger]);
   }
 
   logsSection(): HTMLElement {
@@ -769,41 +732,6 @@ export class SettingsPage {
       this.d = d;
       this.paint();
     }
-  }
-
-  editService(sv: SettingsData['services'][number] | null) {
-    const name = input(sv?.name ?? '', { placeholder: 'NAS' });
-    const addr = input(sv?.address ?? '', { placeholder: '192.168.1.10' });
-    const ports = input(sv?.ports.join(', ') ?? '', { placeholder: 'All ports, or e.g. 445, 5000' });
-    modal(
-      sv ? `Edit ${sv.name}` : 'Add service',
-      [
-        E('div', { class: 'cbi-value' }, [E('label', { class: 'cbi-value-title' }, 'Name'), E('div', { class: 'cbi-value-field' }, name)]),
-        E('div', { class: 'cbi-value' }, [
-          E('label', { class: 'cbi-value-title' }, 'Address'),
-          E('div', { class: 'cbi-value-field' }, addr),
-        ]),
-        E('div', { class: 'cbi-value' }, [
-          E('label', { class: 'cbi-value-title' }, 'Ports'),
-          E('div', { class: 'cbi-value-field' }, ports),
-        ]),
-      ],
-      [
-        E('button', { class: 'cbi-button cbi-button-neutral', click: closeModal }, 'Cancel'),
-        ' ',
-        button(
-          'Save',
-          async () => {
-            const list = ports.value.split(/[ ,]+/).filter(Boolean);
-            if (await attempt(() => api.serviceSet(sv?.id ?? '', name.value, addr.value, list), 'Saved')) {
-              closeModal();
-              this.reload();
-            }
-          },
-          'positive',
-        ),
-      ],
-    );
   }
 
   uninstall() {

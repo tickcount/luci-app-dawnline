@@ -4,7 +4,12 @@
 import { api, type Needs } from './api';
 import { attempt, confirmDialog, notify } from './ui';
 
-const WHAT: Record<keyof Needs, string> = { https: 'HTTPS for the portal', acme: 'ACME certificates', home: 'the home-like link' };
+const WHAT: Record<keyof Needs, string> = {
+  https: 'HTTPS for the portal',
+  acme: 'ACME certificates',
+  home: 'the home-like link',
+  bonjour: 'Bonjour for home devices',
+};
 const WAIT_MS = 5 * 60 * 1000;
 
 /** Install `names` for `feature`; resolves true when the job finished, then calls `done`. */

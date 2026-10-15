@@ -9,7 +9,8 @@ import { api, type SetupDefaults } from '../api';
 import { attempt, button, callout, closeModal, confirmDialog, copyText, modal, notify } from '../ui';
 import { icon } from '../../shared/icons';
 import { duration } from '../../shared/format';
-import { interfacesCard } from '../interfaces';
+import { accessCards } from '../interfaces';
+import { checkAccess, whoReaches } from '../access';
 import { card, group, input, row, sw } from '../kit';
 import { methodInfo, methodPicker, type Method } from '../disguise';
 import { ServerOverview } from './overview';
@@ -426,48 +427,12 @@ export class ServerPage {
     );
   }
 
-  /** Where devices may go and how their traffic leaves: internet path, WAN, home network, services. */
+  /** Where devices may go and how their traffic leaves: internet path, home network, services, circles. */
   access(srv: Server): HTMLElement {
-    const svcs = this.st.services;
+    const reload = () => this.refresh();
     return E('div', { class: 'dl-stack gap16' }, [
-      interfacesCard(srv.id, 'Access'),
-      card(
-        'Home services',
-        [
-          E(
-            'p',
-            { class: 'dl-muted' },
-            'People with Home-only access can be limited to these services instead of the whole home network (chosen per person). The list is shared by all servers.',
-          ),
-          E(
-            'div',
-            { class: 'dl-list' },
-            svcs.length
-              ? svcs.map((sv) =>
-                  E('div', { class: 'dl-row' }, [
-                    icon('home'),
-                    E('span', { class: 'dl-row-main dl-stack' }, [
-                      E('b', {}, sv.name),
-                      E(
-                        'span',
-                        { class: 'dl-mono dl-faint' },
-                        `${sv.address}${sv.ports.length ? ` · ports ${sv.ports.join(', ')}` : ' · all ports'}`,
-                      ),
-                    ]),
-                  ]),
-                )
-              : [E('div', { class: 'dl-row dl-muted' }, 'No services yet.')],
-          ),
-        ],
-        [
-          E('span'),
-          E(
-            'a',
-            { class: 'cbi-button cbi-button-neutral', href: `${L.url('admin/network/dawnline/settings')}#dl-set-services` },
-            'Edit in Settings',
-          ),
-        ],
-      ),
+      accessCards(srv, this.st, reload),
+      E('div', { class: 'dl-health-cols' }, [whoReaches(this.st, srv), checkAccess(this.st, srv)]),
     ]);
   }
 

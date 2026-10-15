@@ -28,7 +28,7 @@ const AWG_RU = 'luci-i18n-amneziawg-ru';
 // OpenWrt packages Dawnline runs on (the Updates tab groups and names them).
 // What Dawnline itself adds to OpenWrt (the rest of LuCI, ucode, rpcd and uhttpd is the
 // stock system): the home-like link, and HTTPS plus certificates for the personal portal.
-const SYS_PKGS = [ 'ip-full', 'kmod-veth', 'libustream-openssl', 'openssl-util', 'acme', 'acme-acmesh-dnsapi', 'luci-app-acme' ];
+const SYS_PKGS = [ 'ip-full', 'kmod-veth', 'libustream-openssl', 'openssl-util', 'acme', 'acme-acmesh-dnsapi', 'luci-app-acme', 'umdns' ];
 // Packages released together with each of the above, updated as a set so OpenSSL never ends up
 // half old and half new.
 const PKG_FAMILY = [
@@ -463,6 +463,9 @@ function install_pkgs(arg) {
 	// The portal's HTTPS runs in uhttpd. Restart after this job saved its state.
 	let touched = [ ...names, ...have ];
 	// A missing piece arrived: set up what waited for it (the portal, the home-like link).
+	// Bonjour: OpenWrt's mDNS daemon starts at once; the agent publishes what it finds.
+	if (index(missing, 'umdns') >= 0)
+		run('/etc/init.d/umdns enable; /etc/init.d/umdns start');
 	if (length(missing) && length(filter(missing, (n) => match(n, /^(openssl-util|libustream|ip-full|kmod-veth)/))))
 		run('( sleep 3; /usr/bin/dawnline apply; /etc/init.d/uhttpd restart; /etc/init.d/dawnline restart ) </dev/null >/dev/null 2>&1 &');
 	else if (length(filter(touched, (n) => match(n, /^(libustream|libopenssl)/))))

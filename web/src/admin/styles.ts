@@ -1072,6 +1072,46 @@ const CSS = `
 .dl-upd-row > .dl-pill, .dl-upd-row > button, .dl-upd-head > .dl-pill, .dl-upd-head > button { flex: none; }
 .dl-upd-bad { color: var(--dl-bad); }
 .dl-upd-job > .dl-log, .dl-upd-job > .alert-message { margin: 0 14px 14px; }
+
+/* Server → Access: networks as chips, circles, services from home, who reaches what, check access. */
+.dl-chip.static { cursor: default; } .dl-chip.static:hover { background: var(--dl-soft); }
+.dl-chip.static .dl-chip-name { font-weight: 500; }
+.dl-setrow.head .dl-chips-row { margin-top: 8px; }
+.dl-setrow.head > .dl-lh-main, .dl-setrow.head > .dl-lh-main > .dl-stack { flex: 1 1 auto; min-width: 0; }
+.dl-setrow.head > .dl-setrow-ctl:empty { display: none; }
+.dl-setrow.head:has(> .dl-lh-main) { align-items: flex-start; }
+.dl-setrow.head > .dl-setrow-ctl { align-items: center; min-height: 30px; }
+.dl-netpick { margin-top: 10px; }
+.dl-boxrow { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0; padding: 10px 14px; border: 1px solid var(--dl-line); border-radius: 12px; font-size: 13px; cursor: pointer; }
+.dl-boxrow > .dl-switch { flex: none; }
+.dl-ifpick { display: flex; flex-direction: column; gap: 12px; padding: 14px; border: 1px solid var(--dl-line); border-radius: 14px; }
+.dl-iflead-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.dl-host-ports { justify-content: flex-end; }
+@media (max-width: 760px) { .dl-host-ports { justify-content: flex-start; } }
+.dl-circle-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.dl-circles .dl-chip b { font-weight: 500; }
+.dl-circle-name { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; }
+.dl-w400 { font-weight: 400; }
+.dl-swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+.dl-swatch { all: unset; cursor: pointer; width: 22px; height: 22px; border-radius: 50%; background: var(--sw); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dl-fg) 12%, transparent); }
+.dl-swatch.on { box-shadow: 0 0 0 2px var(--dl-card), 0 0 0 4px var(--sw); }
+.dl-swatch:focus-visible { outline: 2px solid var(--dl-ring); outline-offset: 3px; }
+.dl-circle-modal .dl-chipbtn b { margin-left: 6px; font-weight: 500; font-size: 11px; opacity: .6; }
+.dl-reach td:first-child b { font-weight: 500; }
+.dl-ev-host { white-space: nowrap; } .dl-ev-host b { font-weight: 500; color: var(--dl-fg); }
+.dl-reach { font-size: 13px; } .dl-reach th, .dl-reach td { white-space: nowrap; padding-left: 6px; padding-right: 6px; }
+.dl-reach-wrap { overflow-x: auto; }
+.dl-yes { display: inline-flex; align-items: center; gap: 4px; color: var(--dl-ok); }
+.dl-yes .dl-icon-wrap { display: inline-flex; } .dl-yes .dl-icon { width: 14px; height: 14px; }
+.dl-check-form { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto; align-items: start; gap: 8px; }
+.dl-check-form > .dl-faint { line-height: 36px; }
+.dl-check-end { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.dl-check-end > * { width: 100% !important; min-width: 0; }
+@media (max-width: 560px) { .dl-check-form { grid-template-columns: minmax(0, 1fr); } .dl-check-form > .dl-faint { display: none; } }
+.dl-verdict { display: flex; align-items: baseline; gap: 10px; padding: 10px 12px; border-radius: 12px; }
+.dl-verdict b { font-weight: 500; }
+.dl-verdict.ok { background: var(--dl-ok-wash); } .dl-verdict.ok b { color: var(--dl-ok); }
+.dl-verdict.bad { background: var(--dl-bad-wash); } .dl-verdict.bad b { color: var(--dl-bad); }
 `;
 
 /** A <style> element for the view root (see the note at the top). */

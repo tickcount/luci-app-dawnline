@@ -266,3 +266,28 @@ export function wan_address(srv, snap) {
 	let a = snap.devices[server_net(srv, snap).wan.dev]?.addrs?.[0];
 	return a ? split(a, '/')[0] : null;
 };
+
+/** Names of devices at home by address: DHCP leases, then static hosts. */
+export function lan_names() {
+	let out = {};
+	for (let line in split(readfile('/tmp/dhcp.leases') ?? '', '\n')) {
+		let f = split(line, ' ');
+		if (length(f) >= 4 && f[3] != '*')
+			out[f[2]] = f[3];
+	}
+	let c = cursor();
+	c.foreach('dhcp', 'host', (h) => {
+		if (h.ip && h.name)
+			out[h.ip] ??= h.name;
+	});
+	return out;
+};
+
+/** Event addresses that belong to devices at home, with their names ({ ip: name }). */
+export function event_hosts(e, names) {
+	let out = null;
+	for (let ip in match(e.detail ?? '', /[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/g) ?? [])
+		if (names[ip[0]])
+			(out ??= {})[ip[0]] = names[ip[0]];
+	return out;
+};

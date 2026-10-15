@@ -5,7 +5,7 @@ import { cursor } from 'uci';
 import { readfile, stat } from 'fs';
 import {
 	q, sh, sh_out, sh_bg, ensure_dir, read_json, write_json, parse_cidr, cidr_str, cidr_overlaps, int2ip,
-	ip2int, valid_host, rand_int, lock, unlock, uniq, slog_clear, admin_log, VERSION, RUN_DIR, DATA_DIR
+	ip2int, valid_host, rand_int, rand_hex, lock, unlock, uniq, slog_clear, admin_log, VERSION, RUN_DIR, DATA_DIR
 } from 'dawnline.util';
 import * as core from 'dawnline.core';
 import * as live from 'dawnline.live';
@@ -16,6 +16,8 @@ import * as geo from 'dawnline.geo';
 import * as net from 'dawnline.net';
 import * as loop from 'dawnline.loop';
 import * as watchdog from 'dawnline.watchdog';
+import * as access from 'dawnline.access';
+import * as bonjour from 'dawnline.bonjour';
 
 function wrap(fn) {
 	return function(req) {
@@ -96,6 +98,18 @@ function geo_view(m, usage, dmp) {
 
 /* ---------- status ---------- */
 
+/** Older connections from home get the DHCP name their address has now. */
+function with_hosts(ev) {
+	let names = null;
+	for (let e in ev)
+		if ((e.type == 'connect' || e.type == 'roam') && !e.hosts) {
+			let h = net.event_hosts(e, names ??= net.lan_names());
+			if (h)
+				e.hosts = h;
+		}
+	return ev;
+}
+
 function status(a) {
 	let m = core.load();
 	let usage = core.load_usage();
@@ -117,8 +131,10 @@ function status(a) {
 		push(servers, {
 			id, name: srv.name, ifname: srv.ifname, port: srv.port, subnet: srv.subnet,
 			endpoint: core.endpoint_host(m, srv), public_key: srv.public_key, enabled: srv.enabled,
-			lan_like: srv.lan_like, device_mesh: srv.device_mesh, preset: srv.preset, mtu: srv.mtu, keepalive: srv.keepalive, dns: srv.dns,
+			lan_like: srv.lan_like, device_mesh: srv.device_mesh, mesh: srv.mesh, preset: srv.preset, mtu: srv.mtu, keepalive: srv.keepalive, dns: srv.dns,
 			address: core.server_address(srv), up: !!st?.up, uptime: st?.uptime ?? 0,
+			// Home networks (interfaces) for the per-person picker.
+			home: map(net.server_net(srv).home, (h) => ({ dev: h.dev, nets: h.nets })),
 			peers, online, obf: srv.obf,
 			// Bytes per second, one point a minute: [ts, rx, tx] (rx = from devices).
 			rate: rates[id] ?? [],
@@ -169,9 +185,10 @@ function status(a) {
 		servers,
 		people,
 		services: values(m.services),
+		circles: values(m.circles),
 		totals,
 		series: live.series(recs, clamp_days(a.days)),
-		events: slice(events, length(events) > 60 ? length(events) - 60 : 0),
+		events: with_hosts(slice(events, length(events) > 60 ? length(events) - 60 : 0)),
 		like_home: loop.status(),
 		awg: core.awg_caps(),
 	};
@@ -406,9 +423,10 @@ function interfaces_view(srv, snap) {
 		detected: { wan: snap.wan, lan: snap.lan },
 		saved: { wan: srv.detected_wan, lan: srv.detected_lan },
 		config: { auto_wan: srv.auto_wan, wan_device: srv.wan_device, auto_lan: srv.auto_lan, lan_devices: srv.lan_devices, lan_like: srv.lan_like,
-			device_mesh: srv.device_mesh },
+			device_mesh: srv.device_mesh, mesh: srv.mesh },
 		like_home: loop.status(),
 		needs: ops.needs().home,
+		bonjour: { on: srv.bonjour, needs: ops.needs().bonjour, ...bonjour.view(core.load()) },
 		effective: sn,
 		zones: snap.zones,
 		devices,
@@ -455,8 +473,10 @@ function server_interfaces(a) {
 	lans = uniq(lans);
 	if (a.lan_like != null)
 		c.set('dawnline', srv.id, 'lan_like', a.lan_like === false || a.lan_like === '0' ? '0' : '1');
-	if (a.device_mesh != null)
-		c.set('dawnline', srv.id, 'device_mesh', a.device_mesh === false || a.device_mesh === '0' ? '0' : '1');
+	let mesh = index(core.MESH, a.mesh) >= 0 ? a.mesh
+		: a.device_mesh == null ? srv.mesh : (a.device_mesh === false || a.device_mesh === '0' ? 'off' : 'all');
+	c.set('dawnline', srv.id, 'mesh', mesh);
+	c.delete('dawnline', srv.id, 'device_mesh');
 	c.set('dawnline', srv.id, 'auto_wan', auto_wan ? '1' : '0');
 	c.set('dawnline', srv.id, 'auto_lan', auto_lan ? '1' : '0');
 	if (auto_wan || wan_dev == '')
@@ -483,7 +503,6 @@ function server_interfaces(a) {
 	system('chmod 600 /etc/config/dawnline');
 	let before = join(',', net.server_net(srv, snap).nets);
 	// What the admin changed here: the networks, and/or whether devices reach each other.
-	let mesh = a.device_mesh == null ? srv.device_mesh : !(a.device_mesh === false || a.device_mesh === '0');
 	let sig = (x) => {
 		let sn = net.server_net(x, snap);
 		return `${join(',', sn.nets)}|${sn.wan.dev}|${x.lan_like}`;
@@ -491,8 +510,8 @@ function server_interfaces(a) {
 	let what = [];
 	if (sig(core.load(c).servers[srv.id]) != sig(srv))
 		push(what, 'home network and internet path');
-	if (mesh != srv.device_mesh)
-		push(what, mesh ? 'devices reach each other' : 'devices kept apart');
+	if (mesh != srv.mesh)
+		push(what, { off: 'devices kept apart', all: 'devices reach each other', circles: 'devices reach each other in circles' }[mesh]);
 	if (length(what))
 		admin_log('awg', 'changed', 'server', srv.name, join(', ', what));
 	apply.apply();
@@ -532,8 +551,20 @@ function server_update(a) {
 	}
 	if (v.enabled != null)
 		set('enabled', v.enabled === true || v.enabled == '1' ? '1' : '0');
-	if (v.device_mesh != null)
-		set('device_mesh', v.device_mesh === true || v.device_mesh == '1' ? '1' : '0');
+	let bj = v.bonjour == null ? null : (v.bonjour === true || v.bonjour == '1');
+	if (bj != null) {
+		if (bj && length(ops.needs().bonjour))
+			die('Install umdns first.');
+		set('bonjour', bj ? '1' : null);
+	}
+	if (v.device_mesh != null && v.mesh == null)
+		v.mesh = v.device_mesh === true || v.device_mesh == '1' ? 'all' : 'off';
+	if (v.mesh != null) {
+		if (index(core.MESH, v.mesh) < 0)
+			die('Unknown choice for devices reaching each other.');
+		set('mesh', v.mesh);
+		set('device_mesh', null);
+	}
 	if (v.mtu != null) {
 		if (str(v.mtu) != '' && (!match(str(v.mtu), /^[0-9]+$/) || +v.mtu < 1280 || +v.mtu > 1500))
 			die('MTU must be 1280-1500.');
@@ -566,15 +597,22 @@ function server_update(a) {
 			push(what, label);
 	}
 	let on = v.enabled == null ? null : (v.enabled === true || v.enabled == '1');
-	let mesh = v.device_mesh == null ? null : (v.device_mesh === true || v.device_mesh == '1');
+	let mesh = v.mesh;
 	let name = v.name != null ? str(v.name) : srv.name;
 	let r = commit(c, true);
 	if (on != null && on != srv.enabled)
 		admin_log('awg', on ? 'turned on' : 'turned off', 'server', name);
 	if (length(what))
 		admin_log('awg', 'changed', 'server', name, join(', ', what));
-	if (mesh != null && mesh != srv.device_mesh)
-		admin_log('awg', 'changed', 'server', name, mesh ? 'devices reach each other' : 'devices kept apart');
+	if (bj != null && bj != srv.bonjour) {
+		admin_log('awg', bj ? 'turned on' : 'turned off', 'server', name, 'finding home devices (Bonjour)');
+		if (bj)
+			bonjour.start_mdns();
+		bonjour.sync(core.load(), true);
+	}
+	if (mesh != null && mesh != srv.mesh)
+		admin_log('awg', 'changed', 'server', name,
+			{ off: 'devices kept apart', all: 'devices reach each other', circles: 'devices reach each other in circles' }[mesh]);
 	return r;
 }
 
@@ -823,6 +861,10 @@ function person_update(a) {
 			fields.paused = a.paused;
 		if (type(a.services) == 'array')
 			fields.services = a.services;
+		if (a.circle != null)
+			fields.circle = a.circle;
+		if (type(a.home_nets) == 'array')
+			fields.home_nets = a.home_nets;
 		let before = m.people[a.id];
 		core.update_person(c, m, a.id, fields);
 		c.commit('dawnline');
@@ -1038,6 +1080,99 @@ function service_set(a) {
 	return { id };
 }
 
+/** Create or edit a circle; `members` (person ids) replaces who is in it. */
+function circle_set(a) {
+	let c = core.open_cursor();
+	let m = core.load(c);
+	let ci = a.id ? m.circles[a.id] : null;
+	if (a.id && !ci)
+		die('Unknown circle.');
+	let server = ci?.server ?? a.server;
+	if (!m.servers[server])
+		die('Unknown server.');
+	let name = trim(`${a.name ?? ''}`);
+	if (name == '' || length(name) > 32)
+		die('Enter a circle name (up to 32 characters).');
+	for (let id, o in m.circles)
+		if (id != a.id && o.server == server && lc(o.name) == lc(name))
+			die(`${name} already exists.`);
+	let id = ci?.id ?? `c_${rand_hex(4)}`;
+	c.set('dawnline', id, 'circle');
+	c.set('dawnline', id, 'server', server);
+	c.set('dawnline', id, 'name', name);
+	c.set('dawnline', id, 'color', `${(int(a.color) || 0) % core.CIRCLE_COLORS}`);
+	if (type(a.members) == 'array') {
+		let want = {};
+		for (let pid in a.members)
+			if (m.people[pid]?.server == server)
+				want[pid] = true;
+		for (let pid, p in m.people)
+			if (want[pid])
+				c.set('dawnline', pid, 'circle', id);
+			else if (p.circle == id)
+				c.delete('dawnline', pid, 'circle');
+	}
+	commit(c);
+	admin_log('awg', ci ? 'changed' : 'added', 'circle', name, m.servers[server].name);
+	return { id, circles: values(core.load().circles) };
+}
+
+function circle_delete(a) {
+	let c = core.open_cursor();
+	let m = core.load(c);
+	let ci = m.circles[a.id];
+	if (!ci)
+		die('Unknown circle.');
+	c.delete('dawnline', a.id);
+	for (let pid, p in m.people)
+		if (p.circle == a.id)
+			c.delete('dawnline', pid, 'circle');
+	commit(c);
+	admin_log('awg', 'removed', 'circle', ci.name, m.servers[ci.server]?.name);
+	return { circles: values(core.load().circles) };
+}
+
+/**
+ * Devices at home for the Home services picker: DHCP leases and static hosts
+ * in the server's home networks, with the services they announce (Bonjour,
+ * when umdns runs).
+ */
+function home_hosts(a) {
+	let m = core.load();
+	let srv = m.servers[a.id] ?? values(m.servers)[0];
+	if (!srv)
+		die('No server yet.');
+	let nets = net.server_net(srv).nets;
+	let inside = (ip) => {
+		let n = ip2int(ip);
+		for (let cidr in nets) {
+			let x = match(cidr, /^([0-9.]+)\/([0-9]+)$/);
+			let size = 1 << (32 - +x[2]), base = ip2int(x[1]);
+			if (n != null && n >= base && n < base + size)
+				return true;
+		}
+		return false;
+	};
+	let hosts = {};
+	for (let line in split(readfile('/tmp/dhcp.leases') ?? '', '\n')) {
+		let f = split(line, ' ');
+		if (length(f) >= 4 && inside(f[2]))
+			hosts[f[2]] = { address: f[2], name: f[3] == '*' ? '' : f[3], mac: f[1], services: [] };
+	}
+	let c = cursor();
+	c.foreach('dhcp', 'host', (h) => {
+		if (h.ip && inside(h.ip))
+			hosts[h.ip] ??= { address: h.ip, name: h.name ?? '', mac: type(h.mac) == 'array' ? h.mac[0] : h.mac ?? '', services: [] };
+	});
+	for (let s in ops.mdns_services())
+		if (hosts[s.address])
+			push(hosts[s.address].services, { type: s.type, name: s.name, port: s.port });
+		else if (inside(s.address))
+			hosts[s.address] = { address: s.address, name: s.host ?? '', mac: '', services: [ { type: s.type, name: s.name, port: s.port } ] };
+	let out = values(hosts);
+	return { hosts: sort(out, (x, y) => ip2int(x.address) - ip2int(y.address)), mdns: ops.mdns_running() };
+}
+
 function service_delete(a) {
 	let c = core.open_cursor();
 	if (c.get('dawnline', a.id) != 'service')
@@ -1060,7 +1195,7 @@ function events_list(a) {
 	// Tunnel down/up events of older versions: the service log tells it better (names, reasons).
 	let ev = filter(live.load_events(), (e) => e.type != 'server_down' && e.type != 'server_up');
 	let n = +a.limit || 300;
-	return { events: slice(ev, length(ev) > n ? length(ev) - n : 0), total: length(ev), policy: live.policy() };
+	return { events: with_hosts(slice(ev, length(ev) > n ? length(ev) - n : 0)), total: length(ev), policy: live.policy() };
 }
 
 /** Remove activity by person, device, category and/or age; nothing given clears it all. */
@@ -1206,13 +1341,17 @@ const methods = {
 	updates_run: { args: { what: '' }, call: wrap(updates_run) },
 	person_update: {
 		args: { id: '', name: '', access: '', device_limit: '', expires: '', expire_action: '', expire_warn: '', quota_gb: '',
-			quota_period: '', bonus_gb: '', hours: '', note: '', dns_mode: '', paused: false, services: [] },
+			quota_period: '', bonus_gb: '', hours: '', note: '', dns_mode: '', paused: false, services: [], circle: '', home_nets: [] },
 		call: wrap(person_update),
 	},
 	settings_get: { call: wrap(settings_get) },
 	settings_update: { args: { values: {} }, call: wrap(settings_update) },
 	service_set: { args: { id: '', name: '', address: '', ports: [] }, call: wrap(service_set) },
 	service_delete: { args: { id: '' }, call: wrap(service_delete) },
+	circle_set: { args: { id: '', server: '', name: '', color: 0, members: [] }, call: wrap(circle_set) },
+	circle_delete: { args: { id: '' }, call: wrap(circle_delete) },
+	access_check: { args: { from: '', to: '' }, call: wrap((a) => access.check(core.load(), a.from, a.to)) },
+	home_hosts: { args: { id: '' }, call: wrap(home_hosts) },
 	geo_clear: { call: wrap((a) => { geo.clear(); return { ok: true }; }) },
 	events: { args: { limit: 300 }, call: wrap(events_list) },
 	logs_clear: { args: { person: '', device: '', category: '', older_days: '' }, call: wrap(logs_clear) },

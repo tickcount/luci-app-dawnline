@@ -34,7 +34,37 @@ export function needs() {
 		acme: miss([ [ file_exists('/usr/lib/acme/client/acme.sh'), 'acme' ], [ file_exists('/usr/lib/acme/client/dnsapi/dns_cf.sh'), 'acme-acmesh-dnsapi' ],
 			[ file_exists('/www/luci-static/resources/view/acme.js'), 'luci-app-acme' ] ]),
 		home: miss([ [ file_exists('/usr/libexec/ip-full'), 'ip-full' ], [ veth, 'kmod-veth' ] ]),
+		bonjour: miss([ [ file_exists('/usr/sbin/umdns'), 'umdns' ] ]),
 	};
+};
+
+/** True while OpenWrt's mDNS daemon answers on ubus. */
+export function mdns_running() {
+	return index(split(sh_out('ubus list umdns 2>/dev/null') ?? '', '\n'), 'umdns') >= 0;
+};
+
+/**
+ * Services announced on the home networks (Bonjour), from umdns:
+ * [{ type: '_airplay._tcp', name, host, address, port, txt }].
+ */
+export function mdns_services() {
+	if (!mdns_running())
+		return [];
+	let r = {};
+	try {
+		r = json(sh_out(`ubus call umdns browse '{"address":true}' 2>/dev/null`) || '{}') ?? {};
+	}
+	catch (e) {
+		r = {};
+	}
+	let out = [];
+	for (let t, insts in r)
+		for (let name, i in insts) {
+			let addr = type(i.ipv4) == 'array' ? i.ipv4[0] : i.ipv4;
+			if (addr)
+				push(out, { type: t, name, host: replace(i.host ?? '', /\.local\.?$/, ''), address: addr, port: i.port ?? 0, txt: i.txt ?? [] });
+		}
+	return out;
 };
 
 /** ACME certificates on the router and the names each covers. */

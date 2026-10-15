@@ -61,7 +61,22 @@ export interface Person {
   links?: string[];
   note?: string;
   services?: string[];
+  /** Home networks (interfaces) this person reaches; empty = all; admin only. */
+  home_nets?: string[];
+  /** Circle id on their server (when the server uses circles); admin only. */
+  circle?: string;
   created?: number;
+}
+
+export type MeshMode = 'off' | 'all' | 'circles';
+
+/** People whose devices reach each other (a server in circles mode). */
+export interface Circle {
+  id: string;
+  server: string;
+  name: string;
+  /** Index into the circle palette. */
+  color: number;
 }
 
 export interface Server {
@@ -75,8 +90,12 @@ export interface Server {
   enabled: boolean;
   /** Internet traffic enters the router from the LAN, like a home device's. */
   lan_like: boolean;
-  /** Devices of people with home access reach each other through the tunnel. */
+  /** A person's own devices reach each other (mesh is not off). */
   device_mesh: boolean;
+  /** Devices of different people: never, everyone with home access, or within a circle. */
+  mesh: MeshMode;
+  /** Home networks by interface, for the per-person picker. */
+  home: { dev: string; nets: string[] }[];
   preset: string;
   mtu: number;
   keepalive: number;
@@ -115,6 +134,8 @@ export interface LogEvent {
   pname?: string;
   dname?: string;
   dkind?: string;
+  /** Addresses in `detail` that belong to devices at home, with their DHCP names. */
+  hosts?: Record<string, string>;
 }
 
 export interface GeoPoint {
@@ -168,6 +189,7 @@ export interface Status {
   servers: Server[];
   people: Person[];
   services: { id: string; name: string; address: string; ports: string[] }[];
+  circles: Circle[];
   totals: { people: number; devices: number; online: number; active: number; today: Pair; month: Pair };
   series: DayUsage[];
   events: LogEvent[];

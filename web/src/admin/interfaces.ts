@@ -1,8 +1,10 @@
 // Interfaces card (Server page): auto-detected WAN and LAN, plus a picker for
 // the interfaces that make up a server's home network.
 
+import type { MeshMode, Server, Status } from '../shared/types';
 import { E } from './e';
 import { api, type IfaceCategory, type InterfacesData, type NetDevice } from './api';
+import { circleChips, homeServices } from './access';
 import { attempt, button, notify } from './ui';
 import { installMissing } from './pkgs';
 import { attachTip } from './charts';
@@ -46,22 +48,32 @@ function sw(on: boolean, label: string, onChange: (v: boolean) => void): HTMLBut
   return b;
 }
 
-export function interfacesCard(serverId: string, title = 'Interfaces'): HTMLElement {
+/**
+ * Server → Access: how internet traffic leaves (Internet) and what home access
+ * reaches (Home network: networks, devices reaching each other, services).
+ * Both cards share one draft; either Save stores it.
+ */
+export function accessCards(srv: Server, st: Status, reload: () => void): HTMLElement {
+  const serverId = srv.id;
   const root = E(
-    'section',
-    { class: 'dl-setsec dl-ifcard' },
-    E('div', { class: 'dl-setsec-body' }, E('p', { class: 'dl-muted' }, 'Loading interfaces…')),
+    'div',
+    { class: 'dl-stack gap16' },
+    E('section', { class: 'dl-setsec' }, E('div', { class: 'dl-setsec-body' }, E('p', { class: 'dl-muted' }, 'Loading interfaces…'))),
   );
   let d: InterfacesData;
   let autoWan = true,
     wanDev = '',
     autoLan = true,
     lanLike = true,
-    mesh = true;
+    mesh: MeshMode = 'all';
+  // "Other interfaces" stays open or folded across repaints.
+  let otherOpen = false;
+  // Built once: it reads the devices at home, which should not happen on every repaint.
+  const services = homeServices(st, serverId, reload);
   let lans = new Set<string>();
   let initial = '';
 
-  const snapshot = () => JSON.stringify([lanLike, mesh, autoWan, autoWan ? '' : wanDev, autoLan, [...lans].sort()]);
+  const snapshot = () => JSON.stringify([lanLike, autoWan, autoWan ? '' : wanDev, autoLan, [...lans].sort()]);
   const liveLan = () => d.detected.lan || d.saved.lan || '';
   const currentWan = () => (autoWan ? d.detected.wan || d.saved.wan : wanDev) || '';
   const byName = () => new Map(d.devices.map((x) => [x.name, x]));
@@ -80,7 +92,7 @@ export function interfacesCard(serverId: string, title = 'Interfaces'): HTMLElem
       wanDev = r.config.wan_device || r.detected.wan || r.saved.wan || '';
       autoLan = r.config.auto_lan;
       lanLike = r.config.lan_like;
-      mesh = r.config.device_mesh;
+      mesh = r.config.mesh ?? (r.config.device_mesh ? 'all' : 'off');
       lans = new Set(r.config.lan_devices);
       initial = snapshot();
     }
@@ -94,6 +106,13 @@ export function interfacesCard(serverId: string, title = 'Interfaces'): HTMLElem
     });
     if (r) take(r, reset);
   };
+
+  /** Can be part of the home network (or already is). */
+  function pickable(x: NetDevice): boolean {
+    const isAuto = autoLan && x.name === liveLan();
+    const blocked = !!x.own || !!x.master || x.name === currentWan() || isAuto;
+    return isAuto || lans.has(x.name) || (!blocked && (x.nets.length > 0 || !!x.missing));
+  }
 
   function tile(x: NetDevice): HTMLElement {
     const isAuto = autoLan && x.name === liveLan();
@@ -179,6 +198,35 @@ export function interfacesCard(serverId: string, title = 'Interfaces'): HTMLElem
     ];
   }
 
+  const MESH_TEXT: Record<MeshMode, string> = {
+    off: "Devices of different people never reach each other; a person's own devices don't either.",
+    all: 'Devices of people with home access reach each other, like home devices do. Internet-only people never.',
+    circles: 'Within a circle: family sees family, guests see guests. Everyone reaches their own devices. Internet-only people never.',
+  };
+
+  function setrow(
+    ic: string,
+    label: (Node | string)[] | string,
+    sub: (Node | string)[] | string,
+    ctl: Node | (Node | string)[] | '',
+    tone = '',
+    below?: Node,
+  ) {
+    return E('div', { class: below ? 'dl-setrow head' : 'dl-setrow' }, [
+      E('div', { class: 'dl-lh-main' }, [
+        E('span', { class: `dl-need-ic ${tone}` }, icon(ic)),
+        E('div', { class: 'dl-stack' }, [E('span', { class: 'dl-setrow-label' }, label), E('span', { class: 'dl-sub' }, sub), below ?? '']),
+      ]),
+      E('div', { class: 'dl-setrow-ctl' }, ctl),
+    ]);
+  }
+
+  const hint = (live: string | null, saved: string) => {
+    const mono = (t: string) => E('span', { class: 'dl-mono' }, t);
+    if (live) return E('span', {}, [' Now: ', mono(live), ...(saved && saved !== live ? [', was ', mono(saved)] : []), '.']);
+    return E('span', {}, saved ? [' Not found now: using ', mono(saved), '.'] : [' Not found.']);
+  };
+
   function paint() {
     const wanSel = E(
       'select',
@@ -195,145 +243,236 @@ export function interfacesCard(serverId: string, title = 'Interfaces'): HTMLElem
         .map((x) => E('option', { value: x.name, selected: x.name === wanDev ? 'selected' : null }, `${x.name} · zone ${x.zone}`)),
     ) as HTMLSelectElement;
 
-    // What auto-detection finds now; the remembered one (used when nothing is found) only when it differs.
-    const hint = (live: string | null, saved: string) => {
-      const mono = (t: string) => E('span', { class: 'dl-mono' }, t);
-      if (live) return E('span', {}, [' Now: ', mono(live), ...(saved && saved !== live ? [', was ', mono(saved)] : []), '.']);
-      return E('span', {}, saved ? [' Not found now: using ', mono(saved), '.'] : [' Not found.']);
-    };
-
-    const groups = GROUPS.map(([cat, label]) => {
-      const list = d.devices.filter((x) => x.category === cat);
-      return list.length ? E('div', { class: 'dl-ifgroup' }, [E('h4', {}, label), E('div', { class: 'dl-ifgrid' }, list.map(tile))]) : '';
-    });
-
     const home = homeDevs();
     const nets = home.flatMap((x) => x.nets.map((n) => [n, x.name] as const));
-    const dirty = snapshot() !== initial;
-    const save = button(
-      'Save',
-      async () => {
-        const r = await attempt(
-          () => api.serverInterfaces(serverId, autoWan, autoWan ? '' : wanDev, autoLan, [...lans], lanLike, mesh),
-          'Interfaces saved',
-        );
-        if (!r) return;
-        take(r, true);
-        if (r.nets_changed && r.lan_only)
-          notify(
-            `${r.lan_only} ${r.lan_only === 1 ? 'person has' : 'people have'} Home-only access: their devices need the configuration again to reach the new networks.`,
-            'warning',
-            10000,
+    // Draft vs saved, per card: [lanLike, autoWan, wan, autoLan, lans].
+    const now = JSON.parse(snapshot()) as unknown[];
+    const was = JSON.parse(initial) as unknown[];
+    const changed = (...i: number[]) => i.some((k) => JSON.stringify(now[k]) !== JSON.stringify(was[k]));
+    const netDirty = changed(0, 1, 2);
+    const homeDirty = changed(3, 4);
+    const save = (on: boolean) =>
+      button(
+        'Save',
+        async () => {
+          const r = await attempt(
+            () => api.serverInterfaces(serverId, autoWan, autoWan ? '' : wanDev, autoLan, [...lans], lanLike, mesh !== 'off', mesh),
+            'Access saved',
           );
-      },
-      'positive',
-      { disabled: !dirty },
-    );
+          if (!r) return;
+          take(r, true);
+          if (r.nets_changed && r.lan_only)
+            notify(
+              `${r.lan_only} ${r.lan_only === 1 ? 'person has' : 'people have'} Home-only access: their devices need the configuration again to reach the new networks.`,
+              'warning',
+              10000,
+            );
+        },
+        'positive',
+        { disabled: !on },
+      );
 
-    dom.content(root, [
+    const internet = E('section', { class: 'dl-setsec dl-ifcard' }, [
       E('div', { class: 'dl-setsec-body' }, [
         E('div', { class: 'dl-panel-head' }, [
-          E('h3', {}, title),
+          E('h3', {}, 'Internet'),
           E('span', { class: 'dl-spacer' }),
-          button([icon('reset'), ' Rescan'], () => load(false), 'neutral', { title: 'Read the interfaces again' }),
+          E('span', { class: 'dl-sub' }, 'People with Internet or Both'),
         ]),
-        E('div', { class: 'dl-setrow' }, [
-          E('div', { class: 'dl-lh-main' }, [
-            E('span', { class: `dl-need-ic ${likeHomeTone()}` }, icon('home')),
-            E('div', { class: 'dl-stack' }, [
-              E('span', { class: 'dl-setrow-label' }, 'Internet like a home device'),
-              E('span', { class: 'dl-sub' }, likeHomeText()),
-            ]),
-          ]),
-          E('div', { class: 'dl-setrow-ctl dl-if-wanctl' }, [
+        setrow(
+          'home',
+          'Internet like a home device',
+          likeHomeText(),
+          [
             lanLike && d.needs?.length ? button('Install', () => installMissing('home', d.needs!, () => load(false)), 'positive') : '',
             sw(lanLike, 'Internet like a home device', (v) => {
               lanLike = v;
               paint();
             }),
-          ]),
-        ]),
-        E('div', { class: 'dl-setrow' }, [
-          E('div', { class: 'dl-lh-main' }, [
-            E('span', { class: 'dl-need-ic' }, icon('link')),
-            E('div', { class: 'dl-stack' }, [
-              E('span', { class: 'dl-setrow-label' }, 'Devices reach each other'),
-              E(
-                'span',
-                { class: 'dl-sub' },
-                'Devices of people with Home access can open connections to each other on this server, like home devices do. Internet-only people never.',
-              ),
-            ]),
-          ]),
-          E(
-            'div',
-            { class: 'dl-setrow-ctl' },
-            sw(mesh, 'Devices reach each other', (v) => {
-              mesh = v;
-              paint();
-            }),
-          ),
-        ]),
-        E('div', { class: 'dl-setrow' }, [
-          E('div', { class: 'dl-lh-main' }, [
-            E('span', { class: 'dl-need-ic' }, icon('globe')),
-            E('div', { class: 'dl-stack' }, [
-              E('span', { class: 'dl-setrow-label' }, 'Auto-detect WAN'),
-              E('span', { class: 'dl-sub' }, [
-                'The interface with the default route: the server port opens there and Internet access leaves through it.',
-                hint(d.detected.wan, d.saved.wan),
-              ]),
-            ]),
-          ]),
-          E('div', { class: 'dl-setrow-ctl dl-if-wanctl' }, [
+          ],
+          likeHomeTone(),
+        ),
+        setrow(
+          'globe',
+          'Auto-detect WAN',
+          [
+            'The interface with the default route: the server port opens there and Internet access leaves through it.',
+            hint(d.detected.wan, d.saved.wan),
+          ],
+          [
             autoWan ? '' : wanSel,
             sw(autoWan, 'Auto-detect WAN', (v) => {
               autoWan = v;
               paint();
             }),
-          ]),
+          ],
+        ),
+      ]),
+      E('div', { class: 'dl-setsec-foot' }, [
+        E(
+          'span',
+          { class: 'dl-sub' },
+          lanLike
+            ? ['Internet like a home device', currentWan() ? [' · leaves through ', E('span', { class: 'dl-mono' }, currentWan())] : '']
+            : currentWan()
+              ? ['Internet straight to ', E('span', { class: 'dl-mono' }, currentWan())]
+              : 'No WAN found',
+        ),
+        save(netDirty),
+      ]),
+    ]);
+
+    const meshSeg = E(
+      'div',
+      { class: 'dl-seg sm', role: 'radiogroup', 'aria-label': 'Devices reach each other' },
+      (
+        [
+          ['off', 'Off'],
+          ['all', 'Everyone'],
+          ['circles', 'Circles'],
+        ] as const
+      ).map(([v, t]) =>
+        E(
+          'button',
+          {
+            type: 'button',
+            role: 'radio',
+            class: mesh === v ? 'on' : '',
+            'aria-checked': mesh === v ? 'true' : 'false',
+            // Applies at once, like the choices on a person's page.
+            click: async () => {
+              if (mesh === v) return;
+              if (await attempt(() => api.serverUpdate(serverId, { mesh: v }), `Devices reach each other: ${t}`)) reload();
+            },
+          },
+          t,
+        ),
+      ),
+    );
+
+    const homeCard = E('section', { class: 'dl-setsec dl-ifcard' }, [
+      E('div', { class: 'dl-setsec-body' }, [
+        E('div', { class: 'dl-panel-head' }, [
+          E('h3', {}, 'Home network'),
+          E('span', { class: 'dl-spacer' }),
+          E('span', { class: 'dl-sub' }, 'People with Home or Both'),
+          button([icon('reset'), ' Rescan'], () => load(false), 'neutral', { title: 'Read the interfaces again' }),
         ]),
-        E('div', { class: 'dl-setrow' }, [
-          E('div', { class: 'dl-lh-main' }, [
-            E('span', { class: 'dl-need-ic' }, icon('network')),
-            E('div', { class: 'dl-stack' }, [
-              E('span', { class: 'dl-setrow-label' }, 'Auto-detect LAN'),
-              E('span', { class: 'dl-sub' }, ['Adds the detected LAN to the home network.', hint(d.detected.lan, d.saved.lan)]),
-            ]),
-          ]),
-          E(
-            'div',
-            { class: 'dl-setrow-ctl' },
-            sw(autoLan, 'Auto-detect LAN', (v) => {
-              autoLan = v;
-              paint();
-            }),
-          ),
-        ]),
-        E('div', { class: 'dl-iflead' }, [
-          E('b', {}, 'Home network'),
-          E(
-            'span',
-            { class: 'dl-sub' },
-            'What people with Home access can reach, and where their devices can be reached from. Click to add an interface; bridge ports and Wi-Fi in a bridge come with the bridge.',
-          ),
-        ]),
-        ...groups,
+        setrow(
+          'network',
+          'Networks',
+          'Everyone with home access reaches these, unless their page leaves one out; their devices can be reached from here too. Click one to add or remove it.',
+          '',
+          '',
+          netPicker(),
+        ),
+        setrow(
+          'link',
+          'Devices reach each other',
+          MESH_TEXT[mesh],
+          meshSeg,
+          '',
+          mesh === 'circles' ? circleChips(st, serverId, reload) : undefined,
+        ),
+        bonjourRow(),
+        services,
       ]),
       E('div', { class: 'dl-setsec-foot' }, [
         E(
           'span',
           { class: 'dl-sub dl-if-summary' },
           nets.length
-            ? [
-                'Home access reaches ',
-                ...nets.flatMap(([n, dev], i) => [i ? ', ' : '', E('span', { class: 'dl-mono' }, n), ` (${dev})`]),
-                lanLike ? ' · Internet like a home device' : currentWan() ? ` · Internet via ${currentWan()}` : '',
-              ]
-            : ['No home network: Home access reaches nothing but this router.', currentWan() ? ` Internet via ${currentWan()}.` : ''],
+            ? ['Home access reaches ', ...nets.flatMap(([n, dev], i) => [i ? ', ' : '', E('span', { class: 'dl-mono' }, n), ` (${dev})`])]
+            : 'No home network: Home access reaches nothing but this router.',
         ),
-        save,
+        save(homeDirty),
       ]),
+    ]);
+
+    // Keep the page where it is: replacing the cards would otherwise jump to the top.
+    const y = window.scrollY;
+    root.style.minHeight = `${root.offsetHeight}px`;
+    dom.content(root, [internet, homeCard]);
+    root.style.minHeight = '';
+    window.scrollTo({ top: y });
+  }
+
+  /** Find home devices: AirPlay, printers and shared Macs listed on Apple devices over the tunnel. */
+  function bonjourRow(): HTMLElement {
+    const b = d.bonjour;
+    const set = async (on: boolean) => {
+      if (await attempt(() => api.serverUpdate(serverId, { bonjour: on }), on ? 'Finding home devices' : 'Home devices no longer listed'))
+        load(false);
+    };
+    const state = b.needs.length
+      ? E('span', { class: 'dl-warn' }, ` Needs ${b.needs.join(', ')}.`)
+      : b.on && !b.running
+        ? E('span', { class: 'dl-warn' }, ' umdns is not running.')
+        : b.on
+          ? ` Listing ${b.services} service${b.services === 1 ? '' : 's'} from home now.`
+          : '';
+    return setrow(
+      'wifi',
+      ['Find home devices ', E('span', { class: 'dl-faint dl-w400' }, '· Bonjour')],
+      [
+        'iPhone, iPad and Mac on the VPN see AirPlay, printers and shared Macs at home, as on Wi-Fi. Android and Chromecast look only on the local network.',
+        state,
+      ],
+      b.needs.length
+        ? button('Install', () => installMissing('bonjour', b.needs, () => load(false)), 'positive')
+        : sw(b.on, 'Find home devices', (v) => set(v)),
+      b.on && b.running ? 'ok' : '',
+    );
+  }
+
+  /** Interfaces that can be home networks as tiles; the rest folded, by kind. */
+  function netPicker(): HTMLElement {
+    const avail = d.devices.filter(pickable);
+    const rest = d.devices.filter((x) => !pickable(x));
+    return E('div', { class: 'dl-stack gap8 dl-netpick' }, [
+      avail.length
+        ? E('div', { class: 'dl-ifgrid' }, avail.map(tile))
+        : E('span', { class: 'dl-warn' }, 'No home network: Home access reaches nothing but this router.'),
+      E('label', { class: 'dl-boxrow' }, [
+        E('span', { class: 'dl-stack' }, [
+          E('span', {}, 'Auto-detect LAN'),
+          E('span', { class: 'dl-sub' }, ['Adds the LAN this router uses.', hint(d.detected.lan, d.saved.lan)]),
+        ]),
+        sw(autoLan, 'Auto-detect LAN', (v) => {
+          autoLan = v;
+          paint();
+        }),
+      ]),
+      rest.length
+        ? E(
+            'details',
+            {
+              class: 'dl-params',
+              open: otherOpen ? '' : null,
+              toggle: (ev: Event) => (otherOpen = (ev.currentTarget as HTMLDetailsElement).open),
+            },
+            [
+              E('summary', {}, [
+                icon('chevron'),
+                E('span', {}, 'Other interfaces'),
+                E('span', { class: 'dl-pcount' }, String(rest.length)),
+              ]),
+              E('div', { class: 'dl-params-body' }, [
+                E(
+                  'span',
+                  { class: 'dl-sub' },
+                  'The WAN, this server, ports and Wi-Fi of a bridge (they come with it) and interfaces without an IPv4 network.',
+                ),
+                ...GROUPS.map(([cat, label]) => {
+                  const list = rest.filter((x) => x.category === cat);
+                  return list.length
+                    ? E('div', { class: 'dl-ifgroup' }, [E('h4', {}, label), E('div', { class: 'dl-ifgrid' }, list.map(tile))])
+                    : '';
+                }),
+              ]),
+            ],
+          )
+        : '',
     ]);
   }
 

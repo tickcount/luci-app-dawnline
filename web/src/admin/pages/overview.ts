@@ -73,6 +73,11 @@ export function eventText(st: Status, e: LogEvent): Node[] {
   const b = (t: string) => E('b', {}, t);
   const m = (t: string) => E('span', { class: 'dl-muted' }, t);
   const mono = (t: string) => E('span', { class: 'dl-mono' }, t);
+  /** An address; at home, the name of the device that has it, with the address in brackets. */
+  const addr = (ip: string) =>
+    e.hosts?.[ip]
+      ? [E('span', { class: 'dl-ev-host' }, [E('b', {}, e.hosts[ip]), E('span', { class: 'dl-faint' }, ` (${ip})`)])]
+      : [mono(ip)];
   // What the bold name is (a person, a device), said before it in grey.
   const kind = (t: string) => E('span', { class: 'dl-ev-kind' }, `${t} `);
   const wd = dev ? `${who} · ${dev}` : who;
@@ -116,13 +121,18 @@ export function eventText(st: Status, e: LogEvent): Node[] {
         kind('Device'),
         b(wd),
         m(' connected'),
-        ...(e.detail ? [m(' from '), mono(e.detail)] : []),
+        ...(e.detail ? [m(' from '), ...addr(e.detail)] : []),
         ...(e.where ? [m(` · ${e.where}`)] : []),
       ];
     case 'disconnect':
       return [kind('Device'), b(wd), m(' went offline')];
     case 'roam':
-      return [kind('Device'), b(wd), m(' changed network '), mono(e.detail ?? '')];
+      return [
+        kind('Device'),
+        b(wd),
+        m(' changed network '),
+        ...(e.detail ?? '').split(' → ').flatMap((ip, i) => (i ? [m(' → '), ...addr(ip)] : addr(ip))),
+      ];
     case 'device_added':
       return [
         kind('Person'),

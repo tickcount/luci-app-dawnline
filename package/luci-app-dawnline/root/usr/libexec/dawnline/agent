@@ -20,6 +20,7 @@ import * as ops from 'dawnline.ops';
 import * as geo from 'dawnline.geo';
 import * as watchdog from 'dawnline.watchdog';
 import * as net from 'dawnline.net';
+import * as bonjour from 'dawnline.bonjour';
 
 const TICK = 60 * 1000;
 const FLUSH_EVERY = 3600;
@@ -151,6 +152,14 @@ function place_of(ip) {
 	return pl ? join(' · ', filter([ pl.city, pl.org ], (x) => x)) : null;
 }
 
+/** Connections from home: the DHCP name of the address, as it is now. */
+function named(e) {
+	let h = net.event_hosts(e, net.lan_names());
+	if (h)
+		e.hosts = h;
+	return e;
+}
+
 function check_devices(m, lv, events) {
 	for (let id, d in lv) {
 		let dev = m.devices[id];
@@ -169,12 +178,12 @@ function check_devices(m, lv, events) {
 			delete offline_ticks[id];
 		if (was != null && was != d.online) {
 			if (d.online)
-				push(events, { type: 'connect', person: dev.person, device: id, detail: d.endpoint, where: place_of(d.endpoint) });
+				push(events, named({ type: 'connect', person: dev.person, device: id, detail: d.endpoint, where: place_of(d.endpoint) }));
 			else
 				push(events, { type: 'disconnect', person: dev.person, device: id });
 		}
 		else if (d.online && last_endpoint[id] && d.endpoint && last_endpoint[id] != d.endpoint)
-			push(events, { type: 'roam', person: dev.person, device: id, detail: `${last_endpoint[id]} → ${d.endpoint}` });
+			push(events, named({ type: 'roam', person: dev.person, device: id, detail: `${last_endpoint[id]} → ${d.endpoint}` }));
 		last_online[id] = d.online;
 		if (d.endpoint)
 			last_endpoint[id] = d.endpoint;
@@ -348,6 +357,12 @@ function tick() {
 		check_wan(m);
 	}
 	catch (e) {}
+	try {
+		bonjour.sync(m);
+	}
+	catch (e) {
+		slog('dawnline', 'error', `failed: ${e.message}`, null, 'Find home devices');
+	}
 	nightly_backup();
 	try {
 		check_geo(m);

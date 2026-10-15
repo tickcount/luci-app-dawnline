@@ -269,7 +269,12 @@ const PRIVATE4 = [ '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '100.64.0.0/
 
 /** Per-person runtime membership: which tunnel addresses may reach what. */
 export function access_sets(m, usage, states) {
-	let sets = { lan_ok: [], inet_ok: [], svc_ok: [], dns_real: [] };
+	// lan_ok: home access (the router itself, the mesh); lan_all: every home
+	// network; lan_part: device . network for people limited to some networks;
+	// mesh_pairs: device . device within a circle (or one person's own devices).
+	let sets = { lan_ok: [], lan_all: [], lan_part: [], mesh_pairs: [], inet_ok: [], svc_ok: [], dns_real: [] };
+	let snap = net.snapshot();
+	let homes = {}, groups = {};
 	for (let id, d in m.devices) {
 		let p = m.people[d.person];
 		if (!p || d.disabled || !d.address || states[p.id] != 'active')
@@ -280,8 +285,21 @@ export function access_sets(m, usage, states) {
 			push(sets.dns_real, d.address);
 		if (p.access == 'internet' || p.access == 'both')
 			push(sets.inet_ok, d.address);
-		if (p.access == 'both' || (p.access == 'lan' && !length(p.services)))
+		if (p.access == 'both' || (p.access == 'lan' && !length(p.services))) {
 			push(sets.lan_ok, d.address);
+			let srv = m.servers[p.server];
+			let h = homes[p.id] ??= srv ? core.person_home(srv, p, snap) : { all: true, nets: [] };
+			if (h.all)
+				push(sets.lan_all, d.address);
+			else
+				for (let n in h.nets)
+					push(sets.lan_part, `${d.address} . ${n}`);
+			// Who this device may reach directly: its circle, or at least its owner's devices.
+			if (srv?.mesh == 'circles') {
+				let ci = core.person_circle(m, p);
+				push(groups[ci ? `c:${ci.id}` : `p:${p.id}`] ??= [], d.address);
+			}
+		}
 		else if (p.access == 'lan')
 			for (let sid in p.services) {
 				let s = m.services[sid];
@@ -292,6 +310,11 @@ export function access_sets(m, usage, states) {
 						push(sets.svc_ok, `${d.address} . ${s.address} . ${port}`);
 			}
 	}
+	for (let g, addrs in groups)
+		for (let a in addrs)
+			for (let b in addrs)
+				if (a != b)
+					push(sets.mesh_pairs, `${a} . ${b}`);
 	return sets;
 };
 
@@ -314,6 +337,9 @@ function nft_table(m, sets) {
 	push(t, 'table inet dawnline {');
 	push(t, `	set lan_nets { type ipv4_addr; flags interval; auto-merge; ${set_elems(lan)} }`);
 	push(t, `	set lan_ok { type ipv4_addr; ${set_elems(sets.lan_ok)} }`);
+	push(t, `	set lan_all { type ipv4_addr; ${set_elems(sets.lan_all)} }`);
+	push(t, `	set lan_part { type ipv4_addr . ipv4_addr; flags interval; ${set_elems(sets.lan_part)} }`);
+	push(t, `	set mesh_pairs { type ipv4_addr . ipv4_addr; ${set_elems(sets.mesh_pairs)} }`);
 	push(t, `	set inet_ok { type ipv4_addr; ${set_elems(sets.inet_ok)} }`);
 	push(t, `	set svc_ok { type ipv4_addr . ipv4_addr . inet_service; ${set_elems(sets.svc_ok)} }`);
 	push(t, `	set dns_real { type ipv4_addr; ${set_elems(sets.dns_real)} }`);
@@ -333,13 +359,16 @@ function nft_table(m, sets) {
 	if (dns_addr)
 		// DNS through the netns (it forwards to the LAN's DNS), for everyone.
 		push(t, `		ip daddr ${dns_addr} meta l4proto { tcp, udp } th dport 53 accept`);
-	push(t, '		ip daddr @lan_nets ip saddr @lan_ok accept');
+	push(t, '		ip daddr @lan_nets ip saddr @lan_all accept');
+	push(t, '		ip saddr . ip daddr @lan_part accept');
 	// Devices with home access are part of home: they reach each other, where the
-	// server allows it. Within one server: the firewall has no forwarding between
-	// different servers' zones.
+	// server allows it (everyone, or within circles). Within one server: the
+	// firewall has no forwarding between different servers' zones.
 	for (let id, srv in m.servers)
-		if (srv.private_key && srv.device_mesh)
+		if (srv.private_key && srv.mesh == 'all')
 			push(t, `		iifname "${srv.ifname}" ip saddr @lan_ok ip daddr @lan_ok accept`);
+		else if (srv.private_key && srv.mesh == 'circles')
+			push(t, `		iifname "${srv.ifname}" ip saddr . ip daddr @mesh_pairs accept`);
 	push(t, '		meta l4proto { tcp, udp } ip saddr . ip daddr . th dport @svc_ok accept');
 	push(t, `		ip daddr { ${join(', ', PRIVATE4)} } counter drop`);
 	push(t, '		ip saddr @inet_ok accept');
@@ -357,7 +386,8 @@ function nft_table(m, sets) {
 	push(t, '	chain to_device {');
 	push(t, '		meta nfproto ipv6 drop');
 	push(t, '		ct status dnat accept');
-	push(t, '		ip saddr @lan_nets ip daddr @lan_ok accept');
+	push(t, '		ip saddr @lan_nets ip daddr @lan_all accept');
+	push(t, '		ip daddr . ip saddr @lan_part accept');
 	push(t, '		counter reject with icmpx admin-prohibited');
 	push(t, '	}');
 	// Devices ask the tunnel address; send each query where it belongs.
@@ -400,7 +430,7 @@ export function rebuild_nft(m, sets) {
 /** Atomically replace set contents only. */
 export function update_sets(sets) {
 	let s = '';
-	for (let name in [ 'lan_ok', 'inet_ok', 'svc_ok', 'dns_real' ]) {
+	for (let name in [ 'lan_ok', 'lan_all', 'lan_part', 'mesh_pairs', 'inet_ok', 'svc_ok', 'dns_real' ]) {
 		s += `flush set inet dawnline ${name}\n`;
 		if (length(sets[name]))
 			s += `add element inet dawnline ${name} { ${join(', ', sets[name])} }\n`;

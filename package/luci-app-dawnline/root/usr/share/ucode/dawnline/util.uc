@@ -3,7 +3,7 @@
 
 import { open, readfile, writefile, rename, mkdir, stat, unlink, popen, lsdir } from 'fs';
 
-export const VERSION = '0.2.0';
+export const VERSION = '0.3.0';
 /** GitHub repository with Dawnline releases (updates and the installer). */
 export const REPO = 'tickcount/luci-app-dawnline';
 export const RUN_DIR = '/var/run/dawnline';

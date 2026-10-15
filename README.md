@@ -39,7 +39,14 @@ limits, live traffic and a LuCI admin that follows a modern design.
   same link at home, and wrong links can redirect to your website.
 - **Access per person**, enforced in an `inet dawnline` nftables table on the
   tunnel interface: home network only, internet only, or both, and optionally
-  only some home services.
+  only some home networks or home services (picked from the devices the router
+  sees over DHCP). Devices of different people reach each other never, always,
+  or within circles (family sees family, guests see guests). "Who reaches what"
+  sums up the rules and "Check access" walks them step by step for a device
+  and an address.
+- **Find home devices** (optional, needs `umdns`): AirPlay, printers and shared
+  Macs at home show up on iPhone, iPad and Mac over the tunnel, published as
+  DNS-SD records in dnsmasq.
 - **Limits.** End dates (pause, keep, or remove devices when they pass), monthly
   or total data limits, allowed hours, pause one person or everyone. Devices
   drop off the tunnel at once (`awg syncconf`, no interface restart).

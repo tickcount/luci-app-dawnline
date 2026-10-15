@@ -14,6 +14,10 @@ import * as loop from 'dawnline.loop';
 export const CONFIG = 'dawnline';
 export const ACCESS = [ 'lan', 'internet', 'both' ];
 export const KINDS = [ 'computer', 'phone', 'tablet', 'router', 'other' ];
+/** Devices of different people reaching each other: never, everyone with home access, or within a circle. */
+export const MESH = [ 'off', 'all', 'circles' ];
+/** Circle colours (index into the admin palette). */
+export const CIRCLE_COLORS = 8;
 export const OBF_KEYS = [ 'jc', 'jmin', 'jmax', 's1', 's2', 's3', 's4', 'h1', 'h2', 'h3', 'h4', 'i1', 'i2', 'i3', 'i4', 'i5',
 	// AmneziaWG 3.x
 	'header_protection_key', 'content_padding_addition', 'rekey_after_time', 'rekey_timeout', 'reject_after_time',
@@ -102,6 +106,7 @@ export function load(c) {
 		people: {},
 		devices: {},
 		services: {},
+		circles: {},
 	};
 
 	c.foreach(CONFIG, 'server', (r) => {
@@ -128,11 +133,16 @@ export function load(c) {
 			detected_wan: r.detected_wan ?? '',
 			detected_lan: r.detected_lan ?? '',
 			lan_like: bool(r.lan_like, true),
-			// Devices of people with home access reach each other through the tunnel.
-			device_mesh: bool(r.device_mesh, true),
+			// Devices of people with home access reach each other: off, all, or within circles.
+			// (Older configs: device_mesh 0/1.)
+			mesh: index(MESH, r.mesh) >= 0 ? r.mesh : (bool(r.device_mesh, true) ? 'all' : 'off'),
 			enabled: bool(r.enabled, true),
+			// Home devices found over Bonjour are published as DNS-SD records (needs umdns).
+			bonjour: bool(r.bonjour, false),
 			obf: {},
 		};
+		// A person's own devices reach each other whenever the mesh is not off.
+		srv.device_mesh = srv.mesh != 'off';
 		for (let k in OBF_KEYS)
 			if (r[k] != null && r[k] != '')
 				srv.obf[k] = `${r[k]}`;
@@ -160,6 +170,9 @@ export function load(c) {
 			bonus_gb: num(r.bonus_gb, 0),
 			bonus_month: r.bonus_month ?? '',
 			services: list(r.service),
+			// Home networks (interfaces) this person reaches; empty = all of the server's.
+			home_nets: list(r.home_net),
+			circle: r.circle ?? '',
 			note: r.note ?? '',
 			created: toint(r.created, 0),
 			devices: [],
@@ -184,6 +197,11 @@ export function load(c) {
 		m.devices[id] = d;
 		if (m.people[d.person])
 			push(m.people[d.person].devices, id);
+	});
+
+	c.foreach(CONFIG, 'circle', (r) => {
+		let id = r['.name'];
+		m.circles[id] = { id, server: r.server ?? '', name: r.name ?? id, color: toint(r.color, 0) % CIRCLE_COLORS };
 	});
 
 	c.foreach(CONFIG, 'service', (r) => {
@@ -460,9 +478,33 @@ export function client_dns(m, srv, p) {
 	return out;
 };
 
+/**
+ * The home networks a person reaches: all of the server's, or only the
+ * interfaces ticked on their page (networks added later are not included).
+ */
+export function person_home(srv, p, snap) {
+	let sn = net.server_net(srv, snap);
+	let pick = p?.home_nets ?? [];
+	if (!length(pick))
+		return { all: true, nets: sn.nets, devs: map(sn.home, (h) => h.dev) };
+	let nets = [], devs = [];
+	for (let h in sn.home)
+		if (index(pick, h.dev) >= 0) {
+			push(nets, ...h.nets);
+			push(devs, h.dev);
+		}
+	return { all: false, nets: net.collapse(nets), devs };
+};
+
+/** The circle a person is in on their server (circles mode only), or null. */
+export function person_circle(m, p) {
+	let c = m.circles[p?.circle];
+	return c && c.server == p.server ? c : null;
+};
+
 export function allowed_ips(m, srv, p) {
 	if (p.access == 'lan') {
-		let nets = net.server_net(srv).nets;
+		let nets = person_home(srv, p).nets;
 		// With devices reaching each other, the whole tunnel network (the router's
 		// address is in it); otherwise only the router's own address.
 		let a = server_address(srv);
@@ -749,6 +791,19 @@ export function update_person(c, m, id, a) {
 			c.set(CONFIG, id, 'service', a.services);
 		else
 			c.delete(CONFIG, id, 'service');
+	}
+	if (a.circle != null) {
+		let ci = m.circles[a.circle];
+		if (a.circle != '' && (!ci || ci.server != p.server))
+			fail('Unknown circle.');
+		set('circle', a.circle);
+	}
+	if (type(a.home_nets) == 'array') {
+		let nets = uniq(filter(map(a.home_nets, (x) => trim(`${x}`)), (x) => match(x, /^[A-Za-z0-9_.@-]{1,32}$/)));
+		if (length(nets))
+			c.set(CONFIG, id, 'home_net', nets);
+		else
+			c.delete(CONFIG, id, 'home_net');
 	}
 	if (a.paused != null)
 		set('paused', a.paused ? '1' : '');
