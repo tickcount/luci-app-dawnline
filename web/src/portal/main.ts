@@ -5,7 +5,20 @@
 // devices on the left, access on the right.
 
 import type { ClientConfig, Device, Kind, Person } from '../shared/types';
-import { ACCESS_LABEL, KIND_LABEL, STATE_LABEL, ago, byDeviceState, bytes, date, daysLeft, initials } from '../shared/format';
+import {
+  ACCESS_LABEL,
+  KIND_LABEL,
+  STATE_LABEL,
+  addDays,
+  ago,
+  byDeviceState,
+  bytes,
+  date,
+  daysLeft,
+  initials,
+  isoDay,
+  parseDay,
+} from '../shared/format';
 import { iconSvg } from '../shared/icons';
 import { qrSvg } from '../shared/qr';
 import { vpnKey } from '../shared/vpnkey';
@@ -20,7 +33,12 @@ interface State {
   can_add: boolean;
   kinds: Kind[];
   version: string;
+  /** The router's day (YYYY-MM-DD) when it sends one; the browser's otherwise. */
+  today?: string;
 }
+
+/** Today on the router, for days left and chart labels. */
+const today = () => state?.today ?? isoDay(new Date());
 
 type Attrs = Record<string, string | number | boolean | EventListener | null | undefined>;
 type Kid = Node | string | null | undefined | false | Kid[];
@@ -109,8 +127,9 @@ async function copy(text: string, what = 'Copied') {
     const ta = h('textarea', { class: 'offscreen' }, text) as HTMLTextAreaElement;
     document.body.appendChild(ta);
     ta.select();
-    document.execCommand('copy');
+    const ok = document.execCommand('copy');
     ta.remove();
+    if (!ok) return toast('Copying is blocked here. Select the text and copy it by hand.', true);
   }
   toast(what);
 }
@@ -148,14 +167,28 @@ function spark(values: number[]): HTMLElement {
     const b = h('i', { class: v ? '' : 'zero' });
     b.style.height = `${Math.max(8, (v / max) * 100)}%`;
     const back = values.length - 1 - i;
-    const d = new Date(Date.now() - back * 86400000);
     tip(b, () => [
-      back === 0 ? 'Today' : back === 1 ? 'Yesterday' : d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }),
+      back === 0
+        ? 'Today'
+        : back === 1
+          ? 'Yesterday'
+          : parseDay(addDays(today(), -back)).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }),
       bytes(v),
     ]);
     el.appendChild(b);
   });
   return el;
+}
+
+/** Run a confirmed action once: its button stays disabled until the router answers. */
+async function once(btn: HTMLButtonElement, fn: () => Promise<void>) {
+  if (btn.disabled) return;
+  btn.disabled = true;
+  try {
+    await fn();
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 /* ---------- sheets (bottom sheet on phones, dialog on desktop) ---------- */
@@ -229,8 +262,10 @@ document.addEventListener('click', (e) => {
   if (menuEl && !menuEl.contains(e.target as Node)) closeMenu();
 });
 
-function menu(anchor: HTMLElement, items: ({ label: string; icon: string; danger?: boolean; run: () => unknown } | null)[]) {
+function menu(anchor: HTMLElement, all: ({ label: string; icon: string; danger?: boolean; run: () => unknown } | null)[]) {
   closeMenu();
+  // Separators only between items.
+  const items = all.filter((it, i) => it || (i > 0 && all[i - 1] && all.slice(i + 1).some(Boolean)));
   const m = h(
     'div',
     { class: 'menu', role: 'menu' },
@@ -313,7 +348,7 @@ function accessCard(st: State): HTMLElement {
   const bar = h('div', { class: `meter${pct >= 100 ? ' bad' : pct >= 90 ? ' warn' : ''}` }, h('i'));
   (bar.firstChild as HTMLElement).style.width = `${pct}%`;
   if (p.quota_limit) tip(bar, () => [`${pct.toFixed(1)}% used`, `${bytes(Math.max(0, p.quota_limit - p.quota_used))} left`]);
-  const left = daysLeft(p.expires);
+  const left = daysLeft(p.expires, today());
   const slots = h('div', { class: 'slots' });
   // Devices the admin added over the limit get their own orange slots after the allowed ones.
   for (let i = 0; i < Math.max(p.device_limit, p.devices.length); i++)
@@ -481,9 +516,14 @@ function deviceCard(d: Device, st: State): HTMLElement {
             null,
           ]
         : []),
-      { label: 'Rename', icon: 'edit', run: () => rename(d) },
-      ...(d.disabled ? [] : [{ label: 'New keys', icon: 'reset', run: () => rotateKeys(d, st) }]),
-      { label: 'Remove', icon: 'trash', danger: true, run: () => removeDevice(d) },
+      // A device the admin turned off can't be renamed, rekeyed or removed here (the router refuses).
+      ...(d.disabled
+        ? []
+        : [
+            { label: 'Rename', icon: 'edit', run: () => rename(d) },
+            { label: 'New keys', icon: 'reset', run: () => rotateKeys(d, st) },
+            { label: 'Remove', icon: 'trash', danger: true, run: () => removeDevice(d) },
+          ]),
     ]);
   });
   const week = d.spark.reduce((a, b) => a + b, 0);
@@ -535,7 +575,7 @@ function deviceCard(d: Device, st: State): HTMLElement {
 
 function main(st: State) {
   const p = st.person;
-  const left = daysLeft(p.expires);
+  const left = daysLeft(p.expires, today());
   const notice =
     p.state !== 'active'
       ? h(
@@ -814,6 +854,7 @@ async function connect(d: Device, initial?: 'app' | 'qr' | 'key' | 'file', cfgIn
 
 function rename(d: Device) {
   const name = h('input', { type: 'text', value: d.name, maxlength: 48, 'aria-label': 'Device name' }) as HTMLInputElement;
+  const save = h('button', { class: 'btn primary block', type: 'submit' }, 'Save') as HTMLButtonElement;
   sheet(
     `Rename ${d.name}`,
     null,
@@ -821,21 +862,23 @@ function rename(d: Device) {
       'form',
       {
         class: 'stack gap',
-        onsubmit: async (e: Event) => {
+        onsubmit: (e: Event) => {
           e.preventDefault();
-          try {
-            const r = await call<{ state: State }>(`devices/${d.id}`, { action: 'rename', name: name.value });
-            state = r.state;
-            closeSheet();
-            main(state);
-            toast('Renamed');
-          } catch (er) {
-            toast((er as Error).message, true);
-          }
+          void once(save, async () => {
+            try {
+              const r = await call<{ state: State }>(`devices/${d.id}`, { action: 'rename', name: name.value });
+              state = r.state;
+              closeSheet();
+              main(state);
+              toast('Renamed');
+            } catch (er) {
+              toast((er as Error).message, true);
+            }
+          });
         },
       },
       name,
-      h('button', { class: 'btn primary block', type: 'submit' }, 'Save'),
+      save,
     ),
   );
   setTimeout(() => name.select(), 50);
@@ -862,16 +905,17 @@ function rotateKeys(d: Device, st: State) {
         'button',
         {
           class: 'btn primary block',
-          onclick: async () => {
-            try {
-              const r = await call<{ config: ClientConfig; state: State }>(`devices/${d.id}`, { action: 'rotate' });
-              state = r.state;
-              main(state);
-              connect(d, undefined, r.config);
-            } catch (er) {
-              toast((er as Error).message, true);
-            }
-          },
+          onclick: (ev: Event) =>
+            once(ev.currentTarget as HTMLButtonElement, async () => {
+              try {
+                const r = await call<{ config: ClientConfig; state: State }>(`devices/${d.id}`, { action: 'rotate' });
+                state = r.state;
+                main(state);
+                await connect(d, undefined, r.config);
+              } catch (er) {
+                toast((er as Error).message, true);
+              }
+            }),
         },
         'New keys',
       ),
@@ -892,17 +936,18 @@ function removeDevice(d: Device) {
         'button',
         {
           class: 'btn danger-solid block',
-          onclick: async () => {
-            try {
-              const r = await call<{ state: State }>(`devices/${d.id}`, { action: 'delete' });
-              state = r.state;
-              closeSheet();
-              main(state);
-              toast('Device removed');
-            } catch (er) {
-              toast((er as Error).message, true);
-            }
-          },
+          onclick: (ev: Event) =>
+            once(ev.currentTarget as HTMLButtonElement, async () => {
+              try {
+                const r = await call<{ state: State }>(`devices/${d.id}`, { action: 'delete' });
+                state = r.state;
+                closeSheet();
+                main(state);
+                toast('Device removed');
+              } catch (er) {
+                toast((er as Error).message, true);
+              }
+            }),
         },
         'Remove',
       ),

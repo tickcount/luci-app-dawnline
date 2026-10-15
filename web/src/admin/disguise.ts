@@ -73,6 +73,12 @@ const NEEDS: Record<keyof AwgCaps, string> = {
   v3: 'Needs AmneziaWG 3.1 on the router (kmod-amneziawg and amneziawg-tools 3.1).',
 };
 
+/** The same while no AmneziaWG is installed at all ("newer" would be misleading). */
+const NEEDS_NONE: Record<keyof AwgCaps, string> = {
+  v2: 'Needs AmneziaWG on the router.',
+  v3: 'Needs AmneziaWG 3.1 on the router: install it first.',
+};
+
 function dots(n: number, label: string): HTMLElement {
   return E('span', { class: 'dl-dots', title: `${label}: ${n} of 4` }, [
     E('span', { class: 'dl-dots-label' }, label),
@@ -87,8 +93,15 @@ function dots(n: number, label: string): HTMLElement {
 /**
  * Method cards. `current` gets a badge; unavailable methods stay visible but
  * disabled with the reason, so it is clear what an upgrade would bring.
+ * `installed` is false while the router has no AmneziaWG tools at all.
  */
-export function methodPicker(caps: AwgCaps, selected: Method, onSelect: (m: Method) => void, current?: string): HTMLElement {
+export function methodPicker(
+  caps: AwgCaps,
+  selected: Method,
+  onSelect: (m: Method) => void,
+  current?: string,
+  installed = true,
+): HTMLElement {
   const el = E('div', { class: 'dl-methods', role: 'radiogroup', 'aria-label': 'Disguise method' });
   const paint = () =>
     dom.content(
@@ -122,7 +135,7 @@ export function methodPicker(caps: AwgCaps, selected: Method, onSelect: (m: Meth
             E(
               'div',
               { class: 'dl-method-foot' },
-              ok ? [icon('phone'), E('span', {}, m.apps)] : [icon('alert'), E('span', {}, NEEDS[m.needs!])],
+              ok ? [icon('phone'), E('span', {}, m.apps)] : [icon('alert'), E('span', {}, (installed ? NEEDS : NEEDS_NONE)[m.needs!])],
             ),
           ],
         );

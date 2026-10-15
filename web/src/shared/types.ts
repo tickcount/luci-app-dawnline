@@ -54,11 +54,9 @@ export interface Person {
   devices: Device[];
   /** Throughput, one point a minute (last 15): [ts, rx, tx] in bytes/s (rx = from devices); admin only. */
   rate?: [number, number, number][];
-  // admin only
-  code?: string;
-  link?: string | null;
-  /** Every link to the same portal (main first), one per address; admin only. */
-  links?: string[];
+  // admin only (the personal link itself comes from person_links, not the status)
+  /** A personal link exists (the portal is on); admin only. */
+  has_link?: boolean;
   note?: string;
   services?: string[];
   /** Home networks (interfaces) this person reaches; empty = all; admin only. */
@@ -82,6 +80,10 @@ export interface Circle {
 export interface Server {
   id: string;
   name: string;
+  /** The tunnel core that serves it (see admin/cores); AmneziaWG when absent. */
+  core?: string;
+  /** Why the tunnel can't run: its interface name is taken by a network section Dawnline didn't make. */
+  blocked?: string | null;
   ifname: string;
   port: number;
   subnet: string;
@@ -167,6 +169,17 @@ export interface AwgCaps {
   v3: boolean;
 }
 
+/** Whether AmneziaWG can run here: tools and kernel module installed, the module loaded, netifd's proto handler present. */
+export interface AwgState {
+  tools: boolean;
+  kmod: boolean;
+  loaded: boolean;
+  handler: boolean;
+  /** Packages still to install (amneziawg-tools, kmod-amneziawg). */
+  missing: string[];
+  ok: boolean;
+}
+
 export interface Status {
   geo: Geo;
   version: string;
@@ -175,9 +188,8 @@ export interface Status {
   settings: {
     portal_enabled: boolean;
     portal_port: number;
-    /** The port in personal links (443 when the portal also answers there). */
+    /** The port in personal links (the portal's own). */
     portal_public_port?: number;
-    portal_443?: boolean;
     portal_host: string;
     paused_all: boolean;
     default_device_limit: number;
@@ -195,6 +207,8 @@ export interface Status {
   events: LogEvent[];
   /** What the installed AmneziaWG supports: v2 (1.5/2.0 parameters), v3 (3.1). */
   awg: AwgCaps;
+  /** Absent from routers that run an older backend: treat as fine. */
+  awg_state?: AwgState;
   like_home: { active: boolean; dev?: string; address?: string; bridged?: boolean; off?: boolean; error?: string };
 }
 
@@ -213,7 +227,7 @@ export interface AmneziaFields {
   obfuscation: Record<string, string>;
 }
 
-export interface ClientConfig {
+export interface AwgConfig {
   name: string;
   person: string;
   server: string;
@@ -223,10 +237,14 @@ export interface ClientConfig {
   amnezia: AmneziaFields;
 }
 
+export type ClientConfig = AwgConfig;
+
 export interface HealthCheck {
   id: string;
   title: string;
   status: 'ok' | 'warn' | 'error' | 'skip';
   detail: string;
   fix: string | null;
+  /** A failed check in words ("Clock isn't set"), for notices; null when it passed. */
+  problem?: string | null;
 }

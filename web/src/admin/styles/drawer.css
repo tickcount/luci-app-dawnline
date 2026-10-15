@@ -1,0 +1,52 @@
+/* Toasts and the device drawer. */
+/* live toasts */
+.dl-toast strong { display: block; font-weight: 500; }
+.dl-toast div { opacity: .8; font-size: 13px; }
+
+
+/* device drawer */
+.dl-drawer-overlay { position: fixed; inset: 0; z-index: 900; display: flex; justify-content: flex-end; background: transparent; transition: background .2s; }
+.dl-drawer-overlay.open { background: var(--scrim, rgba(0,0,0,.45)); }
+.dl-drawer { width: min(520px, 100%); height: 100%; display: flex; flex-direction: column; background: var(--dialog-bg, var(--dl-elevated)); color: var(--dl-fg);
+  border-left: 1px solid var(--dl-line); box-shadow: var(--shadow-2xl, -16px 0 32px -8px rgba(0,0,0,.5)); transform: translateX(100%);
+  transition: transform .22s cubic-bezier(.2,.8,.2,1); }
+.dl-drawer-overlay.open .dl-drawer { transform: none; }
+.dl-drawer-head { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--dl-line); }
+.dl-drawer-title { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; }
+.dl-drawer-title h3 { margin: 0 !important; padding: 0 !important; border: 0 !important; font-size: 18px !important; line-height: 26px; font-weight: 500 !important; }
+.dl-drawer-x { all: unset; cursor: pointer; width: 32px; height: 32px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: var(--dl-fg-muted); }
+.dl-drawer-x:hover { background: var(--dl-soft); color: var(--dl-fg); }
+.dl-drawer-body { flex: 1; overflow: auto; padding: 20px; }
+.dl-drawer-foot { padding: 12px 20px; border-top: 1px solid var(--dl-line); }
+.dl-drawer-actions { display: flex; align-items: center; gap: 8px; }
+.dl-dcard-ic.on { background: var(--dl-ok-wash); color: var(--dl-ok); }
+.dl-icon-only.sm { width: 28px; height: 28px !important; }
+.dl-stack.gap12 { gap: 12px; } .dl-stack.gap16 { gap: 16px; }
+.dl-dstats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 1px solid var(--dl-line); border-radius: 14px; overflow: hidden; }
+.dl-dstats-cell { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; min-width: 0; }
+.dl-dstats-cell.wide { grid-column: span 2; border-bottom: 1px solid var(--dl-line); }
+.dl-dstats-cell + .dl-dstats-cell:not(.wide):last-child { border-left: 1px solid var(--dl-line); }
+.dl-dstats-cell b { font-size: 16px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.dl-dstats-cell .dl-dstat { font-size: 14px; }
+.dl-dsec { border: 1px solid var(--dl-line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.dl-dsec-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.dl-dsec-head h4 { margin: 0 !important; padding: 0 !important; font-size: 14px !important; font-weight: 500 !important; border: 0 !important; }
+.dl-dstat i.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--dl-fg-faint); display: inline-block; }
+.dl-connect-body { min-height: 60px; }
+.dl-connect-body .dl-qr { width: min(240px, 70vw); }
+.dl-kv2 { display: flex; flex-direction: column; }
+.dl-kvrow { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 9px 0; border-top: 1px solid var(--dl-line); font-size: 13px; min-width: 0; }
+.dl-kvrow:first-child { border-top: 0; padding-top: 0; }
+.dl-kvrow-k { color: var(--dl-fg-muted); flex: 0 0 auto; }
+/* Values wrap (an IPv6 endpoint, traffic totals); only copyable keys are cut, see .copy */
+.dl-kvrow-v { min-width: 0; text-align: right; overflow-wrap: anywhere; }
+.dl-kvrow-v.copy { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; min-width: 0; color: var(--dl-fg); }
+.dl-kvrow-v.copy span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dl-kvrow-v.copy .dl-icon { width: 13px; height: 13px; color: var(--dl-fg-faint); }
+.dl-kvrow-v.copy:hover .dl-icon { color: var(--dl-fg); }
+@media (max-width: 560px) { .dl-drawer { width: 100%; } .dl-dstats { grid-template-columns: minmax(0, 1fr); } .dl-dstats-cell.wide { grid-column: auto; } .dl-dstats-cell + .dl-dstats-cell:not(.wide):last-child { border-left: 0; border-top: 1px solid var(--dl-line); } }
+
+.dl-dev-log { display: flex; flex-direction: column; }
+.dl-dev-log-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--dl-line); font-size: 13px; line-height: 20px; min-width: 0; }
+.dl-dev-log-row:first-child { border-top: 0; padding-top: 0; }
+.dl-dev-log-row .dl-row-main { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

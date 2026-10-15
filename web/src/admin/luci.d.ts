@@ -121,11 +121,6 @@ declare global {
   const poll: LuciPoll;
   const dom: LuciDom;
   const baseclass: { extend<T>(props: T): T };
-  // LuCI form/network/firewall/uci classes are used dynamically.
-  const form: any;
-  const network: any;
-  const firewall: any;
-  const uci: any;
 }
 
 export type { Child, LuciWidget, WidgetOptions };

@@ -4,8 +4,10 @@
 import type { Circle, Person, Server, Status } from '../shared/types';
 import { E } from './e';
 import { api, type HomeHost } from './api';
-import { attempt, button, closeModal, confirmDialog, modal } from './ui';
-import { input } from './kit';
+import { button } from './ui/button';
+import { cancelButton, closeModal, confirmDialog, modal } from './ui/modal';
+import { attempt } from './ui/toast';
+import { chipToggle, input } from './ui/controls';
 import { icon } from '../shared/icons';
 
 type Service = Status['services'][number];
@@ -21,7 +23,7 @@ export const homeAccess = (p: Person) => p.access === 'both' || (p.access === 'l
 
 /* ---------- Home services ---------- */
 
-export function serviceDialog(sv: Service | null, prefill: Partial<Service>, onSaved: () => void) {
+export function serviceDialog(sv: Service | null, prefill: Partial<Service>, onSaved: () => unknown) {
   const name = input(sv?.name ?? prefill.name ?? '', { placeholder: 'NAS' });
   const addr = input(sv?.address ?? prefill.address ?? '', { placeholder: '192.168.1.10', class: 'cbi-input-text dl-mono' });
   const ports = input((sv?.ports ?? prefill.ports ?? []).join(', '), {
@@ -34,7 +36,7 @@ export function serviceDialog(sv: Service | null, prefill: Partial<Service>, onS
     sv ? `Edit ${sv.name}` : 'Add service',
     [field('Name', name), field('Address', addr), field('Ports', ports)],
     [
-      E('button', { class: 'cbi-button cbi-button-neutral', click: closeModal }, 'Cancel'),
+      cancelButton(),
       ' ',
       button(
         'Save',
@@ -88,59 +90,91 @@ function portGroups(h: HomeHost): [string, string[]][] {
   return by.size ? [...by].map(([l, p]) => [l, [...p].sort((a, b) => +a - +b)]) : DEFAULT_PORTS;
 }
 
-/** Services shared by all servers, and the devices at home to add them from. */
-export function homeServices(st: Status, serverId: string, reload: () => void): HTMLElement {
-  const services = st.services;
+/** Home services as a live part of Server → Access: `update` repaints it from a new status. */
+export interface HomeServices {
+  el: HTMLElement;
+  update(st: Status): void;
+}
+
+/**
+ * Services shared by all servers, and the devices at home to add them from.
+ * The devices are read once; `reload` refreshes the status after a change
+ * (the rest of the Access section, and what is typed there, stays).
+ */
+export function homeServices(initial: Status, serverId: string, reload: () => Promise<unknown>): HomeServices {
+  let st = initial;
+  let hosts: { hosts: HomeHost[]; mdns: boolean } | null = null;
+  let failed = false;
+  /** The "Add from devices at home" fold, once opened or closed by hand. */
+  let open: boolean | null = null;
+  /** Devices with a change on its way: a second click would add the service twice. */
+  const busy = new Set<string>();
+  const list = E('div', { class: 'dl-list' });
   const picker = E('div', { class: 'dl-stack gap8' }, E('span', { class: 'dl-sub' }, 'Looking for devices at home…'));
 
-  const rows = services.length
-    ? services.map((sv) =>
-        E('div', { class: 'dl-row' }, [
-          icon('home'),
-          E('span', { class: 'dl-row-main dl-stack' }, [
-            E('b', {}, sv.name),
-            E(
-              'span',
-              { class: 'dl-mono dl-faint' },
-              `${sv.address}${sv.ports.length ? ` · ports ${sv.ports.join(', ')}` : ' · all ports'}`,
-            ),
-          ]),
-          button('Edit', () => serviceDialog(sv, {}, reload)),
-          button(
-            [icon('trash')],
-            async () => {
-              if (
-                (await confirmDialog(`Remove ${sv.name}?`, 'People limited to this service lose access to it.', 'Remove', true)) &&
-                (await attempt(() => api.serviceDelete(sv.id), 'Removed'))
-              )
-                reload();
-            },
-            'neutral',
-            { title: 'Remove', 'aria-label': `Remove ${sv.name}` },
-          ),
-        ]),
-      )
-    : [E('div', { class: 'dl-row dl-muted' }, 'No services yet: pick ports of a device below.')];
+  const paintRows = () => {
+    const services = st.services;
+    dom.content(
+      list,
+      services.length
+        ? services.map((sv) =>
+            E('div', { class: 'dl-row' }, [
+              icon('home'),
+              E('span', { class: 'dl-row-main dl-stack' }, [
+                E('b', {}, sv.name),
+                E(
+                  'span',
+                  { class: 'dl-mono dl-faint' },
+                  `${sv.address}${sv.ports.length ? ` · ports ${sv.ports.join(', ')}` : ' · all ports'}`,
+                ),
+              ]),
+              button('Edit', () => serviceDialog(sv, {}, reload)),
+              button(
+                [icon('trash')],
+                async () => {
+                  if (
+                    (await confirmDialog(`Remove ${sv.name}?`, 'People limited to this service lose access to it.', 'Remove', true)) &&
+                    (await attempt(() => api.serviceDelete(sv.id), 'Removed'))
+                  )
+                    await reload();
+                },
+                'neutral',
+                { title: 'Remove', 'aria-label': `Remove ${sv.name}` },
+              ),
+            ]),
+          )
+        : [E('div', { class: 'dl-row dl-muted' }, 'No services yet: pick ports of a device below.')],
+    );
+  };
 
   /** Ports chosen for a device: add, change or remove its service at once. */
   async function choose(h: HomeHost, ports: string[] | null) {
-    const sv = services.find((s) => s.address === h.address);
-    const ok =
-      ports === null
-        ? sv && (await attempt(() => api.serviceDelete(sv.id), `${sv.name} removed`))
-        : await attempt(
-            () => api.serviceSet(sv?.id ?? '', sv?.name ?? (h.name || h.address), h.address, ports),
-            sv ? `${sv.name} updated` : `${h.name || h.address} added`,
-          );
-    if (ok) reload();
+    if (busy.has(h.address)) return;
+    busy.add(h.address);
+    paintPicker();
+    try {
+      const sv = st.services.find((s) => s.address === h.address);
+      const ok =
+        ports === null
+          ? sv && (await attempt(() => api.serviceDelete(sv.id), `${sv.name} removed`))
+          : await attempt(
+              () => api.serviceSet(sv?.id ?? '', sv?.name ?? (h.name || h.address), h.address, ports),
+              sv ? `${sv.name} updated` : `${h.name || h.address} added`,
+            );
+      if (ok) await reload();
+    } finally {
+      busy.delete(h.address);
+      paintPicker();
+    }
   }
 
   function hostRow(h: HomeHost): HTMLElement {
-    const sv = services.find((s) => s.address === h.address);
+    const sv = st.services.find((s) => s.address === h.address);
     const all = !!sv && !sv.ports.length;
     const chosen = new Set(sv?.ports ?? []);
+    const wait = busy.has(h.address);
     const chip = (label: string, on: boolean, click: () => void) =>
-      E('button', { type: 'button', class: `dl-chipbtn${on ? ' on' : ''}`, 'aria-pressed': on ? 'true' : 'false', click }, label);
+      chipToggle(label, on, click, { disabled: wait ? 'disabled' : null, 'aria-busy': wait ? 'true' : null });
     return E('div', { class: 'dl-row' }, [
       icon(h.services.some((s) => s.type.startsWith('_ipp') || s.type.startsWith('_printer')) ? 'file' : 'computer'),
       E('span', { class: 'dl-row-main dl-stack' }, [E('b', {}, h.name || h.address), E('span', { class: 'dl-mono dl-faint' }, h.address)]),
@@ -161,36 +195,46 @@ export function homeServices(st: Status, serverId: string, reload: () => void): 
     ]);
   }
 
+  function paintPicker() {
+    if (failed) return dom.content(picker, E('span', { class: 'dl-sub' }, "Couldn't read the devices at home."));
+    if (!hosts) return;
+    const r = hosts;
+    if (!r.hosts.length) return dom.content(picker, E('span', { class: 'dl-sub' }, 'No devices found in the home network right now.'));
+    // Open while there are no services yet (that is where they come from), then as left.
+    const fold = E('details', { class: 'dl-params', open: (open ?? !st.services.length) ? '' : null }, [
+      E('summary', {}, [
+        icon('chevron'),
+        E('span', {}, 'Add from devices at home'),
+        E('span', { class: 'dl-pcount' }, String(r.hosts.length)),
+      ]),
+      E('div', { class: 'dl-params-body' }, [
+        E(
+          'span',
+          { class: 'dl-sub' },
+          r.mdns
+            ? 'Ports they announce over Bonjour. Pick what to open, or all ports.'
+            : 'Devices that got an address from this router. Pick the ports to open, or all ports.',
+        ),
+        E('div', { class: 'dl-list' }, r.hosts.map(hostRow)),
+      ]),
+    ]);
+    fold.addEventListener('toggle', () => (open = (fold as HTMLDetailsElement).open));
+    dom.content(picker, fold);
+  }
+
   api
     .homeHosts(serverId)
     .then((r) => {
-      const open = r.hosts.some((h) => services.some((s) => s.address === h.address)) && !services.length;
-      dom.content(
-        picker,
-        r.hosts.length
-          ? E('details', { class: 'dl-params', open: open ? '' : null }, [
-              E('summary', {}, [
-                icon('chevron'),
-                E('span', {}, 'Add from devices at home'),
-                E('span', { class: 'dl-pcount' }, String(r.hosts.length)),
-              ]),
-              E('div', { class: 'dl-params-body' }, [
-                E(
-                  'span',
-                  { class: 'dl-sub' },
-                  r.mdns
-                    ? 'Ports they announce over Bonjour. Pick what to open, or all ports.'
-                    : 'Devices that got an address from this router. Pick the ports to open, or all ports.',
-                ),
-                E('div', { class: 'dl-list' }, r.hosts.map(hostRow)),
-              ]),
-            ])
-          : E('span', { class: 'dl-sub' }, 'No devices found in the home network right now.'),
-      );
+      hosts = r;
+      paintPicker();
     })
-    .catch(() => dom.content(picker, E('span', { class: 'dl-sub' }, "Couldn't read the devices at home.")));
+    .catch(() => {
+      failed = true;
+      paintPicker();
+    });
+  paintRows();
 
-  return E('div', { class: 'dl-stack gap8' }, [
+  const el = E('div', { class: 'dl-stack gap8' }, [
     E('div', { class: 'dl-iflead' }, [
       E('div', { class: 'dl-iflead-row' }, [
         E('b', {}, 'Home services'),
@@ -202,14 +246,22 @@ export function homeServices(st: Status, serverId: string, reload: () => void): 
         'Home-only people can be limited to these instead of whole networks (chosen on their page). Shared by all servers.',
       ),
     ]),
-    E('div', { class: 'dl-list' }, rows),
+    list,
     picker,
   ]);
+  return {
+    el,
+    update(n: Status) {
+      st = n;
+      paintRows();
+      paintPicker();
+    },
+  };
 }
 
 /* ---------- Circles ---------- */
 
-export function circleDialog(st: Status, serverId: string, ci: Circle | null, onDone: () => void) {
+export function circleDialog(st: Status, serverId: string, ci: Circle | null, onDone: () => unknown) {
   const used = new Set(st.circles.filter((c) => c.server === serverId).map((c) => c.color));
   let color = ci?.color ?? CIRCLE_COLORS.findIndex((_, i) => !used.has(i));
   if (color < 0) color = 0;
@@ -287,7 +339,7 @@ export function circleDialog(st: Status, serverId: string, ci: Circle | null, on
           )
         : '',
       E('span', { class: 'dl-spacer' }),
-      E('button', { class: 'cbi-button cbi-button-neutral', click: closeModal }, 'Cancel'),
+      cancelButton(),
       ' ',
       button(
         'Save',
@@ -305,7 +357,7 @@ export function circleDialog(st: Status, serverId: string, ci: Circle | null, on
 }
 
 /** The server's circles as chips (click to edit) and a round "+" to add one. */
-export function circleChips(st: Status, serverId: string, onDone: () => void): HTMLElement {
+export function circleChips(st: Status, serverId: string, onDone: () => unknown): HTMLElement {
   const list = st.circles.filter((c) => c.server === serverId);
   return E('div', { class: 'dl-chips-row dl-circles' }, [
     ...list.map((c) => {

@@ -4,7 +4,7 @@
 import { PeoplePage } from './pages/people';
 import { ServerPage } from './pages/server';
 import { SettingsPage } from './pages/settings';
-import { UpdatesPage } from './pages/maintenance';
+import { ComponentsPage } from './pages/components';
 import { PersonPage } from './pages/person';
 import { DiagnosticsPage } from './pages/diagnostics';
 import { styleNode } from './styles';
@@ -12,11 +12,11 @@ import { styleNode } from './styles';
 interface Page {
   load(): Promise<any>;
   render(data: any): Node | Promise<Node>;
-  /** Set by a form page when it rendered something without a form. */
+  /** No footer at all (otherwise LuCI's, without its form buttons). */
   noFooter?: boolean;
 }
 
-function factory<P extends Page>(Cls: new () => P, formBased: boolean) {
+function factory<P extends Page>(Cls: new () => P) {
   return () => {
     const page = new Cls();
     const v: Record<string, unknown> = {
@@ -32,20 +32,19 @@ function factory<P extends Page>(Cls: new () => P, formBased: boolean) {
         return page.noFooter ? document.createElement('div') : this.super('addFooter', []);
       },
     };
-    // Pages without a form.Map have nothing to save: hide the footer buttons.
-    if (!formBased) Object.assign(v, { handleSave: null, handleSaveApply: null, handleReset: null });
-    return v;
+    // No page is a LuCI form (changes go through RPC): nothing to Save & Apply.
+    return Object.assign(v, { handleSave: null, handleSaveApply: null, handleReset: null });
   };
 }
 
 // The old Overview address opens the Servers page (it holds each server's overview now).
-const overview = factory(ServerPage, false);
-const people = factory(PeoplePage, true);
-const server = factory(ServerPage, false);
-const settings = factory(SettingsPage, false);
-const person = factory(PersonPage, false);
-const diagnostics = factory(DiagnosticsPage, false);
-const updates = factory(UpdatesPage, false);
+const overview = factory(ServerPage);
+const people = factory(PeoplePage);
+const server = factory(ServerPage);
+const settings = factory(SettingsPage);
+const person = factory(PersonPage);
+const diagnostics = factory(DiagnosticsPage);
+const updates = factory(ComponentsPage);
 
 /** Health and Activity became Diagnostics tabs: old addresses and bookmarks go there. */
 function moved(tab: '' | 'log') {

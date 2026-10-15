@@ -1,0 +1,33 @@
+/* Disguise method cards. */
+/* Disguise methods */
+.dl-methods { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+.dl-method { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 12px;
+  border: 1px solid var(--dl-line); background: var(--dl-card); transition: border-color .15s, background .15s; min-width: 0; }
+.dl-method:hover { background: var(--dl-soft); }
+.dl-method:focus-visible { outline: 2px solid var(--dl-ring); outline-offset: 2px; }
+.dl-method.on { border-color: var(--dl-accent); background: color-mix(in srgb, var(--dl-accent) 8%, transparent); box-shadow: inset 0 0 0 1px var(--dl-accent); }
+.dl-method.off { cursor: not-allowed; opacity: .55; }
+.dl-method.off:hover { background: var(--dl-card); }
+.dl-method-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.dl-method-head .dl-pill { flex: none; }
+.dl-method-head b { font-weight: 500; font-size: 14.5px; flex: 1; }
+.dl-method-ic { width: 32px; height: 32px; border-radius: 9px; background: var(--dl-soft); display: inline-flex; align-items: center; justify-content: center; color: var(--dl-fg-muted); flex: 0 0 auto; }
+.dl-method-ic .dl-icon { width: 17px; height: 17px; }
+.dl-method.on .dl-method-ic { background: color-mix(in srgb, var(--dl-accent) 18%, transparent); color: var(--dl-accent); }
+.dl-method p { margin: 0 !important; font-size: 12.5px; line-height: 18px; color: var(--dl-fg-muted); flex: 1; }
+.dl-method-meters { display: flex; gap: 16px; }
+.dl-dots { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--dl-fg-faint); }
+.dl-dots-row { display: inline-flex; gap: 3px; }
+.dl-dots-row i { width: 6px; height: 6px; border-radius: 50%; background: var(--dl-line); }
+.dl-dots-row i.on { background: var(--dl-fg-muted); }
+.dl-method.on .dl-dots-row i.on { background: var(--dl-accent); }
+.dl-method-foot { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--dl-fg-faint); padding-top: 8px; border-top: 1px solid var(--dl-line); }
+.dl-method-foot .dl-icon { width: 13px; height: 13px; flex: 0 0 auto; }
+.dl-method.off .dl-method-foot { color: var(--dl-warn); }
+.dl-ibadge { display: inline-flex; align-items: center; gap: 3px; height: 22px; padding: 0 6px; border-radius: 999px; background: var(--dl-soft); color: var(--dl-fg-muted); flex: 0 0 auto; }
+.dl-ibadge .dl-icon { width: 13px; height: 13px; }
+.dl-ibadge.warn { background: var(--dl-warn-wash); color: var(--dl-warn); }
+.dl-ibadge.bad { background: var(--dl-bad-wash); color: var(--dl-bad); }
+.dl-access { display: inline-flex; gap: 4px; flex: 0 0 auto; }
+.dl-ibadge.lan { background: color-mix(in srgb, var(--dl-accent) 16%, transparent); color: var(--dl-accent); }
+.dl-ibadge.inet { background: var(--dl-ok-wash); color: var(--dl-ok); }

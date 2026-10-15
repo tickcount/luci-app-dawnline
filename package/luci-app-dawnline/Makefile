@@ -6,13 +6,13 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-dawnline
-PKG_VERSION:=0.3.1
+PKG_VERSION:=0.4.0
 PKG_RELEASE:=1
 PKG_LICENSE:=MIT
 
 LUCI_TITLE:=Dawnline - AmneziaWG access server
 # AmneziaWG itself (kmod-amneziawg, amneziawg-tools, luci-proto-amneziawg) is not
-# in the OpenWrt feeds: install.sh and the Updates page install a build made for
+# in the OpenWrt feeds: install.sh and the Components page install a build made for
 # the router's firmware. The portal's HTTPS needs any libustream TLS module and
 # openssl-util; Settings offers to install them when the portal is turned on.
 # Runtime dependencies only (control file Depends): the package ships scripts
@@ -34,6 +34,10 @@ define Package/luci-app-dawnline/conffiles
 /etc/config/dawnline
 endef
 
+# /etc/dawnline (keys, backups, usage, history) survives a sysupgrade too:
+# root/lib/upgrade/keep.d/dawnline-data (the package's own keep.d file is
+# generated from conffiles).
+
 define Package/luci-app-dawnline/prerm
 #!/bin/sh
 [ -n "$${IPKG_INSTROOT}" ] && exit 0
@@ -41,6 +45,11 @@ define Package/luci-app-dawnline/prerm
 [ "$$1" = "upgrade" ] && exit 0
 /etc/init.d/dawnline stop 2>/dev/null
 /usr/bin/dawnline teardown 2>/dev/null
+# The heartbeat check would point at a removed file.
+grep -qs /usr/libexec/dawnline/ /etc/crontabs/root && {
+	sed -i '\#/usr/libexec/dawnline/#d' /etc/crontabs/root
+	/etc/init.d/cron restart 2>/dev/null
+}
 exit 0
 endef
 

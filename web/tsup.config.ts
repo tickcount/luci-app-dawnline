@@ -33,19 +33,22 @@ async function minifyCss(css: string): Promise<string> {
   return (await transform(css, { loader: 'css', minify: true, legalComments: 'none' })).code.trim();
 }
 
-// The admin styles live in a template string in styles.ts (rendered inside each
-// view); squeeze that string before bundling. It has no ${} and no backslashes.
-const minifyStylesTs: Plugin = {
-  name: 'minify-styles-ts',
+// The admin styles are plain .css files under src/admin/styles, imported as
+// text and joined in styles/index.ts (rendered inside each view): each is
+// minified here. They get a namespace (and a path not ending in .css) of
+// their own, so tsup's CSS handling, which would emit a stylesheet, never sees them.
+const adminCss: Plugin = {
+  name: 'admin-css-text',
   setup(build) {
-    build.onLoad({ filter: /admin[\\/]styles\.ts$/ }, async (args) => {
-      const src = fs.readFileSync(args.path, 'utf8');
-      const m = /const CSS = `([\s\S]*?)`;/.exec(src);
-      if (!m) throw new Error('styles.ts: CSS template not found');
-      if (/\$\{|\\/.test(m[1])) throw new Error('styles.ts: the CSS must not contain ${} or backslashes');
-      const css = await minifyCss(m[1]);
-      return { contents: src.replace(m[0], `const CSS = \`${css}\`;`), loader: 'ts' };
-    });
+    build.onResolve({ filter: /\.css$/ }, (args) =>
+      /admin[\\/]styles$/.test(args.resolveDir)
+        ? { path: `${path.join(args.resolveDir, args.path)}#text`, namespace: 'dl-css' }
+        : undefined,
+    );
+    build.onLoad({ filter: /.*/, namespace: 'dl-css' }, async (args) => ({
+      contents: await minifyCss(fs.readFileSync(args.path.replace(/#text$/, ''), 'utf8')),
+      loader: 'text',
+    }));
   },
 };
 
@@ -61,17 +64,15 @@ export default defineConfig([
     // Identifiers only: LuCI's require directives in the banner must stay as written.
     minify: true,
     noExternal: ['qrcode-generator'],
-    esbuildPlugins: [minifyStylesTs],
+    esbuildPlugins: [adminCss],
     banner: {
       js: [
         '// Generated from dawnline/web — do not edit by hand.',
         "'use strict';",
         "'require baseclass';",
         "'require dom';",
-        "'require form';",
         "'require poll';",
         "'require rpc';",
-        "'require uci';",
         "'require ui';",
       ].join('\n'),
     },

@@ -1,0 +1,55 @@
+/* Diagnostics → Health: watchdog, checks, service log; tables inside panels. */
+/* health */
+.dl-checks { list-style: none; margin: 0; padding: 0; }
+.dl-checks li { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--dl-line); }
+.dl-checks li:first-child { border-top: 0; padding-top: 0; }
+.dl-checks li:last-child { padding-bottom: 0; }
+.dl-check-icon { flex: 0 0 auto; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; }
+.dl-check-icon .dl-icon { width: 14px; height: 14px; }
+.dl-check-icon.ok { background: var(--dl-ok-wash); color: var(--dl-ok); }
+.dl-check-icon.warn { background: var(--dl-warn-wash); color: var(--dl-warn); }
+.dl-check-icon.error { background: var(--dl-bad-wash); color: var(--dl-bad); }
+.dl-check-icon.skip { background: var(--dl-soft); color: var(--dl-fg-faint); }
+.dl-check-body { flex: 1; min-width: 0; }
+.dl-check-title { font-size: 14px; line-height: 20px; font-weight: 500; }
+.dl-check-detail { font-size: 12px; line-height: 16px; color: var(--dl-fg-muted); overflow-wrap: anywhere; }
+.dl-check-repaired { margin-top: 2px; font-size: 12px; line-height: 16px; color: var(--dl-warn); }
+
+/* Health: watchdog card, then checks and the service log side by side. */
+.dl-wd { margin: 0 0 16px; display: flex; flex-direction: column; gap: 14px; }
+.dl-wd-head { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.dl-wd-head > .dl-stack { min-width: 0; }
+.dl-wd-title { font-size: 16px; line-height: 24px; font-weight: 500; }
+.dl-wd-tile { flex: none; width: 36px; height: 36px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; background: var(--dl-ok-wash); color: var(--dl-ok); }
+.dl-wd-tile.off { background: var(--dl-soft); color: var(--dl-fg-faint); }
+.dl-wd-tile .dl-icon { width: 18px; height: 18px; }
+.dl-wd-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; padding-top: 14px; border-top: 1px solid var(--dl-line); }
+.dl-wd-chips { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 1 auto; min-width: 0; }
+.dl-wd-chips .dl-check-chip.error .dl-icon { color: var(--dl-bad); }
+.dl-warn-text { color: var(--dl-warn) !important; }
+.dl-health-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(440px, 100%), 1fr)); gap: 16px; align-items: start; }
+.dl-health-cols > .dl-panel { margin: 0; min-width: 0; }
+.dl-recent { display: flex; flex-direction: column; }
+.dl-recent .dl-panel-head a { font-size: 13px; }
+.dl-recent-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 32px 16px; color: var(--dl-fg-muted); font-size: 13px; border-top: 1px solid var(--dl-line); }
+.dl-loading { margin: 0; font-size: 13px; }
+.dl-diag-tabs { margin: 0 0 16px; }
+.dl-row.dl-slog-row { align-items: baseline; }
+.dl-slog-row .dl-ev-tile { align-self: flex-start; margin-top: -1px; }
+.dl-slog-row.has-detail { cursor: pointer; }
+.dl-row.dl-slog-row.has-detail:hover { background: color-mix(in srgb, var(--sys) 11%, transparent); }
+.dl-slog-more { display: inline-flex; vertical-align: -2px; margin-left: 6px; color: var(--dl-fg-faint); transform: rotate(90deg); transition: transform .15s; }
+.dl-slog-more .dl-icon { width: 14px; height: 14px; }
+.dl-slog-more.open { transform: rotate(-90deg); }
+.dl-slog-detail { margin: 8px 0 2px; padding: 8px 10px; border-radius: 8px; background: var(--dl-soft); font-family: var(--dl-mono); font-size: 12px; line-height: 17px; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--dl-fg-muted); cursor: text; }
+
+/* tables inside panels */
+.dl-table { width: 100%; border-collapse: collapse; font-size: 14px; line-height: 20px; }
+.dl-table th { text-align: left; font-weight: 500; color: var(--dl-fg-faint); padding: 0 8px 8px; border-bottom: 1px solid var(--dl-line); }
+.dl-table td { padding: 10px 8px; border-bottom: 1px solid var(--dl-line); vertical-align: middle; }
+.dl-table th:first-child, .dl-table td:first-child { padding-left: 0; }
+.dl-table th:last-child, .dl-table td:last-child { padding-right: 0; }
+.dl-table tr:last-child td { border-bottom: 0; }
+.dl-table .dl-right { text-align: right; white-space: nowrap; }
+.dl-log { max-height: 18em; overflow: auto; font-family: var(--dl-mono); font-size: 12px; line-height: 18px; margin: 8px 0 0; padding: 12px;
+  white-space: pre-wrap; border-radius: 12px; background: var(--dl-soft); }

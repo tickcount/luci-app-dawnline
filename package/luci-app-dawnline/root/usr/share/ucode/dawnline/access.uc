@@ -3,11 +3,12 @@
 
 'use strict';
 
-import { ip2int } from 'dawnline.util';
+import { ip2int, in_nets } from 'dawnline.util';
 import * as core from 'dawnline.core';
 import * as net from 'dawnline.net';
 import * as live from 'dawnline.live';
 import * as view from 'dawnline.view';
+import * as awg from 'dawnline.awg';
 
 const STATE_TEXT = {
 	no_server: 'their server is turned off',
@@ -30,21 +31,13 @@ function stop(steps, s) {
 	return steps;
 }
 
-/** The first of `nets` (IPv4 CIDRs, any prefix) that holds `ip`. */
-function in_any(ip, nets) {
-	let n = ip2int(ip);
-	if (n == null)
-		return null;
-	for (let c in nets) {
-		let mm = match(c, /^([0-9.]+)\/([0-9]+)$/);
-		let base = mm ? ip2int(mm[1]) : null;
-		if (base == null)
-			continue;
-		let size = 1 << (32 - +mm[2]);
-		if (+mm[2] == 0 || (n >= base - base % size && n < base - base % size + size))
-			return c;
-	}
-	return null;
+/** The tunnel subnet (of any server) that holds `ip`: never home, whatever routes cover it. */
+function in_tunnels(m, ip) {
+	let nets = [];
+	for (let id, s in m.servers)
+		for (let t in core.tunnels(s))
+			push(nets, t.subnet);
+	return in_nets(ip, nets);
 }
 
 /** "10.0.1.20:445" → [ip, port]; a device id → its address. */
@@ -70,10 +63,15 @@ function peer_of(dmp, d) {
 	return dmp.peers[d.public_key];
 }
 
+/** What the device sends to the router: its configuration's AllowedIPs. */
+function routed(m, srv, p, d) {
+	return { nets: awg.allowed_ips(m, srv, p), what: 'Its configuration', list: null };
+}
+
 /** The home network (interface) of a server that holds an address. */
 function home_dev_of(srv, ip, snap) {
 	for (let h in net.server_net(srv, snap).home)
-		if (in_any(ip, h.nets))
+		if (in_nets(ip, h.nets))
 			return h.dev;
 	return null;
 }
@@ -113,12 +111,14 @@ function from_device(m, d, t, states, dmp, snap) {
 	let steps = [ person_ok(m, p, d, states) ];
 	if (!steps[0].ok)
 		return steps;
-	let allowed = core.allowed_ips(m, srv, p);
+	let r = routed(m, srv, p, d);
+	let allowed = r.nets;
 	let via = (ip) => {
-		let hit = in_any(ip, allowed);
+		let hit = in_nets(ip, allowed);
+		let what = r.list ? `${r.what}: ${r.list}` : `AllowedIPs ${join(', ', filter(allowed, (x) => index(x, ':') < 0))}`;
 		return hit
-			? step(true, 'Its configuration sends it through the tunnel', `AllowedIPs ${join(', ', filter(allowed, (x) => index(x, ':') < 0))}`)
-			: step(false, "Its configuration doesn't send it through the tunnel", `AllowedIPs ${join(', ', allowed)}: the device's own network handles it.`);
+			? step(true, `${r.what} sends it to the router`, what)
+			: step(false, `${r.what} doesn't send it to the router`, `${what}: the device's own network handles it.`);
 	};
 
 	// Another device.
@@ -164,6 +164,11 @@ function from_device(m, d, t, states, dmp, snap) {
 		return steps;
 	}
 
+	// A tunnel address no device has.
+	let tn = in_tunnels(m, t.ip);
+	if (tn)
+		return stop(steps, step(false, `No device uses ${t.ip}`, `It is in the tunnel network ${tn}.`));
+
 	// Home.
 	let sn = net.server_net(srv, snap);
 	let hdev = home_dev_of(srv, t.ip, snap);
@@ -185,7 +190,7 @@ function from_device(m, d, t, states, dmp, snap) {
 		}
 		else {
 			let h = core.person_home(srv, p, snap);
-			if (!in_any(t.ip, h.nets))
+			if (!in_nets(t.ip, h.nets))
 				return stop(steps, step(false, `${t.ip} is in ${hdev}, which ${p.name} doesn't reach`, `${p.name} reaches ${join(', ', h.devs) || 'no home network'}.`));
 			push(steps, step(true, `${t.ip} is in ${hdev}`, h.all ? 'Home access reaches every home network.' : `One of the networks ${p.name} reaches.`));
 		}
@@ -195,7 +200,7 @@ function from_device(m, d, t, states, dmp, snap) {
 	}
 
 	// Another private address, or the internet.
-	if (in_any(t.ip, [ '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '100.64.0.0/10', '169.254.0.0/16' ]))
+	if (in_nets(t.ip, [ '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '100.64.0.0/10', '169.254.0.0/16' ]))
 		return stop(steps, step(false, `${t.ip} isn't in ${srv.name}'s home network`, 'Private addresses outside the home network are blocked.'));
 	if (p.access == 'lan')
 		return stop(steps, step(true, `${t.ip} is on the internet`, `${p.name} has Home only: their device's own internet reaches it, not the tunnel.`));
@@ -211,7 +216,7 @@ function to_device(m, ip, d, states, dmp, snap) {
 	if (!p || !srv)
 		return [ step(false, `${d.name} has no server`, '') ];
 	let who = `${p.name} · ${d.name}`;
-	let hdev = home_dev_of(srv, ip, snap);
+	let hdev = in_tunnels(m, ip) ? null : home_dev_of(srv, ip, snap);
 	if (!hdev)
 		return [ step(false, `${ip} isn't in ${srv.name}'s home network`, 'Only home devices reach people\'s devices.') ];
 	let steps = [ step(true, `${ip} is at home (${hdev})`, '') ];
@@ -219,7 +224,7 @@ function to_device(m, ip, d, states, dmp, snap) {
 		return stop(steps, step(false, `${p.name} has ${p.access == 'lan' ? 'only some home services' : ACCESS_TEXT[p.access]}`,
 			'Home devices reach only people with home access.'));
 	let h = core.person_home(srv, p, snap);
-	if (!in_any(ip, h.nets))
+	if (!in_nets(ip, h.nets))
 		return stop(steps, step(false, `${p.name} doesn't reach ${hdev}`, 'Networks a person does not reach cannot reach them either.'));
 	push(steps, person_ok(m, p, d, states));
 	if (!steps[length(steps) - 1].ok)
@@ -238,7 +243,7 @@ export function check(m, from, to) {
 		die(`"${to}" is not a device or an IPv4 address.`);
 	let usage = core.load_usage();
 	let states = view.states(m, usage);
-	let dmp = live.dump();
+	let dmp = live.dump(m);
 	let snap = net.snapshot(true);
 	let steps;
 	if (a.dev)

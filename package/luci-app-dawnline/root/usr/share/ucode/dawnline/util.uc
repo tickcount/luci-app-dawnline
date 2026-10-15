@@ -1,9 +1,10 @@
 // Dawnline — small helpers shared by the rpcd plugin, the CLI, the agent and
-// the portal CGI. Nothing in here touches configuration.
+// the portal CGI. Nothing in here loads or commits configuration (the uci
+// helpers work on a cursor the caller owns).
 
 import { open, readfile, writefile, rename, mkdir, stat, unlink, popen, lsdir } from 'fs';
 
-export const VERSION = '0.3.1';
+export const VERSION = '0.4.0';
 /** GitHub repository with Dawnline releases (updates and the installer). */
 export const REPO = 'tickcount/luci-app-dawnline';
 export const RUN_DIR = '/var/run/dawnline';
@@ -91,15 +92,27 @@ export function read_json(path, fallback) {
 	}
 };
 
-/** Atomic write (temp file + rename). `mode` defaults to 0600. */
+/**
+ * Atomic write (temp file + rename). `mode` defaults to 0600. A short write
+ * (flash full) leaves the old file in place and returns false.
+ */
 export function write_file(path, data, mode) {
 	let tmp = `${path}.tmp${rand_hex(3)}`;
 	let f = open(tmp, 'w', mode ?? 0o600);
 	if (!f)
 		return false;
-	f.write(data);
-	f.close();
-	return rename(tmp, path);
+	data = `${data ?? ''}`;
+	let n = length(data) ? f.write(data) : 0;
+	let closed = f.close();
+	if (n != length(data) || !closed) {
+		unlink(tmp);
+		return false;
+	}
+	if (!rename(tmp, path)) {
+		unlink(tmp);
+		return false;
+	}
+	return true;
 };
 
 export function write_json(path, data, mode) {
@@ -124,6 +137,92 @@ export function unlock(f) {
 		f.lock('u');
 		f.close();
 	}
+};
+
+// Locks this process holds through with_lock (flock does not nest: a second
+// open of the same lock file in one process would wait for itself).
+let held = {};
+
+/**
+ * Run fn() holding the named lock and return what it returns. Nested calls
+ * for the same name in one process run fn() directly. Anything fn throws
+ * releases the lock and is rethrown with the same message.
+ */
+export function with_lock(name, fn) {
+	if (held[name])
+		return fn();
+	let l = lock(name);
+	held[name] = true;
+	try {
+		let r = fn();
+		delete held[name];
+		unlock(l);
+		return r;
+	}
+	catch (e) {
+		delete held[name];
+		unlock(l);
+		die(e.message ?? `${e}`);
+	}
+};
+
+/* ---------- uci (on the caller's cursor) ---------- */
+
+/** Set an option only when it differs (null, '' or [] delete it); true if something changed. */
+export function uci_put(c, conf, sec, opt, val) {
+	let cur = c.get(conf, sec, opt);
+	if (val == null || val == '' || (type(val) == 'array' && !length(val))) {
+		if (cur != null) {
+			c.delete(conf, sec, opt);
+			return true;
+		}
+		return false;
+	}
+	if (type(val) == 'array') {
+		if (type(cur) == 'array' && join('\n', cur) == join('\n', val))
+			return false;
+	}
+	else if (cur == `${val}`)
+		return false;
+	c.set(conf, sec, opt, type(val) == 'array' ? val : `${val}`);
+	return true;
+};
+
+/** Make `sec` a section of type `stype` (recreated when its type differs); true if it changed. */
+export function uci_section(c, conf, sec, stype) {
+	if (c.get(conf, sec) == stype)
+		return false;
+	if (c.get(conf, sec) != null)
+		c.delete(conf, sec);
+	c.set(conf, sec, stype);
+	return true;
+};
+
+/**
+ * After committing a config ourselves (and applying it), record its new
+ * checksum so a later `reload_config` does not treat it as changed and
+ * restart unrelated services that reload on any network change.
+ */
+export function ack_config(confs) {
+	let md5f = '/var/run/config.md5';
+	if (!stat(md5f))
+		return;
+	let lines = split(trim(readfile(md5f) ?? ''), '\n');
+	for (let conf in confs) {
+		let path = `/var/run/config.check/${conf}`;
+		let sum = sh_out(`uci show ${q(conf)} | md5sum | cut -d' ' -f1`);
+		if (!sum)
+			continue;
+		let found = false;
+		for (let i = 0; i < length(lines); i++)
+			if (substr(lines[i], -length(path) - 2) == `  ${path}`) {
+				lines[i] = `${sum}  ${path}`;
+				found = true;
+			}
+		if (!found)
+			push(lines, `${sum}  ${path}`);
+	}
+	writefile(md5f, join('\n', lines) + '\n');
 };
 
 /* ---------- service log ---------- */
@@ -271,6 +370,35 @@ export function int2ip(n) {
 	return sprintf('%d.%d.%d.%d', (n >> 24) & 255, (n >> 16) & 255, (n >> 8) & 255, n & 255);
 };
 
+/**
+ * "a.b.c.d[/len]" with any prefix 0-32 (a bare address is a /32) →
+ * { net, prefix, size, ip }; null for anything else. Routes, rules and
+ * allowed networks use this; parse_cidr is the stricter one for subnets.
+ */
+export function cidr_any(s) {
+	let m = match(s ?? '', /^([0-9.]+)(\/([0-9]+))?$/);
+	if (!m)
+		return null;
+	let ip = ip2int(m[1]), prefix = m[3] != null ? +m[3] : 32;
+	if (ip == null || prefix > 32)
+		return null;
+	let size = 1 << (32 - prefix);
+	return { net: ip - ip % size, prefix, size, ip };
+};
+
+/** The first of `nets` (CIDR strings, any prefix) that holds `ip` (a string or an int), or null. */
+export function in_nets(ip, nets) {
+	let n = type(ip) == 'int' ? ip : ip2int(ip);
+	if (n == null)
+		return null;
+	for (let s in nets) {
+		let c = cidr_any(s);
+		if (c && n >= c.net && n < c.net + c.size)
+			return s;
+	}
+	return null;
+};
+
 // Cloudflare's published ranges (https://www.cloudflare.com/ips/).
 const CF_V4 = [ '173.245.48.0/20', '103.21.244.0/22', '103.22.200.0/22', '103.31.4.0/22', '141.101.64.0/18',
 	'108.162.192.0/18', '190.93.240.0/20', '188.114.96.0/20', '197.234.240.0/22', '198.41.128.0/17',
@@ -286,13 +414,7 @@ export function cloudflare_ip(a) {
 				return true;
 		return false;
 	}
-	for (let c in CF_V4) {
-		let m = match(c, /^([0-9.]+)\/([0-9]+)$/);
-		let size = 1 << (32 - +m[2]), net = ip2int(m[1]);
-		if (n >= net && n < net + size)
-			return true;
-	}
-	return false;
+	return in_nets(n, CF_V4) != null;
 };
 
 /** Parse "a.b.c.d/len" → { net, prefix, first, last, size } (net is the masked base). */
@@ -378,6 +500,16 @@ export function day_key(ts) {
 	return sprintf('%04d-%02d-%02d', t.year, t.mon, t.mday);
 };
 
+/**
+ * The day key `days` days before `ts` (default now). Counted from local noon,
+ * so a 23- or 25-hour day around a DST change neither skips nor repeats a day.
+ */
+export function day_key_ago(days, ts) {
+	let t = localtime(ts ?? time());
+	let noon = timelocal({ year: t.year, mon: t.mon, mday: t.mday, hour: 12, min: 0, sec: 0 });
+	return day_key(noon - (days ?? 0) * 86400);
+};
+
 export function uniq(arr) {
 	let seen = {}, out = [];
 	for (let v in arr)
@@ -398,4 +530,19 @@ export function remove(path) {
 
 export function now() {
 	return time();
+};
+
+/** netifd's view of an interface (ubus network.interface.<name> status), or null. */
+export function iface_status(ifname) {
+	if (!match(ifname ?? '', /^[A-Za-z0-9_.@-]{1,32}$/))
+		return null;
+	let s = sh_out(`ubus call network.interface.${ifname} status 2>/dev/null`);
+	if (!s)
+		return null;
+	try {
+		return json(s);
+	}
+	catch (e) {
+		return null;
+	}
 };

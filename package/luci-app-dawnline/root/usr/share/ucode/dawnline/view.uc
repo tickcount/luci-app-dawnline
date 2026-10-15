@@ -3,22 +3,24 @@
 
 import * as core from 'dawnline.core';
 import * as live from 'dawnline.live';
-import { day_key, month_key } from 'dawnline.util';
+import * as awg from 'dawnline.awg';
+import { day_key_ago, month_key } from 'dawnline.util';
 
 /** Daily totals (rx+tx) for the last `n` days, oldest first. */
 export function spark(rec, n) {
-	let out = [], ts = time();
+	let out = [];
 	for (let i = n - 1; i >= 0; i--) {
-		let v = rec?.days?.[day_key(ts - i * 86400)];
+		let v = rec?.days?.[day_key_ago(i)];
 		push(out, v ? v[0] + v[1] : 0);
 	}
 	return out;
 };
 
+/** The device holds an older configuration than the one it would get now. */
 function config_stale(m, d) {
-	m._issued ??= core.issued();
+	m._issued ??= awg.issued();
 	let was = m._issued[d.id];
-	return was != null && was != core.config_fingerprint(m, d);
+	return was != null && was != awg.config_fingerprint(m, d);
 }
 
 export function device_view(m, d, usage, dmp) {
@@ -27,7 +29,7 @@ export function device_view(m, d, usage, dmp) {
 	let ts = time();
 	let hs = peer?.handshake || u?.handshake || 0;
 	let p = m.people[d.person];
-	return {
+	let v = {
 		id: d.id,
 		name: d.name,
 		kind: d.kind,
@@ -47,6 +49,7 @@ export function device_view(m, d, usage, dmp) {
 		// Its configuration changed since it was last shown or downloaded.
 		config_stale: config_stale(m, d),
 	};
+	return v;
 };
 
 export function person_view(m, p, usage, dmp, states, opts) {
@@ -85,9 +88,9 @@ export function person_view(m, p, usage, dmp, states, opts) {
 		if (d.handshake > v.last_seen)
 			v.last_seen = d.handshake;
 	if (opts.admin) {
-		v.code = p.code;
-		v.link = core.portal_url(m, p);
-		v.links = core.portal_urls(m, p);
+		// The code and links themselves are person_links' (admins only): the
+		// code opens the person's portal and their devices' configurations.
+		v.has_link = core.portal_url(m, p) != null;
 		v.note = p.note;
 		v.services = p.services;
 		v.home_nets = p.home_nets;

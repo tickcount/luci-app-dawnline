@@ -1,142 +1,48 @@
 // Servers: a setup wizard when nothing is configured; otherwise one tab per
 // server. Each opens on its Overview (who is online, traffic, map, activity)
-// followed by its settings (General, Interfaces, Network, Disguise,
-// Advanced); every settings section saves on its own and applies at once.
+// followed by People, Connection, Access and AmneziaWG (its own settings come
+// from ../cores/awg). Every settings section saves on its own and applies at
+// once.
 
 import type { Server, Status } from '../../shared/types';
 import { E } from '../e';
 import { api, type SetupDefaults } from '../api';
-import { attempt, button, callout, closeModal, confirmDialog, copyText, modal, notify } from '../ui';
+import { button } from '../ui/button';
+import { cancelButton, closeModal, confirmDialog, modal } from '../ui/modal';
+import { copyText } from '../ui/files';
+import { attempt, errorText, notify } from '../ui/toast';
+import { input, seg, sw } from '../ui/controls';
+import { card, group, needRow, row } from '../ui/layout';
 import { icon } from '../../shared/icons';
 import { duration } from '../../shared/format';
 import { accessCards } from '../interfaces';
 import { checkAccess, whoReaches } from '../access';
-import { card, group, input, row, sw } from '../kit';
-import { methodInfo, methodPicker, type Method } from '../disguise';
+import { methodPicker, type Method } from '../disguise';
+import { coreOf } from '../cores';
+import { installAwg } from '../pkgs';
+import { createPoller, focusInside, repaint, type Poller } from '../state/poller';
 import { ServerOverview } from './overview';
 import { PeoplePage } from './people';
 
-type Section = 'overview' | 'people' | 'connection' | 'access' | 'disguise' | 'tunnel';
+/** `awg` is the server's core section (named after its core; the key stays for old links). */
+type Section = 'overview' | 'people' | 'connection' | 'access' | 'awg';
 const SECTIONS: [Section, string][] = [
   ['overview', 'Overview'],
   ['people', 'People'],
   ['connection', 'Connection'],
   ['access', 'Access'],
-  ['disguise', 'Disguise'],
-  ['tunnel', 'Tunnel'],
+  ['awg', ''],
 ];
 /** Section names from before the regrouping, for old links. */
-const OLD_SECTIONS: Record<string, Section> = { general: 'connection', network: 'connection', interfaces: 'access', advanced: 'tunnel' };
-/** `.conf` names of the disguise parameters, in file order. */
-const CONF: [string, string][] = [
-  ['jc', 'Jc'],
-  ['jmin', 'Jmin'],
-  ['jmax', 'Jmax'],
-  ['s1', 'S1'],
-  ['s2', 'S2'],
-  ['s3', 'S3'],
-  ['s4', 'S4'],
-  ['h1', 'H1'],
-  ['h2', 'H2'],
-  ['h3', 'H3'],
-  ['h4', 'H4'],
-  ['i1', 'I1'],
-  ['i2', 'I2'],
-  ['i3', 'I3'],
-  ['i4', 'I4'],
-  ['i5', 'I5'],
-  ['header_protection_key', 'HeaderProtectionKey'],
-  ['content_padding_addition', 'ContentPaddingAddition'],
-  ['rekey_after_time', 'RekeyAfterTime'],
-  ['rekey_timeout', 'RekeyTimeout'],
-  ['reject_after_time', 'RejectAfterTime'],
-  ['keepalive_timeout', 'KeepaliveTimeout'],
-  ['max_handshake_attempts', 'MaxHandshakeAttempts'],
-  ['random_trailers', 'RandomTrailers'],
-  ['disable_cookies', 'DisableCookies'],
-];
-
-/**
- * The applied parameters, grouped by what they do, with a plain-language
- * line per group. Collapsed by default; copyable as config lines.
- */
-function paramsView(o: Record<string, string>): HTMLElement | null {
-  const has = (k: string) => o[k] != null && o[k] !== '';
-  const keys = CONF.filter(([k]) => has(k));
-  if (!keys.length) return null;
-  const val = (k: string, name: string) =>
-    E('span', { class: 'dl-pv' }, [E('i', {}, name), E('b', {}, k === 'header_protection_key' ? `${o[k].slice(0, 6)}••••` : o[k])]);
-  const group = (title: string, ic: string, text: string, ks: string[]) => {
-    const present = CONF.filter(([k]) => ks.includes(k) && has(k));
-    return present.length
-      ? E('div', { class: 'dl-pgroup' }, [
-          E('div', { class: 'dl-pgroup-head' }, [icon(ic), E('b', {}, title)]),
-          E('p', {}, text),
-          E(
-            'div',
-            { class: 'dl-pvals' },
-            present.map(([k, n]) => val(k, n)),
-          ),
-        ])
-      : '';
-  };
-  const jc = Number(o.jc || 0);
-  const signature = (o.i1 ?? '').includes('0x8580')
-    ? 'A first packet shaped like a DNS answer.'
-    : 'Extra packets sent before the handshake.';
-  const conf = keys.map(([k, n]) => `${n} = ${o[k]}`).join('\n');
-  const body = E('div', { class: 'dl-pgrid' }, [
-    group(
-      'Junk packets',
-      'zap',
-      jc ? `${jc} random packet${jc === 1 ? '' : 's'} of ${o.jmin}–${o.jmax} bytes before each handshake.` : 'No junk packets.',
-      ['jc', 'jmin', 'jmax'],
-    ),
-    group('Padding', 'archive', 'Random bytes in front of handshake, cookie and data packets, so their sizes do not match WireGuard.', [
-      's1',
-      's2',
-      's3',
-      's4',
-    ]),
-    group('Packet types', 'key', 'The values that replace WireGuard’s recognisable message types.', ['h1', 'h2', 'h3', 'h4']),
-    group('Signatures', 'globe', signature, ['i1', 'i2', 'i3', 'i4', 'i5']),
-    group('Protection', 'lock', 'AmneziaWG 3.1: encrypted headers, random tails and extra padding on data packets.', [
-      'header_protection_key',
-      'content_padding_addition',
-      'random_trailers',
-      'disable_cookies',
-    ]),
-    group('Timing', 'clock', 'Handshake and key timers vary within these ranges instead of WireGuard’s fixed values.', [
-      'rekey_after_time',
-      'rekey_timeout',
-      'reject_after_time',
-      'keepalive_timeout',
-      'max_handshake_attempts',
-    ]),
-  ]);
-  return E('details', { class: 'dl-params' }, [
-    E('summary', {}, [
-      icon('chevron'),
-      E('span', {}, 'Current parameters'),
-      E('span', { class: 'dl-pcount' }, String(keys.length)),
-      E('span', { class: 'dl-spacer' }),
-      E(
-        'button',
-        {
-          type: 'button',
-          class: 'dl-linkbtn',
-          click: (ev: Event) => {
-            ev.preventDefault();
-            copyText(conf, 'Parameters copied');
-          },
-        },
-        'Copy as config',
-      ),
-    ]),
-    body,
-  ]);
-}
-
+const OLD_SECTIONS: Record<string, Section> = {
+  general: 'connection',
+  network: 'connection',
+  interfaces: 'access',
+  advanced: 'awg',
+  disguise: 'awg',
+  tunnel: 'awg',
+  core: 'awg',
+};
 const url = (server?: string, section?: string) => {
   const q = new URLSearchParams();
   if (server) q.set('server', server);
@@ -158,6 +64,7 @@ export class ServerPage {
   headEl = E('div', {});
   secEl = E('div', {});
   bodyEl = E('div', { class: 'dl-srvbody' });
+  poller?: Poller<Status>;
 
   async load(): Promise<[Status, SetupDefaults | null]> {
     const st = await api.status(31);
@@ -178,18 +85,35 @@ export class ServerPage {
     this.srvId = (st.servers.find((x) => x.id === q.get('server')) ?? st.servers[0]).id;
     dom.content(this.root, [this.tabsEl, this.headEl, this.secEl, this.bodyEl]);
     this.paint();
-    // Live numbers on the Overview; settings forms are left alone while open.
-    poll.add(async () => {
-      if (this.section !== 'overview') return;
-      const n = await api.status(31).catch(() => null);
-      if (!n || !n.servers.length) return;
-      this.st = n;
-      const srv = this.current();
-      dom.content(this.headEl, this.head(srv));
-      this.paintTabs();
-      this.ov[srv.id]?.update(n);
-    }, 10);
+    // Live numbers on the Overview; settings forms are left alone while open,
+    // and so is anything that has the keyboard focus.
+    this.poller = createPoller({
+      fetch: () => api.status(31),
+      every: 10,
+      active: () => this.section === 'overview' && this.root.isConnected,
+      apply: (n, quiet) => {
+        if (!n.servers.length) return;
+        this.st = n;
+        this.paintHead(quiet);
+        this.ov[this.current().id]?.update(n, quiet);
+      },
+    });
     return this.root;
+  }
+
+  /** Server tabs and the head from the current status. */
+  paintHead(quiet = false) {
+    repaint(this.headEl, this.head(this.current()), quiet);
+    if (!quiet || !focusInside(this.tabsEl)) this.paintTabs();
+  }
+
+  /** New status for the head and tabs, without rebuilding the section (forms keep what was typed). */
+  async refreshStatus(): Promise<Status | null> {
+    const st = await api.status(31).catch(() => null);
+    if (!st?.servers.length) return null;
+    this.st = st;
+    this.paintHead();
+    return st;
   }
 
   current(): Server {
@@ -233,7 +157,7 @@ export class ServerPage {
                 this.paint();
               },
             },
-            [E('i', { class: `dot ${x.up ? 'ok' : 'bad'}` }), E('b', {}, x.name), E('span', { class: 'dl-mono dl-faint' }, `:${x.port}`)],
+            [E('i', { class: `dot ${x.up ? 'ok' : 'bad'}` }), E('b', {}, x.name)],
           ),
         ),
         E('button', { type: 'button', class: 'dl-srvtab add', click: () => this.addServer() }, [icon('plus'), 'Add server']),
@@ -242,6 +166,7 @@ export class ServerPage {
   }
 
   paintSections() {
+    const core = coreOf(this.current());
     dom.content(
       this.secEl,
       E(
@@ -258,7 +183,7 @@ export class ServerPage {
               'aria-selected': k === this.section ? 'true' : 'false',
               click: () => this.showSection(k),
             },
-            t,
+            k === 'awg' ? core.label : t,
           ),
         ),
       ),
@@ -309,21 +234,27 @@ export class ServerPage {
       people: () => {
         const pp = this.pp[srv.id];
         if (pp?.el) {
-          void pp.poll();
+          void pp.update();
           return pp.el;
         }
         const holder = E('div', {}, E('p', { class: 'dl-muted' }, 'Loading people…'));
         const page = (this.pp[srv.id] ??= new PeoplePage());
-        page.embed(st, srv.id).then((node) => {
-          if (holder.isConnected) dom.content(holder, node);
-          else holder.replaceChildren(node);
-        });
+        page
+          .embed(st, srv.id)
+          .then((node) => {
+            if (holder.isConnected) dom.content(holder, node);
+            else holder.replaceChildren(node);
+          })
+          .catch((e) => {
+            // Try again on the next visit instead of keeping a broken page.
+            delete this.pp[srv.id];
+            dom.content(holder, E('p', { class: 'dl-muted' }, `Couldn't show people: ${errorText(e)}`));
+          });
         return holder;
       },
       connection: () => this.connection(srv),
       access: () => this.access(srv),
-      disguise: () => this.disguise(srv),
-      tunnel: () => this.tunnel(srv),
+      awg: () => this.awg(srv),
     };
     const node = body[k]();
     this.detachKept();
@@ -333,9 +264,9 @@ export class ServerPage {
   /** Name and state, the address bar, and the page actions. */
   head(srv: Server): HTMLElement {
     const st = this.st;
-    const seg = (ic: string, body: (Node | string)[]) => E('span', { class: 'dl-addrbar-seg' }, [icon(ic), ...body]);
-    const addr = `${srv.endpoint || '—'}:${srv.port}`;
-    // "Turn on" while the server is off (turning off lives in Tunnel; the same
+    const part = (ic: string, body: (Node | string)[]) => E('span', { class: 'dl-addrbar-seg' }, [icon(ic), ...body]);
+    const addr = srv.endpoint || '—';
+    // "Turn on" while the server is off (turning off lives in Connection; the same
     // button also lifts an old router-wide pause).
     const off = !srv.enabled || st.settings.paused_all;
     const actions = E('div', { class: 'dl-actions' }, [
@@ -358,7 +289,7 @@ export class ServerPage {
         E(
           'span',
           { class: `dl-pill ${!srv.enabled ? 'off' : srv.up ? 'ok' : 'bad'}` },
-          !srv.enabled ? 'Turned off' : srv.up ? 'Running' : 'Not running',
+          !srv.enabled ? 'Turned off' : srv.up ? 'Running' : srv.blocked ? 'Can’t start' : 'Not running',
         ),
         st.settings.paused_all && srv.enabled ? E('span', { class: 'dl-pill warn' }, 'Off') : '',
         E('span', { class: 'dl-spacer' }),
@@ -367,13 +298,14 @@ export class ServerPage {
       E('div', { class: 'dl-addrbar' }, [
         E(
           'button',
-          { type: 'button', class: 'dl-addrbar-seg main', title: 'Copy address and port', click: () => copyText(addr, 'Address copied') },
+          { type: 'button', class: 'dl-addrbar-seg main', title: 'Copy address', click: () => copyText(addr, 'Address copied') },
           [icon('globe'), E('span', { class: 'dl-mono' }, addr), icon('copy')],
         ),
-        seg('tunnel', [E('span', { class: 'dl-mono' }, srv.ifname)]),
-        seg('network', [E('span', { class: 'dl-mono' }, srv.subnet)]),
-        srv.up ? seg('clock', [`up ${duration(srv.uptime)}`]) : '',
+        part('tunnel', [E('span', { class: 'dl-mono' }, `${coreOf(srv).label} :${srv.port}`)]),
+        srv.up ? part('clock', [`up ${duration(srv.uptime)}`]) : '',
       ]),
+      // The reason the tunnel can't run at all ("can't use the network interface awg0: it exists and isn't Dawnline's").
+      srv.blocked ? E('div', { class: 'dl-note warn' }, [icon('alert'), E('span', {}, `${srv.name} ${srv.blocked}.`)]) : '',
     ]);
   }
 
@@ -381,119 +313,11 @@ export class ServerPage {
     if (await attempt(() => api.serverUpdate(srv.id, values), ok)) await this.refresh();
   }
 
-  /** How devices find the server and what goes into their configuration. */
+  /** The name, where devices find the router, DNS; then the danger zone. */
   connection(srv: Server): HTMLElement {
     const name = input(srv.name, { placeholder: 'Home' });
     const endpoint = input(srv.endpoint, { placeholder: 'vpn.example.com', class: 'cbi-input-text dl-mono' });
-    const port = input(String(srv.port), { inputmode: 'numeric', class: 'cbi-input-text dl-w-port dl-mono' });
     const dns = input(srv.dns.join(', '), { placeholder: 'This router (recommended)', class: 'cbi-input-text dl-mono' });
-    const mtu = input(String(srv.mtu ?? ''), { placeholder: '1380', inputmode: 'numeric', class: 'cbi-input-text dl-w-port dl-mono' });
-    const ka = input(String(srv.keepalive ?? ''), { placeholder: '25', inputmode: 'numeric', class: 'cbi-input-text dl-w-port dl-mono' });
-    return card(
-      'Connection',
-      [
-        E('p', { class: 'dl-muted' }, 'How devices find this server, and what goes into their configuration.'),
-        group('router', 'Server', 'What people see', [row('Name', name, 'Shown to people in their portal.')]),
-        group('globe', 'Devices connect to', 'Where the tunnel answers from the internet', [
-          row(
-            'Public address',
-            endpoint,
-            'Hostname or IP of the router on the internet. A DDNS name keeps links working when your IP changes.',
-          ),
-          row('UDP port', port, 'Opened on the WAN firewall automatically.'),
-        ]),
-        group('file', 'In every device configuration', 'Changing these marks devices “Update config” until they import again', [
-          row('DNS for devices', dns, 'Empty = this router, which sends each query where your home network would.'),
-          row('MTU', mtu, 'Lower it if some sites hang on mobile networks.'),
-          row('Keep-alive', ka, 'Seconds between packets devices send to keep NAT open. 0 = off.'),
-        ]),
-      ],
-      [
-        E('span'),
-        button(
-          'Save',
-          () =>
-            this.save(srv, {
-              name: name.value,
-              endpoint: endpoint.value,
-              port: port.value,
-              dns: dns.value,
-              mtu: mtu.value,
-              keepalive: ka.value,
-            }),
-          'positive',
-        ),
-      ],
-    );
-  }
-
-  /** Where devices may go and how their traffic leaves: internet path, home network, services, circles. */
-  access(srv: Server): HTMLElement {
-    const reload = () => this.refresh();
-    return E('div', { class: 'dl-stack gap16' }, [
-      accessCards(srv, this.st, reload),
-      E('div', { class: 'dl-health-cols' }, [whoReaches(this.st, srv), checkAccess(this.st, srv)]),
-    ]);
-  }
-
-  disguise(srv: Server): HTMLElement {
-    const current = methodInfo(srv.preset) ? (srv.preset as Method) : undefined;
-    let selected: Method = current ?? 'standard';
-    const action = button('', () => this.applyDisguise(srv, selected, selected === current), 'positive');
-    const label = () => {
-      dom.content(action, selected === current ? [icon('reset'), ' Generate new values'] : `Switch to ${methodInfo(selected)!.title}`);
-    };
-    label();
-    const params = paramsView(srv.obf ?? {});
-    return card(
-      'Disguise',
-      [
-        E(
-          'p',
-          { class: 'dl-muted' },
-          'AmneziaWG reshapes the tunnel so networks that block VPNs do not recognise it. Every device gets these settings in its configuration.',
-        ),
-        methodPicker(
-          this.st.awg,
-          selected,
-          (m) => {
-            selected = m;
-            label();
-          },
-          current,
-        ),
-        !this.st.awg.v3
-          ? callout('info', [
-              'This router runs an older AmneziaWG. ',
-              E('b', {}, 'Maximum'),
-              ' becomes available with kmod-amneziawg and amneziawg-tools 3.1.',
-            ])
-          : '',
-        params ?? '',
-      ],
-      [E('span', { class: 'dl-sub' }, 'Applies at once. Every device on this server must import its configuration again.'), action],
-    );
-  }
-
-  async applyDisguise(srv: Server, m: Method, same: boolean) {
-    const info = methodInfo(m)!;
-    const people = this.st.people.filter((p) => p.server === srv.id);
-    const devices = people.reduce((n, p) => n + p.devices.length, 0);
-    const ok = await confirmDialog(
-      same ? 'Generate new disguise values?' : `Switch to ${info.title}?`,
-      `${devices} device${devices === 1 ? '' : 's'} stop connecting until they import their configuration again (from their personal link or from you).${m === 'max' ? ' They need an app with AmneziaWG 3.1.' : ''}`,
-      same ? 'Generate and apply' : 'Switch and apply',
-      true,
-    );
-    if (!ok) return;
-    if (await attempt(() => api.serverObfuscation(srv.id, m), same ? 'New values applied' : `${info.title} applied`)) {
-      notify('Devices are marked “Update config” until they import again.', 'info', 6000);
-      await this.refresh();
-    }
-  }
-
-  /** Technical details that rarely change, then the danger zone. */
-  tunnel(srv: Server): HTMLElement {
     const people = this.st.people.filter((p) => p.server === srv.id).length;
     const toggle = button(
       srv.enabled ? 'Turn off' : 'Turn on',
@@ -514,23 +338,22 @@ export class ServerPage {
     );
     return E('div', { class: 'dl-stack gap16' }, [
       card(
-        'Tunnel',
+        'Connection',
         [
-          E('p', { class: 'dl-muted' }, 'Technical details. They are set when the server is created and rarely change.'),
-          row('Interface', E('span', { class: 'dl-mono' }, `${srv.ifname} · router ${srv.address}`)),
-          row('Tunnel subnet', E('span', { class: 'dl-mono' }, srv.subnet), 'Device addresses come from it.'),
-          row(
-            'Server public key',
-            E('span', { class: 'dl-keyrow' }, [
-              E('code', { class: 'dl-mono' }, srv.public_key),
-              button([icon('copy')], () => copyText(srv.public_key, 'Public key copied'), 'neutral', {
-                title: 'Copy',
-                class: 'cbi-button cbi-button-neutral dl-icon-only sm',
-              }),
-            ]),
-          ),
+          E('p', { class: 'dl-muted' }, 'The name people see, where devices find the router, and DNS. The port is on AmneziaWG.'),
+          group('router', 'Server', 'What people see', [row('Name', name, 'Shown to people in their portal and apps.')]),
+          group('globe', 'Devices connect to', 'Where the router answers from the internet', [
+            row(
+              'Public address',
+              endpoint,
+              'Hostname or IP of the router on the internet. A DDNS name keeps links working when your IP changes. It must not go through Cloudflare: use a DNS-only name or an IP.',
+            ),
+          ]),
+          group('file', 'For every device', 'Changing it marks devices “Update config” until they import again', [
+            row('DNS for devices', dns, 'Empty = this router, which sends each query where your home network would.'),
+          ]),
         ],
-        [],
+        [E('span'), button('Save', () => this.save(srv, { name: name.value, endpoint: endpoint.value, dns: dns.value }), 'positive')],
       ),
       card(
         'Danger zone',
@@ -570,6 +393,35 @@ export class ServerPage {
     ]);
   }
 
+  /**
+   * Where devices may go and how their traffic leaves: internet path, home
+   * network, services, circles. Changes that apply at once refresh the status
+   * in place, so an unsaved interface choice survives them.
+   */
+  access(srv: Server): HTMLElement {
+    let who = whoReaches(this.st, srv);
+    const cards = accessCards(srv, this.st, async () => {
+      const st = await this.refreshStatus();
+      if (!st) return;
+      const s2 = st.servers.find((x) => x.id === srv.id) ?? srv;
+      cards.update(st);
+      const n = whoReaches(st, s2);
+      who.replaceWith(n);
+      who = n;
+    });
+    return E('div', { class: 'dl-stack gap16' }, [cards.el, E('div', { class: 'dl-health-cols' }, [who, checkAccess(this.st, srv)])]);
+  }
+
+  /** The server's core: for AmneziaWG the listening port, MTU, keep-alive, disguise and tunnel. */
+  awg(srv: Server): HTMLElement {
+    const ctx = {
+      st: this.st,
+      save: (values: Record<string, unknown>, ok?: string) => this.save(srv, values, ok),
+      refresh: () => this.refresh(),
+    };
+    return E('div', { class: 'dl-stack gap16' }, [coreOf(srv).settingsCard(ctx, srv)]);
+  }
+
   /* ---------------- add / remove ---------------- */
 
   async addServer() {
@@ -596,7 +448,7 @@ export class ServerPage {
         ),
       ],
       [
-        E('button', { class: 'cbi-button cbi-button-neutral', click: closeModal }, 'Cancel'),
+        cancelButton(),
         ' ',
         button(
           'Remove',
@@ -644,22 +496,34 @@ export class ServerPage {
       return el;
     };
 
-    const steps = extra ? ['Connection', 'Disguise'] : ['Connection', 'Disguise', 'Portal'];
-    const pages: (() => Node)[] = [
-      () =>
+    type Page = { id: string; title: string; render: () => Node; check?: () => string | null };
+    const serverPage: Page = {
+      id: 'server',
+      title: 'Server',
+      render: () =>
         E('div', { class: 'dl-wizard-groups' }, [
           E(
             'p',
             { class: 'dl-muted' },
             'Where devices connect to. A hostname that always points at your router (DDNS) keeps links working when your IP changes.',
           ),
-          group('router', 'Server', 'What people see', [row('Name', field('name'), 'Shown to people in their portal.')]),
-          group('globe', 'Devices connect to', 'Where the tunnel answers from the internet', [
+          group('router', 'Server', 'What people see', [row('Name', field('name'), 'Shown to people in their portal and apps.')]),
+          group('globe', 'Devices connect to', 'Where the router answers from the internet', [
             row(
               'Public address',
               field('endpoint', { placeholder: 'vpn.example.com', class: 'cbi-input-text dl-mono' }),
-              'Hostname or IP address of your router on the internet.',
+              'Hostname or IP address of your router on the internet. Not through Cloudflare: use a DNS-only name or an IP.',
             ),
+          ]),
+        ]),
+      check: () => (!state.endpoint ? 'Fill in the public address.' : null),
+    };
+    const awgPage: Page = {
+      id: 'awg',
+      title: 'AmneziaWG',
+      render: () =>
+        E('div', { class: 'dl-wizard-groups' }, [
+          group('globe', 'Listening', 'Where devices reach AmneziaWG from the internet', [
             row(
               'UDP port',
               field('port', { inputmode: 'numeric', class: 'cbi-input-text dl-w-port dl-mono' }),
@@ -673,45 +537,33 @@ export class ServerPage {
               `Must not overlap your networks (${d.taken.join(', ') || 'none found'}).`,
             ),
           ]),
+          group('shield', 'Disguise', 'So networks that block VPNs do not recognise the tunnel. Off = plain WireGuard', [
+            methodPicker(d.awg, state.preset, (m) => (state.preset = m), undefined, d.awg_state?.tools !== false),
+          ]),
         ]),
-      () =>
-        E('div', {}, [
-          E(
-            'p',
-            {},
-            'AmneziaWG reshapes the tunnel so networks that block VPNs do not recognise it. Every device gets these settings automatically; you can change the method later.',
-          ),
-          methodPicker(d.awg, state.preset, (m) => (state.preset = m)),
-        ]),
-      () => {
+      check: () => (!state.port || !state.subnet ? 'Fill in the UDP port and subnet.' : null),
+    };
+    const portalPage: Page = {
+      id: 'portal',
+      title: 'Portal',
+      render: () => {
         const portalPort = field('portal_port', { inputmode: 'numeric', class: 'cbi-input-text dl-w-port dl-mono' });
         const portRow = row('Listening port', portalPort, 'TCP port on WAN for the portal; the whole port belongs to it.');
         portRow.hidden = !state.portal;
         // Off | On, Off first: the same segmented control as in Settings.
-        const onOff = E(
-          'div',
-          { class: 'dl-seg', role: 'radiogroup', 'aria-label': 'Personal portal' },
-          (['off', 'on'] as const).map((v) =>
-            E(
-              'button',
-              {
-                type: 'button',
-                role: 'radio',
-                class: (v === 'on') === state.portal ? 'on' : '',
-                'aria-checked': (v === 'on') === state.portal ? 'true' : 'false',
-                click: (ev: Event) => {
-                  state.portal = v === 'on';
-                  portRow.hidden = !state.portal;
-                  onOff.querySelectorAll('button').forEach((x) => {
-                    const sel = x === ev.currentTarget;
-                    x.classList.toggle('on', sel);
-                    x.setAttribute('aria-checked', sel ? 'true' : 'false');
-                  });
-                },
-              },
-              v === 'on' ? 'On' : 'Off',
-            ),
-          ),
+        const onOff = seg(
+          [
+            ['off', 'Off'],
+            ['on', 'On'],
+          ],
+          state.portal ? 'on' : 'off',
+          {
+            label: 'Personal portal',
+            onChange: (v) => {
+              state.portal = v === 'on';
+              portRow.hidden = !state.portal;
+            },
+          },
         );
         return E('div', { class: 'dl-wizard-groups' }, [
           group('home', 'Internet like a home device', 'How devices reach the internet', [
@@ -727,22 +579,50 @@ export class ServerPage {
           ]),
         ]);
       },
-    ];
+    };
+    const pages = (): Page[] => [serverPage, awgPage, extra ? null : portalPage].filter((x): x is Page => x != null);
+    const aw = d.awg_state;
+    const missing = aw?.missing ?? [];
+    // Without AmneziaWG the server would only show "Tunnel down": say so first and offer to install it.
+    const awgNotice = missing.length
+      ? E('div', { class: 'dl-list dl-notices' }, [
+          needRow(
+            'shield',
+            'bad',
+            'AmneziaWG isn’t installed',
+            `The tunnel needs ${missing.join(' and ')}. Install the build made for this firmware, then create the server.`,
+            button('Install', () => installAwg(() => location.reload()), 'positive'),
+          ),
+        ])
+      : aw && !aw.loaded
+        ? E('div', { class: 'dl-list dl-notices' }, [
+            needRow(
+              'shield',
+              'warn',
+              'AmneziaWG’s kernel module doesn’t load on this firmware',
+              'Try another build in Components, or update OpenWrt. The server can’t start until it loads.',
+              E('a', { class: 'cbi-button cbi-button-neutral', href: L.url('admin/network/dawnline/updates') }, 'Open Components'),
+            ),
+          ])
+        : '';
 
     const paint = () => {
+      const ps = pages();
+      if (step >= ps.length) step = ps.length - 1;
       dom.content(root, [
         E('h2', {}, extra ? 'Add a server' : 'Set up Dawnline'),
+        awgNotice,
         E(
           'div',
           { class: 'dl-steps' },
-          steps.map((s, i) =>
+          ps.map((s, i) =>
             E('span', { class: `dl-step${i === step ? ' current' : i < step ? ' done' : ''}` }, [
               E('b', {}, i < step ? '✓' : String(i + 1)),
-              s,
+              s.title,
             ]),
           ),
         ),
-        E('div', { class: 'dl-panel' }, pages[step]()),
+        E('div', { class: 'dl-panel' }, ps[step].render()),
         E('div', { class: 'dl-actions' }, [
           step > 0
             ? button('Back', () => {
@@ -753,12 +633,13 @@ export class ServerPage {
               ? button('Cancel', onCancel)
               : '',
           E('span', { class: 'dl-spacer' }),
-          step < steps.length - 1
+          step < ps.length - 1
             ? button(
                 'Next',
                 () => {
-                  if (step === 0 && (!state.endpoint || !state.port || !state.subnet)) {
-                    notify('Fill in the public address, port and subnet.', 'warning');
+                  const err = ps[step].check?.();
+                  if (err) {
+                    notify(err, 'warning');
                     return;
                   }
                   step++;
@@ -769,6 +650,13 @@ export class ServerPage {
             : button(
                 'Create server',
                 async () => {
+                  for (const pg of ps) {
+                    const err = pg.check?.();
+                    if (err) {
+                      notify(err, 'warning');
+                      return;
+                    }
+                  }
                   // An extra server leaves the portal settings alone (undefined is not sent).
                   const r = await attempt(
                     () =>
@@ -795,6 +683,7 @@ export class ServerPage {
                     }, 1500);
                 },
                 'positive',
+                { disabled: missing.length > 0, title: missing.length ? 'Install AmneziaWG first' : null },
               ),
         ]),
       ]);

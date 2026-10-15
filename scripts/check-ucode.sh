@@ -16,9 +16,11 @@ ssh "$HOST" sh <<'REMOTE'
 rm -rf /tmp/dlc && mkdir -p /tmp/dlc && tar -xzf /tmp/dl-check.tgz -C /tmp/dlc && rm /tmp/dl-check.tgz
 cd /tmp/dlc
 rc=0
-for f in usr/share/ucode/dawnline/*.uc; do
-	n=$(basename "$f" .uc)
-	out=$(ucode -L '/tmp/dlc/usr/share/ucode/*.uc' -e "import * as x from 'dawnline.$n';" 2>&1) || { echo "FAIL $f"; echo "$out" | head -8; rc=1; }
+# Modules by their import name: dawnline/x.uc is dawnline.x, dawnline/rpc/x.uc dawnline.rpc.x.
+for f in usr/share/ucode/dawnline/*.uc usr/share/ucode/dawnline/rpc/*.uc; do
+	[ -f "$f" ] || continue
+	n=$(echo "${f#usr/share/ucode/}" | sed 's/\.uc$//; s#/#.#g')
+	out=$(ucode -L '/tmp/dlc/usr/share/ucode/*.uc' -e "import * as x from '$n';" 2>&1) || { echo "FAIL $f"; echo "$out" | head -8; rc=1; }
 done
 for f in usr/share/rpcd/ucode/luci.dawnline usr/libexec/dawnline/agent usr/libexec/dawnline/updater usr/bin/dawnline usr/share/dawnline/portal/www/cgi-bin/portal; do
 	[ -f "$f" ] || continue

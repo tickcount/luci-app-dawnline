@@ -51,18 +51,90 @@ export function clock(ts: number): string {
   return sameDay ? t : `${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} ${t}`;
 }
 
-export function date(s: string): string {
-  if (!s) return '';
-  const [y, m, d] = s.split('-').map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+/* ---------- days (YYYY-MM-DD, the router's calendar) ---------- */
+
+/** A Date as YYYY-MM-DD in local time. */
+export function isoDay(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-/** Whole days until the end of the given YYYY-MM-DD (negative when past). */
-export function daysLeft(s: string, now = Date.now()): number | null {
-  if (!s) return null;
+/** YYYY-MM-DD as a local Date at noon: never shifted to another day by the time zone. */
+export function parseDay(s: string): Date {
   const [y, m, d] = s.split('-').map(Number);
-  const end = new Date(y, m - 1, d, 23, 59, 59).getTime();
-  return Math.ceil((end - now) / 86400000);
+  return new Date(y, (m || 1) - 1, d || 1, 12);
+}
+
+/** "1 Oct 2026". A YYYY-MM-DD is a calendar day; other strings and Dates are moments. */
+export function fmtDay(d: Date | string): string {
+  const v = typeof d === 'string' ? (/^\d{4}-\d{2}-\d{2}$/.test(d) ? parseDay(d) : new Date(d)) : d;
+  return v.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+export function date(s: string): string {
+  return s ? fmtDay(s) : '';
+}
+
+/** Whole days from `b` to `a` (both YYYY-MM-DD); negative when `a` is earlier. */
+export function dayDiff(a: string, b: string): number {
+  const utc = (s: string) => {
+    const [y, m, d] = s.split('-').map(Number);
+    return Date.UTC(y, m - 1, d);
+  };
+  return Math.round((utc(a) - utc(b)) / 86400000);
+}
+
+export function addDays(day: string, n: number): string {
+  const d = parseDay(day);
+  d.setDate(d.getDate() + n);
+  return isoDay(d);
+}
+
+/** Months later (or earlier), the day clamped to the month's end: 31 Jan + 1 month = 28 or 29 Feb, not 3 Mar. */
+export function addMonthsClamped(day: string, n: number): string {
+  const [y, m, d] = day.split('-').map(Number);
+  const t = new Date(y, m - 1 + n, 1, 12);
+  const last = new Date(t.getFullYear(), t.getMonth() + 1, 0).getDate();
+  t.setDate(Math.min(d, last));
+  return isoDay(t);
+}
+
+/** Today on the router: the last day of a router series, else the browser's. */
+export function todayOf(series: { day: string }[] | undefined): string {
+  return series?.length ? series[series.length - 1].day : isoDay(new Date());
+}
+
+export type DateStep = 'day' | 'week' | 'month' | 'year' | 'custom';
+
+/** Move an end date by n steps (negative shortens). An empty date counts from `today`. */
+export function shiftDay(cur: string, step: DateStep, n: number, today: string, customDays = 30): string {
+  const from = cur || today;
+  if (step === 'day') return addDays(from, n);
+  if (step === 'week') return addDays(from, 7 * n);
+  if (step === 'month') return addMonthsClamped(from, n);
+  if (step === 'year') return addMonthsClamped(from, 12 * n);
+  return addDays(from, customDays * n);
+}
+
+/**
+ * Days of access left for an end date (YYYY-MM-DD), counting today: 1 on the
+ * last day, negative once it has passed, null without one. `today` is the
+ * router's day; a number (ms) is a moment in the browser's zone.
+ */
+export function daysLeft(s: string, today: string | number = Date.now()): number | null {
+  if (!s) return null;
+  const t = typeof today === 'number' ? isoDay(new Date(today)) : today;
+  const diff = dayDiff(s, t);
+  return diff >= 0 ? diff + 1 : diff;
+}
+
+/** "1 event", "2,000 events". */
+export function plural(n: number, one: string, many = `${one}s`): string {
+  return `${n.toLocaleString('en-GB')} ${n === 1 ? one : many}`;
+}
+
+/** Small sizes on flash and in memory: B, KB, MB. */
+export function kb(n: number): string {
+  return n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(n < 10240 ? 1 : 0)} KB` : `${(n / 1048576).toFixed(1)} MB`;
 }
 
 export const ACCESS_LABEL: Record<Access, string> = {

@@ -1,6 +1,6 @@
 #!/usr/bin/ucode
 // Dawnline agent (procd instance). Every minute it:
-//   * folds AmneziaWG counters into usage (tmpfs; flushed to flash hourly)
+//   * folds the tunnels' counters into usage (tmpfs; flushed to flash hourly)
 //   * saves the activity log to flash as often as Settings says (or never)
 //   * keeps the "like a home device" path and the Home-only resolver up
 //   * logs connects, disconnects and roaming
@@ -16,15 +16,19 @@ import {
 import * as core from 'dawnline.core';
 import * as live from 'dawnline.live';
 import * as apply from 'dawnline.apply';
-import * as ops from 'dawnline.ops';
+import * as backup from 'dawnline.backup';
+import * as pc from 'dawnline.portalcert';
 import * as geo from 'dawnline.geo';
 import * as watchdog from 'dawnline.watchdog';
 import * as net from 'dawnline.net';
+import * as store from 'dawnline.store';
+import * as upd from 'dawnline.updates';
 
 const TICK = 60 * 1000;
 const FLUSH_EVERY = 3600;
 const LOG_FLUSH = { '10min': 600, hourly: 3600 };
 const RESYNC_EVERY = 600;
+const CONFIG_FILE = '/etc/config/dawnline';
 
 let usage = live.load_usage();
 let last_states = null;
@@ -36,7 +40,10 @@ let last_endpoint = presence.endpoint ?? {};
 let offline_ticks = {};
 let last_flush = time();
 let last_log_flush = time();
-let last_net = null;
+// The network as apply() last saw it (apply.NET_SIG; this when it never ran),
+// and a different one seen on the previous tick.
+let base_net = null;
+let pending_net = null;
 let rate_prev = null;
 
 /**
@@ -95,6 +102,7 @@ function record_rate(m) {
 	write_json(`${RUN_DIR}/rate_people.json`, people, 0o644);
 }
 let last_sync = 0;
+let conf_mtime = null;
 let cert_mtime = null;
 
 const REASON = {
@@ -113,12 +121,10 @@ function check_people(m, states, events) {
 			push(events, { type: st == 'active' ? 'resumed' : 'paused', person: id, detail: REASON[st] ?? st });
 		// "Remove their devices" when the end date passes.
 		if (core.person_expired(p, ts) && p.expire_action == 'remove' && length(p.devices)) {
-			let c = core.open_cursor();
-			let mm = core.load(c);
-			for (let d in mm.people[id]?.devices ?? [])
-				core.delete_device(c, mm, d);
-			c.commit('dawnline');
-			system('chmod 600 /etc/config/dawnline');
+			store.transact((c, mm) => {
+				for (let d in mm.people[id]?.devices ?? [])
+					core.delete_device(c, mm, d);
+			});
 			push(events, { type: 'devices_removed', person: id, detail: 'end date reached' });
 			last_sync = 0;
 		}
@@ -217,7 +223,7 @@ function cert_end(path) {
 function check_cert(m) {
 	if (!m.settings.portal_enabled)
 		return;
-	let c = ops.portal_cert(m.settings);
+	let c = pc.portal_cert(m.settings);
 	let mt = stat(c.cert)?.mtime;
 	if (cert_mtime != null && mt != null && mt != cert_mtime) {
 		slog('portal', 'up', `certificate renewed · valid until ${cert_end(c.cert) ?? '?'}`, null, 'Personal portal');
@@ -268,11 +274,20 @@ function nightly_backup() {
 	let st = read_json(`${DATA_DIR}/backup-state.json`, {});
 	if (sum && sum != st.auto) {
 		try {
-			ops.backup_create('auto');
+			backup.backup_create('auto');
 			write_json(`${DATA_DIR}/backup-state.json`, { auto: sum }, 0o600);
 		}
 		catch (e) {}
 	}
+}
+
+/**
+ * Settings → Updates: an automatic check or update when one is due. The
+ * updater does the work in its own process; this only decides when.
+ */
+function check_updates(m) {
+	if (upd.due(m.settings.updates, upd.auto_state()) && !upd.busy())
+		system('start-stop-daemon -S -b -x /usr/libexec/dawnline/updater -- auto');
 }
 
 /**
@@ -291,78 +306,131 @@ function check_usage_reset(m) {
 	return true;
 }
 
+/*
+ * Push devices and access rules when people's states changed, the config
+ * file was written (by anyone: rpcd, the portal, the CLI, a restore), or
+ * every RESYNC_EVERY seconds anyway. apply.sync reads the model again itself.
+ */
+function sync_runtime(t) {
+	// uci commits replace the file: a new inode even within the same second.
+	let st = stat(CONFIG_FILE);
+	let mt = st ? `${st.mtime}/${st.inode}` : null;
+	let changed = last_states == null || sprintf('%J', t.states) != sprintf('%J', last_states) ||
+		(conf_mtime != null && mt != conf_mtime);
+	if (changed || time() - last_sync > RESYNC_EVERY) {
+		apply.sync(t.m, usage);
+		last_sync = time();
+	}
+	conf_mtime = mt;
+	last_states = t.states;
+}
+
+/*
+ * The router's network changed under us: re-derive everything. Only a change
+ * seen on two ticks in a row (a bridge recreated or an interface restarting
+ * passes), compared with what the last apply() used.
+ */
+function check_network(t) {
+	let sig = apply.net_signature(t.m);
+	let applied = readfile(apply.NET_SIG) ?? base_net;
+	if (applied == null || sig == applied) {
+		base_net ??= sig;
+		pending_net = null;
+		return;
+	}
+	if (pending_net != sig) {
+		pending_net = sig;
+		return;
+	}
+	pending_net = null;
+	slog('dawnline', 'info', 'network changed — Dawnline set itself up again', null, 'Router');
+	apply.apply();
+	base_net = readfile(apply.NET_SIG) ?? apply.net_signature(core.load());
+}
+
+/*
+ * One tick is a list of steps, each on its own: a failing step is logged
+ * (each new message once in the service log, every time in syslog) and the
+ * others still run. Steps that need the model wait for it; the counters and
+ * the logs are saved at the end whatever happened.
+ */
+const STEPS = [
+	{ who: 'Dawnline', run: (t) => {
+		t.m = core.load();
+		t.pol = live.policy(t.m.settings.retention);
+	} },
+	{ who: 'Traffic', run: (t) => {
+		t.reset = check_usage_reset(t.m);
+		t.dmp = live.dump(t.m);
+		t.lv = live.collect(t.m, usage, t.dmp);
+	} },
+	{ who: 'Speed', quiet: true, run: (t) => record_rate(t.m) },
+	// Connects and disconnects only from a complete read of the tunnels.
+	{ who: 'Connections', run: (t) => {
+		if (t.lv && t.dmp?.ok)
+			check_devices(t.m, t.lv, t.events);
+	} },
+	{ who: 'People', run: (t) => {
+		t.states = apply.states_for(t.m, usage);
+		check_people(t.m, t.states, t.events);
+	} },
+	{ who: 'Access rules', run: (t) => {
+		if (t.states)
+			sync_runtime(t);
+	} },
+	// Tunnels going down and up are in the service log (hotplug, watchdog), with names and reasons.
+	{ who: 'Activity', run: (t) => live.add_events(t.events, t.pol) },
+	{ who: 'Internet like a home device', run: (t) => apply.sync_loop(t.m, usage) },
+	{ who: 'Router', run: check_network },
+	{ who: 'Watchdog', run: (t) => watchdog.run(core.load()) },
+	{ who: 'Personal portal', run: (t) => check_cert(t.m) },
+	{ who: 'Router', quiet: true, run: (t) => check_wan(t.m) },
+	{ who: 'Backup', run: (t) => nightly_backup() },
+	{ who: 'updates', quiet: true, run: (t) => check_updates(t.m) },
+	{ who: 'geo', quiet: true, run: (t) => check_geo(t.m) },
+];
+
+// Step → the last error it logged (cleared when it works again).
+let step_err = {};
+
+function step(i, s, fn) {
+	try {
+		fn();
+		delete step_err[i];
+	}
+	catch (e) {
+		system(`logger -t dawnline-agent ${q(`${s.who}: ${e.message}`)}`);
+		if (!s.quiet && step_err[i] != e.message)
+			slog('dawnline', 'error', `failed: ${e.message}`, e.stacktrace?.[0]?.context, s.who);
+		step_err[i] = e.message;
+	}
+}
+
 function tick() {
 	ensure_dir(RUN_DIR);
 	writefile(watchdog.BEAT, `${time()}`);
 	// A restore or import drops the live counters; start over from flash.
 	if (!stat(`${RUN_DIR}/usage.json`) && usage.updated)
 		usage = live.load_usage();
-	let m = core.load();
-	let reset = check_usage_reset(m);
-	let pol = live.policy(m.settings.retention);
-	let dmp = live.dump();
-	let lv = live.collect(m, usage, dmp);
-	try {
-		record_rate(m);
-	}
-	catch (e) {}
-	let states = apply.states_for(m, usage);
-	let events = [];
+	let t = { m: null, pol: null, reset: false, events: [] };
+	for (let i, s in STEPS)
+		if (i == 0 || t.m)
+			step(i, s, () => s.run(t));
 
-	check_devices(m, lv, events);
-	check_people(m, states, events);
-	// Tunnels going down and up are in the service log (hotplug, watchdog), with names and reasons.
-
-	let changed = last_states == null || sprintf('%J', states) != sprintf('%J', last_states);
-	if (changed || time() - last_sync > RESYNC_EVERY) {
-		apply.sync(m, usage);
-		last_sync = time();
-	}
-	last_states = states;
-
-	live.add_events(events, pol);
-
-	let persist = reset || time() - last_flush >= FLUSH_EVERY;
-	live.save_usage(usage, persist);
-	slog_trim(persist);
-	if (persist)
-		last_flush = time();
-	if (pol.persist == 'off' || time() - last_log_flush >= LOG_FLUSH[pol.persist]) {
-		live.persist_events(pol);
-		last_log_flush = time();
-	}
-	try {
-		apply.sync_loop(m, usage);
-		// The router's network changed under us: re-derive everything.
-		let sig = apply.net_signature(m);
-		if (last_net != null && sig != last_net) {
-			slog('dawnline', 'info', 'network changed — Dawnline set itself up again', null, 'Router');
-			apply.apply();
-			sig = apply.net_signature(core.load());
+	let persist = t.reset || time() - last_flush >= FLUSH_EVERY;
+	step('save', { who: 'Traffic' }, () => {
+		live.save_usage(usage, persist);
+		if (persist)
+			last_flush = time();
+	});
+	step('slog', { who: 'Dawnline', quiet: true }, () => slog_trim(persist));
+	step('events', { who: 'Activity' }, () => {
+		let pol = t.pol ?? live.policy();
+		if (pol.persist == 'off' || time() - last_log_flush >= LOG_FLUSH[pol.persist]) {
+			live.persist_events(pol);
+			last_log_flush = time();
 		}
-		last_net = sig;
-	}
-	catch (e) {
-		slog('dawnline', 'error', `failed: ${e.message}`, null, 'Internet like a home device');
-	}
-	try {
-		watchdog.run(core.load());
-	}
-	catch (e) {
-		slog('dawnline', 'error', `failed: ${e.message}`, null, 'Watchdog');
-	}
-	check_cert(m);
-	try {
-		check_wan(m);
-	}
-	catch (e) {}
-	nightly_backup();
-	try {
-		check_geo(m);
-	}
-	catch (e) {
-		system(`logger -t dawnline-agent ${q('geo: ' + e.message)}`);
-	}
+	});
 }
 
 function shutdown() {

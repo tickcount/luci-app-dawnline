@@ -1,4 +1,4 @@
-// Dawnline — live data: peer status from `awg show all dump`, traffic
+// Dawnline — live data: peer status from the tunnels (dawnline.awg), traffic
 // accounting and the connection/event log.
 //
 // Counters live in RUN_DIR (tmpfs) and are flushed to DATA_DIR at most once
@@ -7,9 +7,10 @@
 import { readfile, stat, unlink } from 'fs';
 import { cursor } from 'uci';
 import {
-	q, sh, sh_out, sh_bg, ensure_dir, read_json, write_json, lock, unlock, month_key, day_key, uniq,
-	RUN_DIR, DATA_DIR
+	ensure_dir, read_json, write_json, lock, unlock, month_key, day_key, day_key_ago, uniq,
+	iface_status as util_iface_status, RUN_DIR, DATA_DIR
 } from 'dawnline.util';
+import * as awg from 'dawnline.awg';
 
 export const ONLINE_WINDOW = 300;
 const KEEP_DAYS = 62;
@@ -79,39 +80,18 @@ function trim_events(ev, pol) {
 	return ev;
 }
 
-/* ---------- awg dump ---------- */
+/* ---------- live peers ---------- */
 
 /**
- * Parse `awg show all dump`. Returns { ifaces: { ifname: {...} }, peers: { pubkey: {...} } }.
- * Interface lines have many fields (AmneziaWG adds obfuscation values); peer
- * lines always have 9.
+ * Peers of every tunnel: { ok, ifaces, peers: { public key: { ifname, endpoint,
+ * handshake, rx, tx } } }. See dawnline.awg.
  */
-export function dump() {
-	let r = sh('awg show all dump');
-	let out = { ifaces: {}, peers: {} };
-	if (r.code != 0)
-		return out;
-	for (let line in split(r.out, '\n')) {
-		let f = split(line, '\t');
-		if (length(f) == 9) {
-			let ep = f[3] == '(none)' ? '' : f[3];
-			out.peers[f[1]] = {
-				ifname: f[0],
-				endpoint: ep,
-				handshake: +f[5],
-				rx: +f[6],
-				tx: +f[7],
-			};
-		}
-		else if (length(f) >= 5) {
-			out.ifaces[f[0]] = { public_key: f[2], port: +f[3] };
-		}
-	}
-	return out;
+export function dump(m) {
+	return awg.dump();
 };
 
 export function endpoint_ip(ep) {
-	let m = match(ep ?? '', /^\[?([^\]]+?)\]?:[0-9]+$/);
+	let m = match(ep ?? '', /^\[?([^\]]+)\]?:[0-9]+$/);
 	return m ? m[1] : ep;
 };
 
@@ -122,7 +102,10 @@ function empty_usage() {
 }
 
 export function load_usage() {
-	return read_json(`${RUN_DIR}/usage.json`, null) ?? read_json(`${DATA_DIR}/usage.json`, null) ?? empty_usage();
+	let u = read_json(`${RUN_DIR}/usage.json`, null) ?? read_json(`${DATA_DIR}/usage.json`, null) ?? empty_usage();
+	// Per-app counters of earlier test builds are not kept.
+	delete u.clients;
+	return u;
 };
 
 function add(bucket, key, rx, tx) {
@@ -182,30 +165,41 @@ export function reset_usage(usage, m, scope, id) {
 		for (let did in m.people[id]?.devices ?? [])
 			wipe(usage.devices[did]);
 	}
-	else if (scope == 'device') {
+	else if (scope == 'device')
 		wipe(usage.devices[id]);
-	}
 };
+
+function offline(rec) {
+	return { online: false, handshake: rec?.handshake ?? 0, endpoint: rec?.endpoint ?? '', present: false };
+}
 
 /**
  * Fold the current kernel counters into `usage`. Counters restart from zero
  * when a peer is re-added or the interface restarts; a drop is treated as a
  * reset. Returns the per-device live view keyed by device id.
+ *
+ * A device missing from the dump had its counters reset only when its tunnel
+ * was actually read: an interface the tool couldn't read says nothing, and
+ * forgetting the last counters there would count them again on the next good
+ * read. A failed read with nothing in it changes nothing at all.
  */
 export function collect(m, usage, d) {
-	d ??= dump();
+	d ??= dump(m);
 	let ts = time();
 	let live = {};
-	let by_key = {};
-	for (let id, dev in m.devices)
-		by_key[dev.public_key] = id;
-
+	if (d.ok === false && !length(d.peers)) {
+		for (let id in keys(m.devices))
+			live[id] = offline(usage.devices[id]);
+		return live;
+	}
 	for (let id, dev in m.devices) {
 		let rec = usage.devices[id] ??= { raw: [ 0, 0 ] };
 		let peer = d.peers[dev.public_key];
 		if (!peer) {
-			rec.raw = [ 0, 0 ];
-			live[id] = { online: false, handshake: rec.handshake ?? 0, endpoint: rec.endpoint ?? '', present: false };
+			let ifname = m.servers[m.people[dev.person]?.server]?.ifname;
+			if (d.ok !== false || d.ifaces[ifname] != null)
+				rec.raw = [ 0, 0 ];
+			live[id] = offline(rec);
 			continue;
 		}
 		let raw = rec.raw ?? [ 0, 0 ];
@@ -260,9 +254,8 @@ export function save_usage(usage, persist) {
 /** Sum of [rx, tx] over the last `days` days for a usage record. */
 export function recent(rec, days) {
 	let out = [ 0, 0 ];
-	let ts = time();
 	for (let i = 0; i < days; i++) {
-		let v = rec?.days?.[day_key(ts - i * 86400)];
+		let v = rec?.days?.[day_key_ago(i)];
 		if (v) {
 			out[0] += v[0];
 			out[1] += v[1];
@@ -278,9 +271,8 @@ export function month(rec) {
 /** Daily series for the last `days` days: [{ day, rx, tx }]. */
 export function series(recs, days) {
 	let out = [];
-	let ts = time();
 	for (let i = days - 1; i >= 0; i--) {
-		let k = day_key(ts - i * 86400);
+		let k = day_key_ago(i);
 		let rx = 0, tx = 0;
 		for (let r in recs) {
 			let v = r?.days?.[k];
@@ -409,17 +401,7 @@ export function clear_events(f) {
 /* ---------- health ---------- */
 
 export function iface_status(ifname) {
-	if (!match(ifname ?? '', /^[A-Za-z0-9_.@-]{1,32}$/))
-		return null;
-	let s = sh_out(`ubus call network.interface.${ifname} status 2>/dev/null`);
-	if (!s)
-		return null;
-	try {
-		return json(s);
-	}
-	catch (e) {
-		return null;
-	}
+	return util_iface_status(ifname);
 };
 
 export function uptime() {

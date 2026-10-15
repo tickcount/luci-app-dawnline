@@ -1,64 +1,52 @@
 #!/usr/bin/ucode
-// Dawnline background update worker, started detached by luci.dawnline.
+// Dawnline background update worker, started detached by luci.dawnline and
+// by the agent (automatic runs).
 //
-//   updater check
-//   updater install app|amneziawg[:slava|grey[:ru]]|pkgs:<name,…>|all
+//   updater check [app|amneziawg|packages]
+//   updater install app | app@<tag> | app:reinstall | app:rollback
+//   updater install amneziawg[:auto|slava|grey[:ru]] | amneziawg:rollback
+//   updater install pkgs:<name,…>
+//   updater auto                      (Settings → Updates: check, then install)
 //
-// Progress: /var/run/dawnline/update-job.json; check results:
-// /var/run/dawnline/update-check.json. The Updates tab polls both.
+// One job at a time: the job holds the update lock (dawnline.updates) until
+// it exits. Progress: /var/run/dawnline/update-job.json; check results:
+// /var/run/dawnline/update-check.json. The Components tab polls both. The
+// components themselves are dawnline.upd_app, upd_awg and upd_pkgs.
 'use strict';
 
 import * as fs from 'fs';
-import { cursor } from 'uci';
-import { connect } from 'ubus';
-import { VERSION, REPO, slog, iface_intent } from 'dawnline.util';
+import { slog, read_json, write_json, ensure_dir, RUN_DIR } from 'dawnline.util';
+import * as core from 'dawnline.core';
+import * as upd from 'dawnline.updates';
+import * as app from 'dawnline.upd_app';
+import * as awg from 'dawnline.upd_awg';
+import * as pkgs from 'dawnline.upd_pkgs';
 
-const STATE_DIR = '/var/run/dawnline';
-const JOB_FILE = `${STATE_DIR}/update-job.json`;
-const CHECK_FILE = `${STATE_DIR}/update-check.json`;
-const WORK_DIR = '/tmp/dawnline-update';
-// Builds per OpenWrt release (tag = firmware version); the kernel module must match the firmware.
-// Which AmneziaWG a build carries (2.0 or 3.1) is read from the package, per firmware.
-const AWG_SOURCES = {
-	slava: { repo: 'Slava-Shchipunov/awg-openwrt', label: 'Slava-Shchipunov' },
-	grey: { repo: '2Grey/awg-openwrt', label: '2Grey' },
-};
-const AWG_PKGS = [ 'kmod-amneziawg', 'amneziawg-tools', 'luci-proto-amneziawg' ];
-const AWG_RU = 'luci-i18n-amneziawg-ru';
-// OpenWrt packages Dawnline runs on (the Updates tab groups and names them).
-// What Dawnline itself adds to OpenWrt (the rest of LuCI, ucode, rpcd and uhttpd is the
-// stock system): the home-like link, and HTTPS plus certificates for the personal portal.
-const SYS_PKGS = [ 'ip-full', 'kmod-veth', 'libustream-openssl', 'openssl-util', 'acme', 'acme-acmesh-dnsapi', 'luci-app-acme' ];
-// Packages released together with each of the above, updated as a set so OpenSSL never ends up
-// half old and half new.
-const PKG_FAMILY = [
-	[ /^ip-full$/, /^ip-/ ],
-	[ /^(libustream-openssl|openssl-util)$/, /^(libustream-openssl|libopenssl|openssl-util$)/ ],
-	[ /^(acme|luci-app-acme$)/, /^acme/ ],
-];
-
-function family(p) {
-	for (let f in PKG_FAMILY)
-		if (match(p, f[0]))
-			return f[1];
-	return null;
-}
+const PID = +split(fs.readfile('/proc/self/stat') ?? '0', ' ')[0];
+const POL = core.load().settings.updates;
+const CHECKS = { app: app.check, amneziawg: awg.check, packages: pkgs.check };
+const INSTALLS = { app: app.install, amneziawg: awg.install, pkgs: pkgs.install };
+const WHO = { app: 'Dawnline', amneziawg: 'AmneziaWG', pkgs: 'System packages', packages: 'System packages' };
 
 let job = {
-	action: ARGV[0], component: ARGV[1] ?? null, state: 'running', started: time(), finished: null,
-	phase: '', log: [], error: null, result: null,
+	id: `${time()}-${PID}`, action: ARGV[0], component: ARGV[1] ?? null, state: 'running', started: time(), finished: null,
+	pid: PID, auto: false, phase: '', from: null, to: null, log: [], error: null, result: null,
 };
+// An automatic run only shows up as a job once it installs something.
+let quiet = ARGV[0] == 'auto';
+// What to restart once the job is over (never in the middle of it).
+let after = {};
 
 function save() {
-	fs.writefile(`${JOB_FILE}.tmp`, sprintf('%J', job));
-	fs.rename(`${JOB_FILE}.tmp`, JOB_FILE);
+	if (!quiet)
+		write_json(upd.JOB_FILE, job, 0o644);
 }
 
 function log(msg) {
 	let t = localtime();
 	push(job.log, sprintf('%02d:%02d:%02d %s', t.hour, t.min, t.sec, msg));
-	if (length(job.log) > 300)
-		splice(job.log, 0, length(job.log) - 300);
+	if (length(job.log) > 400)
+		splice(job.log, 0, length(job.log) - 400);
 	save();
 }
 
@@ -67,475 +55,261 @@ function phase(p) {
 	log(p);
 }
 
-function q(s) {
-	return "'" + replace(`${s ?? ''}`, "'", "'\\''") + "'";
-}
-
+/** A command, its output in the log: { code, out }. */
 function run(cmd) {
 	let p = fs.popen(cmd + ' 2>&1', 'r');
 	if (!p)
 		return { code: 127, out: '' };
 	let out = p.read('all') ?? '';
-	return { code: p.close(), out };
-}
-
-function run_logged(cmd) {
-	let r = run(cmd);
-	for (let line in split(trim(r.out), '\n'))
+	let r = { code: p.close(), out };
+	for (let line in split(trim(out), '\n'))
 		if (length(trim(line)))
 			log(`  ${line}`);
 	return r;
 }
 
-function repo() {
-	return REPO;
+const ctx = {
+	pol: POL,
+	work: `/tmp/dawnline-update.${PID}`,
+	log, phase, run, save,
+	versions: (from, to) => {
+		job.from = from;
+		job.to = to;
+		save();
+	},
+	after: (what) => after[what] = true,
+};
+
+/* ---------- check results ---------- */
+
+function checks_file() {
+	return read_json(upd.CHECK_FILE, null)?.components ?? {};
 }
 
-function have_curl() {
-	return fs.access('/usr/bin/curl', 'x');
+/** Components' results into the check file (the others stay as they were). */
+function save_check(res) {
+	let c = read_json(upd.CHECK_FILE, null) ?? {};
+	c.components ??= {};
+	for (let k, v in res)
+		c.components[k] = { ...v, time: time() };
+	c.time = time();
+	write_json(upd.CHECK_FILE, c, 0o644);
 }
 
-function download(url, dest) {
-	let r = have_curl()
-		? run(`curl -fsSL --connect-timeout 15 --max-time 300 --retry 2 -o ${q(dest)} ${q(url)}`)
-		: run(`uclient-fetch -q -T 30 -O ${q(dest)} ${q(url)}`);
-	return r.code == 0 && (fs.stat(dest)?.size ?? 0) > 0;
+/** What a check found, as short names ("Dawnline 0.3.3", "2 system packages"). */
+function found_in(res) {
+	let found = [];
+	if (res.app?.update)
+		push(found, `Dawnline ${res.app.latest}`);
+	if (res.amneziawg?.update && res.amneziawg.installed)
+		push(found, `AmneziaWG ${res.amneziawg.latest}`);
+	if (res.packages?.updates)
+		push(found, `${res.packages.updates} system package${res.packages.updates == 1 ? '' : 's'}`);
+	return found;
 }
 
-/** Latest release tag; the /releases/latest redirect avoids API rate limits. */
-function latest_tag(rp) {
-	if (have_curl()) {
-		let r = run(`curl -sI --connect-timeout 15 --max-time 30 -o /dev/null -w '%{redirect_url}' ${q('https://github.com/' + rp + '/releases/latest')}`);
-		let m = match(trim(r.out), /\/releases\/tag\/([^\/?#]+)$/);
-		if (m)
-			return m[1];
-	}
-	let r = run(`uclient-fetch -q -T 20 -O - ${q('https://api.github.com/repos/' + rp + '/releases/latest')}`);
-	try {
-		return json(r.out)?.tag_name;
-	}
-	catch (e) {
-		return null;
-	}
-}
-
-function version_cmp(a, b) {
-	let pa = split(replace(`${a}`, /^v/, ''), /[.~+-]/), pb = split(replace(`${b}`, /^v/, ''), /[.~+-]/);
-	for (let i = 0; i < length(pa) || i < length(pb); i++) {
-		let x = pa[i] ?? '0', y = pb[i] ?? '0';
-		if (match(x, /^[0-9]+$/) && match(y, /^[0-9]+$/)) {
-			if (int(x) != int(y))
-				return int(x) < int(y) ? -1 : 1;
+function run_checks(which) {
+	let res = {};
+	for (let name in which) {
+		phase(`Checking ${WHO[name]}`);
+		try {
+			res[name] = CHECKS[name](ctx);
 		}
-		else if (x != y)
-			return x < y ? -1 : 1;
-	}
-	return 0;
-}
-
-function is_apk() {
-	return fs.access('/usr/bin/apk', 'x');
-}
-
-function pkg_version(name) {
-	let esc = replace(name, /[.+]/g, '\\$&');
-	if (is_apk()) {
-		let m = match(run(`apk list --installed ${q(name)}`).out, regexp(`^${esc}-([^ ]+) `));
-		return m ? m[1] : null;
-	}
-	// Libraries carry their ABI in the name (libustream-openssl20201210).
-	let re = regexp(`^${esc}([0-9]+)? - (.+)$`), found = null;
-	for (let line in split(run('opkg list-installed').out, '\n')) {
-		let m = match(trim(line), re);
-		if (m && (found == null || m[1] == null))
-			found = m;
-	}
-	return found ? trim(found[2]) : null;
-}
-
-function pkg_file_version(path) {
-	if (match(path, /\.ipk$/)) {
-		let o = run(`tar -xzOf ${q(path)} ./control.tar.gz | tar -xzO ./control`).out;
-		return match(o, /(^|\n)Version: *([^\n]+)/)?.[2];
-	}
-	return match(run(`apk adbdump ${q(path)}`).out, /\n *version: *([^\n]+)/)?.[1];
-}
-
-function workdir() {
-	run(`rm -rf ${WORK_DIR}`);
-	fs.mkdir(WORK_DIR, 0o700);
-}
-
-/* ---------- Dawnline itself ---------- */
-
-function check_app() {
-	let rp = repo();
-	let tag = latest_tag(rp);
-	if (!tag)
-		return { installed: VERSION, latest: null, update: false, note: `No published release in ${rp}` };
-	let latest = replace(tag, /^v/, '');
-	return { installed: VERSION, latest, tag, repo: rp, update: version_cmp(VERSION, latest) < 0 };
-}
-
-function install_app() {
-	let c = check_app();
-	if (!c.latest)
-		die(c.note);
-	if (!c.update) {
-		log('Dawnline is up to date');
-		return { installed: VERSION };
-	}
-	// Releases carry luci-app-dawnline-<version>.ipk and .apk plus sha256sums.txt.
-	let asset = `luci-app-dawnline-${c.latest}.${is_apk() ? 'apk' : 'ipk'}`;
-	let base = `https://github.com/${c.repo}/releases/download/${c.tag}`;
-	workdir();
-	phase(`Downloading ${asset}`);
-	let f = `${WORK_DIR}/${asset}`, sums = `${WORK_DIR}/sha256sums.txt`;
-	if (!download(`${base}/${asset}`, f))
-		die(`Download failed: ${asset}`);
-	phase('Verifying package');
-	if (!download(`${base}/sha256sums.txt`, sums))
-		die('The release has no sha256sums.txt');
-	let want = null;
-	for (let line in split(fs.readfile(sums) ?? '', '\n')) {
-		let m = match(trim(line), /^([0-9a-f]{64})[ \t]+\*?(\S+)$/);
-		if (m && m[2] == asset)
-			want = m[1];
-	}
-	let got = match(run(`sha256sum ${q(f)}`).out, /^([0-9a-f]{64})/)?.[1];
-	if (!want || got != want)
-		die(`Checksum mismatch for ${asset}`);
-	phase('Backing up configuration');
-	run('/usr/bin/dawnline backup --reason pre-update');
-	phase('Installing package');
-	if (run_logged(is_apk() ? `apk add --allow-untrusted ${q(f)}` : `opkg install ${q(f)}`).code != 0)
-		die('Installation failed');
-	run('rm -f /tmp/luci-indexcache* /tmp/luci-modulecache/* 2>/dev/null');
-	// Restart after this job has saved its final state.
-	run('( sleep 3; /etc/init.d/rpcd reload; /etc/init.d/dawnline restart ) </dev/null >/dev/null 2>&1 &');
-	return { installed: c.latest };
-}
-
-/* ---------- AmneziaWG ---------- */
-
-function awg_release() {
-	let u = connect();
-	let b = u?.call('system', 'board') ?? {};
-	u?.disconnect();
-	let rel = b.release ?? {};
-	let target = split(rel.target ?? '', '/');
-	let arch = rel.arch ?? trim(run("sed -n \"s/^DISTRIB_ARCH='\\(.*\\)'/\\1/p\" /etc/openwrt_release").out);
-	if (!rel.version || length(target) != 2 || !arch)
-		return null;
-	return {
-		tag: `v${rel.version}`,
-		postfix: `_v${rel.version}_${arch}_${target[0]}_${target[1]}`,
-		ext: is_apk() ? 'apk' : 'ipk',
-	};
-}
-
-function awg_download(r, name, rp) {
-	let file = `${name}${r.postfix}.${r.ext}`;
-	let dest = `${WORK_DIR}/${replace(rp, '/', '_')}_${file}`;
-	return download(`https://github.com/${rp}/releases/download/${r.tag}/${file}`, dest) ? dest : null;
-}
-
-/** When the build for this firmware was published (best effort). */
-function release_date(rp, tag) {
-	let r = run(`uclient-fetch -q -T 20 -O - ${q(`https://api.github.com/repos/${rp}/releases/tags/${tag}`)}`);
-	try {
-		return json(r.out)?.published_at ?? null;
-	}
-	catch (e) {
-		return null;
-	}
-}
-
-/** AmneziaWG generation of a tools version: 3.x packages carry 3.1, older ones (1.0.x) 2.0. */
-function awg_gen(version) {
-	return version == null ? null : match(version, /^3\./) ? '3.1' : '2.0';
-}
-
-/** The newest tag of the same OpenWrt series (24.10.x) in a repository, if newer than ours. */
-function newer_series_tag(rp, tag) {
-	let r = run(`uclient-fetch -q -T 20 -O - ${q(`https://api.github.com/repos/${rp}/releases?per_page=30`)}`);
-	let series = match(tag, /^v([0-9]+\.[0-9]+)\./)?.[1];
-	let best = null;
-	try {
-		for (let x in json(r.out) ?? []) {
-			let t = x.tag_name;
-			if (series && match(t, regexp(`^v${replace(series, '.', '\\.')}\\.`)) && version_cmp(t, tag) > 0 && (!best || version_cmp(t, best) > 0))
-				best = t;
+		catch (e) {
+			log(`Error: ${e.message}`);
+			res[name] = { error: e.message, status: '' };
 		}
 	}
-	catch (e) {}
-	return best;
+	save_check(res);
+	return res;
 }
 
-function awg_installed() {
-	let r = {};
-	for (let p in AWG_PKGS)
-		r[p] = pkg_version(p);
-	return r;
+/** One line in Activity per new finding (the same finding is not repeated). */
+function note_found(res, st, auto) {
+	let found = found_in(res);
+	let sig = join(', ', found);
+	if (length(found) && sig != st.announced) {
+		if (auto)
+			slog('dawnline', 'info', `updates available · ${sig}`, null, 'Components');
+		upd.history_add({ kind: 'found', items: found, auto });
+	}
+	st.announced = sig;
 }
 
-function check_awg() {
-	let installed = awg_installed();
-	let ru = pkg_version(AWG_RU) != null;
-	let cur = installed['amneziawg-tools'];
-	let r = awg_release();
-	if (!r)
-		return { installed: cur, gen: awg_gen(cur), packages: installed, current: null, ru, sources: {}, update: false, note: 'Cannot detect the firmware target' };
-	workdir();
-	let sources = {};
-	for (let id, src in AWG_SOURCES) {
-		let f = awg_download(r, 'amneziawg-tools', src.repo);
-		let v = f ? pkg_file_version(f) : null;
-		let s2 = { label: src.label, repo: src.repo, tag: r.tag, version: v, gen: awg_gen(v), date: f ? release_date(src.repo, r.tag) : null };
-		// A newer firmware may already get 3.1 from this source.
-		if (s2.gen != '3.1') {
-			let nt = newer_series_tag(src.repo, r.tag);
-			if (nt) {
-				let nf = awg_download({ ...r, tag: nt, postfix: replace(r.postfix, r.tag, nt) }, 'amneziawg-tools', src.repo);
-				let nv = nf ? pkg_file_version(nf) : null;
-				if (awg_gen(nv) == '3.1')
-					s2.newer = { tag: nt, gen: '3.1' };
-			}
+/* ---------- installs ---------- */
+
+/** A line in the service log for each finished update (Dawnline's own is logged by the new agent). */
+function log_update(name, r) {
+	let how = job.auto ? ' automatically' : '';
+	if (name == 'amneziawg') {
+		let b = r?.before?.['kmod-amneziawg'], a = r?.after?.['kmod-amneziawg'];
+		slog('awg', 'up', b && a && b != a ? `updated${how} · ${b} → ${a}`
+			: `installed the ${r?.build ?? ''} build${a ? ' · ' + a : ''}`, null, 'AmneziaWG');
+	}
+	else if (name == 'pkgs' && length([ ...(r?.updated ?? []), ...(r?.installed ?? []) ]))
+		slog('dawnline', 'up', `updated${how} · ${join(', ', [ ...(r.updated ?? []), ...(r.installed ?? []) ])}`, null, 'System packages');
+}
+
+function split_target(w) {
+	let i = index(w, ':'), at = index(w, '@');
+	let cut = i < 0 ? at : at < 0 || i < at ? i : at;
+	if (cut < 0)
+		return [ w, null ];
+	return [ substr(w, 0, cut), substr(w, cut + (substr(w, cut, 1) == ':' ? 1 : 0)) ];
+}
+
+function app_status(installed, latest) {
+	if (!latest)
+		return 'latest';
+	let c = upd.version_cmp(installed, latest);
+	return c < 0 ? 'outdated' : c > 0 ? 'dev' : 'latest';
+}
+
+function install(what) {
+	job.result ??= {};
+	for (let w in what) {
+		let t = split_target(w), name = t[0], arg = t[1];
+		if (!INSTALLS[name])
+			die(`Unknown component ${name}`);
+		job.current = name;
+		phase(`Updating ${WHO[name]}`);
+		let r = INSTALLS[name](ctx, arg);
+		job.result[name] = r;
+		log_update(name, r);
+		// Installed components are current now: no stale "Update available".
+		let c = checks_file();
+		if (name == 'pkgs' && r.check)
+			save_check({ packages: r.check });
+		else if (name == 'app' && r.to && c.app) {
+			let s = app_status(r.to, c.app.latest);
+			save_check({ app: { ...c.app, installed: r.to, update: s == 'outdated', status: s } });
 		}
-		sources[id] = s2;
+		else if (name == 'amneziawg' && r.after)
+			save_check({ amneziawg: { ...(c.amneziawg ?? {}), installed: r.after['amneziawg-tools'], packages: r.after,
+				current: r.build ?? c.amneziawg?.current, update: false, status: 'latest' } });
+		upd.history_add({ kind: 'install', component: w, from: r.from, to: r.to, state: 'done', auto: job.auto,
+			took: time() - job.started });
+		delete job.current;
 	}
-	// The installed build: the source whose package matches, else the main one.
-	let current = null;
-	for (let id, x in sources)
-		if (!current && cur && x.version == cur)
-			current = id;
-	current ??= cur ? 'slava' : null;
-	let mine = current ? sources[current] : null;
-	return { installed: cur, gen: awg_gen(cur), packages: installed, current, ru, release: r.tag, sources,
-		latest: mine?.version ?? null,
-		update: cur == null || (mine?.version != null && version_cmp(cur, mine.version) < 0),
-		note: !length(filter(values(sources), (x) => x.version)) ? `No AmneziaWG build for OpenWrt ${substr(r.tag, 1)} yet` : null };
 }
 
-function install_awg(arg) {
-	let parts = split(arg ?? '', ':');
-	let id = parts[0] || 'slava';
-	let src = AWG_SOURCES[id];
-	if (!src)
-		die(`Unknown AmneziaWG build ${id}`);
-	let want_ru = parts[1] == 'ru';
-	let r = awg_release();
-	if (!r)
-		die('Cannot detect the firmware target');
-	let before = awg_installed();
-	workdir();
-	let files = [];
-	for (let p in [ ...AWG_PKGS, ...(want_ru ? [ AWG_RU ] : []) ]) {
-		phase(`Downloading ${p} from ${src.repo}`);
-		let f = awg_download(r, p, src.repo);
-		if (!f)
-			die(`No ${p} build for OpenWrt ${substr(r.tag, 1)} in ${src.repo}`);
-		push(files, f);
-	}
-	phase('Refreshing package lists');
-	run_logged(is_apk() ? 'apk update' : 'opkg update');
-	phase(`Installing the ${src.label} build`);
-	let cmd = is_apk()
-		? `apk add --allow-untrusted ${join(' ', map(files, q))}`
-		: `opkg install --force-reinstall --force-downgrade ${join(' ', map(files, q))}`;
-	if (run_logged(cmd).code != 0)
-		die('Package installation failed');
-	if (!want_ru && pkg_version(AWG_RU))
-		run_logged(is_apk() ? `apk del ${AWG_RU}` : `opkg remove ${AWG_RU}`);
-	let after = awg_installed();
-	if (before['kmod-amneziawg'] && before['kmod-amneziawg'] != after['kmod-amneziawg']) {
-		// New kernel module: every AmneziaWG interface must be re-created.
-		let ifaces = [];
-		let c = cursor();
-		c.load('network');
-		c.foreach('network', 'interface', (s) => {
-			if (s.proto == 'amneziawg' && s.disabled != '1')
-				push(ifaces, s['.name']);
-		});
-		phase(`Reloading the kernel module (${length(ifaces)} tunnel(s) restart)`);
-		for (let i in ifaces) {
-			iface_intent(i, 'update', c.get('network', i, '_dawnline_name') ?? i);
-			run(`ifdown ${q(i)}`);
-		}
-		run('rmmod amneziawg');
-		run_logged('modprobe amneziawg');
-		for (let i in ifaces)
-			run(`ifup ${q(i)}`);
-	}
-	run('rm -f /tmp/luci-indexcache* /tmp/luci-modulecache/* 2>/dev/null');
-	return { build: id, before, after };
-}
-
-/* ---------- OpenWrt packages Dawnline uses ---------- */
-
-// Installed packages with a newer version in the feeds: { name: latest }.
-function upgradable(refresh) {
-	if (refresh) {
-		phase('Refreshing package lists');
-		run(is_apk() ? 'apk update' : 'opkg update');
-	}
-	let up = {};
-	if (is_apk()) {
-		for (let line in split(run('apk version -l "<"').out, '\n')) {
-			let m = match(line, /^(\S+?)-([0-9][^ ]*)\s+<\s+(\S+)/);
-			if (m)
-				up[m[1]] = m[3];
-		}
+/** Settings → Updates: check when due, install what is allowed (scheduled or right away). */
+function auto() {
+	let st = upd.auto_state();
+	let what = upd.due(POL, st);
+	if (!what)
+		return;
+	let now = time();
+	let res;
+	if (what == 'check' || now - (st.check ?? 0) >= 3600) {
+		res = run_checks(upd.TARGETS);
+		st.check = now;
+		note_found(res, st, true);
 	}
 	else
-		for (let line in split(run('opkg list-upgradable').out, '\n')) {
-			let m = match(line, /^(\S+) - (\S+) - (\S+)/);
-			if (m)
-				up[m[1]] = m[3];
-		}
-	return up;
+		res = checks_file();
+	if (what == 'install')
+		upd.mark_day(POL, st, now);
+	upd.auto_save(st);
+	if (!POL.auto || (what != 'install' && POL.mode != 'immediate'))
+		return;
+	let todo = [];
+	// Packages first, Dawnline last: it restarts rpcd and itself.
+	if (index(POL.targets, 'packages') >= 0 && res.packages?.updates) {
+		let names = filter(keys(res.packages.pkgs ?? {}), (p) => res.packages.pkgs[p].latest || length(res.packages.pkgs[p].with ?? []));
+		if (length(names))
+			push(todo, `pkgs:${join(',', names)}`);
+	}
+	let a = res.amneziawg;
+	if (index(POL.targets, 'amneziawg') >= 0 && a?.update && a.installed) {
+		// Only the same build, same generation: anything else needs a person to decide.
+		if (a.current && !a.gen_change)
+			push(todo, `amneziawg:${a.current}${a.ru ? ':ru' : ''}`);
+		else
+			slog('awg', 'info', `${a.latest ?? 'a new build'} needs a manual switch in Components`, null, 'AmneziaWG');
+	}
+	if (index(POL.targets, 'app') >= 0 && res.app?.update)
+		push(todo, 'app');
+	if (!length(todo))
+		return;
+	quiet = false;
+	job.action = 'install';
+	job.component = join(' ', todo);
+	job.auto = true;
+	job.log = [];
+	log(`Automatic update: ${join(', ', todo)}`);
+	install(todo);
 }
 
-// The packages to update for these names: each one plus its upgradable family.
-function with_family(names, up) {
-	let set = {};
-	for (let n in names) {
-		if (up[n])
-			set[n] = true;
-		let f = family(n);
-		if (f)
-			for (let u in keys(up))
-				if (match(u, f))
-					set[u] = true;
-	}
-	return sort(keys(set));
-}
-
-function check_pkgs(refresh) {
-	let up = upgradable(refresh ?? true);
-	let res = {}, all = {};
-	for (let p in SYS_PKGS) {
-		let v = pkg_version(p);
-		let set = v ? with_family([ p ], up) : [];
-		res[p] = { installed: v, latest: v && up[p] ? up[p] : null, with: filter(set, (x) => x != p) };
-		for (let x in set)
-			all[x] = true;
-	}
-	return { pkgs: res, updates: length(keys(all)) };
-}
-
-// Before install_pkgs: ucode resolves a name at the point it is used.
-function save_check(res, at) {
-	fs.writefile(CHECK_FILE, sprintf('%J', { time: at ?? time(), components: res }));
-}
-
-function install_pkgs(arg) {
-	let names = filter(split(arg ?? '', ','), (x) => x != '');
-	for (let n in names)
-		if (index(SYS_PKGS, n) < 0)
-			die(`${n} is not a package Dawnline manages`);
-	if (!length(names))
-		die('Nothing to install');
-	phase('Refreshing package lists');
-	run_logged(is_apk() ? 'apk update' : 'opkg update');
-	let missing = filter(names, (n) => pkg_version(n) == null);
-	let have = with_family(filter(names, (n) => pkg_version(n) != null), upgradable(false));
-	if (length(have)) {
-		phase(`Updating ${join(', ', have)}`);
-		if (run_logged(is_apk() ? `apk upgrade ${join(' ', map(have, q))}` : `opkg upgrade ${join(' ', map(have, q))}`).code != 0)
-			die('Update failed');
-	}
-	if (length(missing)) {
-		phase(`Installing ${join(', ', missing)}`);
-		if (run_logged(is_apk() ? `apk add ${join(' ', map(missing, q))}` : `opkg install ${join(' ', map(missing, q))}`).code != 0)
-			die('Installation failed');
-	}
-	// Show the new state right away instead of the check from before the update.
-	try {
-		let c = json(fs.readfile(CHECK_FILE) ?? '{}') ?? {};
-		c.components ??= {};
-		c.components.packages = check_pkgs(false);
-		save_check(c.components, c.time);
-	}
-	catch (e) {
-		log(`Could not refresh the package check: ${e.message}`);
-	}
-	// The portal's HTTPS runs in uhttpd. Restart after this job saved its state.
-	let touched = [ ...names, ...have ];
-	// A missing piece arrived: set up what waited for it (the portal, the home-like link).
-	if (length(missing) && length(filter(missing, (n) => match(n, /^(openssl-util|libustream|ip-full|kmod-veth)/))))
-		run('( sleep 3; /usr/bin/dawnline apply; /etc/init.d/uhttpd restart; /etc/init.d/dawnline restart ) </dev/null >/dev/null 2>&1 &');
-	else if (length(filter(touched, (n) => match(n, /^(libustream|libopenssl)/))))
-		run('( sleep 3; /etc/init.d/uhttpd restart; /etc/init.d/dawnline restart ) </dev/null >/dev/null 2>&1 &');
-	return { updated: have, installed: missing };
+/** The restarts the job asked for, in one go, after its final state is saved. */
+function restarts() {
+	let cmds = [];
+	if (after.app)
+		push(cmds, '/etc/init.d/rpcd reload');
+	else if (after.apply)
+		push(cmds, '/usr/bin/dawnline apply');
+	if (after.uhttpd)
+		push(cmds, '/etc/init.d/uhttpd restart');
+	if (after.app || after.apply || after.uhttpd)
+		push(cmds, '/etc/init.d/dawnline restart');
+	if (length(cmds))
+		system(`( sleep 2; ${join('; ', cmds)} ) </dev/null >/dev/null 2>&1 &`);
 }
 
 /* ---------- main ---------- */
 
-const CHECKS = { app: check_app, amneziawg: check_awg, packages: check_pkgs };
-const INSTALLS = { app: install_app, amneziawg: install_awg, pkgs: install_pkgs };
-const UPDATE_WHO = { app: 'Dawnline', amneziawg: 'AmneziaWG', pkgs: 'System packages' };
-
-/** A line in the service log for each finished update (nothing when there was nothing to do). */
-function log_update(name, r) {
-	// Dawnline's own update is logged by the new agent when it starts (also after install.sh).
-	if (name == 'amneziawg') {
-		let b = r?.before?.['kmod-amneziawg'], a = r?.after?.['kmod-amneziawg'];
-		slog('awg', 'up', b && a && b != a ? `updated · ${b} → ${a}` : `installed the ${AWG_SOURCES[r?.build]?.label ?? r?.build} build${a ? ' · ' + a : ''}`,
-			null, 'AmneziaWG');
-	}
-	else if (name == 'pkgs' && length([ ...(r?.updated ?? []), ...(r?.installed ?? []) ]))
-		slog('dawnline', 'up', `updated · ${join(', ', [ ...(r.updated ?? []), ...(r.installed ?? []) ])}`, null, 'System packages');
+ensure_dir(RUN_DIR);
+// One job at a time (LuCI refuses a second one; an automatic run just skips its turn).
+let LOCK = null;
+for (let i = 0; i < 10 && !LOCK; i++) {
+	LOCK = upd.try_lock();
+	if (!LOCK)
+		system('usleep 100000 2>/dev/null || sleep 1');
 }
-
-
-if (!fs.access(STATE_DIR))
-	fs.mkdir(STATE_DIR, 0o755);
+if (!LOCK)
+	exit(0);
+fs.mkdir(ctx.work, 0o700);
 save();
 
 try {
 	if (job.action == 'check') {
-		let res = {};
-		for (let name, fn in CHECKS) {
-			phase(`Checking ${name}`);
-			try {
-				res[name] = fn();
-			}
-			catch (e) {
-				res[name] = { error: e.message };
-			}
-		}
-		save_check(res);
-		job.result = res;
+		let which = job.component ? [ job.component ] : upd.TARGETS;
+		for (let w in which)
+			if (!CHECKS[w])
+				die(`Unknown component ${w}`);
+		job.result = run_checks(which);
+		let st = upd.auto_state();
+		note_found(job.result, st, false);
+		if (length(which) == length(upd.TARGETS))
+			st.check = time();
+		upd.auto_save(st);
 	}
-	else if (job.action == 'install') {
-		let what = job.component == 'all' ? [ 'amneziawg', 'app' ] : [ job.component ];
-		job.result = {};
-		for (let w in what) {
-			let i = index(w, ':');
-			let name = i < 0 ? w : substr(w, 0, i), arg = i < 0 ? null : substr(w, i + 1);
-			if (!INSTALLS[name])
-				die(`Unknown component ${name}`);
-			phase(`Updating ${name}`);
-			job.result[name] = INSTALLS[name](arg);
-			log_update(name, job.result[name]);
-		}
-	}
+	else if (job.action == 'install')
+		install([ job.component ]);
+	else if (job.action == 'auto')
+		auto();
 	else
-		die('Usage: updater check | install app|amneziawg[:build[:ru]]|pkgs:<names>|all');
+		die('Usage: updater check [app|amneziawg|packages] | install <what> | auto');
 	job.state = 'done';
 	phase('Finished');
 }
 catch (e) {
+	quiet = false;
 	job.state = 'failed';
 	job.error = e.message;
 	log(`Error: ${e.message}`);
-	if (job.action == 'install') {
-		let name = split(job.component, ':')[0];
-		slog(name == 'amneziawg' ? 'awg' : 'dawnline', 'error', 'update failed', e.message, UPDATE_WHO[name] ?? 'Dawnline');
+	let name = job.current ?? split_target(split(job.component ?? '', ' ')[0])[0];
+	if (job.action != 'check') {
+		slog(name == 'amneziawg' ? 'awg' : 'dawnline', 'error', `${job.auto ? 'automatic ' : ''}update failed`, e.message, WHO[name] ?? 'Dawnline');
+		upd.history_add({ kind: 'install', component: name, from: job.from, to: job.to, state: 'failed', auto: job.auto, error: e.message,
+			took: time() - job.started });
 	}
+	else
+		upd.history_add({ kind: 'error', component: job.component ?? 'all', state: 'failed', error: e.message });
 }
 
-run(`rm -rf ${WORK_DIR}`);
+system(`rm -rf '${ctx.work}'`);
 job.finished = time();
+delete job.current;
 save();
+restarts();

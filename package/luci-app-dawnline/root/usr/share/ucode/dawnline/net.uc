@@ -14,12 +14,17 @@
 
 import { readfile, readlink, lsdir, stat } from 'fs';
 import { cursor } from 'uci';
-import { sh_out, ip2int, int2ip, uniq } from 'dawnline.util';
+import { sh_out, ip2int, int2ip, cidr_any, uniq } from 'dawnline.util';
 
 const SYS = '/sys/class/net';
 /** Links Dawnline creates itself (dawnline.loop); never offered as interfaces. */
 export const INTERNAL = { transit: 'dlx0', lan: 'dll0' };
 const VPN_PROTOS = [ 'amneziawg', 'wireguard', 'openvpn', 'openconnect', 'vpnc', 'pptp', 'l2tp', 'gre', 'gretap', 'vti', 'xfrm' ];
+const VPN_NAMES = /^(wg|awg|tun|tap|ovpn|ipsec|vti|xfrm)/;
+// Never the WAN while another default route exists: VPN clients. (PPTP and
+// L2TP stay eligible: some ISPs connect the WAN with them.)
+const NOT_WAN_PROTOS = [ 'amneziawg', 'wireguard', 'openvpn', 'openconnect', 'vpnc' ];
+const NOT_WAN_NAMES = /^(wg|awg|tun|tap|ovpn)/;
 // Kernel placeholder devices that never carry a network on their own.
 const NOISE = /^(ifb|teql|sit|ip6tnl|gre|gretap|erspan|ip6gre|ip6gretap|ip_vti|ip6_vti|tunl|bond)[0-9]*$/;
 const PRIVATE = [ [ '10.0.0.0', 8 ], [ '172.16.0.0', 12 ], [ '192.168.0.0', 16 ], [ '100.64.0.0', 10 ] ];
@@ -48,16 +53,8 @@ function ubus_json(path, method) {
 
 /** "a.b.c.d[/len]" → { net, prefix, size } for any prefix 1-32; null for default or junk. */
 function net_of(s) {
-	let m = match(s ?? '', /^([0-9.]+)(\/([0-9]+))?$/);
-	if (!m)
-		return null;
-	let ip = ip2int(m[1]), prefix = m[3] != null ? +m[3] : 32;
-	if (ip == null || prefix < 1 || prefix > 32)
-		return null;
-	let size = 1 << (32 - prefix);
-	if (prefix == 1)
-		size = 2147483648;
-	return { net: ip - ip % size, prefix, size };
+	let c = cidr_any(s);
+	return c && c.prefix >= 1 ? c : null;
 }
 
 function net_str(n) {
@@ -107,12 +104,12 @@ export function snapshot(fresh) {
 		return cache;
 
 	// Networks reachable through each device (main table, IPv4).
-	let routes = {}, wan_dev = null;
+	let routes = {}, defaults = [];
 	for (let r in ip_json('-4 route show table main')) {
 		if (!r.dev)
 			continue;
 		if (r.dst == 'default') {
-			wan_dev ??= r.dev;
+			push(defaults, r);
 			continue;
 		}
 		push(routes[r.dev] ??= [], r.dst);
@@ -129,6 +126,19 @@ export function snapshot(fresh) {
 		let dev = i.l3_device ?? i.device;
 		if (dev && !logical[dev])
 			logical[dev] = { name: i.interface, proto: i.proto, up: i.up };
+	}
+	// The WAN: the default route with the lowest metric that does not go into
+	// a VPN client (its default route is not where the tunnels listen); only
+	// VPN routes: the lowest of them.
+	let vpn = (dev) => index(NOT_WAN_PROTOS, logical[dev]?.proto) >= 0 || match(dev, NOT_WAN_NAMES) != null;
+	let wan_dev = null, wan_metric = null, wan_vpn = true;
+	for (let r in defaults) {
+		let v = vpn(r.dev), metric = r.metric ?? 0;
+		if (wan_dev == null || (wan_vpn && !v) || (wan_vpn == v && metric < wan_metric)) {
+			wan_dev = r.dev;
+			wan_metric = metric;
+			wan_vpn = v;
+		}
 	}
 	let zone_by_net = {}, zone_by_dev = {}, zones = [];
 	let fc = cursor();
@@ -163,7 +173,7 @@ export function snapshot(fresh) {
 		let cat;
 		if (wifi)
 			cat = 'wifi';
-		else if ((lg && index(VPN_PROTOS, lg.proto) >= 0) || kind == 65534 || ((flags & 0x10) && kind != 1) || match(dev, /^(wg|awg|tun|tap|ovpn|ipsec|vti|xfrm)/))
+		else if ((lg && index(VPN_PROTOS, lg.proto) >= 0) || kind == 65534 || ((flags & 0x10) && kind != 1) || match(dev, VPN_NAMES))
 			cat = 'vpn';
 		else if (kind == 1 || bridge)
 			cat = 'ethernet';
@@ -238,7 +248,9 @@ export function server_net(srv, snap) {
 		if (dev == wan.dev || dev == srv.ifname || devs[dev]?.master)
 			continue;
 		let d = devs[dev];
-		let h = { dev, auto: p[1], nets: d?.nets ?? [], zone: d?.zone ?? null, missing: !d };
+		// The detected LAN missing for a moment (bridge recreated) keeps its zone,
+		// so its forwardings are not removed meanwhile.
+		let h = { dev, auto: p[1], nets: d?.nets ?? [], zone: d?.zone ?? (p[1] ? srv.lan_zone : null), missing: !d };
 		push(home, h);
 		push(nets, ...h.nets);
 		if (h.zone)

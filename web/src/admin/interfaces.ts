@@ -5,9 +5,11 @@ import type { MeshMode, Server, Status } from '../shared/types';
 import { E } from './e';
 import { api, type IfaceCategory, type InterfacesData, type NetDevice } from './api';
 import { circleChips, homeServices } from './access';
-import { attempt, button, notify } from './ui';
+import { button } from './ui/button';
+import { attempt, notify } from './ui/toast';
+import { seg, sw } from './ui/controls';
+import { attachTip } from './ui/tooltip';
 import { installMissing } from './pkgs';
-import { attachTip } from './charts';
 import { icon } from '../shared/icons';
 
 const GROUPS: [IfaceCategory, string][] = [
@@ -27,34 +29,22 @@ const ICON: Record<NetDevice['kind'], string> = {
   other: 'link',
 };
 
-function sw(on: boolean, label: string, onChange: (v: boolean) => void): HTMLButtonElement {
-  const b = E(
-    'button',
-    {
-      type: 'button',
-      role: 'switch',
-      class: `dl-switch${on ? ' on' : ''}`,
-      'aria-checked': on ? 'true' : 'false',
-      'aria-label': label,
-      click: () => {
-        const v = !b.classList.contains('on');
-        b.classList.toggle('on', v);
-        b.setAttribute('aria-checked', v ? 'true' : 'false');
-        onChange(v);
-      },
-    },
-    E('i'),
-  ) as HTMLButtonElement;
-  return b;
+/** Server → Access cards; `update` takes a new status without touching the draft. */
+export interface AccessCards {
+  el: HTMLElement;
+  update(st: Status): void;
 }
 
 /**
  * Server → Access: how internet traffic leaves (Internet) and what home access
  * reaches (Home network: networks, devices reaching each other, services).
- * Both cards share one draft; either Save stores it.
+ * Both cards share one draft; either Save stores it. Changes that apply at
+ * once (devices reaching each other, services, circles) call `refresh`, which
+ * brings a new status here through `update`: the draft stays as it is.
  */
-export function accessCards(srv: Server, st: Status, reload: () => void): HTMLElement {
+export function accessCards(srv: Server, first: Status, refresh: () => Promise<unknown>): AccessCards {
   const serverId = srv.id;
+  let st = first;
   const root = E(
     'div',
     { class: 'dl-stack gap16' },
@@ -69,7 +59,7 @@ export function accessCards(srv: Server, st: Status, reload: () => void): HTMLEl
   // "Other interfaces" stays open or folded across repaints.
   let otherOpen = false;
   // Built once: it reads the devices at home, which should not happen on every repaint.
-  const services = homeServices(st, serverId, reload);
+  const services = homeServices(st, serverId, refresh);
   let lans = new Set<string>();
   let initial = '';
 
@@ -322,32 +312,27 @@ export function accessCards(srv: Server, st: Status, reload: () => void): HTMLEl
       ]),
     ]);
 
-    const meshSeg = E(
-      'div',
-      { class: 'dl-seg sm', role: 'radiogroup', 'aria-label': 'Devices reach each other' },
-      (
-        [
-          ['off', 'Off'],
-          ['all', 'Everyone'],
-          ['circles', 'Circles'],
-        ] as const
-      ).map(([v, t]) =>
-        E(
-          'button',
-          {
-            type: 'button',
-            role: 'radio',
-            class: mesh === v ? 'on' : '',
-            'aria-checked': mesh === v ? 'true' : 'false',
-            // Applies at once, like the choices on a person's page.
-            click: async () => {
-              if (mesh === v) return;
-              if (await attempt(() => api.serverUpdate(serverId, { mesh: v }), `Devices reach each other: ${t}`)) reload();
-            },
-          },
-          t,
-        ),
-      ),
+    const meshSeg = seg(
+      [
+        ['off', 'Off'],
+        ['all', 'Everyone'],
+        ['circles', 'Circles'],
+      ] as [MeshMode, string][],
+      mesh,
+      {
+        label: 'Devices reach each other',
+        cls: 'sm',
+        optimistic: false,
+        // Applies at once, like the choices on a person's page.
+        onChange: async (v) => {
+          const t = { off: 'Off', all: 'Everyone', circles: 'Circles' }[v];
+          if (!(await attempt(() => api.serverUpdate(serverId, { mesh: v }), `Devices reach each other: ${t}`))) return;
+          mesh = v;
+          d.config.mesh = v;
+          paint();
+          await refresh();
+        },
+      },
     );
 
     const homeCard = E('section', { class: 'dl-setsec dl-ifcard' }, [
@@ -372,9 +357,9 @@ export function accessCards(srv: Server, st: Status, reload: () => void): HTMLEl
           MESH_TEXT[mesh],
           meshSeg,
           '',
-          mesh === 'circles' ? circleChips(st, serverId, reload) : undefined,
+          mesh === 'circles' ? circleChips(st, serverId, refresh) : undefined,
         ),
-        services,
+        services.el,
       ]),
       E('div', { class: 'dl-setsec-foot' }, [
         E(
@@ -448,5 +433,12 @@ export function accessCards(srv: Server, st: Status, reload: () => void): HTMLEl
   }
 
   load(true);
-  return root;
+  return {
+    el: root,
+    update(n: Status) {
+      st = n;
+      services.update(n);
+      if (d) paint();
+    },
+  };
 }

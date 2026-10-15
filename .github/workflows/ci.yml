@@ -22,6 +22,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
@@ -78,12 +80,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - name: ShellCheck
         run: |
           shellcheck --version
           shellcheck -S warning \
             install.sh \
+            uninstall.sh \
             package/luci-app-dawnline/root/etc/init.d/dawnline \
             package/luci-app-dawnline/root/etc/uci-defaults/90_dawnline \
             package/luci-app-dawnline/root/etc/hotplug.d/iface/95-dawnline \
@@ -96,6 +101,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - name: Use before definition
         run: python3 scripts/lint-ucode.py

@@ -70,7 +70,7 @@
 		}
 	},
 	"admin/network/dawnline/updates": {
-		"title": "Updates",
+		"title": "Components",
 		"order": 70,
 		"action": {
 			"type": "view",

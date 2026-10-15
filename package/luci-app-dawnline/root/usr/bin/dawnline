@@ -6,9 +6,15 @@ import * as core from 'dawnline.core';
 import * as live from 'dawnline.live';
 import * as apply from 'dawnline.apply';
 import * as view from 'dawnline.view';
-import * as ops from 'dawnline.ops';
+import * as health from 'dawnline.health';
+import * as backup from 'dawnline.backup';
+import * as pc from 'dawnline.portalcert';
 import * as watchdog from 'dawnline.watchdog';
-import { VERSION, slog, sh_out, q, take_iface_intent } from 'dawnline.util';
+import * as awg from 'dawnline.awg';
+import * as store from 'dawnline.store';
+import {
+	VERSION, slog, sh_out, q, take_iface_intent, read_json, write_json, ensure_dir, with_lock, RUN_DIR
+} from 'dawnline.util';
 
 const args = ARGV;
 const cmd = args[0] ?? 'help';
@@ -30,7 +36,7 @@ function help() {
 Usage: dawnline <command>
 
   apply                     Reconcile router configuration and runtime state
-  sync                      Push devices and access rules to the tunnel
+  sync                      Push devices and access rules to the tunnels
   status                    People and devices with live state (JSON)
   health                    Run health checks (JSON)
   person add <name> [--slug s] [--access lan|internet|both] [--devices n]
@@ -38,7 +44,7 @@ Usage: dawnline <command>
   person link <slug>        Print the personal portal link
   person rm <slug>          Remove a person and their devices
   device add <slug> <name> [--kind phone|computer|tablet|router]
-  device conf <id>          Print a device configuration
+  device conf <id>          Print a device configuration (.conf)
   device rm <id>            Remove a device
   backup                    Create a backup in /etc/dawnline/backups
   portal-cert               Print the certificate and key the portal uses
@@ -48,9 +54,47 @@ Usage: dawnline <command>
   version`);
 }
 
-function commit(c) {
-	c.commit('dawnline');
-	system('chmod 600 /etc/config/dawnline');
+/*
+ * netifd retries a tunnel that fails to start every few seconds (a kernel
+ * module that won't load, AmneziaWG removed): one line per interface every
+ * 10 minutes, with how many attempts failed meanwhile. A start clears it.
+ */
+const FAILS = `${RUN_DIR}/ifup-failed.json`;
+const FAIL_EVERY = 600;
+
+function ifup_failed(ifname, who) {
+	let now = time();
+	// Attempts since the last line (a quiet spell starts a new count), and over how long.
+	let r = with_lock('ifup-failed', () => {
+		let all = read_json(FAILS, {});
+		let f = all[ifname];
+		if (!f || now - f.last > FAIL_EVERY)
+			f = all[ifname] = { logged: 0, count: 0, since: now };
+		f.count++;
+		f.last = now;
+		let out = null;
+		if (now - f.logged >= FAIL_EVERY) {
+			out = { n: f.count, mins: int((now - f.since) / 60) };
+			f.logged = f.since = now;
+			f.count = 0;
+		}
+		ensure_dir(RUN_DIR);
+		write_json(FAILS, all, 0o600);
+		return out;
+	});
+	if (r)
+		slog('awg', 'error', r.n > 1 ? `couldn't start · ${r.n} failed attempts in ${r.mins} min` : "couldn't start",
+			watchdog.iface_errors(ifname), who);
+}
+
+function ifup_ok(ifname) {
+	with_lock('ifup-failed', () => {
+		let all = read_json(FAILS, {});
+		if (all[ifname]) {
+			delete all[ifname];
+			write_json(FAILS, all, 0o600);
+		}
+	});
 }
 
 try {
@@ -59,18 +103,16 @@ try {
 	else if (cmd == 'sync')
 		out(apply.sync());
 	else if (cmd == 'status') {
-		let m = core.load(), u = core.load_usage(), d = live.dump(), st = view.states(m, u);
+		let m = core.load(), u = core.load_usage(), d = live.dump(m), st = view.states(m, u);
 		out(map(values(m.people), (p) => view.person_view(m, p, u, d, st, { admin: true })));
 	}
 	else if (cmd == 'health')
-		out(ops.health());
+		out(health.health());
 	else if (cmd == 'person' && args[1] == 'add') {
-		let c = core.open_cursor(), m = core.load(c);
-		let id = core.create_person(c, m, {
+		let id = store.transact((c, m) => core.create_person(c, m, {
 			name: args[2], slug: opt('slug'), access: opt('access', 'internet'),
 			device_limit: opt('devices'), expires: opt('expires'), quota_gb: opt('quota'),
-		});
-		commit(c);
+		}));
 		let m2 = core.load();
 		out(core.portal_url(m2, m2.people[id]) ?? id);
 	}
@@ -80,33 +122,29 @@ try {
 		out(core.portal_url(m, p) ?? 'Set settings.portal_host first.');
 	}
 	else if (cmd == 'person' && args[1] == 'rm') {
-		let c = core.open_cursor(), m = core.load(c);
-		core.delete_person(c, m, args[2]);
-		commit(c);
+		store.transact((c, m) => core.delete_person(c, m, args[2]));
 		apply.sync();
 	}
 	else if (cmd == 'device' && args[1] == 'add') {
-		let c = core.open_cursor(), m = core.load(c);
-		let id = core.create_device(c, m, args[2], args[3], opt('kind', 'phone'), { by: 'admin' });
-		commit(c);
+		// Keys first: generating them runs the awg tool, not worth holding the config lock for.
+		let keys = awg.new_keys();
+		let id = store.transact((c, m) => core.create_device(c, m, args[2], args[3], opt('kind', 'phone'), { by: 'admin', keys }));
 		apply.sync();
 		out(id);
 	}
 	else if (cmd == 'device' && args[1] == 'conf') {
 		let m = core.load();
 		let d = m.devices[args[2]] ?? die('Unknown device.');
-		print(core.client_config(m, d).conf);
+		print(awg.client_config(m, d).conf);
 	}
 	else if (cmd == 'device' && args[1] == 'rm') {
-		let c = core.open_cursor(), m = core.load(c);
-		core.delete_device(c, m, args[2]);
-		commit(c);
+		store.transact((c, m) => core.delete_device(c, m, args[2]));
 		apply.sync();
 	}
 	else if (cmd == 'backup')
-		out(ops.backup_create(opt('reason')));
+		out(backup.backup_create(opt('reason')));
 	else if (cmd == 'portal-cert') {
-		let c = ops.portal_cert(core.load().settings);
+		let c = pc.portal_cert(core.load().settings);
 		out(`${c.cert} ${c.key}`);
 	}
 	else if (cmd == 'portal-http-port') {
@@ -137,6 +175,7 @@ try {
 			if (srv.ifname == ifname)
 				who = srv.name;
 		if (args[1] == 'ifup') {
+			ifup_ok(ifname);
 			let port = sh_out(`awg show ${q(ifname)} listen-port 2>/dev/null`);
 			slog('awg', 'up', port ? `started · accepting connections on port ${port}` : 'started', null, who);
 		}
@@ -152,7 +191,7 @@ try {
 				], (x) => x)), who);
 		}
 		else if (args[1] == 'ifup-failed')
-			slog('awg', 'error', "couldn't start", watchdog.iface_errors(ifname), who);
+			ifup_failed(ifname, who);
 	}
 	else if (cmd == 'teardown')
 		apply.teardown();

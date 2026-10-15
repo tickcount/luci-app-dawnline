@@ -1,38 +1,34 @@
-// Dawnline — data model: reads /etc/config/dawnline, validates and mutates it,
-// allocates addresses, generates keys and renders client configurations.
+// Dawnline — data model: reads /etc/config/dawnline, validates and mutates it
+// and allocates addresses. Nothing here knows how the tunnel works: dawnline.awg
+// renders AmneziaWG configurations and runs the tunnels.
 
 import { cursor } from 'uci';
-import { readfile } from 'fs';
 import {
-	q, sh, sh_out, valid_name, valid_key, valid_host, valid_date, slugify,
-	parse_cidr, cidr_str, cidr_overlaps, int2ip, ip2int, in_cidr, rand_token, rand_hex, rand_int, rand_bytes,
-	date_end, month_key, read_json, write_json, ensure_dir, lock, unlock, DATA_DIR, RUN_DIR, uniq
+	valid_name, valid_key, valid_host, valid_date, slugify, parse_cidr, cidr_overlaps, int2ip, ip2int,
+	rand_hex, rand_bytes, date_end, month_key, read_json, DATA_DIR, RUN_DIR, uniq
 } from 'dawnline.util';
 import * as net from 'dawnline.net';
-import * as loop from 'dawnline.loop';
+import { policy as updates_policy } from 'dawnline.updates';
 
 export const CONFIG = 'dawnline';
+/**
+ * Servers whose network interface Dawnline may not set up (the name belongs
+ * to an interface it did not create, or is invalid): { id: why }. Written by
+ * dawnline.netifd; such a server has no tunnel anywhere (firewall, access
+ * table, "like a home device"), so nothing of Dawnline lands on that interface.
+ */
+export const BLOCKED = `${RUN_DIR}/netifd-blocked.json`;
 export const ACCESS = [ 'lan', 'internet', 'both' ];
 export const KINDS = [ 'computer', 'phone', 'tablet', 'router', 'other' ];
 /** Devices of different people reaching each other: never, everyone with home access, or within a circle. */
 export const MESH = [ 'off', 'all', 'circles' ];
 /** Circle colours (index into the admin palette). */
 export const CIRCLE_COLORS = 8;
+/** AmneziaWG obfuscation options stored on a server (netifd uses `awg_<key>`; dawnline.awg renders them). */
 export const OBF_KEYS = [ 'jc', 'jmin', 'jmax', 's1', 's2', 's3', 's4', 'h1', 'h2', 'h3', 'h4', 'i1', 'i2', 'i3', 'i4', 'i5',
 	// AmneziaWG 3.x
 	'header_protection_key', 'content_padding_addition', 'rekey_after_time', 'rekey_timeout', 'reject_after_time',
 	'keepalive_timeout', 'max_handshake_attempts', 'random_trailers', 'disable_cookies' ];
-
-/** Names in .conf files (and AmneziaVPN keys); netifd uses `awg_<key>`. */
-export const OBF_CONF = {
-	jc: 'Jc', jmin: 'Jmin', jmax: 'Jmax', s1: 'S1', s2: 'S2', s3: 'S3', s4: 'S4',
-	h1: 'H1', h2: 'H2', h3: 'H3', h4: 'H4', i1: 'I1', i2: 'I2', i3: 'I3', i4: 'I4', i5: 'I5',
-	header_protection_key: 'HeaderProtectionKey', content_padding_addition: 'ContentPaddingAddition',
-	rekey_after_time: 'RekeyAfterTime', rekey_timeout: 'RekeyTimeout', reject_after_time: 'RejectAfterTime',
-	keepalive_timeout: 'KeepaliveTimeout', max_handshake_attempts: 'MaxHandshakeAttempts',
-	random_trailers: 'RandomTrailers', disable_cookies: 'DisableCookies',
-};
-
 function toint(v, dflt) {
 	if (v == null || v == '')
 		return dflt;
@@ -74,8 +70,6 @@ export function load(c) {
 		settings: {
 			portal_enabled: bool(s.portal_enabled, false),
 			portal_port: toint(s.portal_port, 8443),
-			// Also answer on 443 from the internet (mobile networks often drop TLS on other ports).
-			portal_443: bool(s.portal_443, true),
 			portal_host: s.portal_host ?? '',
 			// More addresses for the same links (the main one is portal_host).
 			portal_alt: filter(type(s.portal_alt) == 'array' ? s.portal_alt : s.portal_alt ? [ s.portal_alt ] : [], (x) => x != ''),
@@ -95,6 +89,8 @@ export function load(c) {
 			watchdog: bool(s.watchdog, true),
 			// Second DNS for "home names" devices, used by the device when the tunnel is down.
 			home_dns_fallback: s.home_dns_fallback == 'none' ? '' : (s.home_dns_fallback ?? '1.1.1.1'),
+			// Settings → Updates (automatic checks and updates of the components).
+			updates: updates_policy(s),
 			// Raw retention values; dawnline.live policy() interprets them.
 			retention: {
 				log_keep_days: s.log_keep_days, log_max: s.log_max, log_category: s.log_category,
@@ -109,6 +105,7 @@ export function load(c) {
 		circles: {},
 	};
 
+	let blocked = read_json(BLOCKED, {});
 	c.foreach(CONFIG, 'server', (r) => {
 		let id = r['.name'];
 		let srv = {
@@ -137,13 +134,16 @@ export function load(c) {
 			// (Older configs: device_mesh 0/1.)
 			mesh: index(MESH, r.mesh) >= 0 ? r.mesh : (bool(r.device_mesh, true) ? 'all' : 'off'),
 			enabled: bool(r.enabled, true),
+			// AmneziaWG disguise values, read by dawnline.awg.
 			obf: {},
 		};
-		// A person's own devices reach each other whenever the mesh is not off.
-		srv.device_mesh = srv.mesh != 'off';
 		for (let k in OBF_KEYS)
 			if (r[k] != null && r[k] != '')
 				srv.obf[k] = `${r[k]}`;
+		// A person's own devices reach each other whenever the mesh is not off.
+		srv.device_mesh = srv.mesh != 'off';
+		if (blocked[id])
+			srv.blocked = blocked[id];
 		m.servers[id] = srv;
 	});
 
@@ -291,37 +291,43 @@ export function load_usage() {
 	return read_json(`${RUN_DIR}/usage.json`, null) ?? read_json(`${DATA_DIR}/usage.json`, { devices: {}, people: {} });
 };
 
-/* ---------- keys ---------- */
+/* ---------- tunnels and addresses ---------- */
 
-export function genkey() {
-	return sh_out('awg genkey');
+/** A server's interface name: also a netifd section and an nft string, so nothing else. */
+export function valid_ifname(s) {
+	return type(s) == 'string' && match(s, /^[a-z][a-z0-9_]{0,11}$/) != null;
 };
 
-export function pubkey(priv) {
-	if (!valid_key(priv))
-		return null;
-	return sh_out(`printf %s ${q(priv)} | awg pubkey`);
-};
-
-export function genpsk() {
-	return sh_out('awg genpsk');
-};
-
-/* ---------- networks ---------- */
-
-/** IPv4 subnets of the router's LAN zone (from netifd), as CIDR strings. */
-/** Router address inside the server subnet (first host). */
+/** Router address inside the AmneziaWG subnet (first host). */
 export function server_address(srv) {
 	let c = parse_cidr(srv.subnet);
 	return c ? int2ip(c.first) : null;
 };
 
+/**
+ * The link a server's devices come in on: { ifname, subnet, address (the
+ * router's) }, as a list so the access table, firewall zone, "like a home
+ * device" and DNS treat every tunnel interface alike. None for a server
+ * without keys, subnet or a valid interface name (an imported config), or
+ * whose interface name is taken (BLOCKED).
+ */
+export function tunnels(srv) {
+	let c = srv?.private_key && !srv.blocked && valid_ifname(srv.ifname) ? parse_cidr(srv.subnet) : null;
+	return c ? [ { ifname: srv.ifname, subnet: srv.subnet, address: int2ip(c.first) } ] : [];
+};
+
+/** The server's tunnel link, or null. */
+export function tunnel(srv) {
+	return tunnels(srv)[0];
+};
+
+/** The first free address in the server's subnet (the router has the first). */
 export function alloc_address(m, srv) {
-	let c = parse_cidr(srv.subnet);
-	if (!c)
+	let t = parse_cidr(srv.subnet);
+	if (!t)
 		return null;
 	let used = {};
-	used[c.first] = true;
+	used[t.first] = true;
 	for (let id, d in m.devices) {
 		let p = m.people[d.person];
 		if (p && p.server == srv.id) {
@@ -330,124 +336,24 @@ export function alloc_address(m, srv) {
 				used[n] = true;
 		}
 	}
-	for (let n = c.first + 1; n <= c.last; n++)
+	for (let n = t.first + 1; n <= t.last; n++)
 		if (!used[n])
 			return int2ip(n);
 	return null;
 };
 
-/* ---------- obfuscation ---------- */
-
-const OBF_SPEC = { jc: [ 0, 10 ], jmin: [ 64, 1024 ], jmax: [ 64, 1024 ], s1: [ 0, 64 ], s2: [ 0, 64 ], s3: [ 0, 64 ], s4: [ 0, 32 ] };
-
-function rand_h(used) {
-	for (let i = 0; i < 50; i++) {
-		let v = rand_int(5, 2147483647);
-		if (!used[v]) {
-			used[v] = true;
-			return `${v}`;
-		}
-	}
-}
-
-/**
- * What the installed AmneziaWG can do, from the netifd protocol script (the
- * options it passes on) and the `awg` tool (the keys it accepts):
- *   v2 — S3/S4, I1-I5, header ranges (AWG 1.5/2.0)
- *   v3 — header protection, trailers, padding, timing (AWG 3.1)
- */
-export function awg_caps() {
-	let script = readfile('/lib/netifd/proto/amneziawg.sh') ?? '';
-	let tool = sh_out("grep -a -o -m1 'HeaderProtectionKey' /usr/bin/awg 2>/dev/null") ?? '';
-	let v2 = index(script, 'awg_s3') >= 0 && index(script, 'awg_i1') >= 0;
-	let v3 = v2 && index(script, 'awg_header_protection_key') >= 0 && tool != '';
-	return { v2, v3 };
-};
-
-/** First junk packet shaped like a DNS answer (AmneziaVPN's own default for 3.1). */
-const DNS_MIMIC = '<r 2><b 0x858000010001000000000669636c6f756403636f6d0000010001c00c000100010000105a00044d583737>';
-
-/**
- * Generate obfuscation parameters for a method:
- *   off      plain WireGuard-compatible packets
- *   standard junk packets and random headers (any AmneziaWG client)
- *   strong   more and larger junk (any AmneziaWG client)
- *   max      AmneziaWG 3.1: protected headers, random trailers, padding,
- *            jittered timers and a DNS-like first packet — the values
- *            AmneziaVPN itself uses for 3.1 servers
- */
-export function obf_preset(name) {
-	if (name == 'max')
-		return {
-			jc: `${rand_int(4, 6)}`, jmin: '10', jmax: '50',
-			s1: '12', s2: '12', s3: '12', s4: '12',
-			h1: '1', h2: '2', h3: '3', h4: '4',
-			i1: DNS_MIMIC,
-			header_protection_key: genkey(),
-			content_padding_addition: '10-100',
-			rekey_after_time: '100-120', rekey_timeout: '3-7', reject_after_time: '150-180',
-			keepalive_timeout: '5-15', max_handshake_attempts: '15-20',
-			random_trailers: 'on', disable_cookies: 'on',
-		};
-	if (name == 'off')
-		return { jc: '0', jmin: '0', jmax: '0', s1: '0', s2: '0', h1: '1', h2: '2', h3: '3', h4: '4' };
-	let strong = name == 'strong';
-	let o = {};
-	o.jc = `${strong ? rand_int(6, 10) : rand_int(3, 6)}`;
-	let jmin = rand_int(64, strong ? 128 : 96);
-	o.jmin = `${jmin}`;
-	o.jmax = `${jmin + rand_int(strong ? 200 : 32, strong ? 600 : 160)}`;
-	let s1 = rand_int(15, 64), s2 = rand_int(15, 64);
-	while (s1 + 56 == s2)
-		s2 = rand_int(15, 64);
-	o.s1 = `${s1}`;
-	o.s2 = `${s2}`;
-	let used = {};
-	for (let k in [ 'h1', 'h2', 'h3', 'h4' ])
-		o[k] = rand_h(used);
-	return o;
-};
-
-export function obf_errors(o) {
-	let errs = [];
-	for (let k, r in OBF_SPEC) {
-		let v = o[k];
-		if (v == null || v == '')
-			continue;
-		if (!match(v, /^[0-9]+$/) || +v < r[0] || +v > r[1]) {
-			if (!(v == '0' && (k == 'jmin' || k == 'jmax')))
-				push(errs, `${k}=${v} (${r[0]}-${r[1]})`);
-		}
-	}
-	if (o.jmin != null && o.jmax != null && +o.jmin > +o.jmax)
-		push(errs, 'jmin > jmax');
-	if (o.s1 != null && o.s2 != null && +o.s1 + 56 == +o.s2)
-		push(errs, 's1 + 56 = s2');
-	let hs = {};
-	for (let k in [ 'h1', 'h2', 'h3', 'h4' ]) {
-		let v = o[k];
-		if (v == null || v == '')
-			continue;
-		if (!match(v, /^[0-9]+(-[0-9]+)?$/))
-			push(errs, `${k} must be a number or range`);
-		else if (hs[v])
-			push(errs, 'h1-h4 must be distinct');
-		hs[v] = true;
-	}
-	return errs;
-};
-
-/* ---------- client configuration ---------- */
+/* ---------- what clients get ---------- */
 
 export function endpoint_host(m, srv) {
 	return srv.endpoint || m.settings.portal_host || '';
 };
 
 /**
- * DNS for a server's clients: the router's tunnel address, which never
- * changes after setup. The router forwards each query where it belongs (the
- * LAN's DNS, from the LAN side; or the plain resolver), so configurations on
- * devices keep working when the LAN, its DNS or the netns address change.
+ * DNS for a server's clients: the router's address in the tunnel subnet,
+ * which never changes after setup. The router forwards each query where it
+ * belongs (the LAN's DNS, from the LAN side; or the plain resolver), so
+ * configurations on devices keep working when the LAN, its DNS or the netns
+ * address change.
  */
 export function dns_list(m, srv) {
 	if (!srv)
@@ -459,10 +365,10 @@ export function dns_list(m, srv) {
 };
 
 /**
- * DNS written into a device's configuration. Home-only people keep their
- * device's DNS unless they chose home names; then the first server is
- * Dawnline's plain resolver (reached through the tunnel) and the second the
- * fallback the device uses when the tunnel is down.
+ * DNS a device uses. Home-only people keep their device's DNS unless they
+ * chose home names; then the first server is Dawnline's plain resolver
+ * (reached through the tunnel) and the second the fallback the device uses
+ * when the tunnel is down.
  */
 export function client_dns(m, srv, p) {
 	if (p?.access != 'lan')
@@ -498,132 +404,6 @@ export function person_home(srv, p, snap) {
 export function person_circle(m, p) {
 	let c = m.circles[p?.circle];
 	return c && c.server == p.server ? c : null;
-};
-
-export function allowed_ips(m, srv, p) {
-	if (p.access == 'lan') {
-		let nets = person_home(srv, p).nets;
-		// With devices reaching each other, the whole tunnel network (the router's
-		// address is in it); otherwise only the router's own address.
-		let a = server_address(srv);
-		if (srv.device_mesh && srv.subnet)
-			push(nets, srv.subnet);
-		else if (a)
-			push(nets, `${a}/32`);
-		// The resolver address must be reachable through the tunnel too (not the fallback).
-		let dns = client_dns(m, srv, p)[0];
-		if (dns)
-			push(nets, `${dns}/32`);
-		return net.collapse(nets);
-	}
-	return [ '0.0.0.0/0', '::/0' ];
-};
-
-/** Everything a client needs; `conf` is the .conf text. */
-/** True when the obfuscation settings change nothing on the wire (plain WireGuard). */
-export function obf_neutral(o) {
-	for (let k in OBF_KEYS) {
-		let v = o?.[k];
-		if (v == null || v == '')
-			continue;
-		let want = { h1: '1', h2: '2', h3: '3', h4: '4' }[k] ?? '0';
-		if (`${v}` != want)
-			return false;
-	}
-	return true;
-};
-
-export function client_config(m, dev) {
-	let p = m.people[dev.person];
-	let srv = p ? m.servers[p.server] : null;
-	if (!srv)
-		return null;
-	let host = endpoint_host(m, srv);
-	let ep = match(host, /:/) && !match(host, /^\[/) ? `[${host}]` : host;
-	let allowed = allowed_ips(m, srv, p);
-	let dns = client_dns(m, srv, p);
-	let lines = [ '[Interface]' ];
-	push(lines, `PrivateKey = ${dev.private_key || '<private key stays on your device>'}`);
-	push(lines, `Address = ${dev.address}/32`);
-	if (length(dns))
-		push(lines, `DNS = ${join(', ', dns)}`);
-	push(lines, `MTU = ${srv.mtu}`);
-	// "Off" is plain WireGuard: neutral values (no junk, H1-H4 = 1-4) are left
-	// out, so any WireGuard app accepts the file.
-	if (!obf_neutral(srv.obf))
-		for (let k in OBF_KEYS)
-			if (srv.obf[k] != null && srv.obf[k] != '')
-				push(lines, `${OBF_CONF[k]} = ${srv.obf[k]}`);
-	push(lines, '', '[Peer]');
-	push(lines, `PublicKey = ${srv.public_key}`);
-	if (dev.preshared_key)
-		push(lines, `PresharedKey = ${dev.preshared_key}`);
-	push(lines, `AllowedIPs = ${join(', ', allowed)}`);
-	push(lines, `Endpoint = ${ep}:${srv.port}`);
-	if (srv.keepalive > 0)
-		push(lines, `PersistentKeepalive = ${srv.keepalive}`);
-	return {
-		name: dev.name,
-		person: p.name,
-		server: srv.name,
-		filename: `${substr(replace(lc(p.id + '-' + dev.name), /[^a-z0-9]+/g, '-'), 0, 15)}.conf`,
-		conf: join('\n', lines) + '\n',
-		has_private_key: dev.private_key != '',
-		amnezia: {
-			host,
-			port: srv.port,
-			mtu: `${srv.mtu}`,
-			dns,
-			allowed_ips: allowed,
-			client_ip: dev.address,
-			client_priv_key: dev.private_key,
-			client_pub_key: dev.public_key,
-			psk_key: dev.preshared_key,
-			server_pub_key: srv.public_key,
-			persistent_keep_alive: `${srv.keepalive}`,
-			obfuscation: srv.obf,
-		},
-	};
-};
-
-/* ---------- issued configurations ---------- */
-
-const ISSUED = `${DATA_DIR}/issued.json`;
-
-function fnv32(str) {
-	let h = 2166136261;
-	for (let i = 0; i < length(str); i++)
-		h = ((h ^ ord(str, i)) * 16777619) & 0xffffffff;
-	return sprintf('%08x', h);
-}
-
-/** What a device holds, minus its private key: changes when it must import again. */
-export function config_fingerprint(m, dev) {
-	let c = dev ? client_config(m, dev) : null;
-	return c ? fnv32(join('\n', filter(split(c.conf, '\n'), (l) => !match(l, /^PrivateKey/)))) : null;
-};
-
-/** Device id → fingerprint of the configuration last shown or downloaded. */
-export function issued() {
-	return read_json(ISSUED, {});
-};
-
-/** Remember that a device was just given its current configuration. */
-export function mark_issued(m, id) {
-	let fp = config_fingerprint(m, m.devices[id]);
-	if (!fp)
-		return;
-	let l = lock('issued');
-	let all = issued();
-	if (all[id] != fp) {
-		all[id] = fp;
-		for (let k in keys(all))
-			if (!m.devices[k])
-				delete all[k];
-		ensure_dir(DATA_DIR, 0o700);
-		write_json(ISSUED, all, 0o600);
-	}
-	unlock(l);
 };
 
 /* ---------- mutations (caller commits) ---------- */
@@ -673,7 +453,9 @@ export function create_person(c, m, a) {
 	let base = replace(a.slug ?? slugify(a.name), /-/g, '_');
 	if (!match(base, /^[a-z0-9_]{1,32}$/))
 		fail('The id may use lowercase letters, digits and underscores.');
-	let taken = (id) => m.people[id] || m.servers[id] || m.devices[id] || m.services[id] || id == 'settings';
+	// Any kind of section (store.id_taken, which imports this module).
+	let taken = (id) => m.people[id] || m.servers[id] || m.devices[id] || m.services[id] || m.circles[id] ||
+		index([ 'settings', 'main', 'global', 'defaults' ], id) >= 0;
 	let slug = base;
 	for (let n = 2; taken(slug); n++) {
 		if (n > 99)
@@ -734,8 +516,9 @@ export function update_person(c, m, id, a) {
 		let n = toint(a.device_limit, 0);
 		if (n < 1 || n > 32)
 			fail('Device limit must be between 1 and 32.');
-		if (n < length(p.devices))
-			fail(`${p.name} already has ${length(p.devices)} devices. Remove one first to lower the limit to ${n}.`);
+		let have = length(p.devices);
+		if (n < have)
+			fail(`${p.name} already has ${have} devices. Remove one first to lower the limit to ${n}.`);
 		set('device_limit', n);
 	}
 	if (a.expires != null) {
@@ -808,9 +591,9 @@ export function update_person(c, m, id, a) {
 };
 
 /**
- * Add a device for a person. `opts.by` is 'admin' or 'portal'; the portal
- * enforces the device limit. `opts.public_key` keeps the private key on the
- * client (browser-generated keys).
+ * Add a device for a person. `opts.keys` = { private_key?, public_key,
+ * preshared_key } from dawnline.awg (or a public key the browser generated).
+ * `opts.by` is 'admin' or 'portal'; the portal is held to the device limit.
  */
 export function create_device(c, m, person_id, name, kind, opts) {
 	opts ??= {};
@@ -833,39 +616,29 @@ export function create_device(c, m, person_id, name, kind, opts) {
 	let addr = alloc_address(m, srv);
 	if (!addr)
 		fail('No free addresses left in the server subnet.');
-
-	let priv = '', pub;
-	if (opts.public_key) {
-		if (!valid_key(opts.public_key))
-			fail('Invalid public key.');
-		pub = opts.public_key;
-	}
-	else {
-		priv = genkey();
-		pub = pubkey(priv);
-	}
-	if (!pub)
+	let k = opts.keys ?? {};
+	if (!valid_key(k.public_key))
 		fail('Key generation failed (is amneziawg-tools installed?).');
-	for (let id, d in m.devices)
-		if (d.public_key == pub)
+	for (let o, d in m.devices)
+		if (d.public_key == k.public_key)
 			fail('This key is already in use.');
 
 	let id = `d_${rand_hex(4)}`;
+	let dev = { id, person: person_id, name, kind, address: addr, public_key: k.public_key, private_key: k.private_key ?? '',
+		preshared_key: k.preshared_key ?? '', created: time(), created_by: opts.by ?? 'admin', disabled: false };
 	c.set(CONFIG, id, 'device');
 	c.set(CONFIG, id, 'person', person_id);
 	c.set(CONFIG, id, 'name', name);
 	c.set(CONFIG, id, 'kind', kind);
 	c.set(CONFIG, id, 'address', addr);
-	c.set(CONFIG, id, 'public_key', pub);
-	if (priv)
-		c.set(CONFIG, id, 'private_key', priv);
-	c.set(CONFIG, id, 'preshared_key', genpsk());
-	c.set(CONFIG, id, 'created', `${time()}`);
-	c.set(CONFIG, id, 'created_by', opts.by ?? 'admin');
+	for (let f in [ 'public_key', 'private_key', 'preshared_key' ])
+		if (dev[f])
+			c.set(CONFIG, id, f, dev[f]);
+	c.set(CONFIG, id, 'created', `${dev.created}`);
+	c.set(CONFIG, id, 'created_by', dev.created_by);
 
 	// Keep the in-memory model consistent for callers that continue.
-	m.devices[id] = { id, person: person_id, name, kind, address: addr, public_key: pub, private_key: priv,
-		preshared_key: c.get(CONFIG, id, 'preshared_key'), created: time(), created_by: opts.by ?? 'admin', disabled: false };
+	m.devices[id] = dev;
 	push(p.devices, id);
 	return id;
 };
@@ -895,16 +668,17 @@ export function delete_device(c, m, id) {
 	delete m.devices[id];
 };
 
-export function rotate_device(c, m, id) {
+/** New keys from dawnline.awg (the caller makes them: the model does not run tools). */
+export function rotate_device(c, m, id, keys) {
 	let d = m.devices[id];
 	if (!d)
 		fail('Unknown device.');
-	let priv = genkey(), pub = pubkey(priv);
-	if (!pub)
+	if (!valid_key(keys?.public_key) || !keys?.private_key)
 		fail('Key generation failed.');
-	c.set(CONFIG, id, 'private_key', priv);
-	c.set(CONFIG, id, 'public_key', pub);
-	c.set(CONFIG, id, 'preshared_key', genpsk());
+	c.set(CONFIG, id, 'private_key', keys.private_key);
+	c.set(CONFIG, id, 'public_key', keys.public_key);
+	if (keys.preshared_key)
+		c.set(CONFIG, id, 'preshared_key', keys.preshared_key);
 };
 
 export function delete_person(c, m, id) {
@@ -919,7 +693,7 @@ export function delete_person(c, m, id) {
 /** Validate a server definition (as loaded) against the rest of the router. */
 export function server_errors(m, srv, others_subnets) {
 	let errs = [];
-	if (!match(srv.ifname, /^[a-z][a-z0-9_]{0,11}$/))
+	if (!valid_ifname(srv.ifname))
 		push(errs, 'Interface name: 1-12 lowercase letters, digits or _.');
 	if (srv.port < 1 || srv.port > 65535)
 		push(errs, 'Port must be 1-65535.');
@@ -934,7 +708,6 @@ export function server_errors(m, srv, others_subnets) {
 		}
 	if (srv.endpoint != '' && !valid_host(srv.endpoint))
 		push(errs, 'Endpoint must be a hostname or IP address.');
-	push(errs, ...obf_errors(srv.obf));
 	return errs;
 };
 
@@ -947,16 +720,12 @@ export function wan_port_taken(port) {
 		if (match(r['.name'], /^dawnline_/) || r.enabled == '0' || (r.target ?? 'DNAT') != 'DNAT')
 			return;
 		for (let p in split(`${r.src_dport ?? ''}`, /[ ,]+/)) {
-			let m = match(p, /^(\d+)(?:[-:](\d+))?$/);
-			if (m && +m[1] <= port && port <= +(m[2] ?? m[1]))
+			let m = match(p, /^(\d+)([-:](\d+))?$/);
+			if (m && +m[1] <= port && port <= +(m[3] || m[1]))
 				taken = true;
 		}
 	});
 	return taken;
-};
-
-export function wan443_taken() {
-	return wan_port_taken(443);
 };
 
 /** Every address the links use, the main one first. */
@@ -978,17 +747,14 @@ export function portal_http_port(m) {
 	return m.settings.portal_port + 1;
 };
 
-/** The port in plain-HTTP links: 80 when standard ports are on and free. */
+/** The port in plain-HTTP links (the portal never takes 80 or 443 for itself). */
 export function portal_http_public(m) {
-	return m.settings.portal_443 && !wan_port_taken(80) ? 80 : portal_http_port(m);
+	return portal_http_port(m);
 };
 
-/** The port in personal links: 443 when the portal also answers there. */
+/** The port in personal links: the portal's own. */
 export function portal_public_port(m) {
-	let s = m.settings;
-	if (s.portal_port == 443 || !s.portal_443 || wan443_taken())
-		return s.portal_port;
-	return 443;
+	return m.settings.portal_port;
 };
 
 /** The link on one address: https for names, plain http for IP addresses. */

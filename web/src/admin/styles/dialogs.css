@@ -1,0 +1,47 @@
+/* Setup wizard steps and dialogs. */
+/* wizard steps */
+.dl-steps { display: flex; align-items: center; gap: 8px; margin: 0 0 16px; flex-wrap: wrap; }
+.dl-step { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; color: var(--dl-fg-faint); }
+.dl-step b { display: inline-flex; width: 24px; height: 24px; align-items: center; justify-content: center; border-radius: 50%;
+  background: var(--dl-soft); font-size: 12px; font-weight: 600; }
+.dl-step.current { color: var(--dl-fg); } .dl-step.current b { background: var(--dl-primary); color: var(--dl-primary-fg); }
+.dl-step.done { color: var(--dl-fg-muted); } .dl-step.done b { background: var(--dl-ok-wash); color: var(--dl-ok); }
+.dl-step + .dl-step::before { content: ''; width: 24px; height: 1px; background: var(--dl-line); }
+/* Each step's content: intro, fields and choices with even spacing. */
+.dl-wizard .dl-panel > div { display: flex; flex-direction: column; gap: 16px; }
+.dl-wizard .dl-panel > div > p { margin: 0 !important; color: var(--dl-fg-muted); }
+.dl-wizard .dl-panel > div > .cbi-value { margin: 0; }
+.dl-wizard h4 { font-size: 14px; font-weight: 500; margin: 8px 0 -6px !important; }
+.dl-wizard h4:first-child { margin-top: 0 !important; }
+
+/* dialogs */
+.dl-modal .cbi-tabmenu { margin-bottom: 16px; }
+.dl-invite { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 22px; align-items: start; }
+.dl-invite img { display: block; width: 100%; border-radius: 18px; box-shadow: 0 0 0 1px var(--dl-line); }
+.dl-invite-side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.dl-invite-side > p { margin: 0 !important; }
+.dl-invite-link { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 10px; min-width: 0;
+  padding: 11px 14px; border-radius: 12px; background: var(--dl-soft); font: 13px/18px var(--dl-mono); color: var(--dl-fg); }
+.dl-invite-link > span:first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dl-invite-link > .dl-icon-wrap { flex: none; display: inline-flex; }
+.dl-invite-link .dl-icon { width: 15px; height: 15px; color: var(--dl-fg-muted); flex: none; }
+.dl-invite-link:hover { background: var(--dl-soft-hover); }
+.dl-invite-link.alt { padding: 8px 14px; font-size: 12px; color: var(--dl-fg-muted); }
+.dl-invite-link > .dl-pill { flex: none; }
+.dl-invite-steps { margin: 0; padding-left: 20px; list-style: decimal !important; font-size: 13px; line-height: 24px; color: var(--dl-fg-muted); }
+.dl-invite-steps b { color: var(--dl-fg); font-weight: 500; }
+.dl-invite-steps li { display: list-item !important; list-style: inherit !important; padding-left: 4px; }
+.dl-invite-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.modal:has(.dl-modal.wide) { max-width: min(760px, 94vw) !important; width: 100% !important; }
+@media (max-width: 640px) { .dl-invite { grid-template-columns: minmax(0, 1fr); } .dl-invite img { max-width: 260px; margin: 0 auto; } }
+.dl-toasts { position: fixed; left: 50%; bottom: max(24px, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 100000;
+  display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; }
+.dl-toast { pointer-events: auto; display: inline-flex; align-items: center; gap: 8px; max-width: min(520px, 92vw); padding: 10px 16px; border-radius: 999px;
+  background: var(--dl-fg); color: var(--dl-card); font-size: 13px; line-height: 18px; box-shadow: 0 10px 30px rgba(0, 0, 0, .3);
+  opacity: 0; transform: translateY(12px); transition: opacity .18s, transform .18s; }
+.dl-toast.show { opacity: 1; transform: none; }
+.dl-toast .dl-icon-wrap { display: inline-flex; } .dl-toast .dl-icon { width: 15px; height: 15px; }
+.dl-toast.success .dl-icon { color: var(--dl-ok); }
+.dl-toast.error { background: var(--dl-bad); color: #fff; } .dl-toast.error .dl-icon { color: #fff; }
+.dl-toast.warning { background: var(--dl-warn); color: #111; } .dl-toast.warning .dl-icon { color: #111; }
+.dl-toast button { all: unset; cursor: pointer; display: inline-flex; margin-left: 4px; opacity: .8; } .dl-toast button:hover { opacity: 1; }

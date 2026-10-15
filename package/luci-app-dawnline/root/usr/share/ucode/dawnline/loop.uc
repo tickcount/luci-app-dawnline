@@ -14,12 +14,11 @@
 // Clients also use the netns address as DNS: it forwards to the DNS the LAN
 // gets from DHCP, from the LAN side, so DNS interception applies as well.
 //
-// Separately, people with Home-only access get a plain resolver (real
-// addresses from the WAN's DNS, home names from the LAN DNS): their internet
-// does not use the tunnel, so fake-IP answers would break it. While the netns
-// exists the resolver runs inside it and sends its upstream queries back out
-// through the transit link as forwarded traffic — not as the router's own
-// traffic and not from the LAN — so tools that capture either leave it alone.
+// Separately, people with Home-only access get a plain resolver
+// (dawnline.resolver). While the netns exists it runs inside it and sends its
+// upstream queries back out through the transit link as forwarded traffic —
+// not as the router's own traffic and not from the LAN — so tools that
+// capture either leave it alone. This module says where it runs.
 //
 // Everything is derived from the router at run time; nothing assumes a
 // particular subnet or tool. If the LAN is not a bridge or setup fails, the
@@ -27,18 +26,19 @@
 
 import { readfile, writefile, readlink, stat, unlink } from 'fs';
 import { cursor } from 'uci';
-import { sh, sh_out, q, ip2int, int2ip, ensure_dir, read_json, write_json, uniq, slog, RUN_DIR } from 'dawnline.util';
+import {
+	sh, sh_out, q, ip2int, int2ip, parse_cidr, cidr_any, ensure_dir, read_json, write_json, slog, RUN_DIR
+} from 'dawnline.util';
 import * as net from 'dawnline.net';
+import * as core from 'dawnline.core';
+import * as store from 'dawnline.store';
+import * as resolver from 'dawnline.resolver';
 
 export const NS = 'dawnline';
 const TX_ROOT = net.INTERNAL.transit, TX_NS = 'dlx1', LAN_ROOT = net.INTERNAL.lan, LAN_NS = 'dll1';
 const PREF_LOOP_DNS = 5205, PREF_MAIN = 5210, PREF_LOOP = 5290;
-const RESOLVER_PORT = 5354;
-export const RESOLVER_CONF = '/var/etc/dawnline-dns.conf';
-const RESOLVER_RESOLV = '/var/etc/dawnline-dns.resolv';
-const RESOLVER_PID = '/var/run/dawnline-dns.pid';
+export const RESOLVER_CONF = resolver.CONF;
 const STATE = `${RUN_DIR}/loop.json`;
-const FALLBACK_DNS = [ '1.1.1.1', '8.8.8.8' ];
 
 const WHO = 'Internet like a home device';
 
@@ -58,17 +58,6 @@ function run(cmds) {
 
 function exists(dev) {
 	return stat(`/sys/class/net/${dev}`) != null;
-}
-
-function cidr_of(a) {
-	let m = match(a ?? '', /^([0-9.]+)\/([0-9]+)$/);
-	if (!m)
-		return null;
-	let ip = ip2int(m[1]), prefix = +m[2];
-	if (ip == null || prefix < 8 || prefix > 30)
-		return null;
-	let size = 1 << (32 - prefix);
-	return { ip, prefix, size, net: ip - ip % size };
 }
 
 /* ---------- facts about the LAN ---------- */
@@ -160,12 +149,8 @@ function pick_transit(saved) {
 			push(busy, n);
 	let free = (base) => {
 		for (let b in busy) {
-			let c = match(b, /^([0-9.]+)(\/([0-9]+))?$/);
-			if (!c)
-				continue;
-			let ip = ip2int(c[1]), size = 1 << (32 - (c[3] != null ? +c[3] : 32));
-			let bn = ip - ip % size;
-			if (base < bn + size && bn < base + 4)
+			let c = cidr_any(b);
+			if (c && base < c.net + c.size && c.net < base + 4)
 				return false;
 		}
 		return true;
@@ -203,9 +188,14 @@ function settings() {
 	return c.get_all('dawnline', 'settings') ?? {};
 }
 
-/** Servers that want "like a home device" (default on). */
+/** Servers that want "like a home device" (default on) and run a core. */
 function wanted(m) {
-	return filter(values(m.servers), (s) => s.private_key && s.enabled && s.lan_like);
+	return filter(values(m.servers), (s) => length(core.tunnels(s)) && s.enabled && s.lan_like);
+}
+
+/** Every server's interface, for rules. */
+function all_ifnames(m) {
+	return map(values(m.servers), (s) => s.ifname);
 }
 
 /**
@@ -223,7 +213,7 @@ export function plan(m) {
 		return { error: 'No LAN detected.' };
 	if (d.kind != 'bridge')
 		return { error: `${dev} is not a bridge, so Dawnline cannot join the LAN as a device.` };
-	let lan = cidr_of(d.addrs[0]);
+	let lan = parse_cidr(d.addrs[0]);
 	if (!lan)
 		return { error: `${dev} has no IPv4 address.` };
 	let facts = dhcp_facts(d.logical, lan);
@@ -241,7 +231,8 @@ export function plan(m) {
 	let servers = [];
 	for (let srv in srvs) {
 		let sn = net.server_net(srv, snap);
-		push(servers, { ifname: srv.ifname, subnet: srv.subnet, direct: net.collapse([ srv.subnet, ...sn.nets ]) });
+		for (let t in core.tunnels(srv))
+			push(servers, { ifname: t.ifname, subnet: t.subnet, direct: net.collapse([ t.subnet, ...sn.nets ]) });
 	}
 	return {
 		dev,
@@ -332,7 +323,9 @@ function tunnel_ifnames() {
 	let c = cursor();
 	c.load('dawnline');
 	let out = [];
-	c.foreach('dawnline', 'server', (s) => push(out, s.ifname ?? s['.name']));
+	c.foreach('dawnline', 'server', (s) => {
+		push(out, s.ifname ?? s['.name']);
+	});
 	return out;
 }
 
@@ -360,13 +353,14 @@ export function remove(ifnames) {
  * last applied plan and only checks that links, bridge port and rules exist.
  */
 export function ensure(m, force) {
-	let ifnames = map(values(m.servers), (s) => s.ifname);
+	let ifnames = all_ifnames(m);
 	let p = plan(m);
 	if (p.off || p.error) {
-		if (stat(STATE) || exists(TX_ROOT) || exists(LAN_ROOT) || length(current_rules(ifnames)))
+		// Read before remove(), which deletes it: the error is logged once, not every tick.
+		let was = read_json(STATE, {});
+		if (was.plan || exists(TX_ROOT) || exists(LAN_ROOT) || length(current_rules(ifnames)))
 			remove(ifnames);
 		ensure_dir(RUN_DIR);
-		let was = read_json(STATE, {});
 		write_json(STATE, { error: p.error, off: !!p.off }, 0o644);
 		if (p.error && p.error != was.error)
 			log('is off', 'error', p.error);
@@ -423,15 +417,6 @@ export function ensure(m, force) {
 		write_json(STATE, { error: `Setup failed: ${errs[0]}` }, 0o644);
 		return { error: errs[0] };
 	}
-	// Keep the chosen LAN address stable across restarts.
-	let c = cursor();
-	c.load('dawnline');
-	if (c.get('dawnline', 'settings', 'lan_address') != p.address) {
-		c.set('dawnline', 'settings', 'settings');
-		c.set('dawnline', 'settings', 'lan_address', p.address);
-		c.commit('dawnline');
-		system('chmod 600 /etc/config/dawnline');
-	}
 	ensure_dir(RUN_DIR);
 	write_json(STATE, { applied: time(), plan: p, transit: p.transit }, 0o644);
 	if (!last.applied || last.plan?.dev != p.dev || last.plan?.address != p.address)
@@ -439,6 +424,20 @@ export function ensure(m, force) {
 	else if (!healthy)
 		log(`was broken — set up again (${p.dev} as ${p.address})`, 'repair');
 	return p;
+};
+
+/**
+ * Keep the chosen LAN address stable across restarts (settings.lan_address).
+ * Called by dawnline.apply once its own lock is released: the config lock is
+ * never taken inside it.
+ */
+export function remember(p) {
+	if (!p?.address || settings().lan_address == p.address)
+		return;
+	store.transact((c, m) => {
+		c.set('dawnline', 'settings', 'settings');
+		c.set('dawnline', 'settings', 'lan_address', p.address);
+	});
 };
 
 /** Last applied state for views and health checks. */
@@ -461,33 +460,6 @@ export function client_dns() {
 
 /* ---------- plain resolver for Home-only clients ---------- */
 
-function wan_dns() {
-	let out = [];
-	let snap = net.snapshot();
-	let wan = snap.devices[snap.wan]?.logical;
-	for (let name in uniq([ wan, 'wan', 'wan6' ])) {
-		if (!name)
-			continue;
-		try {
-			let st = json(sh_out(`ubus call network.interface.${name} status 2>/dev/null`) || 'null');
-			for (let a in st?.['dns-server'] ?? [])
-				if (match(a, /^[0-9.]+$/))
-					push(out, a);
-		}
-		catch (e) {}
-	}
-	return length(out) ? uniq(out) : FALLBACK_DNS;
-}
-
-/** Local domain of the LAN DNS (dnsmasq `domain`, else the Dawnline hostname domain). */
-function lan_domain(m) {
-	let c = cursor();
-	c.load('dhcp');
-	let d = null;
-	c.foreach('dhcp', 'dnsmasq', (s) => { d ??= s.domain; });
-	return uniq(filter([ d, m.settings.domain ], (x) => x));
-}
-
 /** The DNS your LAN gets from DHCP (option 6), else the router on the LAN. */
 export function lan_dns() {
 	let st = status();
@@ -496,7 +468,10 @@ export function lan_dns() {
 	let snap = net.snapshot();
 	let d = snap.devices[snap.lan];
 	let a = d?.addrs?.[0];
-	return a ? (dhcp_facts(d.logical, cidr_of(a))?.dns ?? split(a, '/')[0]) : null;
+	if (!a)
+		return null;
+	let lan = parse_cidr(a);
+	return (lan ? dhcp_facts(d.logical, lan).dns : null) ?? split(a, '/')[0];
 };
 
 /**
@@ -505,62 +480,17 @@ export function lan_dns() {
  */
 export function resolver_target() {
 	let st = status();
-	return st.active && st.transit ? { mode: 'ns', address: st.transit, port: 53 } : { mode: 'root', port: RESOLVER_PORT };
+	return st.active && st.transit ? { mode: 'ns', address: st.transit, port: 53 } : { mode: 'root', port: resolver.PORT };
 };
 
-/**
- * Write the resolver config; returns true when it changed (the running
- * instance is then restarted by procd's respawn after a kill). The first line
- * tells /usr/libexec/dawnline/resolver where to run it.
- */
+/** Write the resolver config where it should run now; true when it changed (see dawnline.resolver). */
 export function sync_resolver(m) {
-	ensure_dir('/var/etc');
-	let ifs = map(filter(values(m.servers), (s) => s.private_key), (s) => s.ifname);
-	let target = resolver_target();
-	let lan = lan_dns();
-	let lines = [
-		`# mode=${target.mode}`,
-		'# Generated by Dawnline: plain DNS for Home-only tunnel clients.',
-		`port=${target.port}`,
-		'no-hosts',
-		'bogus-priv',
-		'cache-size=1000',
-		`pid-file=${RESOLVER_PID}`,
-		'user=dnsmasq',
-		'group=dnsmasq',
-	];
-	if (target.mode == 'ns') {
-		push(lines, `listen-address=${target.address}`, 'bind-interfaces', 'no-resolv');
-		// Upstream from the transit address: forwarded through the router to the WAN.
-		for (let a in wan_dns())
-			push(lines, `server=${a}@${target.address}`);
-	}
-	else {
-		push(lines, 'bind-dynamic', ...map(ifs, (i) => `interface=${i}`), `resolv-file=${RESOLVER_RESOLV}`);
-		let resolv = join('', map(wan_dns(), (a) => `nameserver ${a}\n`));
-		if ((readfile(RESOLVER_RESOLV) ?? '') != resolv) {
-			writefile(RESOLVER_RESOLV, resolv);
-			system(`chmod 644 ${RESOLVER_RESOLV}`);
-		}
-	}
-	if (lan)
-		for (let d in lan_domain(m))
-			push(lines, `server=/${d}/${lan}`);
-	let conf = join('\n', lines) + '\n';
-	if ((readfile(RESOLVER_CONF) ?? '') == conf)
-		return false;
-	writefile(RESOLVER_CONF, conf);
-	system(`chmod 644 ${RESOLVER_CONF}`);
-	let pid = trim(readfile(RESOLVER_PID) ?? '');
-	if (match(pid, /^[0-9]+$/))
-		system(`kill ${pid} 2>/dev/null`);
-	return true;
+	return resolver.sync(m, resolver_target(), lan_dns());
 };
 
 /** True when the resolver process is alive. */
 export function resolver_running() {
-	let pid = trim(readfile(RESOLVER_PID) ?? '');
-	return match(pid, /^[0-9]+$/) != null && stat(`/proc/${pid}`) != null;
+	return resolver.running();
 };
 
-export const RESOLVER = { port: RESOLVER_PORT, conf: RESOLVER_CONF };
+export const RESOLVER = { port: resolver.PORT, conf: resolver.CONF };

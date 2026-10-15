@@ -10,27 +10,23 @@
 					"service_log",
 					"backup_list",
 					"updates_status",
+					"updates_releases",
+					"updates_notes",
+					"updates_changes",
 					"person_usage",
 					"settings_get",
+					"portal_info",
 					"interfaces",
 					"events"
 				]
-			},
-			"uci": [
-				"dawnline",
-				"network",
-				"firewall"
-			]
+			}
 		},
 		"write": {
 			"ubus": {
 				"luci.dawnline": [
 					"*"
 				]
-			},
-			"uci": [
-				"dawnline"
-			]
+			}
 		}
 	}
 }

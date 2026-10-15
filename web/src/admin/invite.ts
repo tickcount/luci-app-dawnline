@@ -3,7 +3,11 @@
 
 import type { Person } from '../shared/types';
 import { E } from './e';
-import { attempt, button, closeModal, copyText, downloadFile, modal, notify } from './ui';
+import { api } from './api';
+import { button } from './ui/button';
+import { closeModal, modal } from './ui/modal';
+import { copyText, downloadFile } from './ui/files';
+import { attempt, notify } from './ui/toast';
 import { icon } from '../shared/icons';
 import { qrSvg } from '../shared/qr';
 
@@ -16,7 +20,7 @@ const MONO = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
-function cardSvg(p: Person, server: string, link: string): string {
+function cardSvg(p: Pick<Person, 'name'>, server: string, link: string): string {
   const url = new URL(link);
   const word = url.pathname.slice(1);
   // Long names shrink to stay on one line (roughly 0.58 em per character).
@@ -60,19 +64,45 @@ async function toPng(svg: string): Promise<Blob> {
   );
 }
 
-type Invitee = Pick<Person, 'id' | 'name' | 'link'> & { links?: string[] };
+/** Who to invite; without `link` the card asks the router for the person's links (they are not in the status). */
+type Invitee = Pick<Person, 'id' | 'name'> & { link?: string | null; links?: string[] };
+
+/** The personal link and its other addresses (person_links); null while the portal is off. */
+export async function personLinks(id: string): Promise<{ link: string; links: string[] } | null> {
+  const r = await attempt(() => api.personLinks(id));
+  if (!r) return null;
+  if (!r.link) {
+    notify('The personal portal is off. Turn it on in Settings.', 'warning');
+    return null;
+  }
+  return { link: r.link, links: r.links ?? [] };
+}
+
+/** Copy a person's personal link. */
+export async function copyPersonLink(id: string) {
+  const r = await personLinks(id);
+  if (r) await copyText(r.link, 'Personal link copied');
+}
 
 /**
  * The card with Copy link and Share / Download. Also the "is ready" step
  * after adding someone.
  */
 export async function inviteCard(p: Invitee, server: string, opts: { title?: string; lead?: string } = {}) {
-  if (!p.link) {
+  let link = p.link;
+  let links = p.links;
+  if (link === undefined) {
+    const r = await personLinks(p.id);
+    if (!r) return;
+    link = r.link;
+    links = r.links;
+  }
+  if (!link) {
     notify('The personal portal is off. Turn it on in Settings.', 'warning');
     return;
   }
-  const link = p.link;
-  const png = await attempt(() => toPng(cardSvg(p as Person, server, link)));
+  const href = link;
+  const png = await attempt(() => toPng(cardSvg(p, server, href)));
   if (!png) return;
   const file = new File([png], `${p.id}-invite.png`, { type: 'image/png' });
   const url = URL.createObjectURL(png);
@@ -105,12 +135,12 @@ export async function inviteCard(p: Invitee, server: string, opts: { title?: str
           { class: 'dl-muted' },
           opts.lead ?? `Send ${p.name} the card or the link. They open it, add their devices and connect — no account needed.`,
         ),
-        E('button', { type: 'button', class: 'dl-invite-link', title: 'Copy link', click: () => copyText(link, 'Personal link copied') }, [
-          E('span', {}, link.replace(/^https:\/\//, '')),
+        E('button', { type: 'button', class: 'dl-invite-link', title: 'Copy link', click: () => copyText(href, 'Personal link copied') }, [
+          E('span', {}, href.replace(/^https:\/\//, '')),
           icon('copy'),
         ]),
-        ...(p.links ?? [])
-          .filter((l) => l !== link)
+        ...(links ?? [])
+          .filter((l) => l !== href)
           .map((l) =>
             E('button', { type: 'button', class: 'dl-invite-link alt', title: 'Copy this link', click: () => copyText(l, 'Link copied') }, [
               E('span', {}, l.replace(/^https?:\/\//, '')),
@@ -125,7 +155,7 @@ export async function inviteCard(p: Invitee, server: string, opts: { title?: str
         ]),
         E('div', { class: 'dl-invite-actions' }, [
           share,
-          button([icon('copy'), ' Copy link'], () => copyText(link, 'Personal link copied')),
+          button([icon('copy'), ' Copy link'], () => copyText(href, 'Personal link copied')),
         ]),
       ]),
     ]),

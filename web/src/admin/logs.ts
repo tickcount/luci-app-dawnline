@@ -1,61 +1,21 @@
-// Activity log helpers shared by Activity, Settings, the person page and the
-// device drawer: categories, export, and the clear / reset dialogs.
+// Activity log actions shared by Diagnostics, Settings, the person page and
+// the device drawer: export, and the clear / reset dialogs.
 
 import type { LogEvent, Status } from '../shared/types';
 import { E } from './e';
 import { api, type LogCategory, type LogFilter, type ServiceLogEntry } from './api';
-import { attempt, button, closeModal, downloadFile, modal, notify } from './ui';
-import { eventBy } from './pages/overview';
-
-/** Mirrors CATEGORY in dawnline.live. */
-const CATEGORY: Record<string, LogCategory> = {
-  connect: 'connections',
-  disconnect: 'connections',
-  roam: 'connections',
-  device_added: 'people',
-  device_removed: 'people',
-  devices_removed: 'people',
-  device_changed: 'people',
-  device_keys: 'people',
-  link_changed: 'people',
-  person_added: 'people',
-  person_removed: 'people',
-  person_changed: 'people',
-  paused: 'people',
-  resumed: 'people',
-  paused_all: 'people',
-  resumed_all: 'people',
-  portal_blocked: 'problems',
-};
-
-export const CATEGORIES: LogCategory[] = ['connections', 'people', 'problems'];
-
-export const CATEGORY_LABEL: Record<LogCategory, string> = {
-  connections: 'Connections',
-  people: 'People',
-  problems: 'Problems',
-};
-
-export const CATEGORY_HELP: Record<LogCategory, string> = {
-  connections: 'Connects, disconnects and IP changes',
-  people: 'People and their devices added, changed, paused, removed',
-  problems: 'Blocked portal sign-ins (tunnels and services are in the service log)',
-};
-
-export const categoryOf = (type: string): LogCategory => CATEGORY[type] ?? 'problems';
+import { button } from './ui/button';
+import { cancelButton, closeModal, modal } from './ui/modal';
+import { downloadFile } from './ui/files';
+import { attempt, errorText, notify } from './ui/toast';
+import { CATEGORIES, CATEGORY_LABEL, SYSTEM_SOURCE, categoryOf, eventBy } from './events/model';
+import { toCsv } from './events/csv';
 
 function names(st: Pick<Status, 'people'>) {
   const people = new Map(st.people.map((p) => [p.id, p.name]));
   const devices = new Map(st.people.flatMap((p) => p.devices.map((d) => [d.id, d.name] as [string, string])));
   return { people, devices };
 }
-
-function csvCell(v: unknown): string {
-  const s = v == null ? '' : String(v);
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
-
-export const SYSTEM_SOURCE: Record<ServiceLogEntry['src'], string> = { awg: 'AmneziaWG', dawnline: 'Dawnline', portal: 'Portal' };
 
 /** Download events (and service log entries, category "system") as CSV or JSON, names resolved, oldest first. */
 export function exportEvents(
@@ -97,8 +57,7 @@ export function exportEvents(
     return;
   }
   const cols = ['time', 'category', 'type', 'person', 'device', 'detail', 'where', 'by'] as const;
-  const csv = [cols.join(','), ...rows.map((r) => cols.map((c) => csvCell(r[c])).join(','))].join('\n');
-  downloadFile(name, csv, 'text/csv');
+  downloadFile(name, toCsv(cols, rows), 'text/csv');
 }
 
 const AGES: [string, string][] = [
@@ -107,6 +66,8 @@ const AGES: [string, string][] = [
   ['30', 'Older than 30 days'],
   ['90', 'Older than 90 days'],
 ];
+
+const removed = (n: number) => (n ? `${n} event${n === 1 ? '' : 's'} removed` : 'Nothing matched');
 
 /**
  * Ask what to clear and do it. `base` pins person/device; the dialog lets you
@@ -138,21 +99,38 @@ export function clearLogDialog(
       E('label', { class: 'dl-fld' }, [E('span', { class: 'dl-fld-label' }, 'Which events'), age]),
     ],
     [
-      E('button', { class: 'cbi-button cbi-button-neutral', click: closeModal }, 'Cancel'),
+      cancelButton(),
       ' ',
       button(
         'Clear',
         async () => {
-          // System is the service log; "All categories" clears it too where it is shown.
-          const r = await attempt(async () => {
-            const sys = withSystem && (cat.value === 'system' || cat.value === '') ? await api.serviceLogClear(age.value) : { removed: 0 };
-            const ev =
-              cat.value === 'system' ? { removed: 0 } : await api.logsClear({ ...base, category: cat.value, older_days: age.value });
-            return { removed: sys.removed + ev.removed };
-          });
-          if (!r) return;
+          // The activity log first, then the service log ("System"; "All categories"
+          // clears it too where it is shown). Each result is reported on its own.
+          let n = 0;
+          if (cat.value !== 'system') {
+            try {
+              n += (await api.logsClear({ ...base, category: cat.value, older_days: age.value })).removed;
+            } catch (e) {
+              notify(errorText(e), 'error', 10000);
+              return;
+            }
+          }
+          if (withSystem && (cat.value === 'system' || cat.value === '')) {
+            try {
+              n += (await api.serviceLogClear(age.value)).removed;
+            } catch (e) {
+              closeModal();
+              notify(
+                `${cat.value === 'system' ? '' : `Activity: ${removed(n).toLowerCase()}. `}The service log was not cleared: ${errorText(e)}`,
+                'error',
+                10000,
+              );
+              done();
+              return;
+            }
+          }
           closeModal();
-          notify(r.removed ? `${r.removed} event${r.removed === 1 ? '' : 's'} removed` : 'Nothing matched', 'success', 3000);
+          notify(removed(n), 'success', 3000);
           done();
         },
         'negative',
@@ -173,7 +151,7 @@ export function resetUsageDialog(scope: 'all' | 'person' | 'device', id: string,
     scope === 'all' ? 'Reset all traffic history?' : `Reset traffic history for ${label}?`,
     [E('p', { class: 'dl-muted' }, body)],
     [
-      E('button', { class: 'cbi-button cbi-button-neutral', click: closeModal }, 'Cancel'),
+      cancelButton(),
       ' ',
       button(
         'Reset',

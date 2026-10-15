@@ -1,0 +1,115 @@
+// Dawnline — adding, changing, rotating and removing a person's devices: one
+// code path for the admin UI (rpcd) and the portal, with the config lock,
+// the runtime sync, the activity log and the "configuration issued" mark.
+//
+// opts = { by: 'admin' | 'portal', person?: the only person whose devices may
+// be touched (the portal), defer?: load new keys a moment later (the portal
+// page came through the device being rotated) }. The portal is held to the
+// device limit (dawnline.core) and cannot touch a device the admin turned off.
+
+import { sh_bg } from 'dawnline.util';
+import * as core from 'dawnline.core';
+import * as awg from 'dawnline.awg';
+import * as apply from 'dawnline.apply';
+import * as live from 'dawnline.live';
+import * as store from 'dawnline.store';
+
+/** AmneziaWG is on the router, so device keys can be made and loaded. */
+export function ready() {
+	return awg.installed();
+};
+
+/** Dies with the admin's wording when AmneziaWG is missing. */
+export function need_awg() {
+	if (!awg.installed()) {
+		let miss = awg.state().missing ?? [];
+		die(`AmneziaWG is not installed${length(miss) ? ` (${join(', ', miss)})` : ''}: install it in Dawnline → Components.`);
+	}
+};
+
+/** The device `id` as `opts` may touch it (inside a transaction's model). */
+function own(m, id, opts) {
+	let d = m.devices[id];
+	if (!d || (opts.person != null && d.person != opts.person))
+		die(opts.person != null ? 'Device not found.' : 'Unknown device.');
+	if (opts.by == 'portal' && d.disabled)
+		die('The admin has turned this device off.');
+	return d;
+}
+
+/** New device with fresh keys (or the browser's public key): { id, config }. */
+export function add(person, name, kind, opts) {
+	opts ??= {};
+	let by = opts.by ?? 'admin';
+	let id = store.transact((c, m) => core.create_device(c, m, person, name, kind, { by, keys: awg.new_keys(opts.public_key || null) }));
+	apply.sync();
+	let m = core.load();
+	live.add_event({ type: 'device_added', person, device: id, detail: m.devices[id].name, by });
+	awg.mark_issued(m, id);
+	return { id, config: awg.client_config(m, m.devices[id]) };
+};
+
+/**
+ * Rename and/or turn a device off or on (`ch` = { name?, disabled? }); only
+ * the admin turns devices off. Returns the runtime sync.
+ */
+export function update(id, ch, opts) {
+	opts ??= {};
+	let by = opts.by ?? 'admin';
+	if (ch.disabled != null && by != 'admin')
+		die('Only the admin can turn devices off.');
+	let d0 = store.transact((c, m) => {
+		let d = own(m, id, opts);
+		let was = { ...d };
+		if (ch.name != null && ch.name != d.name)
+			core.rename_device(c, m, id, ch.name);
+		if (ch.disabled != null) {
+			if (ch.disabled)
+				c.set(core.CONFIG, id, 'disabled', '1');
+			else
+				c.delete(core.CONFIG, id, 'disabled');
+		}
+		return was;
+	});
+	let r = apply.sync();
+	if (ch.disabled != null && !!ch.disabled != !!d0.disabled)
+		live.add_event({ type: 'device_changed', person: d0.person, device: id, detail: ch.disabled ? 'turned off' : 'turned on', by });
+	else if (ch.name != null && ch.name != d0.name)
+		live.add_event({ type: 'device_changed', person: d0.person, device: id, detail: `renamed from ${d0.name}`, by });
+	return r;
+};
+
+/** New keys for a device: returns its new configuration. */
+export function rotate(id, opts) {
+	opts ??= {};
+	let by = opts.by ?? 'admin';
+	store.transact((c, m) => {
+		own(m, id, opts);
+		core.rotate_device(c, m, id, awg.new_keys());
+	});
+	// The device a portal page came through would lose its tunnel before the
+	// answer gets out: load the new key a moment after answering.
+	if (opts.defer)
+		sh_bg('sleep 3; /usr/bin/dawnline sync');
+	else
+		apply.sync();
+	let m = core.load();
+	let d = m.devices[id];
+	live.add_event({ type: 'device_keys', person: d.person, device: id, detail: d.name, by });
+	awg.mark_issued(m, id);
+	return awg.client_config(m, d);
+};
+
+/** Remove a device. Returns the runtime sync. */
+export function remove(id, opts) {
+	opts ??= {};
+	let by = opts.by ?? 'admin';
+	let d = store.transact((c, m) => {
+		let d = own(m, id, opts);
+		core.delete_device(c, m, id);
+		return d;
+	});
+	let r = apply.sync();
+	live.add_event({ type: 'device_removed', person: d.person, device: id, detail: d.name, dname: d.name, dkind: d.kind, by });
+	return r;
+};

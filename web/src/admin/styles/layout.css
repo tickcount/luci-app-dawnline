@@ -1,0 +1,48 @@
+/* Page structure, metrics strip, segmented controls, server sections. */
+/* ===== page structure ===== */
+.dl-pagehead { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin: 0 0 20px; }
+.dl-h1 { margin: 0 !important; padding: 0 !important; font-size: 24px !important; line-height: 32px !important; font-weight: 500 !important; border: 0 !important; }
+.dl-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.dl-stack { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.dl-stack.gap4 { gap: 4px; } .dl-stack.gap8 { gap: 8px; }
+.dl-sub { font-size: 12px; line-height: 16px; color: var(--dl-fg-muted); }
+.dl-ok { color: var(--dl-ok); } .dl-warn { color: var(--dl-warn); } .dl-bad { color: var(--dl-bad); }
+/* Icon-only buttons are circles: width follows the theme's button height. */
+.dl-icon-only { width: auto !important; min-width: 0 !important; aspect-ratio: 1 / 1; padding: 0 !important; justify-content: center; display: inline-flex !important; align-items: center; border-radius: 999px !important; }
+.dl-panel.flush { padding: 0; overflow: hidden; }
+.dl-panel-head.pad { padding: 16px 16px 12px; margin: 0; }
+.dl-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.dl-col > .dl-panel, .dl-col > section.dl-panel { margin: 0; }
+.dl-crumbs { display: flex; gap: 8px; align-items: center; font-size: 14px; margin: 0 0 16px; color: var(--dl-fg-faint); }
+.dl-crumbs a { color: var(--dl-fg-faint); } .dl-crumbs a:hover { color: var(--dl-fg); }
+.dl-crumbs span:last-child { color: var(--dl-fg); }
+
+/* metrics strip */
+.dl-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: var(--dl-card); border: 1px solid var(--dl-line);
+  border-radius: var(--dl-radius); margin: 0 0 16px; box-shadow: var(--dl-shadow); }
+.dl-metric { display: flex; flex-direction: column; gap: 4px; padding: 16px 20px; min-width: 0; }
+.dl-metric + .dl-metric { border-left: 1px solid var(--dl-line); }
+.dl-metric-label { font-size: 12px; font-weight: 500; color: var(--dl-fg-faint); }
+.dl-metric-value { font-size: 28px; line-height: 36px; font-weight: 500; letter-spacing: -.01em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dl-metric-value .dl-faint { font-size: 16px; }
+.dl-metric-sub { font-size: 12px; color: var(--dl-fg-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 900px) { .dl-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dl-metric:nth-child(3) { border-left: 0; } .dl-metric:nth-child(n+3) { border-top: 1px solid var(--dl-line); } }
+
+/* segmented control */
+.dl-seg { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--dl-soft); flex-wrap: wrap; }
+.dl-seg button { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px;
+  font-size: 13px; font-weight: 500; color: var(--dl-fg-muted); white-space: nowrap; }
+.dl-seg button:hover { color: var(--dl-fg); }
+.dl-seg button.on { background: var(--dl-soft-hover); color: var(--dl-fg); }
+/* Server sections: one row that scrolls sideways on narrow screens */
+.dl-seg.dl-srvsections { flex-wrap: nowrap; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.dl-seg.dl-srvsections::-webkit-scrollbar { display: none; }
+.dl-seg.dl-srvsections button { flex: none; white-space: nowrap; }
+.dl-seg button:focus-visible { outline: 2px solid var(--dl-ring); }
+.dl-seg button b { font-weight: 500; font-size: 11px; padding: 0 6px; border-radius: 999px; background: var(--dl-soft); }
+.dl-seg button b.warn { background: var(--dl-warn-wash); color: var(--dl-warn); }
+.dl-seg.sm button { padding: 2px 9px; font-size: 11px; }
+.dl-seg.wide { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-radius: 12px; padding: 4px; }
+.dl-seg.wide button { flex-direction: column; justify-content: center; padding: 8px 6px; border-radius: 9px; gap: 3px; }
+.dl-seg.wide button.on { background: var(--dl-primary); color: var(--dl-primary-fg); }

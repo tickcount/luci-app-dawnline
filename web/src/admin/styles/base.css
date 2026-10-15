@@ -1,0 +1,115 @@
+/* Tokens (Outline first, LuCI Bootstrap next, a fallback that works anywhere), pills, cards, activity rows. */
+:root {
+  /* Outline's tokens first, then LuCI Bootstrap's, then something that works anywhere. */
+  --dl-card: var(--panel-bg, var(--background-color-high, transparent));
+  --dl-elevated: var(--elevated, var(--background-color-high, Canvas));
+  --dl-line: var(--border, var(--border-color-medium, color-mix(in srgb, currentColor 14%, transparent)));
+  --dl-soft: var(--muted, color-mix(in srgb, currentColor 5%, transparent));
+  --dl-soft-hover: var(--soft-hover, color-mix(in srgb, currentColor 10%, transparent));
+  --dl-fg: var(--foreground, var(--text-color-highest, inherit));
+  --dl-fg-muted: var(--muted-foreground, color-mix(in srgb, currentColor 65%, transparent));
+  --dl-fg-faint: var(--text-tertiary, color-mix(in srgb, currentColor 50%, transparent));
+  --dl-accent: var(--accent, #3a83f7);
+  --dl-ok: var(--success, #00a240);
+  --dl-warn: var(--warning, #e25507);
+  --dl-bad: var(--danger, #e02e2a);
+  --dl-ok-wash: var(--success-a15, color-mix(in srgb, #00a240 15%, transparent));
+  --dl-warn-wash: var(--warning-a15, color-mix(in srgb, #e25507 15%, transparent));
+  --dl-bad-wash: var(--destructive-a15, color-mix(in srgb, #e02e2a 15%, transparent));
+  --dl-info-wash: var(--info-a15, color-mix(in srgb, #3a83f7 15%, transparent));
+  --dl-info: var(--info, #2c67c5);
+  --dl-track: var(--foreground-a10, color-mix(in srgb, currentColor 10%, transparent));
+  --dl-chart-1: var(--chart-blue, #3a83f7);
+  --dl-chart-2: var(--chart-green, #00a240);
+  --dl-ring: var(--ring, #3a83f7);
+  --dl-primary: var(--primary, #0d0d0d);
+  --dl-primary-fg: var(--primary-foreground, #fff);
+  --dl-mono: var(--font-mono, ui-monospace, Menlo, Consolas, monospace);
+  --dl-shadow: var(--shadow-sm, none);
+  --dl-radius: 16px;
+}
+
+.dl-icon-wrap { display: inline-flex; align-items: center; justify-content: center; line-height: 0; }
+.dl-icon { width: 16px; height: 16px; }
+.dl-icon-btn { display: inline-flex !important; align-items: center; gap: 6px; }
+.dl-muted { color: var(--dl-fg-muted); }
+.dl-faint { color: var(--dl-fg-faint); }
+.dl-sep { color: var(--dl-fg-faint); }
+.dl-nowrap { white-space: nowrap; }
+.dl-mono { font-family: var(--dl-mono); font-size: 13px; }
+.dl-spacer { flex: 1; }
+
+/* pills: Outline's .label */
+.dl-pill { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px; border-radius: 999px;
+  font-size: 12px; line-height: 20px; font-weight: 500; white-space: nowrap; background: var(--dl-soft); color: var(--dl-fg-muted); }
+.dl-pill.ok { background: var(--dl-ok-wash); color: var(--dl-ok); }
+.dl-pill.warn { background: var(--dl-warn-wash); color: var(--dl-warn); }
+.dl-pill.bad { background: var(--dl-bad-wash); color: var(--dl-bad); }
+.dl-pill.accent { background: var(--dl-info-wash); color: var(--dl-info); }
+.dl-pill.off { opacity: .75; }
+
+/* cards (Outline .cbi-section-node look) */
+.dl-panel { background: var(--dl-card); border: 1px solid var(--dl-line); border-radius: var(--dl-radius); padding: 16px;
+  margin: 0 0 16px; min-width: 0; box-shadow: var(--dl-shadow); }
+.dl-panel-head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin: 0 0 12px; }
+.dl-panel-head h3 { margin: 0 !important; padding: 0; font-size: 16px; line-height: 24px; font-weight: 500; border: 0; background: none; }
+.dl-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin: 0 0 16px; }
+.dl-tile { background: var(--dl-card); border: 1px solid var(--dl-line); border-radius: var(--dl-radius); padding: 14px 16px; min-width: 0; box-shadow: var(--dl-shadow); }
+.dl-tile-label { font-size: 12px; line-height: 16px; font-weight: 500; color: var(--dl-fg-faint); }
+.dl-tile-value { font-size: 24px; line-height: 32px; font-weight: 500; margin-top: 4px; font-variant-numeric: tabular-nums;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -.01em; }
+.dl-tile-sub { font-size: 12px; line-height: 16px; color: var(--dl-fg-muted); margin-top: 2px; font-variant-numeric: tabular-nums; }
+.dl-grid2 { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 0 16px; }
+@media (max-width: 960px) { .dl-grid2 { grid-template-columns: minmax(0, 1fr); } }
+
+/* chart */
+.dl-chart { display: block; width: 100%; height: 120px; }
+.dl-bar-down { fill: var(--dl-chart-1); }
+.dl-bar-up { fill: var(--dl-chart-2); opacity: .8; }
+.dl-legend { display: flex; gap: 16px; font-size: 12px; color: var(--dl-fg-muted); margin-top: 8px; }
+.dl-legend i { display: inline-block; width: 8px; height: 8px; border-radius: 999px; margin-right: 6px; vertical-align: 0; }
+.dl-legend .down { background: var(--dl-chart-1); } .dl-legend .up { background: var(--dl-chart-2); }
+
+/* activity */
+.dl-events { list-style: none; margin: 0; padding: 0; }
+.dl-events li { display: flex; gap: 12px; align-items: baseline; padding: 8px 0; border-top: 1px solid var(--dl-line); font-size: 14px; line-height: 20px; min-width: 0; }
+.dl-events li:first-child { border-top: 0; padding-top: 0; }
+.dl-ev-time { flex: 0 0 88px; color: var(--dl-fg-faint); font-variant-numeric: tabular-nums; white-space: nowrap; font-size: 13px; }
+.dl-ev-dot { flex: 0 0 auto; width: 6px; height: 6px; border-radius: 50%; background: var(--dl-fg-faint); transform: translateY(-2px); }
+.dl-ev-dot.ok { background: var(--dl-ok); } .dl-ev-dot.warn { background: var(--dl-warn); } .dl-ev-dot.bad { background: var(--dl-bad); }
+.dl-ev-dot.accent { background: var(--dl-accent); }
+/* The admin's own actions: an icon in the dot's place, taking the same room. */
+.dl-row > .dl-ev-dot, .dl-dev-log-row > .dl-ev-dot { margin: 0 4px; }
+.dl-ev-tile { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; margin: -2px -4px; border-radius: 7px;
+  background: color-mix(in srgb, var(--dl-accent) 16%, transparent); color: var(--dl-accent); align-self: center; }
+.dl-ev-tile .dl-icon-wrap { display: inline-flex; } .dl-ev-tile .dl-icon { width: 14px; height: 14px; }
+.dl-row.dl-ev-by-admin { background: color-mix(in srgb, var(--dl-accent) 6%, transparent); }
+.dl-you { color: var(--dl-accent); font-weight: 500; }
+.dl-ev-kind { color: var(--dl-fg-faint); }
+.dl-slotbar { display: flex; align-items: center; gap: 8px; margin: 8px 0 0 44px; }
+.dl-slotbar-segs { display: flex; gap: 3px; flex: none; max-width: 100%; }
+.dl-slotbar-segs i { flex: 1; min-width: 2px; display: block; height: 4px; border-radius: 2px; background: var(--dl-soft-hover); }
+.dl-slotbar-segs i.used { background: var(--dl-fg-muted); }
+.dl-slotbar-text { font-size: 12px; color: var(--dl-fg-faint); font-variant-numeric: tabular-nums; }
+.dl-slotbar-segs i.over { background: color-mix(in srgb, var(--dl-warn) 80%, transparent); }
+.dl-ev-srv { flex: none; font-size: 11px; line-height: 18px; padding: 0 8px; border-radius: 999px; background: var(--dl-soft); color: var(--dl-fg-muted); white-space: nowrap; }
+/* Service log lines: tile, source name and row tint share one colour, set by the level (--sys). */
+.dl-ev-by-system { --sys: var(--dl-fg-muted); }
+.dl-ev-by-system.ok { --sys: var(--dl-ok); } .dl-ev-by-system.warn { --sys: var(--dl-warn); } .dl-ev-by-system.bad { --sys: var(--dl-bad); }
+.dl-ev-tile.ev { background: var(--dl-soft); color: var(--dl-fg-muted); }
+.dl-ev-tile.ev.ok { background: var(--dl-ok-wash); color: var(--dl-ok); }
+.dl-ev-tile.ev.warn { background: var(--dl-warn-wash); color: var(--dl-warn); }
+.dl-ev-tile.ev.bad { background: var(--dl-bad-wash); color: var(--dl-bad); }
+.dl-ev-tile.ev.accent { background: color-mix(in srgb, var(--dl-accent) 16%, transparent); color: var(--dl-accent); }
+.dl-ev-tile.sys { background: color-mix(in srgb, var(--sys) 16%, transparent); color: var(--sys); }
+.dl-row.dl-ev-by-system { background: color-mix(in srgb, var(--sys) 6%, transparent); }
+.dl-sys-src { color: var(--sys); }
+.dl-ev-by-system:not(.ok):not(.warn):not(.bad) .dl-sys-src { color: var(--dl-fg); }
+.dl-ev-text { min-width: 0; overflow-wrap: anywhere; }
+
+/* server summary */
+.dl-server { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.dl-server-name { font-size: 16px; line-height: 24px; font-weight: 500; }
+.dl-kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 24px; margin: 12px 0 0; font-size: 14px; line-height: 20px; }
+.dl-kv dt { color: var(--dl-fg-muted); font-weight: 400; margin: 0; }
+.dl-kv dd { margin: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }

@@ -6,11 +6,12 @@
 
 import { stat } from 'fs';
 import { sh_out, q, read_json, write_json, slog, slog_read, RUN_DIR } from 'dawnline.util';
-import * as core from 'dawnline.core';
-import * as live from 'dawnline.live';
 import * as apply from 'dawnline.apply';
 import * as loop from 'dawnline.loop';
-import * as ops from 'dawnline.ops';
+import * as health from 'dawnline.health';
+import * as awg from 'dawnline.awg';
+import * as nft from 'dawnline.nft';
+import * as netifd from 'dawnline.netifd';
 
 export const STATE = `${RUN_DIR}/watchdog.json`;
 /** The agent writes the time here on every tick. */
@@ -18,13 +19,9 @@ export const BEAT = `${RUN_DIR}/agent.beat`;
 // Seconds before the next repair, by the number of repairs so far.
 const WAIT = [ 0, 120, 600, 1800, 3600 ];
 
-/** Why a tunnel is down, from netifd and the last related syslog lines. */
+/** Why a tunnel is down (AmneziaWG; kept here for older callers). */
 export function iface_errors(ifname) {
-	let s = live.iface_status(ifname);
-	let errs = map(s?.errors ?? [], (e) => e.code + (length(e.data ?? []) ? ` (${join(' ', e.data)})` : ''));
-	// Only what explains a failure, not the ordinary "is now up/down" lines.
-	let lines = sh_out(`logread -l 400 2>/dev/null | grep -E ${q(`${ifname}|amneziawg`)} | grep -iE 'error|fail|invalid|unrecogni|cannot|unable|not found|refused|denied' | tail -n 6`);
-	return join('\n', filter([ length(errs) ? `netifd: ${join(', ', errs)}` : null, lines ], (x) => x));
+	return awg.iface_errors(ifname);
 };
 
 function restart_services() {
@@ -38,30 +35,11 @@ function restart_services() {
  */
 function probes(m) {
 	let out = [];
-	// The kernel module first: without it no tunnel can run (they come back on the next pass).
-	if (length(filter(values(m.servers), (x) => x.enabled && x.private_key)) && stat('/usr/bin/awg'))
-		push(out, {
-			id: 'awg', src: 'awg', name: 'AmneziaWG', who: 'AmneziaWG', ok: stat('/sys/module/amneziawg') != null,
-			problem: "kernel module isn't loaded", back: 'kernel module is loaded again',
-			detail: () => sh_out("modprobe amneziawg 2>&1; dmesg 2>/dev/null | grep -i amneziawg | grep -iE 'error|fail|invalid|unknown|disagrees|taint' | tail -n 4"),
-			repair: { what: 'loading it', run: () => system('modprobe amneziawg >/dev/null 2>&1') },
-		});
-	for (let id, srv in m.servers) {
-		if (!srv.enabled || !srv.private_key)
-			continue;
-		let s = live.iface_status(srv.ifname);
-		let up = !!s?.up;
-		push(out, {
-			id: `up_${id}`, src: 'awg', name: srv.name, who: srv.name, ok: up && ops.udp_listening(srv.port),
-			problem: !s ? 'is missing from the router' : !up ? "isn't running" : `isn't accepting connections on port ${srv.port}`,
-			back: `is running again · accepting connections on port ${srv.port}`,
-			detail: () => iface_errors(srv.ifname),
-			repair: s ? { what: 'restarting it', run: () => system(`ifup ${q(srv.ifname)}`) } : { what: 'setting it up again', run: () => apply.apply() },
-		});
-	}
+	// The tunnels check themselves: AmneziaWG (packages, kernel module, netifd) and each server's interface.
+	push(out, ...awg.probes(m, { udp_listening: health.udp_listening, reapply: () => apply.apply(), owner: (ifn) => netifd.owner(ifn) }));
 	if (length(m.servers))
 		push(out, {
-			id: 'nft', src: 'dawnline', name: 'Access rules', who: 'Access rules', ok: system('nft list table inet dawnline >/dev/null 2>&1') == 0,
+			id: 'nft', src: 'dawnline', name: 'Access rules', who: 'Access rules', ok: nft.present(),
 			problem: 'are missing', back: 'are loaded again',
 			repair: { what: 'loading them again', run: () => apply.apply() },
 		});
@@ -79,15 +57,9 @@ function probes(m) {
 	}
 
 	let s = m.settings;
-	if (s.portal_enabled && core.portal_public_port(m) == 443 && s.portal_port != 443)
+	if (s.portal_enabled && !length(health.needs().https) && !length(health.tcp_port_owners(s.portal_port)))
 		push(out, {
-			id: 'portal_lan', src: 'portal', name: 'Portal at home', who: 'Personal portal', ok: !apply.uhttpd_drift(m),
-			problem: "links don't open at home (LuCI's web server lost the setting)", back: 'links open at home again',
-			repair: { what: 'restoring it', run: () => apply.apply() },
-		});
-	if (s.portal_enabled && !length(ops.needs().https) && !length(ops.tcp_port_owners(s.portal_port)))
-		push(out, {
-			id: 'portal', src: 'portal', name: 'Portal', who: 'Personal portal', ok: ops.tcp_listening(s.portal_port),
+			id: 'portal', src: 'portal', name: 'Portal', who: 'Personal portal', ok: health.tcp_listening(s.portal_port),
 			problem: `isn't answering on port ${s.portal_port}`, back: 'answers again',
 			detail: () => sh_out("logread -l 400 2>/dev/null | grep 'uhttpd' | grep -iE 'error|fail|cert|key|bind|address' | tail -n 4"),
 			repair: { what: 'restarting it', run: restart_services },

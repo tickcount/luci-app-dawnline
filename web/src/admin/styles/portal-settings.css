@@ -1,0 +1,68 @@
+/* Settings → Personal portal: address picker, link preview, readiness. */
+/* Settings: portal address picker, link preview, readiness */
+.dl-setblock { display: flex; flex-direction: column; gap: 8px; margin: 0; }
+.dl-addr-opts { display: flex; flex-direction: column; gap: 6px; }
+.dl-addr-opt { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; gap: 12px; align-items: center;
+  padding: 10px 14px; border-radius: 12px; box-shadow: inset 0 0 0 1px var(--dl-line); min-width: 0; }
+.dl-addr-opt:hover { background: var(--dl-soft); }
+.dl-addr-opt.on { box-shadow: inset 0 0 0 1.5px var(--dl-accent); background: color-mix(in srgb, var(--dl-accent) 7%, transparent); }
+.dl-addr-opt .dl-mono { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dl-addr-opt .dl-stack { min-width: 0; }
+.dl-addr-opt input { width: 100%; }
+.dl-addr-opt.other { cursor: default; } .dl-addr-opt.other:hover { background: none; }
+.dl-addr-opt.other input { width: 100%; }
+.dl-addr-check { width: 16px; height: 16px; border-radius: 5px; box-shadow: inset 0 0 0 1.5px var(--dl-fg-faint); display: inline-flex; align-items: center; justify-content: center; }
+.dl-addr-check .dl-icon-wrap { display: inline-flex; } .dl-addr-check .dl-icon { width: 12px; height: 12px; }
+.dl-addr-opt.on .dl-addr-check { background: var(--dl-accent); box-shadow: none; color: #fff; }
+.dl-addr-opt.other .dl-addr-check { box-shadow: none; color: var(--dl-fg-muted); }
+.dl-addr-warn { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; line-height: 17px; color: var(--dl-warn); }
+.dl-addr-warn .dl-icon-wrap { display: inline-flex; } .dl-addr-warn .dl-icon { width: 13px; height: 13px; }
+.dl-pill.info { background: color-mix(in srgb, var(--dl-accent) 14%, transparent); color: var(--dl-accent); }
+.dl-links { border-radius: 12px; background: var(--dl-soft); overflow: hidden; }
+.dl-link-row { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 11px 14px; }
+.dl-link-row + .dl-link-row { border-top: 1px solid var(--dl-line); }
+.dl-link-ic { display: inline-flex; } .dl-link-ic .dl-icon { width: 15px; height: 15px; }
+.dl-link-ic.ok .dl-icon { color: var(--dl-ok); } .dl-link-ic.warn .dl-icon { color: var(--dl-warn); }
+.dl-link-url { font-size: 13px; color: var(--dl-fg-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dl-link-url b { font-weight: 500; color: var(--dl-accent); }
+/* Phones: show the whole link, wrapped, instead of cutting it */
+@media (max-width: 640px) { .dl-link-url, .dl-addr-opt .dl-mono, .dl-filecard .dl-ellipsis, .dl-invite-link > span:first-child { white-space: normal; overflow-wrap: anywhere; } }
+.dl-ready-sum { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; }
+.dl-ready-sum > .dl-icon-wrap { display: inline-flex; } .dl-ready-sum > .dl-icon-wrap .dl-icon { width: 18px; height: 18px; }
+.dl-ready-sum .dl-stack { flex: 1; min-width: 0; } .dl-ready-sum b { font-weight: 500; font-size: 13px; }
+.dl-ready-sum.ok { background: var(--dl-ok-wash); } .dl-ready-sum.ok b, .dl-ready-sum.ok .dl-icon { color: var(--dl-ok); }
+.dl-ready-sum.warn { background: var(--dl-warn-wash); } .dl-ready-sum.warn b, .dl-ready-sum.warn .dl-icon { color: var(--dl-warn); }
+.dl-ready-sum.error { background: var(--dl-bad-wash); } .dl-ready-sum.error b, .dl-ready-sum.error .dl-icon { color: var(--dl-bad); }
+.dl-check-chip { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px; border-radius: 999px; background: var(--dl-soft); font-size: 12px; color: var(--dl-fg-muted); }
+.dl-check-chip .dl-icon-wrap { display: inline-flex; } .dl-check-chip .dl-icon { width: 13px; height: 13px; color: var(--dl-ok); }
+.dl-check-chip.warn { background: var(--dl-warn-wash); color: var(--dl-warn); } .dl-check-chip.warn .dl-icon { color: var(--dl-warn); }
+.dl-check-chip.error { background: var(--dl-bad-wash); color: var(--dl-bad); } .dl-check-chip.error .dl-icon { color: var(--dl-bad); }
+.dl-ready-details { display: flex; flex-direction: column; gap: 8px; padding: 4px 2px; }
+.dl-ready-details[hidden] { display: none; }
+.dl-ready-item { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; line-height: 18px; min-width: 0; }
+.dl-ready-item .dl-icon-wrap { display: inline-flex; margin-top: 1px; } .dl-ready-item .dl-icon { width: 15px; height: 15px; }
+.dl-ready-item.ok .dl-icon { color: var(--dl-ok); } .dl-ready-item.warn .dl-icon { color: var(--dl-warn); } .dl-ready-item.error .dl-icon { color: var(--dl-bad); }
+.dl-params-body { display: flex; flex-direction: column; gap: 14px; padding: 6px 14px 14px; }
+.dl-params-body > .dl-setrow { margin: 0; padding: 0; }
+.dl-pgrid.flush { padding: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 640px) { .dl-pgrid.flush { grid-template-columns: minmax(0, 1fr); } }
+.dl-qr-pane { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
+.dl-qr { width: min(280px, 72vw); aspect-ratio: 1; background: #fff; padding: 8px; border-radius: 12px; box-shadow: inset 0 0 0 1px var(--dl-line); }
+.dl-qr svg { display: block; width: 100%; height: 100%; }
+.dl-filecard { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 14px; background: var(--dl-soft); min-width: 0; }
+.dl-filecard > .dl-stack { flex: 1; min-width: 0; }
+.dl-filecard-ic { width: 40px; height: 46px; border-radius: 8px; flex: none; display: inline-flex; align-items: center; justify-content: center;
+  font: 10px var(--dl-mono); color: var(--dl-fg-muted); background: var(--dl-card); box-shadow: inset 0 0 0 1px var(--dl-line); }
+.dl-params > .dl-conf { margin: 0; border-top: 1px solid var(--dl-line); border-radius: 0 0 12px 12px; background: none; }
+.dl-conf-sec { color: var(--dl-accent); }
+.dl-conf-k { color: var(--dl-fg-faint); }
+.dl-conf-mask { padding: 0 6px; border-radius: 4px; background: var(--dl-soft); color: var(--dl-fg-muted); }
+.dl-params > summary .dl-chipbtn { height: 26px; font-size: 12px; }
+.dl-conf { white-space: pre-wrap; word-break: break-all; max-height: 22em; overflow: auto; font-family: var(--dl-mono); font-size: 12px;
+  line-height: 18px; margin: 0; padding: 12px; border-radius: 12px; background: var(--dl-soft); }
+.dl-key { width: 100%; box-sizing: border-box; font-family: var(--dl-mono); font-size: 12px; word-break: break-all; min-height: 7em; }
+.dl-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 12px 0 0; }
+.dl-link-box { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.dl-link-box input { flex: 1 1 18em; min-width: 0; font-family: var(--dl-mono); font-size: 12px; }
+.dl-hint { font-size: 12px; line-height: 16px; color: var(--dl-fg-muted); margin: 8px 0; }
+.dl-divider { border: 0; border-top: 1px solid var(--dl-line); margin: 16px 0; }

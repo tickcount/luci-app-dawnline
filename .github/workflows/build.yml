@@ -3,14 +3,17 @@ name: Build packages
 # A tag vX.Y.Z builds luci-app-dawnline as .ipk (OpenWrt 24.10, opkg) and .apk
 # (OpenWrt 25.12, apk) with the OpenWrt SDK and publishes a GitHub release with
 # both packages and sha256sums.txt, the files install.sh and the in-app updater
-# download. Run it by hand to get the packages as workflow artifacts only.
+# download. The release notes list what changed since the previous tag, from the
+# commits (scripts/release-notes.sh). Run it by hand to get the packages as
+# workflow artifacts only.
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
 
+# Read-only by default; only the release job may write (publish the release).
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   version:
@@ -21,6 +24,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - name: Read and check the version
         id: version
@@ -49,6 +54,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
@@ -82,7 +89,21 @@ jobs:
     runs-on: ubuntu-24.04
     needs: [version, build]
     if: github.ref_type == 'tag'
+    permissions:
+      contents: write
     steps:
+      # The whole history and the tags: the notes list the commits since the previous tag.
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Release notes
+        run: |
+          sh scripts/release-notes.sh "${GITHUB_REF_NAME}" "${GITHUB_REPOSITORY}" > notes.md
+          cat notes.md
+
       - name: Download packages
         uses: actions/download-artifact@v4
         with:
@@ -102,12 +123,4 @@ jobs:
           name: Dawnline ${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}
           files: release/*
-          generate_release_notes: true
-          body: |
-            Install or upgrade on the router (OpenWrt 24.10 with opkg, or 25.12 with apk):
-
-            ```sh
-            sh -c "$(wget -qO- https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh)"
-            ```
-
-            Or upgrade from LuCI → Network → Dawnline → Updates.
+          body_path: notes.md

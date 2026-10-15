@@ -1,6 +1,6 @@
 // luci.dawnline RPC bindings. The backend reports failures as { error }.
 
-import type { AwgCaps, Circle, ClientConfig, DayUsage, HealthCheck, LogEvent, MeshMode, Person, Status } from '../shared/types';
+import type { AwgCaps, AwgState, Circle, ClientConfig, DayUsage, HealthCheck, LogEvent, MeshMode, Person, Status } from '../shared/types';
 
 function call<T>(method: string, params: string[] = []) {
   const fn = rpc.declare<any>({ object: 'luci.dawnline', method, params });
@@ -25,6 +25,7 @@ export interface SetupDefaults {
   portal_port: number;
   taken: string[];
   awg: AwgCaps;
+  awg_state?: AwgState;
 }
 
 export interface Backup {
@@ -40,6 +41,12 @@ export interface UpdateComponent {
   installed?: string | null;
   latest?: string | null;
   update?: boolean;
+  /** latest | outdated | dev (installed is newer than the release) | '' (unknown). */
+  status?: 'latest' | 'outdated' | 'dev' | '';
+  /** When this component was last checked. */
+  time?: number;
+  url?: string | null;
+  published?: string | null;
   note?: string;
   error?: string;
   repo?: string;
@@ -78,23 +85,89 @@ export interface UpdatesStatus {
   home?: boolean;
   needs?: Needs;
   check: { time: number; components: Record<string, UpdateComponent> } | null;
-  job: {
-    action: string;
-    component: string | null;
-    state: 'running' | 'done' | 'failed';
-    started: number;
-    finished: number | null;
-    phase: string;
-    log: string[];
-    error: string | null;
-  } | null;
+  job: UpdateJob | null;
+  /** Router time, for the job timer. */
+  now: number;
+  repo: string;
+  policy: UpdatePolicy;
+  /** Automatic runs: the last check and the last scheduled install day. */
+  auto: { check?: number; install_day?: string };
+  /** The version kept for Roll back, per component. */
+  kept: Record<'app' | 'amneziawg', { version: string; build: AwgSource | null; saved: number | null } | null>;
+  /** Components → Activity, newest first. */
+  history: UpdateEvent[];
+  /** AmneziaWG interfaces (their Dawnline names): switching builds restarts them. */
+  tunnels: string[];
 }
 
-/** Missing packages by feature: the portal's HTTPS, ACME certificates, the home-like link. */
+export interface UpdateEvent {
+  ts: number;
+  /** found: a check found updates; install: an update ran; error: a check or an update failed. */
+  kind: 'found' | 'install' | 'error';
+  auto?: boolean;
+  items?: string[];
+  component?: string | null;
+  from?: string | null;
+  to?: string | null;
+  state?: 'done' | 'failed';
+  error?: string | null;
+  took?: number;
+}
+
+export interface UpdateJob {
+  id: string;
+  action: string;
+  component: string | null;
+  state: 'running' | 'done' | 'failed';
+  started: number;
+  finished: number | null;
+  /** Started by Settings → Updates, not by a click. */
+  auto?: boolean;
+  phase: string;
+  from: string | null;
+  to: string | null;
+  log: string[];
+  error: string | null;
+  result: Record<string, any> | null;
+}
+
+/** Settings → Updates. */
+export interface UpdatePolicy {
+  check: boolean;
+  interval: '6h' | '12h' | '1d' | '7d';
+  auto: boolean;
+  mode: 'immediate' | 'scheduled';
+  time: string;
+  targets: ('app' | 'amneziawg' | 'packages')[];
+  keep: boolean;
+  mirrors: boolean;
+}
+
+export interface Release {
+  tag: string;
+  name: string;
+  published: string | null;
+  prerelease: boolean;
+  url: string | null;
+  body: string | null;
+  assets: string[];
+}
+
+/** Missing packages by feature: the portal's HTTPS, ACME certificates, the home-like link, AmneziaWG itself. */
 export interface Needs {
   https: string[];
   acme: string[];
   home: string[];
+  /** amneziawg-tools and/or kmod-amneziawg (older backends leave it out). */
+  awg?: string[];
+}
+
+/** The slow part of the portal settings, loaded after the page shows. */
+export interface PortalInfo {
+  /** Addresses the portal could use, found on the router. */
+  candidates: { host: string; kind: 'name' | 'ip'; ips: string[]; here: boolean; cloudflare: boolean; cert: boolean }[];
+  /** The portal's checks from Health. */
+  checks: HealthCheck[];
 }
 
 export interface SettingsData {
@@ -106,10 +179,6 @@ export interface SettingsData {
   port_owners: string[];
   wan443_taken?: boolean;
   portal_public_port?: number;
-  /** Addresses the portal could use, found on the router. */
-  portal_candidates?: { host: string; kind: 'name' | 'ip'; ips: string[]; here: boolean; cloudflare: boolean; cert: boolean }[];
-  /** The portal's checks from Health. */
-  portal_checks?: HealthCheck[];
   geo_cached: number;
   logs: LogsInfo;
 }
@@ -290,14 +359,7 @@ async function personUpdate(id: string, patch: PersonPatch): Promise<{ person: P
   return r;
 }
 
-const statusRaw = call<Status>('status', ['days']);
-export let lastStatusAt = 0;
-
-async function status(days?: number): Promise<Status> {
-  const st = await statusRaw(days);
-  lastStatusAt = Date.now();
-  return st;
-}
+const status = call<Status>('status', ['days']);
 
 /** One line of the service log: tunnel and service starts, stops, watchdog repairs, errors. */
 export interface ServiceLogEntry {
@@ -333,6 +395,7 @@ export type Health = { checks: HealthCheck[] } & ServiceLog;
 export const api = {
   personUpdate,
   settingsGet: call<SettingsData>('settings_get'),
+  portalInfo: call<PortalInfo>('portal_info'),
   settingsUpdate: call<SettingsData>('settings_update', ['values']),
   serviceSet: call<{ id: string }>('service_set', ['id', 'name', 'address', 'ports']),
   serviceDelete: call<unknown>('service_delete', ['id']),
@@ -376,6 +439,8 @@ export const api = {
   serverObfuscation: call<unknown>('server_obfuscation', ['id', 'preset']),
   serverUpdate: call<unknown>('server_update', ['id', 'values']),
   serverDelete: call<unknown>('server_delete', ['id']),
+  /** The personal link, its code and every address it works on (main first); not part of the status. */
+  personLinks: call<{ code: string; link: string | null; links: string[] }>('person_links', ['id']),
   personCreate: call<{ id: string; link: string | null }>('person_create', [
     'name',
     'slug',
@@ -410,5 +475,8 @@ export const api = {
   exportJson: call<Record<string, unknown>>('export'),
   importJson: call<unknown>('import', ['data']),
   updatesStatus: call<UpdatesStatus>('updates_status'),
-  updatesRun: call<{ started: boolean }>('updates_run', ['what']),
+  updatesRun: call<{ started: boolean; job: UpdateJob | null }>('updates_run', ['what']),
+  updatesReleases: call<{ releases: Release[]; page: number }>('updates_releases', ['page']),
+  updatesNotes: call<Release & { repo: string }>('updates_notes', ['component', 'tag', 'build']),
+  updatesChanges: call<{ items: string[] }>('updates_changes', ['from', 'to']),
 };
