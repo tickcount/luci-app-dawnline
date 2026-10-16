@@ -1,9 +1,17 @@
 #!/bin/sh
 # Cron, every 5 minutes: the watchdog lives in the agent, so this looks after
-# the agent itself and kills it when it runs but has stopped ticking (procd
-# starts it again). Off with the watchdog (Health → Watchdog).
-[ "$(uci -q get dawnline.settings.watchdog)" = 0 ] && exit 0
+# the agent itself: ends any copy that isn't procd's, and kills procd's when it
+# runs but has stopped ticking (procd starts it again; that part is off with
+# the watchdog, Health → Watchdog).
 pid="$(ubus call service list '{"name":"dawnline"}' 2>/dev/null | jsonfilter -q -e '@.dawnline.instances.agent.pid')"
+
+# Only procd's agent: any other copy (started by hand, or left by an older version that let
+# it start) runs stale code beside it, with its own events and syncs. Always ended.
+for p in $(pgrep -f '^/usr/bin/ucode /usr/libexec/dawnline/agent'); do
+	[ "$p" = "$pid" ] || kill -9 "$p" 2>/dev/null
+done
+
+[ "$(uci -q get dawnline.settings.watchdog)" = 0 ] && exit 0
 [ -n "$pid" ] && [ -r "/proc/$pid/stat" ] || exit 0
 
 now="$(date +%s)"

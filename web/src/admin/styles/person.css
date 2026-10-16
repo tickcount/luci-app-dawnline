@@ -134,7 +134,6 @@
 .dl-fix { all: unset; cursor: pointer; height: 26px; padding: 0 10px; border-radius: 999px; background: var(--dl-info-wash); color: var(--dl-info); font-size: 12px; font-weight: 500;
   display: inline-flex; align-items: center; }
 .dl-fix:hover { filter: brightness(1.15); }
-.dl-plist > .dl-card.dl-attn-row { border-color: color-mix(in srgb, var(--dl-warn) 35%, transparent); }
 @media (max-width: 760px) { .dl-pcard { grid-template-columns: 1fr; } .dl-pside { padding: 12px 0 0; border-left: 0; border-top: 1px solid var(--dl-line); } .dl-fixes { margin-left: 0; } }
 .dl-select { height: 34px !important; border-radius: 999px !important; min-width: 136px !important; width: auto !important; padding: 0 34px 0 14px !important;
   appearance: none !important; -webkit-appearance: none !important; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b8f98' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important; background-repeat: no-repeat !important; background-position: right 12px center !important; background-size: 14px !important; }

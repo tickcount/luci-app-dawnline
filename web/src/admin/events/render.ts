@@ -21,8 +21,6 @@ const EVENT_TONE: Record<string, string> = {
   person_removed: '',
   paused: 'warn',
   resumed: 'ok',
-  paused_all: 'warn',
-  resumed_all: 'ok',
   portal_blocked: 'bad',
   person_changed: '',
   devices_removed: 'warn',
@@ -37,8 +35,6 @@ const EVENT_ICON: Record<string, string> = {
   person_changed: 'edit',
   paused: 'pause',
   resumed: 'play',
-  paused_all: 'pause',
-  resumed_all: 'play',
 };
 
 function eventIcon(st: Names, e: LogEvent): string {
@@ -93,10 +89,6 @@ export function eventText(st: Pick<Status, 'people'>, e: LogEvent): Node[] {
         return [...you('issued new keys for'), kind('device'), b(devName), m(' of '), b(who), m(' · it needs its new configuration')];
       case 'link_changed':
         return [...you('issued a new link for'), kind('person'), b(who), m(' · the old link stopped working')];
-      case 'paused_all':
-        return [E('span', { class: 'dl-you' }, 'You'), m(' paused everyone')];
-      case 'resumed_all':
-        return [E('span', { class: 'dl-you' }, 'You'), m(' resumed everyone')];
     }
   switch (e.type) {
     case 'connect':
@@ -147,10 +139,6 @@ export function eventText(st: Pick<Status, 'people'>, e: LogEvent): Node[] {
       return [kind('Person'), b(who), m(` paused — ${e.detail ?? ''}`)];
     case 'resumed':
       return [kind('Person'), b(who), m(' resumed'), ...(e.detail && e.detail !== 'active' ? [m(` — ${e.detail}`)] : [])];
-    case 'paused_all':
-      return [m('Everyone paused')];
-    case 'resumed_all':
-      return [m('Everyone resumed')];
     case 'portal_blocked':
       return [
         E('b', { class: 'dl-sys-src' }, 'Personal portal'),

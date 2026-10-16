@@ -42,12 +42,51 @@ export function needs() {
 	};
 };
 
-export function udp_listening(port) {
-	let hex = sprintf(':%04X ', port);
+/** UDP ports an unconnected socket is bound to (IPv4 and IPv6): nothing else can listen there. */
+export function udp_bound() {
+	let out = {};
 	for (let f in [ '/proc/net/udp', '/proc/net/udp6' ])
-		if (index(readfile(f) ?? '', hex) >= 0)
-			return true;
-	return false;
+		for (let line in split(readfile(f) ?? '', '\n')) {
+			// "  12: 00000000:1194 00000000:0000 07 …": local address, then the remote one (none).
+			let m = match(line, /^ *[0-9]+: [0-9A-F]+:([0-9A-F]{4}) [0-9A-F]+:0000 /);
+			if (m)
+				out[hex(m[1])] = true;
+		}
+	return map(keys(out), (k) => +k);
+};
+
+/**
+ * Programs on 'tcp' or 'udp' ports, our portal left out: { port: "dnsmasq" }.
+ * Kernel sockets (a tunnel's) have no name.
+ */
+function port_programs(proto) {
+	let out = {};
+	for (let line in split(sh_out(`netstat -ln${proto == 'tcp' ? 't' : 'u'}p 2>/dev/null`) ?? '', '\n')) {
+		let f = split(trim(line), /[ \t]+/);
+		if (f[0] != proto && f[0] != `${proto}6`)
+			continue;
+		let m = match(f[3] ?? '', /:([0-9]+)$/);
+		let owner = split(f[length(f) - 1], '/');
+		if (!m || !owner[1] || out[m[1]])
+			continue;
+		// Our own portal runs as a dedicated uhttpd instance.
+		if (index(readfile(`/proc/${+owner[0]}/cmdline`) ?? '', '/usr/share/dawnline/portal') >= 0)
+			continue;
+		out[m[1]] = owner[1];
+	}
+	return out;
+}
+
+export function udp_port_programs() {
+	return port_programs('udp');
+};
+
+export function tcp_port_programs() {
+	return port_programs('tcp');
+};
+
+export function udp_listening(port) {
+	return index(udp_bound(), +port) >= 0;
 };
 
 export function tcp_listening(port) {
@@ -116,6 +155,11 @@ function other_subnets(srv_id) {
 };
 
 /** Subnets in use on the router except the given server's (null: all of them). */
+/** The router's IPv4 networks, Dawnline's tunnels included: [{ iface, cidr }]. */
+export function networks() {
+	return other_subnets(null);
+};
+
 export function used_subnets(except_srv) {
 	return map(other_subnets(except_srv), (x) => x.cidr);
 };
@@ -211,12 +255,13 @@ const NO_PROTO = "netifd doesn't know the amneziawg protocol (AmneziaWG missing,
 
 /** Is AmneziaWG there and usable: packages, kernel module, netifd's protocol handler. */
 function awg_check() {
-	let st = awg.state();
+	let st = awg.load();
 	let title = 'AmneziaWG installed';
 	if (length(st.missing ?? []))
 		return check('awg', title, 'error', `${join(' and ', st.missing)} ${length(st.missing) == 1 ? 'is' : 'are'} missing.`, 'install:awg',
 			'AmneziaWG isn’t installed');
 	if (!st.loaded) {
+		// load() tried it: the second modprobe only repeats why.
 		let why = trim(sh('modprobe amneziawg 2>&1; dmesg | grep -i amneziawg | tail -n 3').out);
 		return check('awg', title, 'error',
 			`The kernel module doesn't load${why ? `: ${why}` : '.'} Reinstall a build for this kernel in Components.`, 'updates',
@@ -385,10 +430,16 @@ export function health(m) {
 		}
 	}
 
-	if (length(filter(values(m.servers), (x) => x.private_key))) {
+	// While every server is off the resolver only idles on loopback: nothing to check.
+	if (length(filter(values(m.servers), (x) => x.enabled && x.private_key))) {
 		let rt = loop.resolver_target();
-		let ok = stat(loop.RESOLVER.conf) != null && loop.resolver_running();
+		let conf = stat(loop.RESOLVER.conf);
+		let running = conf != null && loop.resolver_running();
+		// A new config (a server turned on, the home link up) restarts it: give it a few seconds.
+		let restarting = !running && conf != null && time() - conf.mtime < 10;
+		let ok = running || restarting;
 		push(out, check('resolver', 'DNS for Home-only devices', ok ? 'ok' : 'warn',
+			restarting ? 'Restarting with the new settings.' :
 			ok ? (rt.mode == 'ns' ? `Plain resolver running next to the LAN (${rt.address}).` : `Plain resolver on port ${rt.port}.`)
 				: 'The resolver is not running; Home-only devices cannot resolve names.', ok ? null : 'apply'));
 	}

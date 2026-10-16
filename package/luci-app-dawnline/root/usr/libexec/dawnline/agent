@@ -11,7 +11,7 @@
 'use strict';
 
 import * as uloop from 'uloop';
-import { readfile, writefile, stat, unlink } from 'fs';
+import { open, readfile, writefile, stat, unlink } from 'fs';
 import {
 	read_json, write_json, ensure_dir, sh_out, q, uniq, slog, slog_trim, slog_restore, DATA_DIR, RUN_DIR, VERSION
 } from 'dawnline.util';
@@ -33,6 +33,21 @@ const FLUSH_EVERY = 3600;
 const LOG_FLUSH = { '10min': 600, hourly: 3600 };
 const RESYNC_EVERY = 600;
 const CONFIG_FILE = '/etc/config/dawnline';
+
+// One agent, procd's. A second copy would run forever beside it with the code
+// it started with: its own events (pauses and resumes from stale states), its
+// own counters and syncs. It takes no arguments: the commands are `dawnline`'s.
+if (length(ARGV)) {
+	warn(`The agent takes no arguments (procd runs it). For commands use: dawnline ${join(' ', ARGV)}\n`);
+	exit(2);
+}
+ensure_dir(RUN_DIR);
+// Held as long as the process lives; close-on-exec, so children don't keep it.
+let instance = open(`${RUN_DIR}/agent.lock`, 'we');
+if (!instance?.lock('xn')) {
+	warn(`The agent is already running (${RUN_DIR}/agent.lock is held). Use /etc/init.d/dawnline restart.\n`);
+	exit(1);
+}
 
 let usage = live.load_usage();
 let last_states = null;
@@ -111,17 +126,19 @@ let conf_mtime = null;
 let cert_mtime = null;
 
 const REASON = {
-	paused: 'paused by admin', paused_all: 'everyone paused', expired: 'end date reached',
-	quota: 'data limit reached', hours: 'outside allowed hours', no_server: 'no server', active: 'active',
+	paused: 'paused by admin', expired: 'end date reached',
+	quota: 'data limit reached', hours: 'outside allowed hours', no_server: 'no server', server_off: 'server turned off',
+	active: 'active',
 };
 
 function check_people(m, states, events) {
 	let ts = time();
 	for (let id, p in m.people) {
 		let st = states[id], prev = last_states?.[id];
-		// The admin's own pauses are logged by rpcd when they happen; here only
-		// what changes on its own (end date, data limit, allowed hours).
-		let by_admin = (x) => x == 'paused' || x == 'paused_all';
+		// The admin's own pauses (and turning a server off or on) are logged by
+		// rpcd when they happen; here only what changes on its own (end date,
+		// data limit, allowed hours).
+		let by_admin = (x) => x == 'paused' || x == 'server_off';
 		if (prev != null && prev != st && !by_admin(prev) && !by_admin(st))
 			push(events, { type: st == 'active' ? 'resumed' : 'paused', person: id, detail: REASON[st] ?? st });
 		// "Remove their devices" when the end date passes.
@@ -220,6 +237,10 @@ function watch() {
 			last_hs[id] = max(last_hs[id] ?? 0, peer.handshake);
 			ep = live.endpoint_ip(peer.endpoint);
 		}
+		// Not in the tunnel (turned off, paused, out of time or data): offline now, and online
+		// again only with a new handshake, not the one remembered from before.
+		else
+			last_hs[id] = 0;
 		let on = last_hs[id] > 0 && now - last_hs[id] < live.ONLINE_WINDOW;
 		let was = last_online[id];
 		if (on && !was) {

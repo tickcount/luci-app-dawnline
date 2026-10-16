@@ -29,6 +29,10 @@
   --dl-radius: 16px;
 }
 
+/* Text is read, not edited: the arrow over it, the I-beam only where you type. */
+.dl-root, .dl-modal { cursor: default; }
+:is(.dl-root, .dl-modal) :is(input:not([type=checkbox], [type=radio], [type=range], [type=button], [type=submit]), textarea, [contenteditable=true]) { cursor: text; }
+
 .dl-icon-wrap { display: inline-flex; align-items: center; justify-content: center; line-height: 0; }
 .dl-icon { width: 16px; height: 16px; }
 .dl-icon-btn { display: inline-flex !important; align-items: center; gap: 6px; }

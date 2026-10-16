@@ -55,7 +55,8 @@ export function resolve_all(hosts) {
 	let cmds = [];
 	for (let i = 0; i < length(todo); i++)
 		for (let j = 0; j < length(SERVERS); j++)
-			push(cmds, `( timeout ${TIMEOUT} nslookup ${q(todo[i])} ${SERVERS[j]} 2>/dev/null | awk '/^Address/ && NR>2 {print $NF}' > ${dir}/${i}.${j} ) &`);
+			// nslookup's own timeout: some firmware builds BusyBox without `timeout`.
+			push(cmds, `( nslookup -type=a -timeout=${TIMEOUT} -retry=1 ${q(todo[i])} ${SERVERS[j]} 2>/dev/null | awk '/^Address/ && NR>2 {print $NF}' > ${dir}/${i}.${j} ) &`);
 	sh(`mkdir -p ${dir}; ${join(' ', cmds)} wait`);
 	for (let i = 0; i < length(todo); i++) {
 		let ips = [];

@@ -11,7 +11,7 @@ import { copyText } from '../ui/files';
 import { dropdown, type MenuItem } from '../ui/menu';
 import { attempt, notify } from '../ui/toast';
 import { attachTip } from '../ui/tooltip';
-import { accessBadge, stateBadge } from '../ui/badges';
+import { accessBadge } from '../ui/badges';
 import { addDevice, openDevice, type DeviceOpts } from '../device';
 import { copyPersonLink, inviteCard } from '../invite';
 import { personUrl } from '../urls';
@@ -55,6 +55,14 @@ function slotBar(p: Person): HTMLElement {
 
 type Filter = 'all' | 'online' | 'attention' | 'paused';
 type SortBy = 'seen' | 'name' | 'usage';
+
+/** Paused by someone or something about the person; not over a limit (Needs attention), and not their server being off (the admin's pause still counts then). */
+const paused = (p: Person): boolean => (p.state === 'server_off' ? p.paused : !['active', 'quota', 'expired'].includes(p.state));
+/** Can't connect for a reason of their own (not just their server being off). */
+const stopped = (p: Person): boolean => (p.state === 'server_off' ? p.paused : p.state !== 'active');
+/** Why they can't connect, their own reason (the admin's pause shows through a turned-off server), or null. */
+const stopReason = (p: Person): Exclude<Person['state'], 'active' | 'server_off'> | null =>
+  !stopped(p) ? null : p.state === 'server_off' ? 'paused' : (p.state as Exclude<Person['state'], 'active' | 'server_off'>);
 
 function needsAttention(p: Person, today: string): boolean {
   const left = daysLeft(p.expires, today);
@@ -269,7 +277,7 @@ export class PeoplePage {
       all: people.length,
       online: people.filter((p) => p.online > 0).length,
       attention: people.filter(attn).length,
-      paused: people.filter((p) => p.state !== 'active' && p.state !== 'quota' && p.state !== 'expired').length,
+      paused: people.filter((p) => paused(p)).length,
     };
     const tabs = this.el?.querySelector<HTMLElement>('.dl-people-tabs');
     if (tabs && !(quiet && focusInside(tabs))) {
@@ -296,23 +304,27 @@ export class PeoplePage {
     const match = (p: Person) => {
       if (this.filter === 'online' && !p.online) return false;
       if (this.filter === 'attention' && !attn(p)) return false;
-      if (this.filter === 'paused' && !(p.state !== 'active' && p.state !== 'quota' && p.state !== 'expired')) return false;
+      if (this.filter === 'paused' && !paused(p)) return false;
       return true;
     };
-    const order = [...people].sort((a, b) =>
-      this.sort === 'name'
-        ? a.name.localeCompare(b.name)
-        : this.sort === 'usage'
-          ? b.month[0] + b.month[1] - (a.month[0] + a.month[1])
-          : b.online - a.online || b.last_seen - a.last_seen,
+    // Whatever the sort: people who can connect, then those held by a limit or an end
+    // date (often something to fix), then the ones the admin paused, last.
+    const rank = (p: Person) => (stopReason(p) === 'paused' ? 2 : stopped(p) ? 1 : 0);
+    const order = [...people].sort(
+      (a, b) =>
+        rank(a) - rank(b) ||
+        (this.sort === 'name'
+          ? a.name.localeCompare(b.name)
+          : this.sort === 'usage'
+            ? b.month[0] + b.month[1] - (a.month[0] + a.month[1])
+            : b.online - a.online || b.last_seen - a.last_seen),
     );
     let shown = 0;
     for (const p of order) {
       const card = this.card(p.id);
       if (!card) continue;
       this.list.appendChild(card);
-      card.classList.toggle('dl-off', p.state !== 'active');
-      card.classList.toggle('dl-attn-row', p.state === 'quota' || p.state === 'expired');
+      card.classList.toggle('dl-off', stopped(p));
       const hit = match(p);
       card.classList.toggle('dl-filtered', !hit);
       if (hit) shown++;
@@ -343,7 +355,8 @@ export class PeoplePage {
 
     // Term and hours sit by the name; online/last seen lives in the strip below.
     const pills: Node[] = [];
-    if (p.expires) {
+    const why = stopReason(p);
+    if (p.expires && why !== 'expired') {
       const soon = left != null && left >= 0 && left <= Math.max(p.expire_warn, 3);
       const over = left != null && left < 0;
       pills.push(
@@ -353,7 +366,8 @@ export class PeoplePage {
         ]),
       );
     }
-    if (p.hours) pills.push(E('span', { class: 'dl-pill-ic', title: 'Allowed hours' }, [icon('clock'), p.hours.replace('-', '–')]));
+    if (p.hours && why !== 'hours')
+      pills.push(E('span', { class: 'dl-pill-ic', title: 'Allowed hours' }, [icon('clock'), p.hours.replace('-', '–')]));
 
     const chips = byDeviceState(p.devices).map((d) => {
       return E(
@@ -394,20 +408,9 @@ export class PeoplePage {
       ),
     );
 
+    // Ending soon (the strip below handles an end that has passed).
     const fixes: Node[] = [];
-    if (p.state === 'quota' && p.quota_period === 'month')
-      fixes.push(
-        E(
-          'button',
-          {
-            type: 'button',
-            class: 'dl-fix',
-            click: () => this.quick(p, { bonus_gb: String((p.bonus_gb || 0) + 10) }, '+10 GB this month'),
-          },
-          '+10 GB this month',
-        ),
-      );
-    if (p.expires && left != null && left <= Math.max(p.expire_warn, 3))
+    if (p.expires && left != null && left <= Math.max(p.expire_warn, 3) && why !== 'expired')
       fixes.push(
         E(
           'button',
@@ -466,7 +469,6 @@ export class PeoplePage {
             E('div', { class: 'dl-pcard-who' }, [
               E('div', { class: 'dl-card-head' }, [
                 E('a', { class: 'dl-card-name', href: personUrl(p.id) }, p.name),
-                stateBadge(p),
                 accessBadge(p),
                 ...pills,
               ]),
@@ -477,9 +479,46 @@ export class PeoplePage {
           fixes.length ? E('div', { class: 'dl-fixes' }, fixes) : '',
         ]),
         this.usageSide(p, actions),
+        why ? this.stopStrip(p, why) : '',
       ]),
     );
     return node;
+  }
+
+  /** Across the bottom of a stopped person's card: why, since when or until when, and the one action that lifts it. */
+  stopStrip(p: Person, why: NonNullable<ReturnType<typeof stopReason>>): HTMLElement {
+    const today = this.today;
+    // The month's data resets on the 1st (router time).
+    const reset = addMonthsClamped(`${today.slice(0, 8)}01`, 1);
+    const extra = () => this.quick(p, { bonus_gb: String((p.bonus_gb || 0) + 10) }, '+10 GB this month');
+    const what: Record<typeof why, [string, 'warn' | 'bad', string, string, [string, string, () => unknown] | null]> = {
+      paused: ['pause', 'warn', 'Paused', 'Devices can’t connect until you resume', ['play', 'Resume', () => this.togglePause(p)]],
+      quota:
+        p.quota_period === 'month'
+          ? ['chart', 'bad', 'Data limit reached', `Paused until it resets on ${date(reset)}`, ['plus', '+10 GB this month', extra]]
+          : [
+              'chart',
+              'bad',
+              'Data limit reached',
+              'Paused until the limit is raised',
+              ['edit', 'Change limit', () => (location.href = personUrl(p.id))],
+            ],
+      expired: [
+        'calendar',
+        'bad',
+        `Access ended ${date(p.expires)}`,
+        'Devices can’t connect',
+        ['calendar', 'Extend 1 month', () => this.quick(p, { expires: addMonth(p.expires, today) }, 'Extended by 1 month')],
+      ],
+      hours: ['clock', 'warn', 'Outside allowed hours', `Access ${p.hours.replace('-', '–')} (router time)`, null],
+      no_server: ['alert', 'warn', 'No server', 'Choose a server on their page', null],
+    };
+    const [ic, tone, title, sub, act] = what[why];
+    return E('div', { class: `dl-pstrip ${tone}` }, [
+      E('span', { class: `dl-need-ic ${tone}` }, icon(ic)),
+      E('span', { class: 'dl-pstrip-text' }, [E('b', {}, title), E('span', { class: 'dl-faint' }, sub)]),
+      act ? button([icon(act[0]), ` ${act[1]}`], act[2]) : '',
+    ]);
   }
 
   /** Status and actions, this month's usage, a bar split by device (or filled toward the limit), today or live speed. */

@@ -779,8 +779,11 @@ select_release() {
 	}
 	_tags="$(jsonfilter -i "$_rl" -e '@[@.draft=false && @.prerelease=false].tag_name' 2>/dev/null)"
 	[ -n "$_tags" ] || _tags="$(jsonfilter -i "$_rl" -e '@[*].tag_name' 2>/dev/null)"
+	# Newest first. BusyBox sort ignores -t/-k numeric keys here (falls back to
+	# an ascending string sort), so pad each part and reverse-sort as strings.
 	_tags="$(printf '%s\n' "$_tags" | sed 's/^v//' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' |
-		sort -t. -k1,1nr -k2,2nr -k3,3nr | uniq | head -n 10)"
+		awk -F. '{ printf "%06d%06d%06d %s\n", $1, $2, $3, $0 }' | sort -r | cut -d' ' -f2 |
+		uniq | head -n 10)"
 	_count=0
 	for _t in $_tags; do _count=$((_count + 1)); done
 	[ "$_count" -gt 1 ] || return 0
@@ -1133,6 +1136,22 @@ install_awg() {
 	ok "AmneziaWG $(pkg_version amneziawg-tools) installed"
 }
 
+# netifd reads its protocol handlers only when it starts: a network that was
+# up before AmneziaWG was installed doesn't know the amneziawg protocol, and no
+# tunnel can come up. Restarted detached and last, so an SSH session dropping
+# with it can't cut the install short.
+awg_netifd_restart() {
+	[ "$AWG_ACTION" != skip ] && [ -x /lib/netifd/proto/amneziawg.sh ] || return 0
+	ubus call network get_proto_handlers 2>/dev/null | grep -q '"amneziawg"' && return 0
+	msg "Restarting the network so it knows AmneziaWG (connections drop for a few seconds)"
+	log_line "INFO  network restart: netifd has no amneziawg protocol handler"
+	(
+		trap '' HUP
+		sleep 2
+		/etc/init.d/network restart
+	) </dev/null >/dev/null 2>&1 &
+}
+
 install_dawnline() {
 	_force=0
 	case "$MODE" in reinstall | downgrade) _force=1 ;; esac
@@ -1350,6 +1369,7 @@ main() {
 		msg "Open LuCI → Network → Dawnline:"
 	fi
 	msg "  $(lan_url)"
+	awg_netifd_restart
 }
 
 main "$@"

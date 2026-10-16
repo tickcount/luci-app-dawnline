@@ -54,6 +54,12 @@ const SECURITY_HEADERS = {
 
 const NOT_READY = "Adding devices isn't available right now: the VPN server isn't ready. Ask whoever sent you this link.";
 
+// States the admin stopped the person in: the portal only shows, it changes nothing.
+const LOCKED = {
+	paused: 'Your access is paused by the admin.',
+	expired: 'Your access has ended. Ask the admin to extend it.',
+};
+
 function html_escape(s) {
 	return replace(`${s}`, /[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 }
@@ -263,11 +269,38 @@ function reload(r) {
 		not_found(r);
 }
 
+/**
+ * The person's state for the page: a stop by the admin (pause, end of access)
+ * wins over their server being off, so they learn that their access is stopped.
+ */
+function person_state(m, p, usage) {
+	let st = core.person_state(m, p, usage);
+	if (st == 'server_off') {
+		let own = core.own_state(m, p, usage);
+		if (LOCKED[own])
+			return own;
+	}
+	return st;
+}
+
+/** Why the person can't change anything right now, or null. */
+function locked(r) {
+	return LOCKED[person_state(r.m, r.person, core.load_usage())] ?? null;
+}
+
+/** Refuses a change (or a config) while the person is stopped. */
+function need_open(r) {
+	let why = locked(r);
+	if (why)
+		fail(r, '403 Forbidden', why);
+}
+
 /** Everything the page shows. */
 function state(r) {
 	let m = r.m, person = r.person;
 	let usage = core.load_usage();
 	let v = view.person_view(m, person, usage, live.dump(m), view.states(m, usage));
+	v.state = person_state(m, person, usage);
 	let srv = m.servers[person.server];
 	// The device this page was opened from, when it came through the tunnel.
 	let here = null;
@@ -284,6 +317,7 @@ function state(r) {
 			awg_disguise: srv ? !awg.obf_neutral(srv.obf) : false,
 		},
 		can_add: length(person.devices) < person.device_limit,
+		locked: LOCKED[v.state] != null,
 		kinds: core.KINDS,
 		// The router's day: access ends and usage days follow its clock, not the browser's.
 		today: today(),
@@ -304,6 +338,7 @@ function api_state(r) {
 }
 
 function api_add(r) {
+	need_open(r);
 	let b = body(r);
 	if (!devices.ready())
 		fail(r, '503 Service Unavailable', NOT_READY);
@@ -314,6 +349,7 @@ function api_add(r) {
 
 function api_config(r, id) {
 	let d = own_device(r, id);
+	need_open(r);
 	awg.mark_issued(r.m, d.id);
 	send_json(r, '200 OK', awg.client_config(r.m, d));
 }
@@ -338,6 +374,7 @@ const ACTIONS = {
 
 function api_device(r, id) {
 	let d = own_device(r, id);
+	need_open(r);
 	let b = body(r);
 	let act = ACTIONS[b.action];
 	if (!act)

@@ -57,8 +57,29 @@ export function uhttpd() {
 		store.transact((w, m) => w.delete('dawnline', 'settings', 'portal_443'));
 };
 
+/** 1380 was every server's stored MTU before it became automatic (by device type and disguise). */
+function auto_mtu() {
+	let c = cursor();
+	c.load('dawnline');
+	let any = false;
+	c.foreach('dawnline', 'server', (s) => {
+		if (s.mtu == '1380')
+			any = true;
+	});
+	if (!any)
+		return;
+	store.transact((w, m) => {
+		w.foreach('dawnline', 'server', (s) => {
+			if (s.mtu == '1380')
+				w.delete('dawnline', s['.name'], 'mtu');
+		});
+	});
+	slog('dawnline', 'info', 'MTU is now automatic', null, 'Servers');
+}
+
 /** All of them, in order. */
 export function run() {
 	word_codes();
 	uhttpd();
+	auto_mtu();
 };

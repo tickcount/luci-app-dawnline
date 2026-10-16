@@ -1,37 +1,124 @@
 /* Connection map and charts. */
 /* map */
-.dl-geomap { position: relative; border-top: 1px solid var(--dl-line); background: var(--dl-soft); }
+/* As mapcn: no backdrop of its own, the globe sits on the card. */
+.dl-geomap { position: relative; border-top: 1px solid var(--dl-line); background: transparent; }
 .dl-map-status { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--dl-fg-muted); font-size: 13px; z-index: 1; pointer-events: none; }
 .dl-map-wrap { position: relative; }
 .dl-map-legend { position: absolute; left: 12px; bottom: 12px; display: flex; gap: 12px; align-items: center; padding: 6px 12px; border-radius: 999px; font-size: 12px;
   background: color-mix(in srgb, var(--dl-card) 88%, transparent); border: 1px solid var(--dl-line); backdrop-filter: blur(6px); z-index: 2; }
 .dl-map-legend span { display: inline-flex; align-items: center; gap: 6px; color: var(--dl-fg-muted); }
-.dl-map-legend i.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dl-fg-faint); }
-.dl-map-legend i.dot.ok { background: var(--dl-ok); }
-.dl-map-legend i.line { width: 14px; height: 2px; border-radius: 2px; background: var(--dl-ok); }
+.dl-map-legend i.line { width: 14px; height: 0; border-top: 2px dashed #8a8a8a; }
+.dl-map-legend i.line.live { border-top-color: #3b82f6; }
 .dl-map-off { padding: 32px 16px; text-align: center; color: var(--dl-fg-muted); border-top: 1px solid var(--dl-line); }
-.dl-mk { all: unset; cursor: pointer; width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; position: relative; }
-.dl-mk-dot { width: 12px; height: 12px; border-radius: 50%; background: #8f8f8f; box-shadow: 0 0 0 3px rgba(0,0,0,.55); }
-.dl-mk.online .dl-mk-dot { width: 14px; height: 14px; background: #40c977; }
-.dl-mk.online::before { content: ''; position: absolute; inset: -9px; border-radius: 50%; background: rgba(64, 201, 119, .28); animation: dl-pulse 2s ease-out infinite; }
-@keyframes dl-pulse { 0% { transform: scale(.5); opacity: 1; } 100% { transform: scale(1.4); opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .dl-mk.online::before { animation: none; } }
-.dl-mk-home { width: 22px; height: 22px; border-radius: 7px; background: #ededed; display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 0 0 4px rgba(237, 237, 237, .18), 0 2px 6px rgba(0,0,0,.5); color: #131313; }
-.dl-mk-home-ic { width: 13px; height: 13px; }
-.dl-popup { z-index: 4; }
-.dl-popup .maplibregl-popup-content { background: var(--dl-elevated); color: var(--dl-fg); border: 1px solid var(--dl-line); border-radius: 12px; padding: 12px;
-  box-shadow: var(--shadow-xl, 0 8px 16px -4px rgba(0,0,0,.4)); font: inherit; }
-.dl-popup .maplibregl-popup-tip { border-top-color: var(--dl-elevated) !important; border-bottom-color: var(--dl-elevated) !important; }
+.dl-mk { all: unset; cursor: pointer; position: relative; display: flex; align-items: center; justify-content: center; transition: opacity .2s; }
+.dl-mk-hub { position: relative; display: flex; align-items: center; justify-content: center; }
+/* The server: an inverse tile (white on dark, black on light) on a frosted plate. */
+.dl-mk-host { box-sizing: border-box; width: 40px; height: 40px; border-radius: 11px; display: flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--dl-elevated) 60%, transparent); border: 1px solid var(--dl-line); backdrop-filter: blur(6px);
+  box-shadow: 0 6px 16px rgba(0,0,0,.35); }
+.dl-mk-host-tile { width: 26px; height: 26px; border-radius: 7px; display: flex; align-items: center; justify-content: center;
+  background: var(--dl-fg); color: var(--background, var(--dl-elevated)); }
+.dl-mk-host-ic { width: 14px; height: 14px; }
+/* People: initials (who) with a device badge (what), blue while live, gray when seen recently. */
+.dl-mk-av { position: relative; box-sizing: border-box; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 500; line-height: 1; border: 2px solid #8a8a8a; background: var(--dl-elevated); color: var(--dl-fg-muted); transition: box-shadow .2s; }
+.dl-mk.online .dl-mk-av { border-color: #3b82f6; background: color-mix(in srgb, #3b82f6 22%, var(--dl-elevated)); color: var(--dl-fg); }
+.dl-mk-badge { position: absolute; left: 16px; bottom: -6px; height: 16px; min-width: 16px; padding: 0 3px; border-radius: 8px;
+  border: 2px solid var(--dl-elevated); background: #6b6b6b; color: #fff; display: flex; align-items: center; justify-content: center; gap: 1px;
+  font-size: 9px; font-weight: 600; white-space: nowrap; box-sizing: content-box; }
+.dl-mk.online .dl-mk-badge { background: #3b82f6; }
+.dl-mk-badge-ic { width: 10px; height: 10px; stroke-width: 2.2; }
+/* A person's places (their page): rounded tiles without outlines, the live one blue. */
+.dl-mk-tile { position: relative; width: 26px; height: 26px; border-radius: 7px; display: flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--dl-fg) 18%, var(--dl-elevated)); color: var(--dl-fg); }
+.dl-mk.place.online .dl-mk-tile { background: #3b82f6; color: #fff; box-shadow: 0 2px 8px rgba(59, 130, 246, .35); }
+.dl-mk-tile-ic { width: 14px; height: 14px; }
+.dl-mk-tile-n { position: absolute; right: -5px; top: -5px; min-width: 14px; height: 14px; padding: 0 3px; box-sizing: border-box; border-radius: 7px;
+  background: var(--dl-fg); color: var(--dl-elevated); font-size: 9px; font-weight: 600; line-height: 14px; text-align: center; }
+.dl-mk-when { display: block; text-align: center; color: var(--dl-fg-faint); font-weight: 400; }
+.dl-mk.place.online .dl-mk-when { color: #3b82f6; }
+.dl-mk-tile.sm { width: 18px; height: 18px; border-radius: 5px; font-size: 9px; font-weight: 600; }
+/* A device's places under its map: the same numbers as the tiles, the live one blue. */
+.dl-dmap { border: 1px solid var(--dl-line); border-radius: 12px; overflow: hidden; }
+.dl-dmap .dl-geomap { border-top: 0; }
+.dl-dplaces { display: flex; flex-direction: column; margin-top: 4px; }
+.dl-dplace-row { display: flex; align-items: center; gap: 10px; padding: 9px 2px; border-top: 1px solid var(--dl-line); font-size: 13px; }
+.dl-dplace-row:first-child { border-top: 0; }
+.dl-dplace-n { flex: 0 0 auto; width: 20px; height: 20px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600;
+  background: color-mix(in srgb, var(--dl-fg) 18%, var(--dl-elevated)); color: var(--dl-fg); }
+.dl-dplace-n.live { background: #3b82f6; color: #fff; }
+.dl-dplace-n .dl-icon { width: 12px; height: 12px; }
+.dl-dplace-now { color: #3b82f6; }
+/* Someone on top of the server: folded into a count on its plate until there is room. */
+/* MapLibre writes the marker's own opacity (fading what is behind the globe): ours goes on its parts. */
+.dl-mk > * { transition: opacity .15s; opacity: var(--dl-mk-fade, 1); }
+.dl-mk.merged { pointer-events: none; }
+.dl-mk.dl-mk-new > * { transition: none; }
+.dl-mk.merged > * { opacity: 0; }
+.dl-mk-hub { cursor: default; }
+.dl-mk-host { position: relative; }
+.dl-mk-host-n { position: absolute; right: -7px; top: -7px; min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box; border-radius: 9px;
+  border: 2px solid var(--dl-elevated); background: #3b82f6; color: #fff; font-size: 10px; font-weight: 600; line-height: 14px; text-align: center;
+  opacity: 0; transform: scale(.5); transition: opacity .15s, transform .15s; pointer-events: none; }
+.dl-mk-host-n.on { opacity: 1; transform: none; }
+.dl-mk-hub:has(.dl-mk-host-n.on) { cursor: zoom-in; }
+/* A marker moved clear of a crowd: a line back to its real spot, and a dot there. */
+.dl-mk-ptr { position: absolute; left: 50%; top: 50%; width: 0; height: 0; z-index: -1; pointer-events: none; }
+.dl-mk-ptr .line { position: absolute; left: 0; top: -0.5px; height: 1px; background: var(--dl-fg-faint); transform-origin: 0 50%; }
+.dl-mk-ptr .spot { position: absolute; left: -3.5px; top: -3.5px; width: 7px; height: 7px; border-radius: 50%; box-sizing: border-box; border: 1.5px solid #fff; background: #8a8a8a; }
+.dl-mk.online .dl-mk-ptr .spot, .dl-mk.place.online .dl-mk-ptr .spot { background: #3b82f6; }
+/* Hovering a person: their places stay, everyone else fades. */
+.dl-mk.dim > * { opacity: .18; }
+.dl-mk.hl .dl-mk-av { box-shadow: 0 0 0 4px rgba(59, 130, 246, .25); }
+/* MarkerLabel: absolute above the dot, text-[10px] font-medium text-foreground. */
+.dl-mk-label { position: absolute; left: 50%; bottom: 100%; margin-bottom: 4px; transform: translateX(-50%); white-space: nowrap; pointer-events: none;
+  font-size: 10px; line-height: 14px; font-weight: 500; color: var(--dl-fg); }
+.dl-mk-label.below { bottom: auto; top: 100%; margin: 4px 0 0; }
+/* The hub's label: bg-background/80 rounded-sm px-1.5 py-0.5 text-[11px] font-semibold backdrop-blur. */
+.dl-mk-label.chip { padding: 2px 6px; border-radius: 4px; font-size: 11px; line-height: 16px; font-weight: 600;
+  background: color-mix(in srgb, var(--background, var(--dl-card)) 80%, transparent); backdrop-filter: blur(8px); }
+/* The attribution as on mapcn's site: a quiet tile with a filled "i"; opened, the credits beside it. */
+.dl-geomap .maplibregl-ctrl-bottom-right .maplibregl-ctrl-attrib.maplibregl-compact { margin: 0 10px 10px 0; min-height: 28px; padding: 0; border-radius: 8px;
+  background: var(--dl-elevated); border: 1px solid var(--dl-line); color: var(--dl-fg-muted); box-shadow: none; font-size: 11px; line-height: 26px; }
+.dl-geomap .maplibregl-ctrl-bottom-right .maplibregl-ctrl-attrib.maplibregl-compact:not(.maplibregl-compact-show) { width: 28px; height: 28px; box-sizing: border-box; }
+.dl-geomap .maplibregl-ctrl-bottom-right .maplibregl-ctrl-attrib.maplibregl-compact.maplibregl-compact-show { padding: 0 32px 0 10px; }
+.dl-geomap .maplibregl-ctrl-attrib a { color: var(--dl-fg-muted); }
+.dl-geomap .maplibregl-ctrl-attrib-button { top: 0; right: 0; width: 26px; height: 26px; margin: 0; border-radius: 8px; background: none; }
+.dl-geomap .maplibregl-ctrl-attrib-button::after { content: ''; position: absolute; inset: 5px; background: var(--dl-fg);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20Zm-1.2 8.2h2.4V17h-2.4v-6.8ZM12 6a1.4 1.4 0 1 0 0 2.8A1.4 1.4 0 0 0 12 6Z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20Zm-1.2 8.2h2.4V17h-2.4v-6.8ZM12 6a1.4 1.4 0 1 0 0 2.8A1.4 1.4 0 0 0 12 6Z'/%3E%3C/svg%3E") center / contain no-repeat; }
+.dl-geomap .maplibregl-ctrl-attrib-button:focus { outline: none; box-shadow: none; }
+.dl-geomap .maplibregl-ctrl-attrib-button:focus-visible { outline: 2px solid var(--dl-ring); }
+/* The hovered person's devices, in the map's corner. */
+.dl-map-card { position: absolute; right: 12px; top: 12px; z-index: 3; min-width: 200px; max-width: 260px; padding: 10px 12px; border-radius: 10px; font-size: 12px; line-height: 20px;
+  background: var(--dl-elevated); color: var(--dl-fg); border: 1px solid var(--dl-line); box-shadow: var(--shadow-xl, 0 8px 16px -4px rgba(0,0,0,.4));
+  opacity: 0; transition: opacity .2s; pointer-events: none; }
+.dl-map-card.on { opacity: 1; }
+.dl-map-card-head b { font-weight: 500; }
+.dl-map-card-row { display: flex; justify-content: space-between; gap: 12px; white-space: nowrap; }
+/* A marker's card: floats over the page (never clipped by the map), pinned above or below the marker. */
+.dl-popcard { position: fixed; z-index: 2100; width: max-content; max-width: 300px; padding: 12px; border-radius: 12px; box-sizing: border-box;
+  background: var(--dl-elevated); color: var(--dl-fg); border: 1px solid var(--dl-line); box-shadow: var(--shadow-xl, 0 8px 16px -4px rgba(0,0,0,.4)); }
+.dl-popcard.away { visibility: hidden; }
+.dl-popcard.leaving { pointer-events: none; }
+.dl-popcard-tip { position: absolute; left: var(--tip-x, 50%); width: 10px; height: 10px; margin-left: -6px; box-sizing: border-box;
+  background: var(--dl-elevated); border: solid var(--dl-line); transform: rotate(45deg); }
+.dl-popcard.above .dl-popcard-tip { bottom: -6px; border-width: 0 1px 1px 0; }
+.dl-popcard.below .dl-popcard-tip { top: -6px; border-width: 1px 0 0 1px; }
+.dl-popcard.above { transform-origin: var(--tip-x, 50%) 100%; }
+.dl-popcard.below { transform-origin: var(--tip-x, 50%) 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .dl-popcard { animation: dl-pop-in .16s ease-out; }
+  .dl-popcard.leaving { animation: dl-pop-out .14s ease-in forwards; }
+}
+@keyframes dl-pop-in { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: none; } }
+@keyframes dl-pop-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: scale(.94); } }
 .dl-pop { display: flex; flex-direction: column; gap: 4px; font-size: 12px; line-height: 18px; min-width: 210px; }
 .dl-pop-head { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 2px; }
-.dl-mk.multi { width: 26px; height: 26px; }
-.dl-mk-count { min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; background: #8f8f8f; color: #0a0a0a; font: 600 11px/22px var(--dl-mono);
-  text-align: center; box-shadow: 0 0 0 3px rgba(0,0,0,.55); box-sizing: border-box; }
-.dl-mk.online .dl-mk-count { background: #40c977; }
 .dl-pop-net { width: 30px; height: 30px; border-radius: 9px; background: var(--dl-soft); display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; color: var(--dl-fg-muted); }
-.dl-pop-list { display: flex; flex-direction: column; margin: 6px -4px 0; }
-.dl-pop-row { all: unset; cursor: pointer; display: flex; align-items: center; gap: 8px; padding: 5px 4px; border-radius: 6px; }
+/* The row's highlight lines up with the head's icon above it. */
+.dl-pop-list { display: flex; flex-direction: column; margin: 6px 0 0; max-height: 116px; overflow-y: auto; }
+.dl-pop-row { all: unset; cursor: pointer; display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; }
 .dl-pop-row:hover { background: var(--dl-soft); }
 .dl-pop-row:focus { outline: none; }
 .dl-pop-row:focus-visible { outline: 2px solid var(--dl-ring); }
@@ -41,7 +128,6 @@
 .dl-pop-dot.on { background: var(--dl-ok); box-shadow: 0 0 0 3px var(--dl-ok-wash); }
 .dl-pop-actions { display: flex; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--dl-line); }
 .dl-pop-actions .cbi-button { flex: 1; height: 28px !important; font-size: 12px !important; justify-content: center; }
-.maplibregl-ctrl-attrib { font-size: 10px; }
 
 /* charts */
 .dl-chartbox { position: relative; }

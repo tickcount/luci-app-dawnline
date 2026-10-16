@@ -1,6 +1,8 @@
 // One floating tooltip that follows the pointer (small charts, meters, round
-// buttons). It hides when its anchor leaves the page (a repaint replaced it)
-// or the page navigates away, so it never lingers on <body>.
+// buttons). It hides when its anchor leaves the page or is hidden (a repaint
+// replaced it, another section is shown), on scrolling, on a tap or click
+// elsewhere (touch screens have no mouseleave) and when the page navigates
+// away, so it never lingers on <body>.
 
 import { E } from '../e';
 import { onNavigate } from './nav';
@@ -24,9 +26,9 @@ export function attachTip(el: HTMLElement, content: () => (Node | string)[]) {
     floating.style.left = `${ev.clientX}px`;
     floating.style.top = `${ev.clientY - 10}px`;
     anchor = el;
-    // No mouseleave comes from an element that was removed under the pointer.
+    // No mouseleave comes from an element that was removed or hidden under the pointer.
     watch ||= window.setInterval(() => {
-      if (!anchor?.isConnected) hideTip();
+      if (!anchor?.isConnected || !anchor.getClientRects().length) hideTip();
     }, 400);
   };
   el.addEventListener('mouseenter', show);
@@ -35,3 +37,11 @@ export function attachTip(el: HTMLElement, content: () => (Node | string)[]) {
 }
 
 onNavigate(hideTip);
+window.addEventListener('scroll', () => anchor && hideTip(), { capture: true, passive: true });
+document.addEventListener(
+  'pointerdown',
+  (ev) => {
+    if (anchor && !anchor.contains(ev.target as Node)) hideTip();
+  },
+  true,
+);

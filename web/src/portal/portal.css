@@ -258,29 +258,6 @@ h2 {
   background: var(--ok);
   box-shadow: 0 0 0 3px var(--bg);
 }
-.pill {
-  display: inline-flex;
-  align-items: center;
-  height: 22px;
-  padding: 0 9px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 500;
-  background: var(--soft);
-  color: var(--muted);
-}
-.pill.ok {
-  background: var(--ok-wash);
-  color: var(--ok);
-}
-.pill.warn {
-  background: var(--warn-wash);
-  color: var(--warn);
-}
-.pill.bad {
-  background: var(--bad-wash);
-  color: var(--bad);
-}
 .notice {
   display: flex;
   gap: 10px;
@@ -298,6 +275,38 @@ h2 {
 }
 .notice.bad .ic {
   color: var(--bad);
+}
+
+/* The page's notice, as in the admin's Overview: a row in a bordered list. */
+.alert {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  font-size: 14px;
+  line-height: 20px;
+}
+.alert-ic {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  background: var(--warn-wash);
+  color: var(--warn);
+}
+.alert-ic.bad {
+  background: var(--bad-wash);
+  color: var(--bad);
+}
+.alert-ic .ic-svg {
+  width: 15px;
+  height: 15px;
 }
 
 /* layout: phone = access then devices; desktop = devices | access */

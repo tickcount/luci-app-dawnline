@@ -165,6 +165,7 @@
 .dl-speed-chart .line.up { stroke: var(--dl-ok); stroke-width: 1.2; opacity: .85; }
 .dl-speed-wait { height: 44px; display: flex; flex-direction: column; justify-content: flex-end; gap: 6px; font-size: 11px; color: var(--dl-fg-faint); }
 .dl-speed-wait i { display: block; height: 1px; background: var(--dl-line); order: 2; }
+.dl-speed-val.off { color: var(--dl-fg-faint); }
 .dl-fld { display: flex; flex-direction: column; gap: 8px; margin: 0 0 16px; }
 .dl-fld-label { font-size: 13px; font-weight: 500; color: var(--dl-fg); }
 .dl-fld .cbi-input-text { width: 100%; box-sizing: border-box; }

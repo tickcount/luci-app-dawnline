@@ -21,6 +21,8 @@ import { spark } from './widgets/spark';
 import { clearLogDialog, exportEvents, resetUsageDialog } from './logs';
 import { coreFor, coreOf, type Core } from './cores';
 import { onLiveChange } from './state/live';
+import { ConnectionMap, devicePlaces, rangeControl, type MapData, type Range } from './map';
+import { personUrl } from './urls';
 
 /** What the page that opens a device hands over. */
 export interface DeviceOpts {
@@ -139,8 +141,32 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
     if (ev) showLog(ev.events);
   };
 
+  // Where this device connected from, in time order (option B): a map with its trail and the list.
+  let range: Range = '30d';
+  let map: ConnectionMap | null = null;
+  const places = E('div', { class: 'dl-dplaces' });
+  const mapData = (): MapData => ({ geo: geo!, people: [p], now: now ?? Date.now() / 1000, person: p.id, device: d.id });
+  const paintPlaces = () => {
+    if (!geo?.enabled) return;
+    const list = devicePlaces(mapData(), range);
+    dom.content(
+      places,
+      list.length
+        ? list.map((x) =>
+            E('div', { class: 'dl-dplace-row' }, [
+              E('span', { class: `dl-dplace-n${x.online ? ' live' : ''}` }, x.online ? icon(d.kind) : String(x.n)),
+              E('span', { class: 'dl-row-main dl-stack' }, [
+                E('span', {}, [x.city || x.cc || 'Unknown city', x.org ? E('span', { class: 'dl-muted' }, ` · ${x.org}`) : '']),
+                E('span', { class: 'dl-mono dl-faint' }, x.ip),
+              ]),
+              E('span', { class: x.online ? 'dl-dplace-now' : 'dl-faint dl-nowrap' }, x.online ? 'now' : ago(x.ts, now)),
+            ]),
+          )
+        : E('div', { class: 'dl-sub' }, 'No locations in this period.'),
+    );
+  };
+
   const paint = () => {
-    const place = geo?.points.find((x) => x.device === d.id && x.ip === d.endpoint);
     dom.content(titleEl, [
       E('span', { class: `dl-dcard-ic${d.online ? ' on' : ''}` }, icon(d.kind)),
       E('div', { class: 'dl-stack' }, [
@@ -176,15 +202,9 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
       E('div', { class: 'dl-kv2' }, [
         copyRow('Tunnel address', d.address),
         d.hostname && p.access !== 'internet' ? copyRow('Local address', d.hostname) : '',
-        d.endpoint
-          ? row(
-              'Client IP',
-              E('span', {}, [
-                d.endpoint,
-                place ? E('span', { class: 'dl-muted' }, ` · ${[place.city, place.org].filter(Boolean).join(' · ')}`) : '',
-              ]),
-            )
-          : '',
+        // Where it connects from is under Locations (with the place and network); from home
+        // (not on the map) or without locations, here.
+        d.endpoint && !geo?.points.some((x) => x.device === d.id && x.ip === d.endpoint) ? row('Client IP', d.endpoint) : '',
         row(
           'Total',
           E('span', { class: 'dl-kv-act' }, [
@@ -269,6 +289,8 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
     now = st.now;
     today = todayOf(st.series);
     paint();
+    map?.update(mapData());
+    paintPlaces();
   };
   /** After a change made here: this drawer and the page. */
   const changed = async () => {
@@ -339,13 +361,38 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
     log,
   ]);
   const detailsSec = E('section', { class: 'dl-dsec' }, [E('div', { class: 'dl-dsec-head' }, E('h4', {}, 'Details')), details]);
+  let locationsSec: HTMLElement | '' = '';
+  if (geo?.enabled) {
+    map = new ConnectionMap(
+      { openPerson: (id) => (location.href = personUrl(id)), openDevice: (id, dev) => (location.href = personUrl(id, dev)) },
+      range,
+      220,
+    );
+    locationsSec = E('section', { class: 'dl-dsec' }, [
+      E('div', { class: 'dl-dsec-head' }, [
+        E('h4', {}, 'Locations'),
+        rangeControl(
+          range,
+          (r) => {
+            range = r;
+            map?.setRange(r);
+            paintPlaces();
+          },
+          false,
+        ),
+      ]),
+      E('div', { class: 'dl-dmap' }, map.el),
+      places,
+    ]);
+    paintPlaces();
+  }
   // Connecting is what the drawer is for until the device is set up (or its configuration is old);
   // after that it goes to the bottom.
   const setUp = !d.handshake || d.config_stale;
   const body = E(
     'div',
     { class: 'dl-stack gap16' },
-    setUp ? [stats, connectSec, detailsSec, activitySec] : [stats, detailsSec, activitySec, connectSec],
+    setUp ? [stats, connectSec, detailsSec, locationsSec, activitySec] : [stats, detailsSec, locationsSec, activitySec, connectSec],
   );
   void loadLog();
   // Live status and log: at once when something happens (state/live.ts), and every 30 s anyway.
@@ -358,8 +405,10 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
   const handle = drawer(titleEl, body, foot, () => {
     clearInterval(watch);
     off();
+    map?.destroy();
   });
   paint();
+  if (map) requestAnimationFrame(() => map?.mount(mapData()));
 }
 
 /** ⋯ on a device card: quick actions (everything else is in the panel; click the card). */

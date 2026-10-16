@@ -36,7 +36,8 @@ start_resolver() {
 	procd_open_instance dns
 	procd_set_param command /usr/libexec/dawnline/resolver
 	procd_set_param file /var/etc/dawnline-dns.conf
-	procd_set_param respawn 3600 5 0
+	# A new config kills it (dawnline.resolver): back within a second, not five.
+	procd_set_param respawn 3600 1 0
 	procd_close_instance
 }
 
@@ -59,6 +60,8 @@ start_service() {
 stop_service() {
 	mkdir -p /var/run/dawnline
 	date +%s > /var/run/dawnline/agent.stopped
+	# Copies procd doesn't know about (started by hand, or left by an older version) go too.
+	pgrep -f '^/usr/bin/ucode /usr/libexec/dawnline/agent' | xargs -r kill 2>/dev/null
 }
 
 reload_service() {

@@ -17,6 +17,13 @@ uci -q commit dawnline
 rm -f /etc/dawnline/alerts.json
 # Backups moved into Settings.
 rm -f /www/luci-static/resources/view/dawnline/backups.js
+# "Pause everyone" is gone: turning a server off does the same, so a
+# router left paused keeps its servers off instead of letting everyone in.
+if [ "$(uci -q get dawnline.settings.paused_all)" = 1 ]; then
+	for s in $(uci -q show dawnline | sed -n 's/^dawnline\.\([^.=]*\)=server$/\1/p'); do uci -q set "dawnline.$s.enabled=0"; done
+fi
+uci -q delete dawnline.settings.paused_all
+uci -q commit dawnline
 # Portal assets moved out of the web root (served only with a valid code).
 rm -rf /usr/share/dawnline/portal/www/assets
 

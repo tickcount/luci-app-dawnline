@@ -13,6 +13,31 @@ export function row(label: string, control: Node, help?: string): HTMLElement {
   ]);
 }
 
+/**
+ * A row whose help line follows its input: `help` says what the value gives,
+ * or what is wrong (red, the input marked too). Callers that change what the
+ * help depends on call `refresh()`.
+ */
+export function liveRow(
+  label: string,
+  el: HTMLInputElement,
+  help: () => { text: string; bad: boolean },
+  control: Node = el,
+): HTMLElement & { refresh: () => void } {
+  const r = row(label, control, ' ') as HTMLElement & { refresh: () => void };
+  const sub = r.querySelector('.dl-sub') as HTMLElement;
+  const paint = () => {
+    const h = help();
+    sub.textContent = h.text;
+    sub.classList.toggle('bad', h.bad);
+    el.classList.toggle('cbi-input-invalid', h.bad);
+  };
+  el.addEventListener('input', paint);
+  r.refresh = paint;
+  paint();
+  return r;
+}
+
 /** A section card with its own footer (Save etc.). */
 export function card(title: string, body: (Node | string)[], foot: (Node | string)[], extra = ''): HTMLElement {
   return E('section', { class: `dl-setsec ${extra}` }, [

@@ -65,7 +65,8 @@ function probes(m) {
 			repair: { what: 'restarting it', run: restart_services },
 		});
 
-	if (stat(loop.RESOLVER.conf))
+	// Only while a server is on: with all of them off it idles on loopback.
+	if (stat(loop.RESOLVER.conf) && length(filter(values(m.servers), (x) => x.enabled && x.private_key)))
 		push(out, {
 			id: 'resolver', src: 'dawnline', name: 'Resolver', who: 'DNS for Home-only devices', ok: loop.resolver_running(),
 			problem: "isn't running", back: 'runs again',

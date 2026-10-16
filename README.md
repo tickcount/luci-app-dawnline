@@ -49,7 +49,7 @@ limits, live traffic and a LuCI admin that follows a modern design.
   sums up the rules and "Check access" walks them step by step for a device
   and an address.
 - **Limits.** End dates (pause, keep, or remove devices when they pass), monthly
-  or total data limits, allowed hours, pause one person or everyone. Devices
+  or total data limits, allowed hours, pause anyone. Devices
   drop off the tunnel at once (`awg syncconf`, no interface restart).
 - **Disguise presets** for AmneziaWG obfuscation (junk packets,
   header and padding parameters), with what each preset needs from the apps.

@@ -9,8 +9,11 @@ import { svg } from '../ui/layout';
 
 const dayLabel = (day: string) => parseDay(day).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 
-/** Throughput over the last 15 minutes plus today's total. */
-export function speedTile(rate: [number, number, number][], now: number, today: [number, number]): HTMLElement {
+/**
+ * Throughput over the last 15 minutes plus today's total. `off`: the server is
+ * turned off, so there is no speed to show (dashes, not zeros) and no chart.
+ */
+export function speedTile(rate: [number, number, number][], now: number, today: [number, number], off = false): HTMLElement {
   const pts = rate.slice(-15);
   const last = pts[pts.length - 1];
   const fresh = last && now - last[0] < 180;
@@ -24,19 +27,19 @@ export function speedTile(rate: [number, number, number][], now: number, today: 
   const dl = line(2),
     ul = line(1);
   const chart =
-    pts.length > 1
+    pts.length > 1 && !off
       ? svg(
           `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="dl-speed-chart" aria-hidden="true">` +
             `<path d="M${dl.join(' L')} L${W},${H} L0,${H}Z" class="area"/><path d="M${dl.join(' L')}" class="line"/>` +
             `<path d="M${ul.join(' L')}" class="line up"/></svg>`,
         )
-      : E('div', { class: 'dl-speed-wait' }, [E('i'), E('span', {}, 'Collecting… 1 point a minute')]);
+      : E('div', { class: 'dl-speed-wait' }, [E('i'), off ? '' : E('span', {}, 'Collecting… 1 point a minute')]);
   const col = (label: string, ic: string, cls: string, v: number) =>
     E('div', { class: 'dl-speed-col' }, [
       E('span', { class: 'dl-sub' }, [E('span', { class: cls }, ic), ` ${label}`]),
-      E('span', { class: 'dl-speed-val' }, bits(v)),
+      off ? E('span', { class: 'dl-speed-val off' }, '—') : E('span', { class: 'dl-speed-val' }, bits(v)),
     ]);
-  if (pts.length > 1)
+  if (pts.length > 1 && !off)
     attachTip(chart, () => {
       const p = pts[pts.length - 1];
       return [
@@ -47,7 +50,7 @@ export function speedTile(rate: [number, number, number][], now: number, today: 
   return E('div', { class: 'dl-bento-tile' }, [
     E('div', { class: 'dl-bento-head' }, [
       E('span', { class: 'dl-metric-label' }, 'Speed now'),
-      E('span', { class: 'dl-sub' }, 'last 15 min'),
+      off ? '' : E('span', { class: 'dl-sub' }, 'last 15 min'),
     ]),
     E('div', { class: 'dl-speed-cols' }, [col('Download', '↓', 'dl-dn', down), col('Upload', '↑', 'dl-up', up)]),
     chart,

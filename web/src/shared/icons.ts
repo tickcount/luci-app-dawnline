@@ -5,6 +5,8 @@ const P: Record<string, string> = {
   computer: '<rect x="3" y="4.5" width="18" height="12" rx="1.8"/><path d="M2 19.5h20"/>',
   tablet: '<rect x="4.5" y="2.5" width="15" height="19" rx="2.2"/><path d="M11 18.5h2"/>',
   router: '<rect x="3" y="13" width="18" height="7" rx="1.8"/><path d="M7 16.5h.01M10.5 16.5h.01M8 13l-2-6M16 13l2-6"/>',
+  server:
+    '<rect x="3" y="4" width="18" height="7" rx="1.8"/><rect x="3" y="13" width="18" height="7" rx="1.8"/><path d="M7 7.5h.01M7 16.5h.01M11 7.5h6M11 16.5h6"/>',
   other: '<path d="M12 3 20 7.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="M4 7.5 12 12l8-4.5M12 12v9"/>',
   ethernet:
     '<rect x="9" y="3" width="6" height="5" rx="1"/><rect x="3" y="16" width="6" height="5" rx="1"/><rect x="15" y="16" width="6" height="5" rx="1"/><path d="M12 8v4M6 16v-4h12v4"/>',

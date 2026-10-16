@@ -11,7 +11,7 @@ import * as store from 'dawnline.store';
 import * as schema from 'dawnline.schema';
 import * as health from 'dawnline.health';
 import * as pc from 'dawnline.portalcert';
-import { wrap, check_portal } from 'dawnline.rpc.common';
+import { wrap, check_portal, tcp_taken } from 'dawnline.rpc.common';
 
 /** The portal's own checks from Health, shown next to its settings. */
 const PORTAL_CHECKS = [ 'portal', 'portal_dns', 'portal_reply', 'portal_http', 'cert' ];
@@ -65,7 +65,7 @@ function settings_get(a) {
 		services: values(m.services),
 		cert: cert ? { path: cert.cert, self_signed: cert.self_signed,
 			expires: sh_out(`openssl x509 -enddate -noout -in ${q(cert.cert)} 2>/dev/null | cut -d= -f2`) } : null,
-		port_owners: m.settings.portal_enabled ? [] : health.tcp_port_owners(m.settings.portal_port),
+		tcp_taken: tcp_taken(m),
 		portal_public_port: core.portal_public_port(m),
 		geo_cached: length(keys(geo.load().ips)),
 		logs: logs_info(m),

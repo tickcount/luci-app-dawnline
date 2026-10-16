@@ -10,6 +10,7 @@ import * as geo from 'dawnline.geo';
 import * as net from 'dawnline.net';
 import * as loop from 'dawnline.loop';
 import * as awg from 'dawnline.awg';
+import * as lookup from 'dawnline.lookup';
 import { wrap, clamp_days } from 'dawnline.rpc.common';
 
 /** Router location plus one point per (device, recent client address). */
@@ -19,14 +20,25 @@ function geo_view(m, usage, dmp) {
 	let cache = geo.load();
 	let points = [];
 	let now = time();
+	// The router's own public addresses: a device at home that reaches the server through the
+	// WAN address (NAT loopback) shows up from there. Home is not a place people connect from.
+	let own = {};
+	for (let id, srv in m.servers) {
+		let a = net.wan_address(srv) ?? lookup.wan_ipv4(srv.wan_zone);
+		if (a)
+			own[a] = true;
+	}
+	let wan = lookup.wan_ipv4('wan');
+	if (wan)
+		own[wan] = true;
 	for (let id, d in m.devices) {
 		let rec = usage.devices?.[id];
 		let peer = dmp.peers[d.public_key];
 		let cur = live.endpoint_ip(peer?.endpoint);
 		let online = live.online(dmp, id, peer);
 		for (let ip, ts in rec?.ips ?? {}) {
-			// Local (LAN / CGNAT) client addresses are not shown on the map.
-			let pl = geo.is_public(ip) ? geo.place(cache, ip) : null;
+			// Local (LAN / CGNAT) client addresses and the router's own are not shown on the map.
+			let pl = geo.is_public(ip) && !own[ip] ? geo.place(cache, ip) : null;
 			if (!pl)
 				continue;
 			push(points, {
@@ -76,6 +88,8 @@ function server_view(m, srv, usage, dmp, rates, days) {
 		id: srv.id, name: srv.name, ifname: srv.ifname, port: srv.port, subnet: srv.subnet,
 		endpoint: core.endpoint_host(m, srv), public_key: srv.public_key, enabled: srv.enabled,
 		lan_like: srv.lan_like, device_mesh: srv.device_mesh, mesh: srv.mesh, preset: srv.preset, mtu: srv.mtu, keepalive: srv.keepalive, dns: srv.dns,
+		// What devices get now, by kind (mtu 0 = automatic).
+		mtus: { computer: core.device_mtu(srv, { kind: 'computer' }), phone: core.device_mtu(srv, { kind: 'phone' }) },
 		address: core.server_address(srv), up: !!st.up, uptime: st.uptime ?? 0,
 		// Why the tunnel cannot run (its interface name belongs to another network section), or null.
 		blocked: srv.blocked ?? null,
@@ -142,7 +156,7 @@ function status(a) {
 		settings: {
 			portal_enabled: s.portal_enabled, portal_port: s.portal_port, portal_host: s.portal_host,
 			portal_public_port: core.portal_public_port(m),
-			paused_all: s.paused_all, default_device_limit: s.default_device_limit, domain: s.domain,
+			default_device_limit: s.default_device_limit, domain: s.domain,
 			hostnames: s.hostnames, geo_enabled: s.geo_enabled, home_dns_fallback: s.home_dns_fallback,
 		},
 		servers,

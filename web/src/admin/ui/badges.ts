@@ -10,28 +10,26 @@ export function pill(tone: string, text: string, title?: string): HTMLElement {
   return E('span', { class: `dl-pill ${tone}`, title: title ?? null }, text);
 }
 
-const STATE_ICON: Record<Person['state'], string> = {
-  active: '',
-  paused: 'pause',
-  paused_all: 'pause',
-  expired: 'calendar',
-  quota: 'chart',
-  hours: 'clock',
-  no_server: 'alert',
-};
-
 export function stateTone(p: Person): string {
   if (p.state === 'active') return 'ok';
   if (p.state === 'quota' || p.state === 'expired') return 'bad';
   return 'warn';
 }
 
-/** Nothing while active; otherwise a small icon with the state as tooltip. */
-export function stateBadge(p: Person): HTMLElement | '' {
-  if (p.state === 'active') return '';
-  const el = E('span', { class: `dl-ibadge ${stateTone(p)}`, 'aria-label': STATE_LABEL[p.state] }, icon(STATE_ICON[p.state] || 'alert'));
-  attachTip(el, () => [E('div', { class: 'dl-tip-title' }, STATE_LABEL[p.state])]);
-  return el;
+/**
+ * The person's own state: a turned-off server hides why they would be off
+ * anyway, but the admin's pause still shows ('server_off' itself is the server
+ * page's to say).
+ */
+function ownState(p: Person): Person['state'] {
+  return p.state === 'server_off' && p.paused ? 'paused' : p.state;
+}
+
+/** Nothing while active (or while only their server is off); otherwise the state as text, as the server page's "Turned off". */
+export function statePill(p: Person): HTMLElement | '' {
+  const s = ownState(p);
+  if (s === 'active' || s === 'server_off') return '';
+  return pill(stateTone({ ...p, state: s }), STATE_LABEL[s]);
 }
 
 /** What the person can reach, as icons: home network, internet, or both. */

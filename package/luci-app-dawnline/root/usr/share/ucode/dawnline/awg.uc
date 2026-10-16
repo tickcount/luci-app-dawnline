@@ -54,6 +54,18 @@ export function state() {
 	return { tools, kmod, loaded, handler, missing, ok: !length(missing) && loaded && handler };
 };
 
+/**
+ * state(), after loading an installed module that isn't loaded yet: nothing loads
+ * it before the first tunnel comes up, so "not loaded" alone is no fault.
+ */
+export function load() {
+	let s = state();
+	if (!s.kmod || s.loaded)
+		return s;
+	system('modprobe amneziawg >/dev/null 2>&1');
+	return state();
+};
+
 /** The kernel module and the awg tool are on the router. */
 export function installed() {
 	let s = state();
@@ -249,12 +261,13 @@ export function client_config(m, dev) {
 	let ep = match(host, /:/) && !match(host, /^\[/) ? `[${host}]` : host;
 	let allowed = allowed_ips(m, srv, p);
 	let dns = core.client_dns(m, srv, p);
+	let mtu = core.device_mtu(srv, dev);
 	let lines = [ '[Interface]' ];
 	push(lines, `PrivateKey = ${dev.private_key || '<private key stays on your device>'}`);
 	push(lines, `Address = ${dev.address}/32`);
 	if (length(dns))
 		push(lines, `DNS = ${join(', ', dns)}`);
-	push(lines, `MTU = ${srv.mtu}`);
+	push(lines, `MTU = ${mtu}`);
 	// "Off" is plain WireGuard: neutral values (no junk, H1-H4 = 1-4) are left
 	// out, so any WireGuard app accepts the file.
 	if (!obf_neutral(srv.obf))
@@ -279,7 +292,7 @@ export function client_config(m, dev) {
 		amnezia: {
 			host,
 			port: srv.port,
-			mtu: `${srv.mtu}`,
+			mtu: `${mtu}`,
 			dns,
 			allowed_ips: allowed,
 			client_ip: dev.address,
@@ -307,7 +320,7 @@ export function netifd_options(srv) {
 		private_key: srv.private_key,
 		listen_port: srv.port,
 		addresses: [ `${addr}/${prefix}` ],
-		mtu: srv.mtu,
+		mtu: core.tunnel_mtu(srv),
 	};
 	for (let k in core.OBF_KEYS)
 		o[`awg_${k}`] = srv.obf[k];

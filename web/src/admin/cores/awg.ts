@@ -258,7 +258,15 @@ async function applyDisguise(ctx: CoreCtx, srv: Server, m: Method, same: boolean
 export function settingsCard(ctx: CoreCtx, srv: Server): HTMLElement {
   const st: Status = ctx.st;
   const port = input(String(srv.port), { inputmode: 'numeric', class: 'cbi-input-text dl-w-port dl-mono' });
-  const mtu = input(String(srv.mtu ?? ''), { placeholder: '1380', inputmode: 'numeric', class: 'cbi-input-text dl-w-port dl-mono' });
+  const mtu = input(srv.mtu ? String(srv.mtu) : '', {
+    placeholder: 'Auto',
+    inputmode: 'numeric',
+    class: 'cbi-input-text dl-w-port dl-mono',
+  });
+  const now = `${srv.mtus.computer} for computers and routers, ${srv.mtus.phone} for phones and tablets`;
+  const mtuHint = srv.mtu
+    ? `Now ${now}. Empty = automatic.`
+    : `Automatic by device type and disguise: now ${now}. Lower it if some sites hang.`;
   const ka = input(String(srv.keepalive ?? ''), { placeholder: '25', inputmode: 'numeric', class: 'cbi-input-text dl-w-port dl-mono' });
   const current = methodInfo(srv.preset) ? (srv.preset as Method) : undefined;
   let selected: Method = current ?? 'standard';
@@ -266,22 +274,16 @@ export function settingsCard(ctx: CoreCtx, srv: Server): HTMLElement {
   const label = () =>
     dom.content(apply, selected === current ? [icon('reset'), ' Generate new values'] : [`Switch to ${methodInfo(selected)!.title}`]);
   label();
-  const devs = st.people.filter((p) => p.server === srv.id).reduce((n, p) => n + p.devices.length, 0);
   const tools = st.awg_state?.tools !== false;
   return card(
     '',
     [
-      coreHead(
-        'AmneziaWG',
-        srv.up ? 'ok' : 'bad',
-        srv.up ? 'Running' : 'Not running',
-        `${srv.ifname} · ${devs} device${devs === 1 ? '' : 's'}`,
-      ),
+      coreHead('AmneziaWG', srv.ifname),
       group('globe', 'Listening', 'Where devices reach this core from the internet', [
         row('UDP port', port, 'Opened on the WAN firewall automatically.'),
       ]),
       group('file', 'In every device configuration', 'Changing these marks devices “Update config” until they import again', [
-        row('MTU', mtu, 'Lower it if some sites hang on mobile networks.'),
+        row('MTU', mtu, mtuHint),
         row('Keep-alive', ka, 'Seconds between packets devices send to keep NAT open. 0 = off.'),
       ]),
       group('shield', 'Disguise', 'So networks that block VPNs do not recognise the tunnel. Off = plain WireGuard', [

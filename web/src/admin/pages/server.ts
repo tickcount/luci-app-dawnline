@@ -12,7 +12,8 @@ import { cancelButton, closeModal, confirmDialog, modal } from '../ui/modal';
 import { copyText } from '../ui/files';
 import { attempt, errorText, notify } from '../ui/toast';
 import { input, seg, sw } from '../ui/controls';
-import { card, group, needRow, row } from '../ui/layout';
+import { card, group, liveRow, needRow, row } from '../ui/layout';
+import { portalPortHelp, portHelp, rangeHelp, rangeOf, subnetOf } from '../netcheck';
 import { icon } from '../../shared/icons';
 import { duration } from '../../shared/format';
 import { accessCards } from '../interfaces';
@@ -158,7 +159,7 @@ export class ServerPage {
                 this.paint();
               },
             },
-            [E('i', { class: `dot ${x.up ? 'ok' : 'bad'}` }), E('b', {}, x.name)],
+            [E('i', { class: `dot ${!x.enabled ? 'warn' : x.up ? 'ok' : 'bad'}` }), E('b', {}, x.name)],
           ),
         ),
         E('button', { type: 'button', class: 'dl-srvtab add', click: () => this.addServer() }, [icon('plus'), 'Add server']),
@@ -264,22 +265,16 @@ export class ServerPage {
 
   /** Name and state, the address bar, and the page actions. */
   head(srv: Server): HTMLElement {
-    const st = this.st;
     const part = (ic: string, body: (Node | string)[]) => E('span', { class: 'dl-addrbar-seg' }, [icon(ic), ...body]);
     const addr = srv.endpoint || '—';
-    // "Turn on" while the server is off (turning off lives in Connection; the same
-    // button also lifts an old router-wide pause).
-    const off = !srv.enabled || st.settings.paused_all;
+    // "Turn on" while the server is off (turning off lives in Connection).
     const actions = E('div', { class: 'dl-actions' }, [
-      off
+      !srv.enabled
         ? button(
             [icon('play'), ' Turn on'],
-            async () => {
-              if (st.settings.paused_all && !(await attempt(() => api.pauseAll(false)))) return;
-              if (!srv.enabled) await this.save(srv, { enabled: '1' }, 'Server turned on');
-              else await this.refresh();
-            },
-            'positive',
+            () => this.save(srv, { enabled: '1' }, 'Server turned on'),
+            // White, as the other main actions (Add person).
+            'add',
           )
         : '',
     ]);
@@ -289,10 +284,10 @@ export class ServerPage {
         E('h2', { class: 'dl-h1' }, srv.name),
         E(
           'span',
-          { class: `dl-pill ${!srv.enabled ? 'off' : srv.up ? 'ok' : 'bad'}` },
+          // Off on purpose is a warning (yellow), not a failure (red).
+          { class: `dl-pill ${!srv.enabled ? 'warn' : srv.up ? 'ok' : 'bad'}` },
           !srv.enabled ? 'Turned off' : srv.up ? 'Running' : srv.blocked ? 'Can’t start' : 'Not running',
         ),
-        st.settings.paused_all && srv.enabled ? E('span', { class: 'dl-pill warn' }, 'Off') : '',
         E('span', { class: 'dl-spacer' }),
         actions,
       ]),
@@ -478,7 +473,8 @@ export class ServerPage {
       name: d.name,
       endpoint: d.endpoint,
       port: d.port,
-      subnet: d.subnet,
+      // The tunnel's first three numbers ("10.77.0"): it is that /24.
+      range: rangeOf(d.subnet),
       preset: 'standard' as Method,
       // Off by default: the portal opens a port on WAN, so it is a choice.
       portal: false,
@@ -488,11 +484,20 @@ export class ServerPage {
       wan_zone: d.wan_zone,
     };
     let step = 0;
+    // The portal takes the server's port number (TCP beside UDP) until it is changed by hand.
+    let portalSame = !extra && state.portal_port === state.port;
+    const ipLinks = () => /^\d{1,3}(\.\d{1,3}){3}$/.test(state.endpoint);
+    const portHelpNow = () => portHelp(state.port, d.udp_taken ?? [], 'Opened on the WAN firewall automatically.');
+    const rangeHelpNow = () => rangeHelp(state.range, d.networks ?? [], rangeOf(d.subnet));
+    const portalHelpNow = () => portalPortHelp(state.portal_port, d.tcp_taken ?? [], ipLinks());
     const root = E('div', { class: 'dl-wizard' });
-    const field = (key: 'id' | 'name' | 'endpoint' | 'port' | 'subnet' | 'portal_port', attrs: Record<string, unknown> = {}) => {
+    const field = (key: 'id' | 'name' | 'endpoint' | 'port' | 'range' | 'portal_port', attrs: Record<string, unknown> = {}) => {
       const el = input(String(state[key]), attrs);
       el.addEventListener('input', () => {
-        (state as any)[key] = key === 'port' || key === 'portal_port' ? Number(el.value) : el.value.trim();
+        if (key === 'port' || key === 'portal_port') (state as any)[key] = el.value.trim() === '' ? 0 : Number(el.value);
+        else (state as any)[key] = el.value.trim();
+        if (key === 'port' && portalSame) state.portal_port = state.port;
+        if (key === 'portal_port') portalSame = state.portal_port === state.port;
       });
       return el;
     };
@@ -525,31 +530,39 @@ export class ServerPage {
       render: () =>
         E('div', { class: 'dl-wizard-groups' }, [
           group('globe', 'Listening', 'Where devices reach AmneziaWG from the internet', [
-            row(
-              'UDP port',
-              field('port', { inputmode: 'numeric', class: 'cbi-input-text dl-w-port dl-mono' }),
-              'Opened on the WAN firewall automatically. A random high port is fine.',
-            ),
+            liveRow('UDP port', field('port', { inputmode: 'numeric', class: 'cbi-input-text dl-w-port dl-mono' }), portHelpNow),
           ]),
           group('network', 'Tunnel network', 'Addresses devices get inside the tunnel', [
-            row(
-              'Tunnel subnet',
-              field('subnet', { class: 'cbi-input-text dl-mono' }),
-              `Must not overlap your networks (${d.taken.join(', ') || 'none found'}).`,
-            ),
+            (() => {
+              const el = field('range', {
+                class: 'cbi-input-text dl-w-range dl-mono',
+                'aria-label': 'First three numbers of the device addresses',
+              });
+              return liveRow(
+                'Device addresses',
+                el,
+                rangeHelpNow,
+                E('span', { class: 'dl-suffixed' }, [el, E('span', { class: 'dl-mono' }, '.x')]),
+              );
+            })(),
           ]),
           group('shield', 'Disguise', 'So networks that block VPNs do not recognise the tunnel. Off = plain WireGuard', [
             methodPicker(d.awg, state.preset, (m) => (state.preset = m), undefined, d.awg_state?.tools !== false),
           ]),
         ]),
-      check: () => (!state.port || !state.subnet ? 'Fill in the UDP port and subnet.' : null),
+      check: () => {
+        const p = portHelpNow();
+        if (p.bad) return `UDP port: ${p.text}`;
+        const r = rangeHelpNow();
+        return r.bad ? `Device addresses: ${r.text}` : null;
+      },
     };
     const portalPage: Page = {
       id: 'portal',
       title: 'Portal',
       render: () => {
         const portalPort = field('portal_port', { inputmode: 'numeric', class: 'cbi-input-text dl-w-port dl-mono' });
-        const portRow = row('Listening port', portalPort, 'TCP port on WAN for the portal; the whole port belongs to it.');
+        const portRow = liveRow('Listening port', portalPort, portalHelpNow);
         portRow.hidden = !state.portal;
         // Off | On, Off first: the same segmented control as in Settings.
         const onOff = seg(
@@ -579,6 +592,11 @@ export class ServerPage {
             portRow,
           ]),
         ]);
+      },
+      check: () => {
+        if (!state.portal) return null;
+        const h = portalHelpNow();
+        return h.bad ? `Portal port: ${h.text}` : null;
       },
     };
     const pages = (): Page[] => [serverPage, awgPage, extra ? null : portalPage].filter((x): x is Page => x != null);
@@ -666,7 +684,7 @@ export class ServerPage {
                         state.name,
                         d.ifname,
                         state.port,
-                        state.subnet,
+                        subnetOf(state.range),
                         state.endpoint,
                         d.mtu,
                         state.preset,
@@ -678,10 +696,15 @@ export class ServerPage {
                       ),
                     'Server created',
                   );
-                  if (r)
-                    setTimeout(() => {
+                  if (!r) return;
+                  // A network restart drops the connection to LuCI for a few seconds.
+                  if (r.network_restart) notify('Restarting the network so it knows AmneziaWG: back in a few seconds');
+                  setTimeout(
+                    () => {
                       location.href = url(r.id);
-                    }, 1500);
+                    },
+                    r.network_restart ? 10000 : 1500,
+                  );
                 },
                 'positive',
                 { disabled: missing.length > 0, title: missing.length ? 'Install AmneziaWG first' : null },

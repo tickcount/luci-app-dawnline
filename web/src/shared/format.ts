@@ -159,11 +159,11 @@ export const KIND_LABEL: Record<Kind, string> = {
 export const STATE_LABEL: Record<PersonState, string> = {
   active: 'Active',
   paused: 'Paused',
-  paused_all: 'Paused (everyone)',
   expired: 'Expired',
   quota: 'Data limit reached',
   hours: 'Outside allowed hours',
   no_server: 'No server',
+  server_off: 'Server is turned off',
 };
 
 export function initials(name: string): string {

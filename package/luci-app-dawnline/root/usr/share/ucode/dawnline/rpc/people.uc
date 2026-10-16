@@ -111,15 +111,6 @@ function person_usage(a) {
 	return { person: live.series([ usage.people?.[a.id] ], days), devices: devs };
 }
 
-function pause_all(a) {
-	store.transact((c, m) => {
-		c.set(core.CONFIG, 'settings', 'settings');
-		c.set(core.CONFIG, 'settings', 'paused_all', a.paused ? '1' : '0');
-	});
-	live.add_event({ type: a.paused ? 'paused_all' : 'resumed_all', by: 'admin' });
-	return apply.sync();
-}
-
 /* ---------- devices ---------- */
 
 function device_create(a) {
@@ -155,7 +146,6 @@ export const methods = {
 	person_links: { args: { id: '' }, call: wrap(person_links) },
 	person_delete: { args: { id: '' }, call: wrap(person_delete) },
 	person_usage: { args: { id: '', days: 30 }, call: wrap(person_usage) },
-	pause_all: { args: { paused: false }, call: wrap(pause_all) },
 	device_create: { args: { person: '', name: '', kind: '' }, call: wrap(device_create) },
 	device_config: { args: { id: '' }, call: wrap(device_config) },
 	device_update: { args: { id: '', name: '', disabled: false }, call: wrap(device_update) },

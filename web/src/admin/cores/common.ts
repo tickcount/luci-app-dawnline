@@ -31,11 +31,7 @@ export interface Core {
   file: { label: string; make(cfg: ClientConfig): { name: string; text: string } };
 }
 
-/** Name, state pill and a short line: the head of a core's settings card. */
-export function coreHead(title: string, tone: 'ok' | 'bad' | 'off' | '', state: string, sub: string): HTMLElement {
-  return E('div', { class: 'dl-corehead' }, [
-    E('h3', {}, title),
-    E('span', { class: `dl-pill ${tone}` }, state),
-    sub ? E('span', { class: 'dl-sub' }, sub) : '',
-  ]);
+/** Name and a short line: the head of a core's settings card (the server's header already says whether it runs). */
+export function coreHead(title: string, sub: string): HTMLElement {
+  return E('div', { class: 'dl-corehead' }, [E('h3', {}, title), sub ? E('span', { class: 'dl-sub' }, sub) : '']);
 }

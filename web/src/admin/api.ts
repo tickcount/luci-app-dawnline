@@ -1,5 +1,6 @@
 // luci.dawnline RPC bindings. The backend reports failures as { error }.
 
+import type { Network, PortHold } from './netcheck';
 import type { AwgCaps, AwgState, Circle, ClientConfig, DayUsage, HealthCheck, LogEvent, MeshMode, Person, Status } from '../shared/types';
 
 function call<T>(method: string, params: string[] = []) {
@@ -23,7 +24,11 @@ export interface SetupDefaults {
   lan_zone: string;
   wan_zone: string;
   portal_port: number;
-  taken: string[];
+  /** Networks the tunnel must not overlap: the router's and the other servers'. */
+  networks: Network[];
+  /** UDP ports the server can't take, TCP ports the portal can't. */
+  udp_taken: PortHold[];
+  tcp_taken: PortHold[];
   awg: AwgCaps;
   awg_state?: AwgState;
 }
@@ -176,7 +181,8 @@ export interface SettingsData {
   effective: Record<string, unknown>;
   services: { id: string; name: string; address: string; ports: string[] }[];
   cert: { path: string; self_signed: boolean; expires: string | null } | null;
-  port_owners: string[];
+  /** TCP ports the portal can't take. */
+  tcp_taken: PortHold[];
   wan443_taken?: boolean;
   portal_public_port?: number;
   geo_cached: number;
@@ -422,7 +428,7 @@ export const api = {
   uninstall: call<unknown>('uninstall', ['confirm']),
   status,
   setupDefaults: call<SetupDefaults>('setup_defaults'),
-  serverCreate: call<{ id: string }>('server_create', [
+  serverCreate: call<{ id: string; network_restart?: boolean }>('server_create', [
     'id',
     'name',
     'ifname',
@@ -456,7 +462,6 @@ export const api = {
   personRegen: call<{ link: string | null }>('person_regen', ['id']),
   personDelete: call<unknown>('person_delete', ['id']),
   personUsage: call<{ person: DayUsage[]; devices: Record<string, DayUsage[]> }>('person_usage', ['id', 'days']),
-  pauseAll: call<unknown>('pause_all', ['paused']),
   deviceCreate: call<{ id: string; config: ClientConfig }>('device_create', ['person', 'name', 'kind']),
   deviceConfig: call<ClientConfig>('device_config', ['id']),
   deviceUpdate: call<unknown>('device_update', ['id', 'name', 'disabled']),

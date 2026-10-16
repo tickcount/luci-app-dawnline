@@ -6,7 +6,8 @@ import { E } from '../../e';
 import { button } from '../../ui/button';
 import { cancelButton, closeModal, modal } from '../../ui/modal';
 import { input, isOn, sw } from '../../ui/controls';
-import { group, needRow, row } from '../../ui/layout';
+import { group, liveRow, needRow, row } from '../../ui/layout';
+import { portalPortHelp } from '../../netcheck';
 import { icon } from '../../../shared/icons';
 import { fmtDay } from '../../../shared/format';
 import { installMissing } from '../../pkgs';
@@ -147,7 +148,10 @@ export function portalCard(host: SettingsHost): HTMLElement {
 
   // One row per link, as people will see it (example code).
   const links = E('div', { class: 'dl-links' });
+  // The port's help depends on the links too (IP addresses use the next port); set below.
+  let refreshPort = () => {};
   const paintLinks = () => {
+    refreshPort();
     const lport = Number(port.value) || eff.portal_port;
     dom.content(
       links,
@@ -263,13 +267,11 @@ export function portalCard(host: SettingsHost): HTMLElement {
   };
 
   const until = c && !c.self_signed && c.expires ? fmtDay(c.expires) : '';
-  const listenRow = row(
-    'Listening port',
-    port,
-    host.d.port_owners.length
-      ? `Port ${eff.portal_port} is used by ${host.d.port_owners.join(', ')}.`
-      : `Where the portal runs on the router: HTTPS here, plain HTTP for IP addresses on ${eff.portal_port + 1}.`,
+  // Who holds the port (our own portal doesn't count), and the next one while links use an IP address.
+  const listenRow = liveRow('Listening port', port, () =>
+    portalPortHelp(port.value.trim() === '' ? eff.portal_port : Number(port.value), host.d.tcp_taken ?? [], picked.some(isIp)),
   );
+  refreshPort = listenRow.refresh;
   const custom = !!(s.portal_cert && s.portal_key);
   const kind = !c ? 'Portal is off' : custom ? 'Your files' : c.self_signed ? 'Self-signed' : 'Let’s Encrypt';
   const certFiles = () => {

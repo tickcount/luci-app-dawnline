@@ -5,20 +5,7 @@
 // devices on the left, access on the right.
 
 import type { ClientConfig, Device, Kind, Person } from '../shared/types';
-import {
-  ACCESS_LABEL,
-  KIND_LABEL,
-  STATE_LABEL,
-  addDays,
-  ago,
-  byDeviceState,
-  bytes,
-  date,
-  daysLeft,
-  initials,
-  isoDay,
-  parseDay,
-} from '../shared/format';
+import { ACCESS_LABEL, KIND_LABEL, addDays, ago, byDeviceState, bytes, date, daysLeft, initials, isoDay, parseDay } from '../shared/format';
 import { iconSvg } from '../shared/icons';
 import { qrSvg } from '../shared/qr';
 import { vpnKey } from '../shared/vpnkey';
@@ -31,6 +18,8 @@ interface State {
   /** The device this page was opened from (through the tunnel), if any. */
   here?: string | null;
   can_add: boolean;
+  /** The admin stopped the person (paused, access ended): the page only shows. */
+  locked?: boolean;
   kinds: Kind[];
   version: string;
   /** The router's day (YYYY-MM-DD) when it sends one; the browser's otherwise. */
@@ -331,6 +320,34 @@ function linkGone() {
   );
 }
 
+/** Why the person's devices can't connect: icon, title and what happens next. */
+function stateNotice(p: Person): [string, string, string] {
+  switch (p.state) {
+    case 'server_off':
+      return ['server', 'The server is turned off', 'Your devices can’t connect until the admin turns it on again.'];
+    case 'no_server':
+      return ['server', 'No server yet', 'Ask the admin to add you to a server.'];
+    case 'quota':
+      return ['chart', 'You have used all your data', 'Your devices are paused until it resets.'];
+    case 'expired':
+      return ['calendar', 'Your access has ended', 'Ask the admin to extend it.'];
+    case 'hours':
+      return ['clock', 'Outside your hours', `Access is available ${p.hours.replace('-', '–')} (router time).`];
+    default:
+      return ['pause', 'Your access is paused by the admin', 'Your devices can’t connect until the admin resumes it.'];
+  }
+}
+
+/** A notice in the admin's Overview style: a tinted icon tile, a title and a line under it. */
+function alertRow(tone: string, icon: string, title: string, sub: string): HTMLElement {
+  return h(
+    'div',
+    { class: 'alert' },
+    h('span', { class: `alert-ic ${tone}` }, ic(icon)),
+    h('div', { class: 'stack' }, h('span', { class: 'strong' }, title), h('span', { class: 'muted s' }, sub)),
+  );
+}
+
 function stateTone(p: Person) {
   return p.state === 'active' ? 'ok' : p.state === 'quota' || p.state === 'expired' ? 'bad' : 'warn';
 }
@@ -527,6 +544,8 @@ function deviceCard(d: Device, st: State): HTMLElement {
   });
   const week = d.spark.reduce((a, b) => a + b, 0);
   const setUp = !d.handshake && !d.disabled;
+  // Stopped by the admin: no actions, and a device never set up has nothing to show.
+  const locked = !!st.locked;
   // The device this page was opened from (through the tunnel): blue, and says so.
   const here = st.here === d.id;
   return h(
@@ -543,24 +562,26 @@ function deviceCard(d: Device, st: State): HTMLElement {
         // Opened through the tunnel, so it is connected: say which one it is instead.
         here ? h('span', { class: 'dstat here' }, 'This device') : deviceStatus(d),
       ),
-      more,
+      locked ? null : more,
     ),
-    setUp
-      ? [
-          h(
-            'button',
-            { type: 'button', class: 'btn primary block', onclick: () => connect(d) },
-            ic(isMobile() ? 'open' : 'qr'),
-            h('span', {}, isMobile() ? 'Open in AmneziaVPN' : 'Connect this device'),
+    setUp && locked
+      ? null
+      : setUp
+        ? [
+            h(
+              'button',
+              { type: 'button', class: 'btn primary block', onclick: () => connect(d) },
+              ic(isMobile() ? 'open' : 'qr'),
+              h('span', {}, isMobile() ? 'Open in AmneziaVPN' : 'Connect this device'),
+            ),
+          ]
+        : h(
+            'div',
+            { class: 'duse' },
+            h('div', { class: 'stack' }, h('span', { class: 'faint s' }, 'Last 7 days'), h('span', { class: 'mono' }, bytes(week))),
+            spark(d.spark),
           ),
-        ]
-      : h(
-          'div',
-          { class: 'duse' },
-          h('div', { class: 'stack' }, h('span', { class: 'faint s' }, 'Last 7 days'), h('span', { class: 'mono' }, bytes(week))),
-          spark(d.spark),
-        ),
-    d.config_stale && !setUp
+    d.config_stale && !setUp && !locked
       ? h(
           'div',
           { class: 'notice' },
@@ -577,35 +598,20 @@ function main(st: State) {
   const left = daysLeft(p.expires, today());
   const notice =
     p.state !== 'active'
-      ? h(
-          'div',
-          { class: 'notice bad' },
-          ic('alert'),
-          h(
-            'span',
-            {},
-            p.state === 'quota'
-              ? 'You have used all your data for this period. Your devices are paused until it resets.'
-              : p.state === 'expired'
-                ? 'Your access has ended. Ask the admin to extend it.'
-                : p.state === 'hours'
-                  ? `Access is available ${p.hours.replace('-', '–')} (router time).`
-                  : 'Your access is paused by the admin.',
-          ),
-        )
+      ? alertRow(stateTone(p), ...stateNotice(p))
       : left != null && left >= 0 && left <= Math.max(p.expire_warn, 1)
-        ? h(
-            'div',
-            { class: 'notice' },
-            ic('alert'),
-            h('span', {}, `Your access ends ${left === 0 ? 'today' : `in ${left} day${left === 1 ? '' : 's'}`} (${date(p.expires)}).`),
+        ? alertRow(
+            'warn',
+            'calendar',
+            `Your access ends ${left === 0 ? 'today' : `in ${left} day${left === 1 ? '' : 's'}`}`,
+            `On ${date(p.expires)}. Ask the admin to extend it.`,
           )
         : null;
 
   // The device this page was opened from comes first.
   const order = byDeviceState(p.devices).sort((a, b) => Number(b.id === st.here) - Number(a.id === st.here));
   const cards: HTMLElement[] = order.map((d) => deviceCard(d, st));
-  const free = Math.max(0, p.device_limit - p.devices.length);
+  const free = st.locked ? 0 : Math.max(0, p.device_limit - p.devices.length);
   if (free)
     cards.push(
       h(
@@ -631,36 +637,36 @@ function main(st: State) {
       ),
     ),
     h('div', { class: 'dgrid' }, cards),
-    !st.can_add
-      ? h('span', { class: 'faint s' }, `You have reached your limit of ${p.device_limit} devices. Remove one or ask the admin for more.`)
-      : null,
-    h(
-      'span',
-      { class: 'faint s' },
-      'New device? Install ',
-      h('a', { href: 'https://amnezia.org/downloads', target: '_blank', rel: 'noopener noreferrer' }, 'AmneziaVPN'),
-      ' on it first.',
-    ),
+    st.locked
+      ? null
+      : [
+          !st.can_add
+            ? h(
+                'span',
+                { class: 'faint s' },
+                `You have reached your limit of ${p.device_limit} devices. Remove one or ask the admin for more.`,
+              )
+            : null,
+          h(
+            'span',
+            { class: 'faint s' },
+            'New device? Install ',
+            h('a', { href: 'https://amnezia.org/downloads', target: '_blank', rel: 'noopener noreferrer' }, 'AmneziaVPN'),
+            ' on it first.',
+          ),
+        ],
   );
 
+  // What stops the devices comes before the greeting.
   shell(
+    notice,
     h(
       'div',
       { class: 'hello' },
       h('span', { class: `avatar${p.online ? ' online' : ''}` }, initials(p.name)),
-      h(
-        'div',
-        { class: 'stack' },
-        // Only when something is wrong: an "Active" pill says nothing.
-        h(
-          'div',
-          { class: 'row' },
-          h('h1', {}, `Hi, ${p.name}`),
-          p.state === 'active' ? null : h('span', { class: `pill ${stateTone(p)}` }, STATE_LABEL[p.state]),
-        ),
-      ),
+      // What is wrong is in the notice above, not a pill here.
+      h('h1', {}, `Hi, ${p.name}`),
     ),
-    notice,
     h('div', { class: 'layout' }, accessCard(st), devices),
   );
 }

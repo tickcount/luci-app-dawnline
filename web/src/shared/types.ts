@@ -2,7 +2,7 @@
 
 export type Access = 'lan' | 'internet' | 'both';
 export type Kind = 'computer' | 'phone' | 'tablet' | 'router' | 'other';
-export type PersonState = 'active' | 'paused' | 'paused_all' | 'expired' | 'quota' | 'hours' | 'no_server';
+export type PersonState = 'active' | 'paused' | 'expired' | 'quota' | 'hours' | 'no_server' | 'server_off';
 export type Pair = [number, number]; // [rx, tx] from the router's point of view
 
 export interface Device {
@@ -99,7 +99,10 @@ export interface Server {
   /** Home networks by interface, for the per-person picker. */
   home: { dev: string; nets: string[] }[];
   preset: string;
+  /** The MTU set; 0 = automatic, by device type and disguise. */
   mtu: number;
+  /** The MTU devices get now: computers and routers, phones and tablets. */
+  mtus: { computer: number; phone: number };
   keepalive: number;
   /** DNS servers given to devices; empty = this router. */
   dns: string[];
@@ -191,7 +194,6 @@ export interface Status {
     /** The port in personal links (the portal's own). */
     portal_public_port?: number;
     portal_host: string;
-    paused_all: boolean;
     default_device_limit: number;
     domain: string;
     hostnames: boolean;

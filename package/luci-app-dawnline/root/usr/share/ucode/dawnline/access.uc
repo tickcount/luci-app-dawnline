@@ -11,9 +11,9 @@ import * as view from 'dawnline.view';
 import * as awg from 'dawnline.awg';
 
 const STATE_TEXT = {
-	no_server: 'their server is turned off',
+	no_server: 'they have no server',
+	server_off: 'their server is turned off',
 	paused: 'they are paused',
-	paused_all: 'everyone is paused',
 	expired: 'their access has ended',
 	quota: 'they used up their data',
 	hours: 'it is outside their allowed hours',

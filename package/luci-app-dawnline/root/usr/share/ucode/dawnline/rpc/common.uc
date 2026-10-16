@@ -5,6 +5,7 @@ import * as core from 'dawnline.core';
 import * as awg from 'dawnline.awg';
 import * as health from 'dawnline.health';
 import * as schema from 'dawnline.schema';
+import { uniq } from 'dawnline.util';
 
 /**
  * An rpcd handler from fn(args): an object result is passed on, anything else
@@ -52,6 +53,36 @@ export function check_method(name) {
  * addresses use plain HTTP, the next port too — both get a WAN ACCEPT rule.
  * Neither may be 22, 53, 80 or 443, beyond 65535, or taken by another program.
  */
+/** TCP port forwards from the servers' WAN zones: [{ from, to, name }]. */
+function tcp_forwards(m) {
+	let out = [];
+	for (let z in uniq([ 'wan', ...map(values(m.servers), (s) => s.wan_zone) ]))
+		push(out, ...core.wan_forwards(z, 'tcp'));
+	return out;
+}
+
+/**
+ * TCP ports the portal can't take, and who holds them: [{ from, to, who }].
+ * The router's own (22, 53, 80, 443), other programs and port forwards from WAN.
+ */
+export function tcp_taken(m) {
+	let out = [];
+	let held = {};
+	let hold = (p, who) => {
+		if (!held[p]) {
+			held[p] = true;
+			push(out, { from: p, to: p, who });
+		}
+	};
+	for (let p in schema.RESERVED_PORTS)
+		hold(p, 'the router itself');
+	for (let p, name in health.tcp_port_programs())
+		hold(+p, `${name} on this router`);
+	for (let f in tcp_forwards(m))
+		push(out, { from: f.from, to: f.to, who: `port forward “${f.name}”` });
+	return out;
+};
+
 export function check_portal(m, was) {
 	let s = m.settings;
 	if (!s.portal_enabled)
@@ -80,4 +111,9 @@ export function check_portal(m, was) {
 		if (length(owners))
 			die(`TCP ${p} is already used by ${join(', ', owners)}.${p != port ? ' Links on IP addresses use plain HTTP on the port after the portal\'s.' : ''} Choose another portal port.`);
 	}
+	// A forwarded port never reaches the router: the portal would be unreachable.
+	for (let p in ports)
+		for (let f in tcp_forwards(m))
+			if (f.from <= p && p <= f.to)
+				die(`TCP ${p} is sent on by port forward “${f.name}”. Choose another portal port.`);
 };

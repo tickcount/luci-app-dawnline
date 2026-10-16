@@ -14,7 +14,7 @@ import * as schema from 'dawnline.schema';
 import * as health from 'dawnline.health';
 import * as backup from 'dawnline.backup';
 import * as devices from 'dawnline.devices';
-import { wrap, str, check_method, check_portal } from 'dawnline.rpc.common';
+import { wrap, str, check_method, check_portal, tcp_taken } from 'dawnline.rpc.common';
 
 /** Server ids that would shadow a portal path. */
 const PORTAL_PATHS = [ 'api', 'assets', 'cgi-bin' ];
@@ -23,19 +23,54 @@ const MESH_WORDS = { off: 'devices kept apart', all: 'devices reach each other',
 
 /* ---------- free names, ports and subnets ---------- */
 
-function free_port(m) {
-	let used = {};
+/**
+ * UDP ports a server can't listen on, and who holds them: [{ from, to, who }].
+ * Other servers, tunnel interfaces, programs on the router and port forwards
+ * from its WAN zone. `srv` is the server being edited: its own port isn't counted.
+ */
+function udp_taken(m, srv, wan_zone) {
+	let out = [];
+	let held = {};
+	let hold = (p, who) => {
+		if (p > 0 && !held[p]) {
+			held[p] = true;
+			push(out, { from: p, to: p, who });
+		}
+	};
+	for (let id, o in m.servers)
+		if (id != srv?.id)
+			hold(o.port, `server “${o.name}”`);
 	let nc = cursor();
 	nc.load('network');
 	nc.foreach('network', 'interface', (s) => {
-		if (s.listen_port)
-			used[+s.listen_port] = true;
+		if (s.listen_port && s['.name'] != srv?.ifname)
+			hold(+s.listen_port, `interface ${s['.name']}`);
 	});
-	for (let id, srv in m.servers)
-		used[srv.port] = true;
+	let progs = health.udp_port_programs();
+	for (let p in health.udp_bound())
+		if (p != srv?.port)
+			hold(p, progs[`${p}`] ? `${progs[`${p}`]} on this router` : 'another program on this router');
+	for (let f in core.wan_forwards(wan_zone, 'udp'))
+		push(out, { from: f.from, to: f.to, who: `port forward “${f.name}”` });
+	return out;
+}
+
+function check_udp_port(port, taken) {
+	for (let t in taken)
+		if (t.from <= port && port <= t.to)
+			die(`UDP ${port} is used by ${t.who}. Choose another port.`);
+}
+
+/** The usual AmneziaWG port when free, otherwise a random high one. */
+const DEFAULT_PORT = 4500;
+
+function free_port(taken) {
+	let used = (p) => length(filter(taken, (t) => t.from <= p && p <= t.to)) > 0;
+	if (!used(DEFAULT_PORT))
+		return DEFAULT_PORT;
 	for (let i = 0; i < 50; i++) {
 		let p = rand_int(40000, 60000);
-		if (!used[p])
+		if (!used(p))
 			return p;
 	}
 	return 51830;
@@ -58,9 +93,14 @@ function free_subnet(taken) {
 	return '10.77.0.0/24';
 }
 
-function free_portal_port(cur) {
-	for (let p in uniq([ cur || 8443, 8443, 9443, 10443, 7443, 4443 ]))
-		if (!length(health.tcp_port_owners(p)) && !length(health.tcp_port_owners(p + 1)))
+/**
+ * A portal port free together with the next one (plain HTTP for IP links):
+ * `first` (the server's UDP number, TCP is another port) before the usual ones.
+ */
+function free_portal_port(first, cur, taken) {
+	let used = (p) => length(filter(taken, (t) => t.from <= p && p <= t.to)) > 0;
+	for (let p in uniq([ first, cur || 8443, 8443, 9443, 10443, 7443, 4443 ]))
+		if (!used(p) && !used(p + 1))
 			return p;
 	return 9443;
 }
@@ -97,19 +137,29 @@ function free_server_id(m) {
 			return `server${n}`;
 }
 
-/** Subnets a new server must not overlap: the router's networks and the other servers. */
-function taken_subnets(m) {
-	let taken = health.used_subnets(null);
+/** Networks a new server must not overlap, by name: the router's and the other servers'. */
+function taken_networks(m) {
+	let out = [];
+	let seen = {};
+	let add = (name, cidr) => {
+		let c = parse_cidr(cidr);
+		if (c && !seen[cidr_str(c)]) {
+			seen[cidr_str(c)] = true;
+			push(out, { name, cidr: cidr_str(c) });
+		}
+	};
+	for (let n in health.networks())
+		add(n.iface, n.cidr);
 	for (let id, s in m.servers)
-		push(taken, s.subnet);
-	return taken;
+		add(s.name, s.subnet);
+	return out;
 }
 
 /* ---------- setup ---------- */
 
 function setup_defaults(a) {
 	let m = core.load();
-	let taken = taken_subnets(m);
+	let networks = taken_networks(m);
 	let zones = [];
 	let fc = cursor();
 	fc.load('firewall');
@@ -128,35 +178,40 @@ function setup_defaults(a) {
 		if (!host)
 			host = live.iface_status('wan')?.['ipv4-address']?.[0]?.address ?? '';
 	}
+	let wan_zone = index(zones, 'wan') >= 0 ? 'wan' : zones[1];
+	let udp = udp_taken(m, null, wan_zone);
+	let tcp = tcp_taken(m);
+	let port = free_port(udp);
 	return {
 		id: free_server_id(m),
 		name: length(m.servers) ? `Server ${length(m.servers) + 1}` : 'Home',
 		ifname: free_ifname(m),
-		port: free_port(m),
-		subnet: free_subnet(taken),
+		port,
+		subnet: free_subnet(map(networks, (n) => n.cidr)),
 		endpoint: host,
-		mtu: 1380,
+		// Automatic.
+		mtu: 0,
 		zones,
 		lan_zone: index(zones, 'lan') >= 0 ? 'lan' : zones[0],
-		wan_zone: index(zones, 'wan') >= 0 ? 'wan' : zones[1],
-		portal_port: free_portal_port(m.settings.portal_port),
+		wan_zone,
+		// A portal already on keeps its port; a new one takes the server's number when it can.
+		portal_port: m.settings.portal_enabled ? m.settings.portal_port : free_portal_port(port, m.settings.portal_port, tcp),
 		awg: awg.caps(),
-		awg_state: awg.state(),
-		taken,
+		awg_state: awg.load(),
+		networks,
+		udp_taken: udp,
+		tcp_taken: tcp,
 	};
 }
 
 /** AmneziaWG can run a server: installed, and its kernel module loads. */
 function need_awg_loaded() {
 	devices.need_awg();
-	if (awg.state().loaded)
-		return;
-	system('modprobe amneziawg >/dev/null 2>&1');
-	if (!awg.state().loaded)
+	if (!awg.load().loaded)
 		die("AmneziaWG's kernel module doesn't load on this firmware: reinstall a build for this kernel in Components.");
 }
 
-/** An MTU as typed: '' (the default) or 1280-1500. */
+/** An MTU as typed: '' (automatic) or 1280-1500. */
 function check_mtu(v) {
 	let s = str(v);
 	if (s != '' && (!match(s, /^[0-9]{1,4}$/) || +s < 1280 || +s > 1500))
@@ -180,21 +235,24 @@ function server_create(a) {
 		let ifname = str(a.ifname) || free_ifname(m);
 		if (!ifname_free(m, nc, ifname))
 			die(`Network interface ${ifname} already exists.`);
-		let port = free_port(m);
+		let udp = udp_taken(m, null, str(a.wan_zone) || 'wan');
+		let port = free_port(udp);
 		if (a.port != null && str(a.port) != '' && str(a.port) != '0') {
 			if (!schema.valid_port(a.port))
 				die('UDP port must be 1-65535.');
 			port = +str(a.port);
 		}
-		for (let sid, o in m.servers)
-			if (o.port == port)
-				die(`UDP ${port} is used by ${o.name}.`);
-		let mtu = check_mtu(a.mtu == 0 ? '' : a.mtu) || '1380';
+		check_udp_port(port, udp);
+		let mtu = check_mtu(a.mtu == 0 ? '' : a.mtu);
 		let preset = str(a.preset) || 'standard';
 		let srv = { id, ifname, port, subnet: str(a.subnet), endpoint: str(a.endpoint), obf: awg.obf_preset(check_method(preset)) };
 		let pc = parse_cidr(srv.subnet);
 		if (pc)
 			srv.subnet = cidr_str(pc);
+		// Public addresses inside the tunnel would hide the real hosts behind them.
+		// New servers only: a restored backup keeps what it had.
+		if (pc && !core.private_cidr(pc))
+			die('Use a private range: 10.x.x.x, 172.16–31.x.x or 192.168.x.x.');
 		let taken = [ ...router_subnets ];
 		for (let sid, o in m.servers)
 			push(taken, o.subnet);
@@ -212,7 +270,8 @@ function server_create(a) {
 		set('subnet', srv.subnet);
 		if (srv.endpoint)
 			set('endpoint', srv.endpoint);
-		set('mtu', mtu);
+		if (mtu)
+			set('mtu', mtu);
 		set('keepalive', '25');
 		let kp = awg.server_keys();
 		set('private_key', kp.private_key);
@@ -249,8 +308,11 @@ function server_create(a) {
 	system('/etc/init.d/dawnline enabled || /etc/init.d/dawnline enable');
 	let made = core.load().servers[id];
 	admin_log('dawnline', 'created', 'server', made?.name ?? id, made ? `UDP ${made.port}` : null);
-	sh_bg('/etc/init.d/dawnline restart');
-	return { id, applied: r };
+	// netifd reads its protocol handlers when it starts: AmneziaWG installed
+	// after that (by hand, or by an older installer) needs a network restart.
+	let network_restart = !awg.state().handler;
+	sh_bg(network_restart ? '/etc/init.d/network restart; /etc/init.d/dawnline restart' : '/etc/init.d/dawnline restart');
+	return { id, applied: r, network_restart };
 }
 
 /* ---------- interfaces ---------- */
@@ -416,9 +478,8 @@ function server_update(a) {
 			if (!schema.valid_port(v.port))
 				die('UDP port must be 1-65535.');
 			let n = +str(v.port);
-			for (let id, o in m.servers)
-				if (id != srv.id && o.port == n)
-					die(`UDP ${n} is used by ${o.name}.`);
+			if (n != srv.port)
+				check_udp_port(n, udp_taken(m, srv, srv.wan_zone));
 			set('port', `${n}`);
 		}
 		if (v.enabled != null)
@@ -451,7 +512,7 @@ function server_update(a) {
 	for (let k, label in labels) {
 		if (v[k] == null)
 			continue;
-		let was = k == 'dns' ? join(' ', srv.dns ?? []) : `${srv[k] ?? ''}`;
+		let was = k == 'dns' ? join(' ', srv.dns ?? []) : k == 'mtu' && !srv.mtu ? '' : `${srv[k] ?? ''}`;
 		let now = k == 'dns' ? join(' ', dns_list(v.dns)) : str(v[k]);
 		if (trim(was) != trim(now))
 			push(what, label);

@@ -20,6 +20,8 @@ export const CONFIG = 'dawnline';
 export const BLOCKED = `${RUN_DIR}/netifd-blocked.json`;
 export const ACCESS = [ 'lan', 'internet', 'both' ];
 export const KINDS = [ 'computer', 'phone', 'tablet', 'router', 'other' ];
+/** Kinds that mostly live on mobile networks: their configurations carry a smaller MTU. */
+export const MOBILE_KINDS = [ 'phone', 'tablet' ];
 /** Devices of different people reaching each other: never, everyone with home access, or within a circle. */
 export const MESH = [ 'off', 'all', 'circles' ];
 /** Circle colours (index into the admin palette). */
@@ -78,7 +80,6 @@ export function load(c) {
 			portal_title: s.portal_title ?? 'Dawnline',
 			// Where unknown portal links go instead of a bare 404 (empty = 404).
 			portal_redirect: s.portal_redirect ?? '',
-			paused_all: bool(s.paused_all, false),
 			default_device_limit: toint(s.default_device_limit, 3),
 			geo_enabled: bool(s.geo_enabled, true),
 			geo_provider: s.geo_provider == 'ipapi.co' ? 'ipapi.co' : 'ipwho.is',
@@ -115,7 +116,8 @@ export function load(c) {
 			port: toint(r.port, 51820),
 			subnet: r.subnet ?? '',
 			endpoint: r.endpoint ?? '',
-			mtu: toint(r.mtu, 1380),
+			// 0 = automatic (tunnel_mtu, device_mtu).
+			mtu: toint(r.mtu, 0),
 			dns: list(r.dns),
 			keepalive: toint(r.keepalive, 25),
 			private_key: r.private_key ?? '',
@@ -262,19 +264,11 @@ export function person_expired(p, ts) {
 	return end != null && (ts ?? time()) > end;
 };
 
-/**
- * Effective state of a person: 'active', or why they are off:
- * 'paused' (admin), 'paused_all', 'expired', 'quota', 'hours', 'no_server'.
- */
-export function person_state(m, p, usage, ts) {
+/** The person's state whatever their server is doing (paused, expired, …, or 'active'). */
+export function own_state(m, p, usage, ts) {
 	ts ??= time();
-	let srv = m.servers[p.server];
-	if (!srv || !srv.enabled)
-		return 'no_server';
 	if (p.paused)
 		return 'paused';
-	if (m.settings.paused_all)
-		return 'paused_all';
 	// "notify" keeps access after the end date (shown in Overview and People).
 	if (person_expired(p, ts) && p.expire_action != 'notify')
 		return 'expired';
@@ -285,6 +279,20 @@ export function person_state(m, p, usage, ts) {
 	if (h && !within_hours(h, ts))
 		return 'hours';
 	return 'active';
+};
+
+/**
+ * Effective state of a person: 'active', or why they are off:
+ * 'paused' (admin), 'expired', 'quota', 'hours', 'no_server',
+ * 'server_off' (their server is turned off: about the server, not the person).
+ */
+export function person_state(m, p, usage, ts) {
+	let srv = m.servers[p.server];
+	if (!srv)
+		return 'no_server';
+	if (!srv.enabled)
+		return 'server_off';
+	return own_state(m, p, usage, ts);
 };
 
 export function load_usage() {
@@ -343,6 +351,27 @@ export function alloc_address(m, srv) {
 };
 
 /* ---------- what clients get ---------- */
+
+/*
+ * Automatic MTU. A path is assumed to carry 1460 bytes (1500 less PPPoE,
+ * 464XLAT or DS-Lite), the tunnel's own headers take 80 over IPv6, and
+ * AmneziaWG's S4 adds its bytes to every data packet (its padding and random
+ * trailers stay within the largest packet already seen, so they cost
+ * nothing). Phones and tablets get 1280, the IPv6 minimum: mobile paths vary.
+ */
+const AUTO_MTU = 1380;
+const MOBILE_MTU = 1280;
+
+/** The server's tunnel MTU: the one set, or automatic for its disguise. */
+export function tunnel_mtu(srv) {
+	return srv.mtu || max(MOBILE_MTU, AUTO_MTU - toint(srv.obf?.s4, 0));
+};
+
+/** The MTU a device's configuration carries: the tunnel's, at most 1280 for phones and tablets. */
+export function device_mtu(srv, dev) {
+	let mtu = tunnel_mtu(srv);
+	return index(MOBILE_KINDS, dev.kind) >= 0 ? min(mtu, MOBILE_MTU) : mtu;
+};
 
 export function endpoint_host(m, srv) {
 	return srv.endpoint || m.settings.portal_host || '';
@@ -690,6 +719,16 @@ export function delete_person(c, m, id) {
 	c.delete(CONFIG, id);
 };
 
+const PRIVATE_NETS = map([ '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16' ], parse_cidr);
+
+/** The parsed subnet lies inside one of the private ranges. */
+export function private_cidr(c) {
+	for (let p in PRIVATE_NETS)
+		if (c.net >= p.net && c.net + c.size <= p.net + p.size)
+			return true;
+	return false;
+};
+
 /** Validate a server definition (as loaded) against the rest of the router. */
 export function server_errors(m, srv, others_subnets) {
 	let errs = [];
@@ -711,21 +750,28 @@ export function server_errors(m, srv, others_subnets) {
 	return errs;
 };
 
-/** Someone else already forwards this TCP port from outside (a port forward we must not take over). */
-export function wan_port_taken(port) {
+/**
+ * Port forwards from `zone` for `proto` that aren't Dawnline's: [{ from, to, name }].
+ * A forwarded port never reaches the router itself, so nothing here can listen on it.
+ */
+export function wan_forwards(zone, proto) {
 	let c = cursor();
 	c.load('firewall');
-	let taken = false;
+	let out = [];
 	c.foreach('firewall', 'redirect', (r) => {
-		if (match(r['.name'], /^dawnline_/) || r.enabled == '0' || (r.target ?? 'DNAT') != 'DNAT')
+		if (match(r['.name'], /^dawnline_/) || r.enabled == '0' || (r.target ?? 'DNAT') != 'DNAT' || r.src != zone)
+			return;
+		// fw4's default is "tcp udp".
+		let protos = split(type(r.proto) == 'array' ? join(' ', r.proto) : r.proto ?? 'tcp udp', /[ ,]+/);
+		if (index(protos, proto) < 0 && index(protos, 'all') < 0 && index(protos, 'any') < 0)
 			return;
 		for (let p in split(`${r.src_dport ?? ''}`, /[ ,]+/)) {
 			let m = match(p, /^(\d+)([-:](\d+))?$/);
-			if (m && +m[1] <= port && port <= +(m[3] || m[1]))
-				taken = true;
+			if (m)
+				push(out, { from: +m[1], to: +(m[3] || m[1]), name: r.name ?? r['.name'] });
 		}
 	});
-	return taken;
+	return out;
 };
 
 /** Every address the links use, the main one first. */

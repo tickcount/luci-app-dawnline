@@ -4,7 +4,7 @@
 
 import { open, readfile, writefile, rename, mkdir, stat, unlink, popen, lsdir } from 'fs';
 
-export const VERSION = '0.4.2';
+export const VERSION = '0.5.0';
 /** GitHub repository with Dawnline releases (updates and the installer). */
 export const REPO = 'tickcount/luci-app-dawnline';
 export const RUN_DIR = '/var/run/dawnline';
@@ -273,19 +273,31 @@ const INTENT = `${RUN_DIR}/iface-intent.json`;
 
 export function iface_intent(ifname, reason, name) {
 	let all = read_json(INTENT, {});
-	all[ifname] = { reason, name, ts: time() };
+	let now = time();
+	for (let k, v in all)
+		if (now - v.ts >= 120)
+			delete all[k];
+	all[ifname] = { reason, name, ts: now };
 	ensure_dir(RUN_DIR);
 	write_json(INTENT, all, 0o600);
 };
 
+/**
+ * The note for a stop of `ifname`, or null. netifd may report one stop more
+ * than once (the interface, then its device): the note covers every report
+ * within 15 s of the first, then it is spent.
+ */
 export function take_iface_intent(ifname) {
 	let all = read_json(INTENT, {});
 	let it = all[ifname];
-	if (!it)
+	let now = time();
+	if (!it || now - it.ts >= 120 || (it.used && now - it.used >= 15))
 		return null;
-	delete all[ifname];
-	write_json(INTENT, all, 0o600);
-	return time() - it.ts < 120 ? it : null;
+	if (!it.used) {
+		it.used = now;
+		write_json(INTENT, all, 0o600);
+	}
+	return it;
 };
 
 /** Newest first. */

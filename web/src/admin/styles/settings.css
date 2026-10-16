@@ -33,6 +33,11 @@
 .dl-hostport { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; justify-content: flex-end; }
 .dl-hostport input { flex: 1; min-width: 0; }
 .dl-root input.dl-w-port, .dl-hostport input.dl-w-port { flex: 0 0 90px; width: 90px; }
+.dl-root input.dl-w-range { flex: 0 0 130px; width: 130px; }
+.dl-setrow .dl-sub.bad { color: var(--dl-bad); }
+/* An input with a fixed ending ("10.77.0" .x). */
+.dl-suffixed { display: inline-flex; align-items: center; gap: 6px; }
+.dl-suffixed > span { color: var(--dl-fg-muted); }
 .dl-more summary { cursor: pointer; color: var(--dl-fg-muted); font-size: 13px; margin-bottom: 10px; }
 .dl-more .dl-setrow + .dl-setrow { margin-top: 10px; }
 @media (max-width: 760px) { .dl-setrow:not(.head) { grid-template-columns: minmax(0, 1fr); } .dl-setrow-ctl, .dl-setrow-ctl .dl-chips-row { justify-content: flex-start; } }

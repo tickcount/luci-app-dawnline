@@ -20,8 +20,6 @@ const CATEGORY: Record<string, LogCategory> = {
   person_changed: 'people',
   paused: 'people',
   resumed: 'people',
-  paused_all: 'people',
-  resumed_all: 'people',
   portal_blocked: 'problems',
 };
 
@@ -43,7 +41,7 @@ export const categoryOf = (type: string): LogCategory => CATEGORY[type] ?? 'prob
 
 export const SYSTEM_SOURCE: Record<ServiceLogEntry['src'], string> = { awg: 'AmneziaWG', dawnline: 'Dawnline', portal: 'Portal' };
 
-const ADMIN_TYPES = ['person_added', 'person_removed', 'person_changed', 'paused_all', 'resumed_all'];
+const ADMIN_TYPES = ['person_added', 'person_removed', 'person_changed'];
 
 /** Who did it. Older events have no `by`: LuCI and the portal marked it in the detail. */
 export function eventBy(e: LogEvent): 'admin' | 'portal' | null {

@@ -160,7 +160,8 @@ export function accessCards(srv: Server, first: Status, refresh: () => Promise<u
   /** Tile colour: green while traffic really enters the LAN, orange when it should but can't. */
   function likeHomeTone(): string {
     const lh = d.like_home;
-    if (!lanLike || !d.config.lan_like) return '';
+    // A server that is off has no link on purpose.
+    if (!lanLike || !d.config.lan_like || !srv.enabled) return '';
     return !d.needs?.length && lh.active && lh.bridged ? 'ok' : 'warn';
   }
 
@@ -174,6 +175,9 @@ export function accessCards(srv: Server, first: Status, refresh: () => Promise<u
       ];
     if (!d.config.lan_like)
       return ['Internet traffic will enter the router from your LAN, so it is handled like any home device. Save to turn on.'];
+    // A server that is off has no link on purpose: describe the setting, not its state.
+    if (!srv.enabled)
+      return ['Internet traffic enters the router from your LAN, so whatever handles home traffic (proxies, filters, DNS) handles it too.'];
     if (lh.active && lh.bridged)
       return [
         'Internet traffic enters ',

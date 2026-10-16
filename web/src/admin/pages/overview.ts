@@ -41,7 +41,6 @@ function attention(st: Status): Attention[] {
         tone: 'bad',
         text: [`Tunnel ${s.ifname} is down. `, link(L.url('admin/network/dawnline/diagnostics'), 'Open Diagnostics')],
       });
-  if (st.settings.paused_all) out.push({ tone: 'warn', text: ['Everyone is paused.'] });
   for (const p of st.people) {
     if (p.state === 'quota') out.push({ tone: 'warn', text: [link(personUrl(p.id), p.name), ' reached the data limit.'] });
     else if (p.state === 'expired') out.push({ tone: 'warn', text: [link(personUrl(p.id), p.name), '’s access has ended.'] });
@@ -166,9 +165,8 @@ export class ServerOverview {
       this.range,
     );
     const legend = E('div', { class: 'dl-map-legend' }, [
-      E('span', {}, [E('i', { class: 'dot ok' }), 'Online']),
-      E('span', {}, [E('i', { class: 'dot' }), 'Seen recently']),
-      E('span', {}, [E('i', { class: 'line' }), 'Live tunnel']),
+      E('span', {}, [E('i', { class: 'line live' }), 'Live tunnel']),
+      E('span', {}, [E('i', { class: 'line' }), 'Seen recently']),
     ]);
     const wrap = E('div', { class: 'dl-map-wrap' }, [this.map.el, legend]);
     requestAnimationFrame(() => this.map!.mount(this.mapData()));
@@ -178,11 +176,10 @@ export class ServerOverview {
   paint(quiet = false) {
     const st = this.st;
     const srv = st.servers[0];
-    const slots = st.people.reduce((a, p) => a + Math.max(0, p.device_limit - p.devices.length), 0);
 
     repaint(
       this.parts.bento,
-      E('div', { class: 'dl-bento' }, [this.onlineTile(), this.speedTile(), coreOf(srv).overviewTile(srv), this.monthTile(slots)]),
+      E('div', { class: 'dl-bento' }, [this.onlineTile(), this.speedTile(), coreOf(srv).overviewTile(srv), this.monthTile()]),
       quiet,
     );
 
@@ -235,11 +232,14 @@ export class ServerOverview {
    */
   onlineTile(): HTMLElement {
     const st = this.st;
+    const off = st.servers[0] ? !st.servers[0].enabled : false;
     const CAP = 12;
     const today = (d: Device) => d.spark[d.spark.length - 1] ?? 0;
     const cityOf = (d: Device) => st.geo.points.find((g) => g.device === d.id && g.city)?.city;
     const home = (d: Device) => /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(d.endpoint ?? '');
-    const where = (d: Device) => (home(d) ? 'home' : cityOf(d)) ?? '';
+    // Where a device is: its city, or "LAN" when it connects from the home network (the hover
+    // card adds its address there).
+    const where = (d: Device, ip = false): string => (home(d) ? (ip && d.endpoint ? `LAN · ${d.endpoint}` : 'LAN') : (cityOf(d) ?? ''));
     const connectedAt = (d: Device) => [...st.events].reverse().find((e) => e.type === 'connect' && e.device === d.id)?.ts ?? 0;
     const on = st.people
       .map((p) => ({ p, devs: p.devices.filter((d) => d.online).sort((a, b) => today(b) - today(a)) }))
@@ -298,7 +298,7 @@ export class ServerOverview {
           E(
             'div',
             { class: 'dl-hc-devs' },
-            devs.map((d) => E('span', { class: 'dl-hc-dev' }, [icon(d.kind), [d.name, where(d)].filter(Boolean).join(' · ')])),
+            devs.map((d) => E('span', { class: 'dl-hc-dev' }, [icon(d.kind), d.name, where(d) ? [' · ', where(d, true)] : ''])),
           ),
           E('div', { class: 'dl-hc-foot' }, [
             E(
@@ -321,7 +321,7 @@ export class ServerOverview {
           ? E('span', { class: 'dl-onl-meta' }, [
               ...devs.slice(0, 3).map((d) => icon(d.kind)),
               devs.length > 3 ? `+${devs.length - 3}` : '',
-              where(devs[0]) ? E('span', {}, ` · ${where(devs[0])}`) : '',
+              where(devs[0]) ? E('span', {}, [' · ', where(devs[0])]) : '',
             ])
           : '',
       ]);
@@ -362,10 +362,11 @@ export class ServerOverview {
               : '',
           ])
         : E('div', { class: 'dl-onl-empty' }, [
-            E('span', {}, 'Nobody is connected'),
+            // A server that is off takes no connections: say so rather than "nobody".
+            E('span', {}, off ? 'The server is turned off' : 'Nobody is connected'),
             last
               ? E('span', { class: 'dl-sub' }, `Last: ${last.p.name}, ${ago(last.d.handshake, st.now)}`)
-              : E('span', { class: 'dl-sub' }, 'No device has connected yet'),
+              : E('span', { class: 'dl-sub' }, off ? 'Devices connect once it is on' : 'No device has connected yet'),
           ]),
     ]);
   }
@@ -375,16 +376,12 @@ export class ServerOverview {
    * upload side by side, the last 15 minutes as a small chart, today's total.
    */
   speedTile(): HTMLElement {
-    return speedTile(this.st.servers[0]?.rate ?? [], this.st.now, this.st.totals.today);
+    const srv = this.st.servers[0];
+    return speedTile(srv?.rate ?? [], this.st.now, this.st.totals.today, srv ? !srv.enabled : false);
   }
 
-  /** The last 30 days, today on the right, with the peak; plus the people summary. */
-  monthTile(slots: number): HTMLElement {
-    const t = this.st.totals;
-    const paused = this.st.people.filter((p) => p.state !== 'active').length;
-    return daysTile(
-      this.st.series,
-      `${t.people} ${t.people === 1 ? 'person' : 'people'}${paused ? ` · ${paused} paused` : ''} · ${slots} device slot${slots === 1 ? '' : 's'} free`,
-    );
+  /** The last 30 days, today on the right, with the peak. */
+  monthTile(): HTMLElement {
+    return daysTile(this.st.series, '');
   }
 }

@@ -1,9 +1,9 @@
 // Person page: the name block with its actions, and the traffic tiles.
 
 import { E } from '../../e';
-import { iconButton } from '../../ui/button';
+import { button, iconButton } from '../../ui/button';
 import { dropdown, type MenuItem } from '../../ui/menu';
-import { stateBadge } from '../../ui/badges';
+import { statePill } from '../../ui/badges';
 import { icon } from '../../../shared/icons';
 import { ago, bytes, date, initials, isoDay } from '../../../shared/format';
 import { copyPersonLink } from '../../invite';
@@ -29,12 +29,8 @@ export function headPart(page: PersonPage): HTMLElement {
         ]
       : []),
     null,
-    {
-      label: p.paused ? 'Resume' : 'Pause',
-      icon: icon(p.paused ? 'play' : 'pause'),
-      warn: !p.paused,
-      run: () => page.patch({ paused: !p.paused }, p.paused ? 'Resumed' : 'Paused'),
-    },
+    // While paused, Resume is the page's own button (as the server's Turn on).
+    ...(p.paused ? [] : [{ label: 'Pause', icon: icon('pause'), warn: true, run: () => page.patch({ paused: true }, 'Paused') }]),
     { label: 'Delete', icon: icon('trash'), danger: true, run: () => remove(page) },
   ];
   return E('div', { class: 'dl-person-head' }, [
@@ -42,11 +38,13 @@ export function headPart(page: PersonPage): HTMLElement {
       E('div', { class: 'dl-person-id' }, [
         E('span', { class: `dl-avatar lg${p.online ? ' online' : ''}` }, initials(p.name)),
         E('div', { class: 'dl-stack' }, [
-          E('div', { class: 'dl-title-row' }, [E('h2', { class: 'dl-h1' }, p.name), stateBadge(p)]),
+          E('div', { class: 'dl-title-row' }, [E('h2', { class: 'dl-h1' }, p.name), statePill(p)]),
           E('span', { class: 'dl-faint', title: added }, `${p.devices.length} of ${p.device_limit} devices · ${lastSeen}`),
         ]),
       ]),
       E('div', { class: 'dl-pcard-actions' }, [
+        // White, as the server's Turn on.
+        p.paused ? button([icon('play'), ' Resume'], () => page.patch({ paused: false }, 'Resumed'), 'add') : '',
         portal ? iconButton('link', 'Copy link', () => copyPersonLink(p.id), 'neutral', 'dl-icon-only') : '',
         iconButton('more', 'More', (ev: MouseEvent) => dropdown(ev.currentTarget as HTMLElement, menu), 'neutral', 'dl-icon-only'),
       ]),

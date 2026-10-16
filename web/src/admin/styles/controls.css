@@ -72,7 +72,7 @@
   font-size: 13px; color: var(--dl-fg-muted); text-decoration: none !important; white-space: nowrap; }
 .dl-srvtab b { font-weight: 500; }
 .dl-srvtab i.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--dl-fg-faint); flex: 0 0 auto; }
-.dl-srvtab i.dot.ok { background: var(--dl-ok); animation: dl-srv-pulse 2s ease-out infinite; } .dl-srvtab i.dot.bad { background: var(--dl-bad); }
+.dl-srvtab i.dot.ok { background: var(--dl-ok); animation: dl-srv-pulse 2s ease-out infinite; } .dl-srvtab i.dot.bad { background: var(--dl-bad); } .dl-srvtab i.dot.warn { background: var(--dl-warn); }
 /* The one status dot left: a server that is running pulses. */
 @keyframes dl-srv-pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--dl-ok) 55%, transparent); } 70%, 100% { box-shadow: 0 0 0 6px transparent; } }
 @media (prefers-reduced-motion: reduce) { .dl-srvtab i.dot.ok { animation: none; } }
