@@ -7,6 +7,7 @@ import { q, sh, sh_out, parse_cidr, cidr_overlaps, ip2int, in_cidr, file_exists,
 import * as core from 'dawnline.core';
 import * as live from 'dawnline.live';
 import * as apply from 'dawnline.apply';
+import * as fw from 'dawnline.fw';
 import * as loop from 'dawnline.loop';
 import * as net from 'dawnline.net';
 import * as awg from 'dawnline.awg';
@@ -167,35 +168,22 @@ function check(id, title, status, detail, fix, problem) {
 	return { id, title, status, detail: detail ?? '', fix: fix ?? null, problem: bad ? (problem ?? problem_of(title)) : null };
 }
 
-/*
- * Policy rules that send the router's own (marked) traffic into a local table,
- * the way transparent proxies capture it: "pref 1000 fwmark 0x1 → table 100".
+/**
+ * Answers from our ports and the proxies that would swallow them (fw.sync_reply_routes):
+ * { ok, diverts: ["pref 1000 fwmark 0x1 → table 100"] }.
  */
-function proxy_diverts() {
-	let out = [];
-	for (let line in split(sh_out('ip -4 rule show 2>/dev/null') ?? '', '\n')) {
-		let mm = match(line, /^(\d+):.*fwmark (\S+).* lookup (\S+)/);
-		if (!mm || +mm[1] >= 32766)
-			continue;
-		if (match(sh_out(`ip -4 route show table ${mm[3]} 2>/dev/null`) ?? '', /(^|\n)local default/))
-			push(out, `pref ${mm[1]} fwmark ${mm[2]} → table ${mm[3]}`);
-	}
-	return out;
+function replies(m) {
+	let d = fw.proxy_diverts();
+	return { ok: fw.reply_ok(m, d), diverts: map(d, fw.divert_str) };
 }
 
-/** Our "answers leave by main" rule for this port (see apply.sync_reply_routes). */
-function reply_rule(proto, port) {
-	return index(sh_out('ip -4 rule show priority 90 2>/dev/null') ?? '', `ipproto ${proto} sport ${+port} lookup main`) >= 0;
-}
-
-function reply_check(id, title, proto, port, diverts) {
-	let ok = reply_rule(proto, port);
-	let via = length(diverts) ? ` A proxy on the router diverts its own traffic (${join(', ', diverts)}); these answers skip it.` : '';
-	return check(id, title, ok ? 'ok' : (length(diverts) ? 'error' : 'warn'),
-		ok ? `Answers from ${uc(proto)} ${port} go straight out.${via}`
-			: length(diverts) ? `Answers from ${uc(proto)} ${port} can be swallowed by a proxy on the router (${join(', ', diverts)}): clients get no reply.`
-			: `The rule that keeps answers from ${uc(proto)} ${port} out of proxies is missing.`,
-		ok ? null : 'apply');
+function reply_check(id, title, proto, port, r) {
+	let via = join(', ', r.diverts);
+	return check(id, title, r.ok ? 'ok' : 'error',
+		!r.ok ? `Answers from ${uc(proto)} ${port} are swallowed by a proxy on the router (${via}): clients get no reply.`
+			: length(r.diverts) ? `Answers from ${uc(proto)} ${port} go straight out. A proxy on the router diverts its own traffic (${via}); these answers skip it.`
+			: `Answers from ${uc(proto)} ${port} go straight out.`,
+		r.ok ? null : 'apply');
 }
 
 const PRIVATE = map([ '100.64.0.0/10', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16' ], parse_cidr);
@@ -240,7 +228,7 @@ function awg_check() {
 }
 
 /** Checks of a server's AmneziaWG tunnel. */
-function awg_checks(m, id, srv, label, fwc, dmp, diverts) {
+function awg_checks(m, id, srv, label, fwc, dmp, rep) {
 	let out = [];
 	let st = live.iface_status(srv.ifname);
 	let up = !!st?.up;
@@ -272,7 +260,7 @@ function awg_checks(m, id, srv, label, fwc, dmp, diverts) {
 	push(out, check(`fw_${id}`, `AmneziaWG firewall${label}`, rule && zone ? 'ok' : 'error',
 		rule && zone ? `Zone ${srv.ifname} and the WAN rule for UDP ${srv.port} exist.` : 'Firewall zone or WAN rule is missing.',
 		rule && zone ? null : 'apply'));
-	push(out, reply_check(`reply_${id}`, `AmneziaWG answers reach devices${label}`, 'udp', srv.port, diverts));
+	push(out, reply_check(`reply_${id}`, `AmneziaWG answers reach devices${label}`, 'udp', srv.port, rep));
 	// Port collisions with other tunnels.
 	let clash = [];
 	let nc = cursor();
@@ -296,7 +284,7 @@ function awg_checks(m, id, srv, label, fwc, dmp, diverts) {
 }
 
 /** The portal's checks: listening, its address, answers, plain HTTP and the certificate. */
-function portal_checks(m, need, diverts) {
+function portal_checks(m, need, rep) {
 	let out = [];
 	let s = m.settings;
 	if (length(need.https))
@@ -320,7 +308,7 @@ function portal_checks(m, need, diverts) {
 			wan && index(ips, wan) < 0 ? `${s.portal_host} points at ${join(', ', ips)}, not this router (${wan}).` :
 			`${s.portal_host} → ${join(', ', ips)}${wan ? ' (this router)' : ''}.`));
 	}
-	push(out, reply_check('portal_reply', 'Portal answers reach visitors', 'tcp', s.portal_port, diverts));
+	push(out, reply_check('portal_reply', 'Portal answers reach visitors', 'tcp', s.portal_port, rep));
 	if (core.portal_http(m)) {
 		let ipl = filter(core.portal_hosts(m), (h) => ip2int(h) != null);
 		push(out, check('portal_http', 'Plain HTTP links', 'warn',
@@ -347,8 +335,8 @@ function portal_checks(m, need, diverts) {
  * (install:<feature>, updates).
  */
 export function health(m) {
-	let diverts = proxy_diverts();
 	m ??= core.load();
+	let rep = replies(m);
 	let out = [];
 	let dmp = live.dump(m);
 	let need = needs();
@@ -382,7 +370,7 @@ export function health(m) {
 			push(out, check(`srv_${id}`, `Server${label}`, 'skip', 'Server is disabled.'));
 			continue;
 		}
-		push(out, ...awg_checks(m, id, srv, label, fwc, dmp, diverts));
+		push(out, ...awg_checks(m, id, srv, label, fwc, dmp, rep));
 		push(out, endpoint_check(`ep_${id}`, `Public address${label}`, srv, core.endpoint_host(m, srv), `UDP ${srv.port}`));
 
 		if (srv.lan_like) {
@@ -406,7 +394,7 @@ export function health(m) {
 	}
 
 	if (m.settings.portal_enabled)
-		push(out, ...portal_checks(m, need, diverts));
+		push(out, ...portal_checks(m, need, rep));
 	return out;
 };
 

@@ -181,7 +181,7 @@ function table(m, sets) {
 }
 
 /** Run an nft script (one transaction); null when it loaded, else what nft said. */
-function load(script) {
+export function load(script) {
 	ensure_dir(RUN_DIR);
 	// A file of its own: two writers must never load each other's script.
 	let f = `${RUN_DIR}/nft.${rand_hex(4)}.rules`;
@@ -193,7 +193,7 @@ function load(script) {
 		return null;
 	// Without the random file name, so the same failure reads the same every time.
 	return replace(trim(r.out), f, 'rules') || `nft exited with ${r.code}`;
-}
+};
 
 /** Full table rebuild (structure changes: servers, home networks, DNS paths); null or the error. */
 export function rebuild(m, sets) {

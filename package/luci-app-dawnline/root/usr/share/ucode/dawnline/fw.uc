@@ -1,23 +1,30 @@
 // Dawnline — fw4 and routing around it: each tunnel's zone, its forwardings
 // to home and WAN, the WAN rules for the tunnels and the portal (named
-// sections dawnline_*), what the watchdog checks about them, and the reply
-// routes that keep Dawnline's own answers on the main table. Only sections
+// sections dawnline_*), what the watchdog checks about them, and the nft
+// table that keeps Dawnline's own answers out of proxies. Only sections
 // named dawnline_* are ever changed.
 
+import { readfile, unlink } from 'fs';
+import { q, sh, sh_out, uniq, uci_put, uci_section, ack_config, write_file, RUN_DIR } from 'dawnline.util';
 import { cursor } from 'uci';
-import { sh, sh_out, uniq, uci_put, uci_section, ack_config } from 'dawnline.util';
 import * as core from 'dawnline.core';
 import * as net from 'dawnline.net';
+import * as nft from 'dawnline.nft';
 
 const LOOP_ZONE = 'dl_loop';
 /*
  * Our own answers leave by the main table: the portal's (TCP) and each
- * tunnel's (UDP). Proxies on the router (tproxy with an fwmark rule) may mark
- * the router's own traffic to internet addresses and divert it locally, which
- * swallows replies to outside clients. These rules sit before such fwmark
- * rules and only match the router's own traffic (iif lo) from our listening
- * ports: forwarded traffic keeps whatever routing the router has for it.
+ * tunnel's (UDP). Proxies on the router (tproxy with an fwmark rule to a
+ * `local default` table) mark the router's own traffic to internet addresses
+ * in an output route chain, which diverts replies to outside clients into lo.
+ * A policy rule on the source port can't exempt them: the reroute after the
+ * mark is set looks up without ports. So a later output route chain of our
+ * own clears exactly those proxy marks on packets from our listening ports,
+ * and the kernel routes them again by main. Forwarded traffic is not touched.
  */
+const REPLY_TABLE = 'dawnline_reply';
+const REPLY_SIG = `${RUN_DIR}/reply.nft`;
+/** Older versions kept answers out of proxies with `ip rule` at this priority; it never matched. */
 const PREF_REPLY = 90;
 
 /** With `dry`, only says whether the firewall config differs from what Dawnline wants. */
@@ -140,38 +147,115 @@ export function drift(m) {
 	return null;
 };
 
-/** Our reply rules of one family as `ip rule show` prints them: [{ proto, port, lo }]. */
-function reply_rules(fam) {
-	let out = [];
-	// "90:	from all iif lo ipproto udp sport 51820 lookup main" (older versions: without "iif lo").
-	for (let line in split(sh_out(`ip ${fam} rule show priority ${PREF_REPLY} 2>/dev/null`) ?? '', '\n')) {
-		let mm = match(line, /ipproto (tcp|udp) sport ([0-9]+) lookup main/);
-		if (mm)
-			push(out, { proto: mm[1], port: mm[2], lo: index(line, ' iif lo ') >= 0 });
-	}
-	return out;
+const MARK_ALL = 0xffffffff;
+
+function hx(n) {
+	return sprintf('0x%x', n);
 }
 
-/** One `iif lo ipproto <p> sport <port> lookup main` rule per listening port and family. */
-export function sync_reply_routes(m) {
-	let want = [];
+/**
+ * Policy rules that send marked traffic into a table with `local default`,
+ * the way transparent proxies capture the router's own traffic:
+ * [{ pref, mark, mask, table }], one per mark and mask.
+ */
+export function proxy_diverts() {
+	let out = [], seen = {};
+	for (let fam in [ '-4', '-6' ])
+		for (let line in split(sh_out(`ip ${fam} rule show 2>/dev/null`) ?? '', '\n')) {
+			// "1000:	from all fwmark 0x1 lookup 100", or "fwmark 0x1/0xff".
+			let mm = match(line, /^(\d+):.*fwmark 0x([0-9a-f]+)(\/0x([0-9a-f]+))?.* lookup (\S+)/);
+			if (!mm || +mm[1] >= 32766)
+				continue;
+			let d = { pref: +mm[1], mark: hex(mm[2]), mask: mm[4] ? hex(mm[4]) : MARK_ALL, table: mm[5] };
+			let key = `${d.mark}/${d.mask}`;
+			if (seen[key] || !match(sh_out(`ip ${fam} route show table ${d.table} 2>/dev/null`) ?? '', /(^|\n)local default/))
+				continue;
+			seen[key] = true;
+			push(out, d);
+		}
+	return out;
+};
+
+/** A divert as `ip rule` shows it, for people: "pref 1000 fwmark 0x1 → table 100". */
+export function divert_str(d) {
+	return `pref ${d.pref} fwmark ${hx(d.mark)}${d.mask == MARK_ALL ? '' : `/${hx(d.mask)}`} → table ${d.table}`;
+};
+
+/** Ports Dawnline answers on from the outside: { tcp: [...], udp: [...] }. */
+function reply_ports(m) {
+	let p = { tcp: [], udp: [] };
+	let ok = (n) => n >= 1 && n <= 65535;
 	if (m.settings.portal_enabled) {
-		push(want, `tcp ${+m.settings.portal_port}`);
+		push(p.tcp, +m.settings.portal_port);
 		if (core.portal_http(m))
-			push(want, `tcp ${core.portal_http_port(m)}`);
+			push(p.tcp, +core.portal_http_port(m));
 	}
 	for (let id, srv in m.servers)
-		if (srv.private_key && srv.enabled && +srv.port)
-			push(want, `udp ${+srv.port}`);
-	want = uniq(want);
-	for (let fam in [ '-4', '-6' ]) {
-		// Ours that are no longer wanted, and the older ones that also caught forwarded traffic.
-		for (let r in reply_rules(fam))
-			if (!r.lo || index(want, `${r.proto} ${r.port}`) < 0)
-				sh(`ip ${fam} rule del priority ${PREF_REPLY}${r.lo ? ' iif lo' : ''} ipproto ${r.proto} sport ${r.port} lookup main 2>/dev/null`);
-		let have = map(filter(reply_rules(fam), (r) => r.lo), (r) => `${r.proto} ${r.port}`);
-		for (let w in want)
-			if (index(have, w) < 0)
-				sh(`ip ${fam} rule add priority ${PREF_REPLY} iif lo ipproto ${split(w, ' ')[0]} sport ${split(w, ' ')[1]} lookup main`);
+		if (srv.private_key && srv.enabled)
+			push(p.udp, +srv.port);
+	return { tcp: uniq(filter(p.tcp, ok)), udp: uniq(filter(p.udp, ok)) };
+}
+
+/** The reply table for these diverts, or '' when there is nothing to keep out of them. */
+function reply_script(m, diverts) {
+	let p = reply_ports(m);
+	if (!length(diverts) || !length(p.tcp) && !length(p.udp))
+		return '';
+	let t = [];
+	push(t, `table inet ${REPLY_TABLE} {`);
+	push(t, '	chain out {');
+	// After the proxies' own output chains (they mark at mangle, -150).
+	push(t, '		type route hook output priority filter + 10; policy accept;');
+	for (let proto in [ 'tcp', 'udp' ]) {
+		if (!length(p[proto]))
+			continue;
+		for (let d in diverts)
+			// Only the divert's bits: other marks on the packet (multi-WAN) stay.
+			push(t, `		${proto} sport { ${join(', ', p[proto])} } ` + (d.mask == MARK_ALL
+				? `meta mark ${hx(d.mark)} meta mark set 0x0`
+				: `meta mark & ${hx(d.mask)} == ${hx(d.mark)} meta mark set meta mark & ${hx(~d.mask & MARK_ALL)}`));
 	}
+	push(t, '	}');
+	push(t, '}');
+	return join('\n', t) + '\n';
+}
+
+function reply_loaded() {
+	return system(`nft list table inet ${REPLY_TABLE} >/dev/null 2>&1`) == 0;
+}
+
+/** Are the answers from our ports kept out of these diverts right now (watchdog)? */
+export function reply_ok(m, diverts) {
+	let s = reply_script(m, diverts);
+	return s == '' || (s == readfile(REPLY_SIG) && reply_loaded());
+};
+
+/**
+ * Keep the reply table in step with our ports and the proxies' diverts (apply
+ * and every agent tick: a proxy may start after Dawnline). Cheap when nothing changed.
+ */
+export function sync_reply_routes(m) {
+	// Rules of older versions ("90: from all iif lo ipproto udp sport 51820 lookup main", once without "iif lo").
+	for (let fam in [ '-4', '-6' ])
+		for (let line in split(sh_out(`ip ${fam} rule show priority ${PREF_REPLY} 2>/dev/null`) ?? '', '\n')) {
+			let mm = match(line, /(iif lo )?ipproto (tcp|udp) sport ([0-9]+) lookup main/);
+			if (mm)
+				sh(`ip ${fam} rule del priority ${PREF_REPLY}${mm[1] ? ' iif lo' : ''} ipproto ${mm[2]} sport ${mm[3]} lookup main 2>/dev/null`);
+		}
+	let s = reply_script(m, proxy_diverts());
+	if (s == '') {
+		if (reply_loaded())
+			system(`nft delete table inet ${REPLY_TABLE} 2>/dev/null`);
+		unlink(REPLY_SIG);
+		return;
+	}
+	if (s == readfile(REPLY_SIG) && reply_loaded())
+		return;
+	let err = nft.load(`table inet ${REPLY_TABLE}\ndelete table inet ${REPLY_TABLE}\n${s}`);
+	if (err) {
+		unlink(REPLY_SIG);
+		system(`logger -t dawnline -p user.err ${q('reply table: ' + err)}`);
+		return;
+	}
+	write_file(REPLY_SIG, s, 0o644);
 };

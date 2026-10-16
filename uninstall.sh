@@ -564,15 +564,16 @@ clean_network_leftovers() {
 			ok "Removed leftover firewall sections: $(echo "$_fw" | tr '\n' ' ')"
 		fi
 	fi
-	if command_exists nft && nft list table inet dawnline >/dev/null 2>&1; then
+	for _t in dawnline dawnline_reply; do
+		command_exists nft && nft list table inet "$_t" >/dev/null 2>&1 || continue
 		_found=1
 		if [ "$DRY_RUN" -eq 1 ]; then
-			dry "delete the nft table inet dawnline"
+			dry "delete the nft table inet $_t"
 		else
-			nft delete table inet dawnline 2>/dev/null
-			ok "Removed the nft table inet dawnline"
+			nft delete table inet "$_t" 2>/dev/null
+			ok "Removed the nft table inet $_t"
 		fi
-	fi
+	done
 	if [ -e /var/run/netns/dawnline ] || ip link show dlx0 >/dev/null 2>&1 || ip link show dll0 >/dev/null 2>&1; then
 		_found=1
 		if [ "$DRY_RUN" -eq 1 ]; then
@@ -588,9 +589,10 @@ clean_network_leftovers() {
 	[ "$_found" -eq 1 ] || ok "No tunnel, firewall, nft or routing leftovers"
 }
 
-# Dawnline's policy rules: priority 90 sends the portal's and the tunnels'
-# answers by the main table; 5200-5299 are the "like a home device" loop for a
-# tunnel interface (Dawnline's, or one already gone), with tables 2077-2176.
+# Dawnline's policy rules: priority 90 sent the portal's and the tunnels'
+# answers by the main table (up to 0.4.0); 5200-5299 are the "like a home
+# device" loop for a tunnel interface (Dawnline's, or one already gone), with
+# tables 2077-2176.
 clean_routing_leftovers() {
 	_ours=" $(echo "$1" | tr '\n' ' ') "
 	_rules=""
