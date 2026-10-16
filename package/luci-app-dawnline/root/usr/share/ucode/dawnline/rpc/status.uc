@@ -1,5 +1,5 @@
-// Dawnline rpcd methods: the Overview status (servers, people, totals, map,
-// recent activity), the activity log and traffic history.
+// Dawnline rpcd methods: the live revision, the Overview status (servers,
+// people, totals, map, recent activity), the activity log and traffic history.
 
 import { readfile } from 'fs';
 import { read_json, write_json, ensure_dir, lock, unlock, admin_log, VERSION, RUN_DIR } from 'dawnline.util';
@@ -23,7 +23,7 @@ function geo_view(m, usage, dmp) {
 		let rec = usage.devices?.[id];
 		let peer = dmp.peers[d.public_key];
 		let cur = live.endpoint_ip(peer?.endpoint);
-		let online = !!(peer && peer.handshake > 0 && now - peer.handshake < live.ONLINE_WINDOW);
+		let online = live.online(dmp, id, peer);
 		for (let ip, ts in rec?.ips ?? {}) {
 			// Local (LAN / CGNAT) client addresses are not shown on the map.
 			let pl = geo.is_public(ip) ? geo.place(cache, ip) : null;
@@ -60,12 +60,15 @@ function with_hosts(ev) {
 }
 
 function server_view(m, srv, usage, dmp, rates, days) {
-	let online = 0, peers = 0, now = time();
+	let online = 0, peers = 0;
 	let links = map(core.tunnels(srv), (t) => t.ifname);
+	let ids = {};
+	for (let id, d in m.devices)
+		ids[d.public_key] = id;
 	for (let k, p in dmp.peers)
 		if (index(links, p.ifname) >= 0) {
 			peers++;
-			if (p.handshake > 0 && now - p.handshake < live.ONLINE_WINDOW)
+			if (live.online(dmp, ids[k], p))
 				online++;
 		}
 	let st = srv.private_key ? awg.server_state(srv) : { up: false, uptime: 0 };
@@ -221,7 +224,13 @@ function usage_clear(a) {
 	return { ok: true };
 }
 
+/** The live revision (dawnline.live.PRESENCE): pages refresh when it moves; 0 without the agent. */
+function rev() {
+	return { rev: +(live.presence()?.rev ?? 0) };
+}
+
 export const methods = {
+	rev: { call: wrap(rev) },
 	status: { args: { days: 30 }, call: wrap(status) },
 	events: { args: { limit: 300 }, call: wrap(events_list) },
 	logs_clear: { args: { person: '', device: '', category: '', older_days: '' }, call: wrap(logs_clear) },

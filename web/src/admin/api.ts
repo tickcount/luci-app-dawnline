@@ -393,6 +393,7 @@ export interface ServiceLog {
 export type Health = { checks: HealthCheck[] } & ServiceLog;
 
 export const api = {
+  rev: call<{ rev: number }>('rev'),
   personUpdate,
   settingsGet: call<SettingsData>('settings_get'),
   portalInfo: call<PortalInfo>('portal_info'),

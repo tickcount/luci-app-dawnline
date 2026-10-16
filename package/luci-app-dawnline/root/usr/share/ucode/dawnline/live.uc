@@ -12,7 +12,10 @@ import {
 } from 'dawnline.util';
 import * as awg from 'dawnline.awg';
 
-export const ONLINE_WINDOW = 300;
+// Online while the WireGuard session lives: it is dropped 180 s after its
+// handshake, and a device that is there renews it every 2 min (a little slack
+// for a renewal that needs a retry). One that left goes offline 1-3 min later.
+export const ONLINE_WINDOW = 190;
 const KEEP_DAYS = 62;
 const KEEP_MONTHS = 24;
 const KEEP_EVENTS = 2000;
@@ -82,12 +85,42 @@ function trim_events(ev, pol) {
 
 /* ---------- live peers ---------- */
 
+/* ---------- presence (the agent's watcher) ---------- */
+
+/**
+ * Written by the agent's watcher on every change: { online: { device id: bool },
+ * endpoint: { device id: ip }, rev, people: { person id: rev } }. `rev` moves on
+ * any connect, disconnect, roam or logged change; `people` per person (the portal).
+ */
+export const PRESENCE = `${RUN_DIR}/presence.json`;
+// The agent's heartbeat (dawnline.watchdog.BEAT): its presence counts while it runs.
+const BEAT = `${RUN_DIR}/agent.beat`;
+const BEAT_STALE = 180;
+
+/** What the watcher sees, or null when the agent isn't running. */
+export function presence() {
+	let beat = +(read_json(BEAT, 0) ?? 0);
+	if (!beat || time() - beat > BEAT_STALE)
+		return null;
+	return read_json(PRESENCE, null);
+};
+
 /**
  * Peers of every tunnel: { ok, ifaces, peers: { public key: { ifname, endpoint,
- * handshake, rx, tx } } }. See dawnline.awg.
+ * handshake, rx, tx } }, presence }. See dawnline.awg.
  */
 export function dump(m) {
-	return awg.dump();
+	let d = awg.dump();
+	d.presence = presence();
+	return d;
+};
+
+/** A device is online: as the agent's watcher says, or (without the agent) by a recent handshake. */
+export function online(dmp, id, peer) {
+	let p = dmp?.presence?.online;
+	if (p)
+		return !!(peer && p[id]);
+	return !!(peer && peer.handshake > 0 && time() - peer.handshake < ONLINE_WINDOW);
 };
 
 export function endpoint_ip(ep) {

@@ -89,7 +89,8 @@ export class ServerPage {
     // and so is anything that has the keyboard focus.
     this.poller = createPoller({
       fetch: () => api.status(31),
-      every: 10,
+      every: 30,
+      live: true,
       active: () => this.section === 'overview' && this.root.isConnected,
       apply: (n, quiet) => {
         if (!n.servers.length) return;

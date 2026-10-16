@@ -240,7 +240,8 @@ export class PeoplePage {
     // Only while visible (a server section may be swapped out).
     this.poller ??= createPoller({
       fetch: () => api.status(30),
-      every: 10,
+      every: 30,
+      live: true,
       active: () => !!page.el?.isConnected,
       apply: (st, quiet) => page.take(st, quiet),
     });

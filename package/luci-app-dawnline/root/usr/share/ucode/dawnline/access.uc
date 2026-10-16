@@ -97,7 +97,7 @@ function connected(dmp, d, who) {
 	let peer = peer_of(dmp, d);
 	if (!peer || !(peer.handshake > 0))
 		return step(false, `${who} has never connected`, 'There is no session the router could reach.');
-	if (time() - peer.handshake >= live.ONLINE_WINDOW)
+	if (!live.online(dmp, d.id, peer))
 		return step(false, `${who} isn't connected right now`, 'The router reaches it only while its VPN is on.');
 	return step(true, `${who} is connected`, '');
 }

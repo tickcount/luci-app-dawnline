@@ -75,7 +75,6 @@ const base = app.dataset.base ?? '';
 const pageTitle = app.dataset.title || 'Dawnline';
 const isMobile = () => window.matchMedia('(max-width: 959px)').matches || /Android|iPhone|iPad/.test(navigator.userAgent);
 let state: State | null = null;
-let pollTimer = 0;
 /** The personal link is the key: its path is the code (no sessions). */
 const code = /^\/[a-z]{6}-[a-z]{6}-[a-z]{6}$/.test(base) ? base.slice(1) : '';
 
@@ -1098,20 +1097,13 @@ async function refresh() {
       state = null;
       linkGone();
     }
-    // A network hiccup: keep showing the last state and try again on the next poll.
+    // A network hiccup: keep showing the last state (the page loads fresh data on reload).
     else if (!state) shell(h('div', { class: 'card' }, h('p', {}, er.message)));
   }
 }
 
-function startPolling() {
-  clearInterval(pollTimer);
-  pollTimer = window.setInterval(() => {
-    if (state && document.visibilityState === 'visible') void refresh();
-  }, 15000);
-}
-
+// No periodic refresh: every portal request runs a CGI process on the router.
+// The page reloads its data after the visitor's own changes and while it waits
+// for a new device's first connection.
 if (!base || !code) linkGone();
-else {
-  void refresh();
-  startPolling();
-}
+else void refresh();

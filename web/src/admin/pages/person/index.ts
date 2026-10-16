@@ -91,12 +91,14 @@ export class PersonPage {
     if (dev) setTimeout(() => openDevice(this.p, dev, this.deviceOpts()), 50);
     else if (q.get('add')) setTimeout(() => addDevice(this.p, this.deviceOpts()), 50);
     this.poller = createPoller({
-      fetch: () => {
-        const full = this.fullNext || ++this.ticks % 4 === 0;
+      // The activity log comes with every fourth tick, and whenever something just happened.
+      fetch: (live) => {
+        const full = live || this.fullNext || ++this.ticks % 4 === 0;
         this.fullNext = false;
         return this.fetch(full);
       },
       every: 15,
+      live: true,
       active: () => root.isConnected,
       apply: (data, quiet) => this.apply(data, quiet),
     });

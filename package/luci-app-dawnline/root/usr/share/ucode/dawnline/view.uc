@@ -37,7 +37,7 @@ export function device_view(m, d, usage, dmp) {
 		disabled: d.disabled,
 		created: d.created,
 		created_by: d.created_by,
-		online: !!(peer && peer.handshake > 0 && ts - peer.handshake < live.ONLINE_WINDOW),
+		online: live.online(dmp, d.id, peer),
 		handshake: hs,
 		endpoint: live.endpoint_ip(peer?.endpoint) || u?.endpoint || '',
 		active: !!peer,

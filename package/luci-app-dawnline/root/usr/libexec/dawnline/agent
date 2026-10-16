@@ -1,9 +1,11 @@
 #!/usr/bin/ucode
-// Dawnline agent (procd instance). Every minute it:
+// Dawnline agent (procd instance). Every second its watcher reads the tunnels
+// and, the moment a device connects, its session expires or it roams, logs
+// it, folds the counters, locates the new address and moves the revision the
+// admin UI polls (presence.json, see dawnline.live). Every minute it:
 //   * folds the tunnels' counters into usage (tmpfs; flushed to flash hourly)
 //   * saves the activity log to flash as often as Settings says (or never)
 //   * keeps the "like a home device" path and the Home-only resolver up
-//   * logs connects, disconnects and roaming
 //   * enforces end dates, quotas, schedules and pauses (peers + nft sets)
 //   * watches the tunnel interfaces and repairs what it can (dawnline.watchdog)
 'use strict';
@@ -11,7 +13,7 @@
 import * as uloop from 'uloop';
 import { readfile, writefile, stat, unlink } from 'fs';
 import {
-	read_json, write_json, ensure_dir, sh_out, q, slog, slog_trim, slog_restore, DATA_DIR, RUN_DIR, VERSION
+	read_json, write_json, ensure_dir, sh_out, q, uniq, slog, slog_trim, slog_restore, DATA_DIR, RUN_DIR, VERSION
 } from 'dawnline.util';
 import * as core from 'dawnline.core';
 import * as live from 'dawnline.live';
@@ -23,8 +25,10 @@ import * as watchdog from 'dawnline.watchdog';
 import * as net from 'dawnline.net';
 import * as store from 'dawnline.store';
 import * as upd from 'dawnline.updates';
+import * as awg from 'dawnline.awg';
 
 const TICK = 60 * 1000;
+const WATCH = 1000;
 const FLUSH_EVERY = 3600;
 const LOG_FLUSH = { '10min': 600, hourly: 3600 };
 const RESYNC_EVERY = 600;
@@ -34,10 +38,11 @@ let usage = live.load_usage();
 let last_states = null;
 // Who was online, kept in tmpfs so an agent restart (update, reload) does not
 // swallow connects that happened in between.
-let presence = read_json(`${RUN_DIR}/presence.json`, {});
+let presence = read_json(live.PRESENCE, {});
 let last_online = presence.online ?? {};
 let last_endpoint = presence.endpoint ?? {};
-let offline_ticks = {};
+let rev = +(presence.rev ?? 0);
+let person_rev = presence.people ?? {};
 let last_flush = time();
 let last_log_flush = time();
 // The network as apply() last saw it (apply.NET_SIG; this when it never ran),
@@ -165,41 +170,98 @@ function named(e) {
 	return e;
 }
 
-function check_devices(m, lv, events) {
-	for (let id, d in lv) {
-		let dev = m.devices[id];
+/* ---------- the watcher ---------- */
+
+// Per device: its latest real handshake, kept when apply re-adds the peer
+// (its counters and handshake restart from zero, or it is briefly missing).
+let last_hs = {};
+// The model, read again only when the config file changes (the watcher runs every second).
+let wm = null, wm_sig = null;
+
+function watch_model() {
+	// uci commits replace the file: a new inode even within the same second.
+	let st = stat(CONFIG_FILE);
+	let sig = st ? `${st.mtime}/${st.inode}` : null;
+	if (wm == null || sig != wm_sig) {
+		wm = core.load();
+		wm_sig = sig;
+	}
+	return wm;
+}
+
+/** Move the revisions (all, and these people's) and save who is online. */
+function save_presence(people) {
+	rev++;
+	for (let pid in people)
+		person_rev[pid] = rev;
+	ensure_dir(RUN_DIR);
+	write_json(live.PRESENCE, { online: last_online, endpoint: last_endpoint, rev, people: person_rev }, 0o600);
+}
+
+/*
+ * One look at the tunnels. Connects (a new handshake from a device that was
+ * away), disconnects (its session expired: no handshake for live.ONLINE_WINDOW;
+ * a phone asleep looks the same as one switched off, so silence alone is not
+ * enough) and roaming (a new address) are acted on at
+ * once: the log, the counters and the map, then the revision the UI polls.
+ * Only from a complete read: a failed one says nothing about anyone.
+ */
+function watch() {
+	let d = awg.dump();
+	if (!d.ok)
+		return;
+	let m = watch_model();
+	let now = time();
+	let events = [], people = {}, ips = [];
+	for (let id, dev in m.devices) {
+		let peer = d.peers[dev.public_key];
+		let ep = '';
+		if (peer) {
+			last_hs[id] = max(last_hs[id] ?? 0, peer.handshake);
+			ep = live.endpoint_ip(peer.endpoint);
+		}
+		let on = last_hs[id] > 0 && now - last_hs[id] < live.ONLINE_WINDOW;
 		let was = last_online[id];
-		// A device we have never seen before that is online now counts as a connect.
-		if (was == null && d.online && d.present)
-			was = false;
-		// Debounce: a device has to look offline on two ticks in a row before
-		// a disconnect is logged (handshakes are renewed only every 2-3 min).
-		if (was && !d.online) {
-			offline_ticks[id] = (offline_ticks[id] ?? 0) + 1;
-			if (offline_ticks[id] < 2)
-				continue;
+		if (on && !was) {
+			push(events, { type: 'connect', person: dev.person, device: id, detail: ep });
+			push(ips, ep);
 		}
-		else
-			delete offline_ticks[id];
-		if (was != null && was != d.online) {
-			if (d.online)
-				push(events, named({ type: 'connect', person: dev.person, device: id, detail: d.endpoint, where: place_of(d.endpoint) }));
-			else
-				push(events, { type: 'disconnect', person: dev.person, device: id });
+		else if (!on && was)
+			push(events, { type: 'disconnect', person: dev.person, device: id });
+		else if (on && ep && last_endpoint[id] && ep != last_endpoint[id]) {
+			push(events, { type: 'roam', person: dev.person, device: id, detail: `${last_endpoint[id]} → ${ep}` });
+			push(ips, ep);
 		}
-		else if (d.online && last_endpoint[id] && d.endpoint && last_endpoint[id] != d.endpoint)
-			push(events, named({ type: 'roam', person: dev.person, device: id, detail: `${last_endpoint[id]} → ${d.endpoint}` }));
-		last_online[id] = d.online;
-		if (d.endpoint)
-			last_endpoint[id] = d.endpoint;
+		if (on != !!was || (ep && ep != last_endpoint[id]))
+			people[dev.person] = true;
+		last_online[id] = on;
+		if (ep)
+			last_endpoint[id] = ep;
 	}
 	for (let id in keys(last_online))
 		if (!m.devices[id]) {
 			delete last_online[id];
 			delete last_endpoint[id];
+			delete last_hs[id];
 		}
-	ensure_dir(RUN_DIR);
-	write_json(`${RUN_DIR}/presence.json`, { online: last_online, endpoint: last_endpoint }, 0o600);
+	if (!length(keys(people)))
+		return;
+	// The status first, then what takes longer (a geo lookup may wait on the network).
+	save_presence(keys(people));
+	if (!length(events))
+		return;
+	live.collect(m, usage, d);
+	live.save_usage(usage, false);
+	if (m.settings.geo_enabled && length(ips)) {
+		let cache = geo.load();
+		if (geo.resolve(m.settings, cache, ips, length(ips)))
+			geo.save(cache);
+	}
+	for (let e in events)
+		if (e.type == 'connect')
+			e.where = place_of(e.detail);
+	live.add_events(map(events, (e) => e.type == 'disconnect' ? e : named(e)), live.policy(m.settings.retention));
+	save_presence(keys(people));
 }
 
 // What the service log was already told. On flash: the public address often
@@ -361,15 +423,9 @@ const STEPS = [
 	} },
 	{ who: 'Traffic', run: (t) => {
 		t.reset = check_usage_reset(t.m);
-		t.dmp = live.dump(t.m);
-		t.lv = live.collect(t.m, usage, t.dmp);
+		live.collect(t.m, usage, live.dump(t.m));
 	} },
 	{ who: 'Speed', quiet: true, run: (t) => record_rate(t.m) },
-	// Connects and disconnects only from a complete read of the tunnels.
-	{ who: 'Connections', run: (t) => {
-		if (t.lv && t.dmp?.ok)
-			check_devices(t.m, t.lv, t.events);
-	} },
 	{ who: 'People', run: (t) => {
 		t.states = apply.states_for(t.m, usage);
 		check_people(t.m, t.states, t.events);
@@ -379,7 +435,12 @@ const STEPS = [
 			sync_runtime(t);
 	} },
 	// Tunnels going down and up are in the service log (hotplug, watchdog), with names and reasons.
-	{ who: 'Activity', run: (t) => live.add_events(t.events, t.pol) },
+	{ who: 'Activity', run: (t) => {
+		live.add_events(t.events, t.pol);
+		// Pauses and resumes on their own: the UI shows them without waiting for its next poll.
+		if (length(t.events))
+			save_presence(uniq(map(filter(t.events, (e) => e.person), (e) => e.person)));
+	} },
 	{ who: 'Internet like a home device', run: (t) => apply.sync_loop(t.m, usage) },
 	{ who: 'Router', run: check_network },
 	{ who: 'Watchdog', run: (t) => watchdog.run(core.load()) },
@@ -477,6 +538,12 @@ timer = uloop.timer(1000, function() {
 		slog('dawnline', 'error', `background check failed: ${e.message}`, e.stacktrace?.[0]?.context, 'Dawnline');
 	}
 	timer.set(TICK);
+});
+
+let watcher;
+watcher = uloop.timer(WATCH, function() {
+	step('watch', { who: 'Connections' }, watch);
+	watcher.set(WATCH);
 });
 
 if (type(uloop.signal) == 'function') {

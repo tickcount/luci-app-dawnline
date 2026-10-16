@@ -4,6 +4,7 @@
 		"read": {
 			"ubus": {
 				"luci.dawnline": [
+					"rev",
 					"status",
 					"setup_defaults",
 					"health",

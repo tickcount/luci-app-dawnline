@@ -20,6 +20,7 @@ import { eventBy } from './events/model';
 import { spark } from './widgets/spark';
 import { clearLogDialog, exportEvents, resetUsageDialog } from './logs';
 import { coreFor, coreOf, type Core } from './cores';
+import { onLiveChange } from './state/live';
 
 /** What the page that opens a device hands over. */
 export interface DeviceOpts {
@@ -347,13 +348,17 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
     setUp ? [stats, connectSec, detailsSec, activitySec] : [stats, detailsSec, activitySec, connectSec],
   );
   void loadLog();
-  // Live status every 8 s. The log follows the page's events, or is fetched every 32 s on its own.
-  let ticks = 0;
-  const watch = window.setInterval(() => {
+  // Live status and log: at once when something happens (state/live.ts), and every 30 s anyway.
+  const live = () => {
     void reload();
-    if (o.events || ++ticks % 4 === 0) void loadLog();
-  }, 8000);
-  const handle = drawer(titleEl, body, foot, () => clearInterval(watch));
+    void loadLog();
+  };
+  const off = onLiveChange(live);
+  const watch = window.setInterval(live, 30000);
+  const handle = drawer(titleEl, body, foot, () => {
+    clearInterval(watch);
+    off();
+  });
   paint();
 }
 
