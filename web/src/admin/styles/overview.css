@@ -56,13 +56,22 @@
 .dl-onl-av { position: relative; width: 42px; height: 42px; border-radius: 50%; background: var(--dl-soft); display: inline-flex; align-items: center; justify-content: center;
   font-size: 13px; font-weight: 500; box-shadow: 0 0 0 2px var(--dl-ok); }
 .dl-onl-p.more .dl-onl-av { box-shadow: 0 0 0 1px var(--dl-line); color: var(--dl-fg-muted); }
-.dl-onl-dev { position: absolute; right: -5px; bottom: -5px; width: 20px; height: 20px; border-radius: 7px; background: var(--dl-card); box-shadow: 0 0 0 1.5px var(--dl-card);
+/* The device badge cuts into the ring with the tile's colour (a border, so a hover tint can lie over it too). */
+.dl-onl-dev { position: absolute; right: -6.5px; bottom: -6.5px; width: 20px; height: 20px; border-radius: 8.5px; border: 1.5px solid transparent; background: var(--dl-card);
   display: inline-flex; align-items: center; justify-content: center; font-size: 10px; color: var(--dl-fg-muted); }
 .dl-onl-dev .dl-icon-wrap { display: inline-flex; } .dl-onl-dev .dl-icon { width: 12px; height: 12px; }
 .dl-onl-name { font-size: 12.5px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dl-onl-p .dl-sub { font-size: 11px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dl-onl-row.grid { flex-wrap: wrap; align-content: center; gap: 10px 8px; max-height: 108px; overflow: hidden; }
 .dl-onl-p.sm { width: auto; padding: 4px; }
+/* Hovered, the badge takes the same tint as the highlight behind it (no dark square). */
+.dl-onl-p:hover .dl-onl-dev { background: linear-gradient(var(--dl-soft), var(--dl-soft)), var(--dl-card); }
+/* Small avatars light up with a soft halo round the ring instead: a box would cut the badge off. */
+.dl-onl-p.sm:hover { background: none; }
+.dl-onl-p.sm:hover .dl-onl-dev { background: var(--dl-card); }
+.dl-onl-p.sm .dl-onl-av { transition: box-shadow .15s ease; }
+.dl-onl-p.sm:hover .dl-onl-av { box-shadow: 0 0 0 2px var(--dl-ok), 0 0 0 6px var(--dl-soft); }
+.dl-onl-p.sm.more:hover .dl-onl-av { box-shadow: 0 0 0 1px var(--dl-line), 0 0 0 6px var(--dl-soft); }
 .dl-onl-p.sm .dl-onl-av { width: 36px; height: 36px; font-size: 11.5px; }
 .dl-onl-meta { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: var(--dl-fg-faint); max-width: 100%; white-space: nowrap; overflow: hidden; }
 .dl-onl-meta .dl-icon-wrap { display: inline-flex; } .dl-onl-meta .dl-icon { width: 12px; height: 12px; }

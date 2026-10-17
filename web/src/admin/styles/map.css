@@ -28,6 +28,8 @@
   font-size: 9px; font-weight: 600; white-space: nowrap; box-sizing: content-box; }
 .dl-mk.online .dl-mk-badge { background: #3b82f6; }
 .dl-mk-badge-ic { width: 10px; height: 10px; stroke-width: 2.2; }
+/* One device: a round badge (two icons or a number stay a pill). */
+.dl-mk-badge:has(> svg:only-child) { width: 16px; min-width: 0; padding: 0; }
 /* A person's places (their page): rounded tiles without outlines, the live one blue. */
 .dl-mk-tile { position: relative; width: 26px; height: 26px; border-radius: 7px; display: flex; align-items: center; justify-content: center;
   background: color-mix(in srgb, var(--dl-fg) 18%, var(--dl-elevated)); color: var(--dl-fg); }
@@ -52,16 +54,77 @@
 /* Someone on top of the server: folded into a count on its plate until there is room. */
 /* MapLibre writes the marker's own opacity (fading what is behind the globe): ours goes on its parts. */
 .dl-mk > * { transition: opacity .15s; opacity: var(--dl-mk-fade, 1); }
-.dl-mk.merged { pointer-events: none; }
+.dl-mk.merged, .dl-mk.piled { pointer-events: none; }
 .dl-mk.dl-mk-new > * { transition: none; }
-.dl-mk.merged > * { opacity: 0; }
+.dl-mk.merged > *, .dl-mk.piled > * { opacity: 0; }
 .dl-mk-hub { cursor: default; }
 .dl-mk-host { position: relative; }
-.dl-mk-host-n { position: absolute; right: -7px; top: -7px; min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box; border-radius: 9px;
-  border: 2px solid var(--dl-elevated); background: #3b82f6; color: #fff; font-size: 10px; font-weight: 600; line-height: 14px; text-align: center;
-  opacity: 0; transform: scale(.5); transition: opacity .15s, transform .15s; pointer-events: none; }
-.dl-mk-host-n.on { opacity: 1; transform: none; }
-.dl-mk-hub:has(.dl-mk-host-n.on) { cursor: zoom-in; }
+/* People on top of the server ride in its plate: it slides out to the right of the server (which
+   stays on its spot) with their avatars, and back when they leave. */
+.dl-mk-host { transition: border-radius .22s ease, border-right-color .22s ease; }
+.dl-mk-host.docked { border-top-right-radius: 0; border-bottom-right-radius: 0; border-right-color: transparent; }
+.dl-mk-dock { position: absolute; left: 100%; top: -1px; height: 40px; box-sizing: border-box; display: flex; align-items: center; gap: 6px; padding: 0 10px 0 2px;
+  border: 1px solid var(--dl-line); border-left: 0; border-radius: 0 11px 11px 0; background: color-mix(in srgb, var(--dl-elevated) 60%, transparent);
+  backdrop-filter: blur(6px); box-shadow: 0 6px 16px rgba(0,0,0,.35); pointer-events: none; opacity: 0;
+  clip-path: inset(-24px 100% -24px 0); transition: clip-path .28s cubic-bezier(.2, .8, .2, 1), opacity .2s ease; }
+.dl-mk-host.docked .dl-mk-dock { pointer-events: auto; opacity: 1; clip-path: inset(-24px -24px -24px 0); }
+.dl-mk-new .dl-mk-host, .dl-mk-new .dl-mk-dock { transition: none; }
+/* People crowding each other (one city, or close at this zoom): one plate on their spot, the city once below. */
+.dl-mk-pile { position: relative; display: flex; justify-content: center; }
+.dl-mk-pile-box { box-sizing: border-box; height: 40px; display: flex; align-items: center; gap: 6px; padding: 0 10px 0 6px; border-radius: 20px; cursor: zoom-in;
+  background: color-mix(in srgb, var(--dl-elevated) 60%, transparent); border: 1px solid var(--dl-line); backdrop-filter: blur(6px);
+  box-shadow: 0 6px 16px rgba(0,0,0,.35); animation: dl-plate-in .26s cubic-bezier(.2, .8, .2, 1) both; transition: opacity .18s ease, transform .18s ease; }
+.dl-mk-pile.out { pointer-events: none; }
+.dl-mk-pile.out > * { opacity: 0; transform: scale(.85); transition: opacity .18s ease, transform .18s ease; }
+@keyframes dl-plate-in { from { opacity: 0; transform: scale(.85); } }
+/* An avatar in a plate: a person marker's avatar and device badge, blue while live. */
+.dl-mk-face { all: unset; position: relative; display: flex; cursor: pointer; transition: transform .18s ease, opacity .18s ease; }
+.dl-mk-face > .dl-mk-badge { position: relative; left: auto; bottom: -8px; margin-left: -12px; align-self: center; }
+.dl-mk-face.on .dl-mk-av { border-color: #3b82f6; background: color-mix(in srgb, #3b82f6 22%, var(--dl-elevated)); color: var(--dl-fg); }
+.dl-mk-face.on .dl-mk-badge { background: #3b82f6; }
+.dl-mk-face:hover .dl-mk-av { box-shadow: 0 0 0 4px rgba(59, 130, 246, .25); }
+.dl-mk-face.in { animation: dl-dock-in .24s cubic-bezier(.2, .8, .2, 1) both; }
+.dl-mk-face.out { transform: scale(.4); opacity: 0; pointer-events: none; }
+@keyframes dl-dock-in { from { transform: scale(.4); opacity: 0; } }
+.dl-mk-more { font-size: 11px; font-weight: 600; color: var(--dl-fg-muted); }
+/* Leaving a plate for their own spot: the avatar grows in there (and shrinks back on the way in). */
+.dl-mk-av, .dl-mk-tile { transition: box-shadow .2s, transform .24s cubic-bezier(.2, .8, .2, 1); }
+.dl-mk.merged .dl-mk-av, .dl-mk.merged .dl-mk-tile, .dl-mk.piled .dl-mk-av { transform: scale(.5); }
+/* Plates by distance (.dl-lod-* on the map): far out compact, small avatars that overlap and no
+   device badges (who, not on what); at country level small round badges; full size from a region in. */
+.dl-mk-host, .dl-mk-dock, .dl-mk-pile-box { transition-property: border-radius, border-right-color, clip-path, opacity, height, width, padding, gap; }
+/* The plate's width glides as avatars come and go (set inline for the move), leaving ones sit over it. */
+.dl-mk-dock, .dl-mk-pile-box { transition-duration: .22s; transition-timing-function: cubic-bezier(.2, .8, .2, 1); }
+.dl-mk-pile-box { position: relative; }
+.dl-mk-more { transition: transform .22s cubic-bezier(.2, .8, .2, 1), opacity .18s ease; }
+.dl-mk-more.in { animation: dl-dock-in .24s ease both; }
+.dl-mk-more.out { transform: scale(.4); opacity: 0; }
+.dl-mk-face .dl-mk-av { transition: box-shadow .2s, transform .24s cubic-bezier(.2, .8, .2, 1), width .2s ease, height .2s ease, font-size .2s ease; }
+.dl-mk-face { transition: transform .22s cubic-bezier(.2, .8, .2, 1), opacity .18s ease, margin .2s ease; }
+.dl-mk-face > .dl-mk-badge { max-width: 48px; overflow: hidden;
+  transition: opacity .2s ease, transform .2s ease, max-width .22s ease, margin .22s ease, padding .22s ease, border-width .22s ease, height .22s ease, min-width .22s ease, width .22s ease, bottom .22s ease; }
+.dl-lod-far .dl-mk-host { width: 32px; height: 32px; border-radius: 9px; }
+.dl-lod-far .dl-mk-host.docked { border-radius: 9px 0 0 9px; }
+.dl-lod-far .dl-mk-host-tile { width: 20px; height: 20px; border-radius: 6px; }
+.dl-lod-far .dl-mk-host-ic { width: 11px; height: 11px; }
+/* No badges far out: the same 4px round the avatars as above and below them (32 - 2 - 22, halved). */
+.dl-lod-far .dl-mk-dock { height: 32px; gap: 0; padding: 0 4px 0 0; border-radius: 0 9px 9px 0; }
+.dl-lod-far .dl-mk-pile-box { height: 32px; gap: 0; padding: 0 4px; border-radius: 16px; }
+.dl-lod-far .dl-mk-face + .dl-mk-face { margin-left: -6px; }
+.dl-lod-far .dl-mk-face .dl-mk-av { width: 22px; height: 22px; font-size: 8px; box-shadow: 0 0 0 2px var(--dl-elevated); }
+.dl-lod-far .dl-mk-face > .dl-mk-badge { max-width: 0; min-width: 0; padding: 0; margin-left: 0; border-width: 0; opacity: 0; transform: scale(.5); pointer-events: none; }
+.dl-lod-far .dl-mk-more { margin-left: 4px; font-size: 10px; }
+/* Place names only from the country level: far out they would crowd the plates. */
+.dl-mk-label { transition: opacity .2s ease; }
+.dl-lod-far .dl-mk-label { opacity: 0; }
+.dl-lod-mid .dl-mk-host { width: 36px; height: 36px; }
+.dl-lod-mid .dl-mk-dock, .dl-lod-mid .dl-mk-pile-box { height: 36px; }
+.dl-lod-mid .dl-mk-face .dl-mk-av { width: 24px; height: 24px; font-size: 9px; }
+.dl-lod-mid .dl-mk-face > .dl-mk-badge { height: 12px; min-width: 12px; margin-left: -10px; bottom: -7px; }
+.dl-lod-mid .dl-mk-face > .dl-mk-badge:has(> svg:only-child) { width: 12px; }
+.dl-lod-mid .dl-mk-face > .dl-mk-badge .dl-mk-badge-ic { width: 8px; height: 8px; }
+@media (prefers-reduced-motion: reduce) { .dl-mk-dock, .dl-mk-pile-box, .dl-mk-face, .dl-mk-av, .dl-mk-tile, .dl-mk-host, .dl-mk-face > .dl-mk-badge { transition: none; animation: none; } }
+.dl-mk-hub:has(.dl-mk-host.docked) .dl-mk-host { cursor: zoom-in; }
 /* A marker moved clear of a crowd: a line back to its real spot, and a dot there. */
 .dl-mk-ptr { position: absolute; left: 50%; top: 50%; width: 0; height: 0; z-index: -1; pointer-events: none; }
 .dl-mk-ptr .line { position: absolute; left: 0; top: -0.5px; height: 1px; background: var(--dl-fg-faint); transform-origin: 0 50%; }

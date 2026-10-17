@@ -53,6 +53,13 @@ function isDark(): boolean {
 
 /** A click on a marker brings the map at least this close (a city). */
 const CLICK_ZOOM = 10;
+/** Places closer than this are one city: a click shows them together at city level. */
+const CITY_KM = 30;
+/** Screen distance at which two markers stand clear of each other (the server's plate and an avatar, with room). */
+const PART_PX = 62;
+/** Below these zooms plates turn compact (a continent) or mid-sized (a country). */
+const LOD_FAR = 4.5;
+const LOD_MID = 7;
 
 /** mapcn's arc colours: its default blue for live tunnels, a neutral gray for recently seen. */
 const LIVE = '#3b82f6';
@@ -147,9 +154,18 @@ export class ConnectionMap {
   /** People's markers, for the hover highlight; the person in focus, kept across redraws. */
   private people: { el: HTMLElement; person: string }[] = [];
   /** Markers on the map: the server stays put (`fixed`), the others move aside when crowded. */
-  private slots: { marker: any; el: HTMLElement; at: [number, number]; fixed: boolean; who?: string; where?: string }[] = [];
-  /** People folded into the server while they would sit on top of it (their marker hidden). */
-  private merged: { at: [number, number]; who: string; where: string; need: number }[] = [];
+  private slots: { marker: any; el: HTMLElement; at: [number, number]; fixed: boolean; who?: string; where?: string; g?: Group }[] = [];
+  /** People docked in the server's plate while they would sit on top of it (their marker hidden). */
+  private merged: Face[] = [];
+  /** People crowding each other, one plate each (by who is in it); their own markers hidden. */
+  private piles = new Map<string, { marker: any; el: HTMLElement; box: HTMLElement; faces: Face[] }>();
+  /** The server plate's avatars, and what they show (repainted only when that changes). */
+  private dock: HTMLElement | null = null;
+  private dockKey = '';
+  /** A redraw's new plate fills in place: no pop for avatars that were already there. */
+  private dockQuiet = false;
+  /** Who was in a pile at the last declutter: a redrawn marker starts hidden, as it was. */
+  private piledKeys = new Set<string>();
   /** Which markers were folded at the last redraw (by place key): a new marker starts that way. */
   private foldedKeys = new Set<string>();
   /** The zoom a programmatic zoom-out is heading for: markers fold for it at once, not on the way. */
@@ -281,6 +297,8 @@ export class ConnectionMap {
 
   destroy() {
     this.dropCard();
+    for (const p of this.piles.values()) p.marker.remove();
+    this.piles.clear();
     this.theme?.disconnect();
     this.resize?.disconnect();
     this.map?.remove();
@@ -326,16 +344,19 @@ export class ConnectionMap {
     for (const m of this.markers) m.remove();
     this.markers = [];
 
-    // Every marker at its real place; ones that would cover each other move aside on screen (declutter).
-    const placed = groups.map((g) => ({ g, at: [g.lon, g.lat] as [number, number] }));
+    // Every marker in its city: the IP gives no more, so people sharing a city (or the server's)
+    // each get their own spot in it; ones that would still cover each other share a plate (declutter).
+    const spots = data.person || data.device ? null : cityPlaces(groups, home);
+    const placed = groups.map((g) => ({ g, at: spots?.get(g.key) ?? ([g.lon, g.lat] as [number, number]) }));
     this.slots = [];
 
     this.map.getSource('dl-areas').setData({
       type: 'FeatureCollection',
-      features: placed.map(({ g, at }) => ({
+      // The accuracy zone stays on the city itself.
+      features: placed.map(({ g }) => ({
         type: 'Feature',
         properties: { online: g.online, key: g.key },
-        geometry: { type: 'Point', coordinates: at },
+        geometry: { type: 'Point', coordinates: [g.lon, g.lat] },
       })),
     });
     this.map.getSource('dl-arcs').setData({
@@ -354,13 +375,16 @@ export class ConnectionMap {
     // initials) and from what (a device badge), blue while live, gray when seen recently.
     if (home) {
       const host = E('span', { class: 'dl-mk-host' });
-      host.innerHTML = `<span class="dl-mk-host-tile">${iconSvg('server', 'dl-mk-host-ic')}</span><span class="dl-mk-host-n"></span>`;
+      host.innerHTML = `<span class="dl-mk-host-tile">${iconSvg('server', 'dl-mk-host-ic')}</span>`;
+      this.dock = host.appendChild(E('span', { class: 'dl-mk-dock' }));
+      this.dockQuiet = this.dockKey !== '';
+      this.dockKey = '';
       const el = E(
         'div',
         { class: 'dl-mk-hub', title: `Home router${home.city ? ` · ${home.city}` : ''}${home.org ? ` · ${home.org}` : ''}` },
         [host, E('span', { class: 'dl-mk-label chip' }, home.city || 'Home')],
       );
-      // Who is folded in here: listed on hover; a click zooms in until they stand apart.
+      // Who is docked here: listed on hover; a click on the plate zooms to them (an avatar opens its card).
       el.addEventListener('mouseenter', () => this.showMerged(home.city || 'the server'));
       el.addEventListener('mouseleave', () => this.focus(this.focused));
       el.addEventListener('click', () => this.zoomToMerged());
@@ -418,7 +442,7 @@ export class ConnectionMap {
         ev.stopPropagation();
         this.openPopup(g, at, el);
       });
-      this.add(el, at, false, person?.name ?? 'Someone', `${g.city || g.cc || '?'} · ${g.online ? 'now' : ago(g.ts, data.now)}`, g.key);
+      this.add(el, at, false, person?.name ?? 'Someone', `${g.city || g.cc || '?'} · ${g.online ? 'now' : ago(g.ts, data.now)}`, g.key, g);
     }
     this.declutter();
 
@@ -449,15 +473,16 @@ export class ConnectionMap {
     this.focus(this.focused && this.people.some((x) => x.person === this.focused) ? this.focused : null);
   }
 
-  private add(el: HTMLElement, at: [number, number], fixed = false, who?: string, where?: string, key?: string) {
+  private add(el: HTMLElement, at: [number, number], fixed = false, who?: string, where?: string, key?: string, g?: Group) {
     // A redrawn marker keeps how it was (folded or not), with no fade in its first frame.
     if (key && this.foldedKeys.has(key)) el.classList.add('merged');
+    if (key && this.piledKeys.has(key)) el.classList.add('piled');
     el.dataset.key = key ?? '';
     el.classList.add('dl-mk-new');
     requestAnimationFrame(() => requestAnimationFrame(() => el.classList.remove('dl-mk-new')));
     const marker = new this.gl.Marker({ element: el }).setLngLat(at).addTo(this.map);
     this.markers.push(marker);
-    this.slots.push({ marker, el, at, fixed, who, where });
+    this.slots.push({ marker, el, at, fixed, who, where, g });
   }
 
   /**
@@ -469,6 +494,12 @@ export class ConnectionMap {
    */
   private declutter() {
     if (!this.map) return;
+    // Plates by distance (sizes first: the spreading below measures them): compact far out
+    // (small avatars that overlap, no device badges), small round badges at country level,
+    // full size from a region in.
+    const zoom = this.map.getZoom();
+    this.el.classList.toggle('dl-lod-far', zoom < LOD_FAR);
+    this.el.classList.toggle('dl-lod-mid', zoom >= LOD_FAR && zoom < LOD_MID);
     const items = this.slots.map((m) => {
       const p = this.map.project(m.at);
       const body = m.el.querySelector(':scope > .dl-mk-host, :scope > .dl-mk-av, :scope > .dl-mk-tile') as HTMLElement | null;
@@ -488,11 +519,10 @@ export class ConnectionMap {
       slot.el.classList.toggle('merged', !!near);
       if (!near) return;
       if (slot.el.dataset.key) this.foldedKeys.add(slot.el.dataset.key);
-      // How much closer the map has to come for them to stand apart.
-      const need = (near.r + it.r + 14) / Math.max(1, Math.hypot(near.x - it.x, near.y - it.y));
-      this.merged.push({ at: slot.at, who: slot.who ?? 'Someone', where: slot.where ?? '', need });
+      this.merged.push(face(slot));
       Object.assign(it, { r: 0, fixed: true });
     });
+    this.pileUp(items);
     // A folded person leaves no trace either: their accuracy zone and arc go with their marker.
     const hidden = [...this.foldedKeys].sort().join('|');
     if (hidden !== this.hiddenKey) {
@@ -504,14 +534,14 @@ export class ConnectionMap {
         if (this.map.getLayer(id)) this.map.setFilter(id, ['all', ['==', ['get', 'online'], live], shown]);
       }
     }
-    const count = this.slots.find((m) => m.fixed)?.el.querySelector('.dl-mk-host-n') as HTMLElement | null;
-    if (count) {
-      count.textContent = this.merged.length ? String(this.merged.length) : '';
-      count.classList.toggle('on', this.merged.length > 0);
-    }
+    this.paintDock();
+    // Hovering lights a person. A marker or avatar that went from under the pointer (a plate split
+    // or closed as the map zoomed) sends no mouseleave: the light goes once nothing is hovered.
+    if (this.focused && !this.el.querySelector('.dl-mk:hover, .dl-mk-face:hover')) this.focus(null);
+    // Past the markers come the people plates (fixed, in the spreading only to be moved clear of).
     separate(items).forEach(([dx, dy], i) => {
       const m = this.slots[i];
-      if (m.fixed) return;
+      if (!m || m.fixed) return;
       if (items[i].fixed) [dx, dy] = [0, 0];
       m.marker.setOffset([dx, dy]);
       pointer(m.el, dx, dy);
@@ -559,19 +589,179 @@ export class ConnectionMap {
   private showMerged(place: string) {
     if (!this.merged.length) return;
     dom.content(this.card, [
-      E('div', { class: 'dl-map-card-head' }, [E('b', {}, `Near ${place}`), ' · zoom in to see them']),
+      E('div', { class: 'dl-map-card-head' }, [E('b', {}, `Near ${place}`), ' · click to zoom in']),
       ...this.merged.map((m) => E('div', { class: 'dl-map-card-row' }, [E('span', {}, m.who), E('span', { class: 'dl-faint' }, m.where)])),
     ]);
     this.card.classList.add('on');
   }
 
-  /** Close enough for everyone folded into the server to stand apart (never past zoom 12). */
+  /** The people on top of the server as avatars in its plate, which slides out for them and back. */
+  private paintDock() {
+    const dock = this.dock;
+    if (!dock) return;
+    const key = this.merged.map((m) => `${m.key}:${m.online ? 1 : 0}`).join('|');
+    if (key === this.dockKey) return;
+    this.dockKey = key;
+    dock.parentElement?.classList.toggle('docked', this.merged.length > 0);
+    // Emptied, it keeps its last avatars while it slides back.
+    const home = this.slots.find((x) => x.fixed)!.at;
+    if (this.merged.length)
+      fillFaces(
+        dock,
+        this.merged,
+        this.faceActions(() => [home]),
+        this.dockQuiet,
+      );
+    this.dockQuiet = false;
+  }
+
+  /** What an avatar in a plate does: a click opens its card, hovering lights its person. */
+  private faceActions(spot: () => [number, number][]) {
+    return {
+      click: (f: Face, b: HTMLElement) => this.openFace(f, b, spot()),
+      hover: (f: Face | null) => this.focus(f?.g?.person ?? null),
+    };
+  }
+
+  /**
+   * People whose markers would cover each other (one city, or close at this zoom): one plate with
+   * their avatars and the city once, where they are. Items of those in a plate leave the
+   * spreading; the plate takes their place. Not on a person's page (their places spread).
+   */
+  private pileUp(items: { x: number; y: number; r: number; fixed: boolean }[]) {
+    const live = new Set<string>();
+    if (!this.data?.person && !this.data?.device) {
+      const free = items.flatMap((it, i) => (!it.fixed && this.slots[i].el.querySelector(':scope > .dl-mk-av') ? [i] : []));
+      const root = new Map(free.map((i) => [i, i]));
+      const find = (i: number): number => (root.get(i) === i ? i : find(root.get(i)!));
+      for (const a of free)
+        for (const b of free) {
+          if (b <= a) continue;
+          const was = this.slots[a].el.classList.contains('piled') && this.slots[b].el.classList.contains('piled');
+          if (Math.hypot(items[a].x - items[b].x, items[a].y - items[b].y) < items[a].r + items[b].r + (was ? 12 : 6))
+            root.set(find(b), find(a));
+        }
+      const sets = new Map<number, number[]>();
+      for (const i of free) sets.set(find(i), [...(sets.get(find(i)) ?? []), i]);
+      for (const idx of sets.values()) {
+        if (idx.length < 2) continue;
+        const slots = idx.map((i) => this.slots[i]);
+        const faces = slots.map(face);
+        const key = faces
+          .map((f) => f.key)
+          .sort()
+          .join(',');
+        live.add(key);
+        const at: [number, number] = [
+          slots.reduce((s, x) => s + x.at[0], 0) / slots.length,
+          slots.reduce((s, x) => s + x.at[1], 0) / slots.length,
+        ];
+        let pile = this.piles.get(key);
+        if (!pile) {
+          const box = E('span', { class: 'dl-mk-pile-box' });
+          const cities = [...new Set(slots.map((x) => x.g?.city || x.g?.cc || '?'))];
+          const el = E('div', { class: 'dl-mk-pile' }, [
+            box,
+            E('span', { class: 'dl-mk-label below' }, cities.length === 1 ? cities[0] : `${slots.length} people`),
+          ]);
+          pile = { marker: new this.gl.Marker({ element: el }).setLngLat(at).addTo(this.map), el, box, faces };
+          el.addEventListener('mouseleave', () => this.focus(this.focused));
+          const p = pile;
+          el.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            this.zoomInTo(
+              p.faces.map((f) => f.at),
+              false,
+            );
+          });
+          this.piles.set(key, pile);
+        }
+        pile.faces = faces;
+        const p = pile;
+        fillFaces(
+          pile.box,
+          faces,
+          this.faceActions(() => p.faces.map((x) => x.at)),
+        );
+        for (const i of idx) {
+          this.slots[i].el.classList.add('piled');
+          // In the spreading as the plate: it stays on its spot, others move clear of it.
+          Object.assign(items[i], { r: 0, fixed: true });
+        }
+        const c = this.map.project(at);
+        items.push({ x: c.x, y: c.y, r: (pile.el.offsetWidth || 60) / 2 + 3, fixed: true });
+      }
+    }
+    this.piledKeys = new Set(this.slots.filter((x) => x.el.classList.contains('piled')).map((x) => x.el.dataset.key ?? ''));
+    // Plates nobody is in any more fade out; their people show again.
+    this.slots.forEach((x, i) => {
+      if (!items[i].fixed || x.fixed || x.el.classList.contains('merged')) x.el.classList.remove('piled');
+    });
+    for (const [key, p] of this.piles)
+      if (!live.has(key)) {
+        this.piles.delete(key);
+        p.el.classList.add('out');
+        setTimeout(() => p.marker.remove(), 200);
+      }
+  }
+
+  /**
+   * The plate clicked: the server and everyone docked in it. All in the server's city: that city;
+   * someone further: the server and them filling the map.
+   */
   private zoomToMerged() {
     if (!this.map || !this.merged.length) return;
-    const step = Math.log2(Math.max(...this.merged.map((m) => m.need))) + 0.3;
-    const pts = [this.slots.find((m) => m.fixed)!.at, ...this.merged.map((m) => m.at)];
-    const center: [number, number] = [pts.reduce((s, p) => s + p[0], 0) / pts.length, pts.reduce((s, p) => s + p[1], 0) / pts.length];
-    this.map.flyTo({ center, zoom: Math.min(12, this.map.getZoom() + step), duration: 900 });
+    this.zoomInTo([this.slots.find((m) => m.fixed)!.at, ...this.merged.map((m) => m.at)], false);
+  }
+
+  /**
+   * An avatar in a plate clicked: its card. Sharing the plate's spot (the same city as everyone
+   * else in it), it stays in the plate and the card opens there; further away, the map flies to
+   * them first and the card opens on their own marker once it stands apart.
+   */
+  private openFace(f: Face, avatar: HTMLElement, spot: [number, number][]) {
+    if (!f.g) return;
+    if (spot.every((p) => km(p, f.at) < 1)) return this.openPopup(f.g, f.at, avatar);
+    const open = () => {
+      const slot = this.slots.find((x) => x.el.dataset.key === f.key);
+      if (slot?.g && !slot.el.classList.contains('merged') && !slot.el.classList.contains('piled'))
+        this.openPopup(slot.g, slot.at, slot.el);
+    };
+    if (this.zoomInTo(this.nearby(f.at), true)) this.map.once('moveend', open);
+    else open();
+  }
+
+  /** Where the people around a place are (in the same city, the place itself included). */
+  private nearby(at: [number, number]): [number, number][] {
+    return [at, ...this.slots.filter((x) => !x.fixed && x.at !== at && km(x.at, at) <= CITY_KM).map((x) => x.at)];
+  }
+
+  /**
+   * Closer, to show these places together: city level (zoom 10) when they are one city, else
+   * fitted (never past 12). Never zooms out. `remember` keeps the view to fly back to when the
+   * card closes. True when the map moves.
+   */
+  private zoomInTo(pts: [number, number][], remember: boolean): boolean {
+    const b = new this.gl.LngLatBounds();
+    for (const p of pts) b.extend(p);
+    const wide = pts.some((p) => pts.some((q) => km(p, q) > CITY_KM));
+    const cam = this.map.cameraForBounds(b, { padding: 50, maxZoom: wide ? 12 : CLICK_ZOOM });
+    const zoom = this.map.getZoom();
+    // And close enough for markers on different spots to stand apart (those on one spot never do).
+    const px = pts.map((p) => this.map.project(p));
+    let part = 0;
+    px.forEach((a, i) =>
+      px.slice(i + 1).forEach((c) => {
+        const d = Math.hypot(a.x - c.x, a.y - c.y);
+        const z = zoom + Math.log2(PART_PX / Math.max(d, 1e-6));
+        if (z <= 12) part = Math.max(part, z);
+      }),
+    );
+    const target = Math.min(12, Math.max(cam?.zoom ?? 0, part));
+    if (target <= zoom + 0.05) return false;
+    if (remember && !this.before) this.before = { center: this.map.getCenter().toArray(), zoom };
+    this.map.flyTo({ center: cam?.center ?? b.getCenter(), zoom: target, duration: 800 });
+    return true;
   }
 
   /**
@@ -734,12 +924,8 @@ export class ConnectionMap {
           ])
         : '',
     ]);
-    // Closer to a marker clicked from afar (city level); the card itself never moves the map.
-    const zoom = this.map.getZoom();
-    if (zoom < CLICK_ZOOM) {
-      if (!this.before) this.before = { center: this.map.getCenter().toArray(), zoom };
-      this.map.flyTo({ center: at, zoom: CLICK_ZOOM, duration: 800 });
-    }
+    // Closer to a marker clicked from afar: its city, with whoever else is there; the card itself never moves the map.
+    this.zoomInTo(this.nearby(at), true);
     this.dropCard();
     const card = E('div', { class: 'dl-root dl-popcard', role: 'dialog' }, [E('span', { class: 'dl-popcard-tip' }), body]);
     document.body.appendChild(card);
@@ -842,6 +1028,176 @@ export function separate(items: { x: number; y: number; r: number; fixed?: boole
 }
 
 /** The line from a moved marker back to its real spot, with a dot there (hidden when in place). */
+/**
+ * Where each person stands in their city. The IP gives the city alone, so everyone gets their
+ * own spot in it, fixed by who they are and the city (a hash, the same on every redraw),
+ * 1.5-5 km from its centre. One that would land within 1.3 km of someone placed
+ * before (in key order) or of the server turns further round the city until clear, so all of
+ * them part by zoom 12.
+ */
+export function cityPlaces(
+  items: { key: string; lat: number; lon: number }[],
+  home: { lat: number; lon: number } | null,
+): Map<string, [number, number]> {
+  const out = new Map<string, [number, number]>();
+  const taken: [number, number][] = home ? [[home.lon, home.lat]] : [];
+  const near = (p: [number, number]) => taken.some((q) => km(p, q) < 1.3);
+  for (const it of [...items].sort((a, b) => (a.key < b.key ? -1 : 1))) {
+    const h = hash(it.key);
+    const r0 = 1.5 + 3.5 * ((h >>> 12) / 0xfffff);
+    const a0 = ((h & 0xfff) / 0x1000) * 2 * Math.PI;
+    let at: [number, number] = [it.lon, it.lat];
+    // Golden-angle turns (and a little further out each time) until clear.
+    for (let i = 0; i < 24; i++) {
+      const a = a0 + i * 2.39996;
+      const r = Math.min(8, r0 + i * 0.25);
+      at = [it.lon + (r * Math.sin(a)) / (111.32 * Math.cos((it.lat * Math.PI) / 180)), it.lat + (r * Math.cos(a)) / 111.32];
+      if (!near(at)) break;
+    }
+    taken.push(at);
+    out.set(it.key, at);
+  }
+  return out;
+}
+
+/** FNV-1a: a small stable number for a string. */
+function hash(s: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 0x01000193);
+  return h >>> 0;
+}
+
+/** Someone in a plate (the server's, or a pile of people): who, where, and their place. */
+export interface Face {
+  key: string;
+  who: string;
+  where: string;
+  online: boolean;
+  at: [number, number];
+  /** The device badge of their own marker (one or two icons, or how many). */
+  badge: string;
+  g?: Group;
+}
+
+function face(slot: { el: HTMLElement; at: [number, number]; who?: string; where?: string; g?: Group }): Face {
+  return {
+    key: slot.el.dataset.key ?? '',
+    who: slot.who ?? 'Someone',
+    where: slot.where ?? '',
+    online: !!slot.g?.online,
+    at: slot.at,
+    badge: slot.el.querySelector('.dl-mk-badge')?.innerHTML ?? '',
+    g: slot.g,
+  };
+}
+
+/**
+ * Avatars in a plate, by person, each with their marker's device badge. Three at most (two and
+ * "+N"). Changes glide (FLIP): avatars that stay slide to their new places, new ones pop in (not
+ * when `quiet`: a redraw), gone ones leave the row at once and shrink away where they were, the
+ * "+N" is one element whose number changes, and the plate's width follows smoothly.
+ */
+export function fillFaces(
+  box: HTMLElement,
+  faces: Face[],
+  on: { click: (f: Face, b: HTMLElement) => void; hover: (f: Face | null) => void },
+  quiet = false,
+) {
+  const many = faces.length > 3;
+  const live = () => [...box.children].filter((c) => !c.classList.contains('out')) as HTMLElement[];
+  const was = new Map(live().map((c) => [c, c.getBoundingClientRect().left]));
+  const width0 = box.getBoundingClientRect().width;
+  const keep = new Map<string, HTMLElement>();
+  box.querySelectorAll<HTMLElement>('.dl-mk-face:not(.out)').forEach((b) => keep.set(b.dataset.key ?? '', b));
+  let more = box.querySelector<HTMLElement>('.dl-mk-more:not(.out)');
+  const leave = (el: HTMLElement) => {
+    // Out of the row at once, where it was: the others close up while it shrinks away.
+    Object.assign(el.style, { position: 'absolute', left: `${el.offsetLeft}px`, top: `${el.offsetTop}px`, transform: '' });
+    el.classList.add('out');
+    setTimeout(() => el.remove(), 200);
+  };
+  const row: HTMLElement[] = [];
+  for (const f of faces.slice(0, many ? 2 : 3)) {
+    let b = keep.get(f.key);
+    keep.delete(f.key);
+    if (!b) {
+      const nb = E('button', { type: 'button', class: `dl-mk-face${quiet ? '' : ' in'}`, 'data-key': f.key }, [
+        E('span', { class: 'dl-mk-av' }, initials(f.who)),
+        // Beside the avatar, not over it: the plate makes room for one icon, two, or a number.
+        E('span', { class: 'dl-mk-badge' }),
+      ]);
+      nb.addEventListener('animationend', () => nb.classList.remove('in'), { once: true });
+      b = nb;
+    }
+    const el = b;
+    const badge = el.querySelector('.dl-mk-badge') as HTMLElement;
+    if (badge.innerHTML !== f.badge) badge.innerHTML = f.badge;
+    el.title = `${f.who} · ${f.where}`;
+    el.setAttribute('aria-label', `${f.who}, ${f.where}`);
+    el.classList.toggle('on', f.online);
+    el.onclick = (ev) => {
+      ev.stopPropagation();
+      on.click(f, el);
+    };
+    el.onmouseenter = () => on.hover(f);
+    el.onmouseleave = () => on.hover(null);
+    row.push(el);
+  }
+  for (const b of keep.values()) leave(b);
+  if (many) {
+    if (!more) {
+      more = E('span', { class: `dl-mk-more${quiet ? '' : ' in'}` });
+      const m = more;
+      m.addEventListener('animationend', () => m.classList.remove('in'), { once: true });
+    }
+    more.textContent = `+${faces.length - 2}`;
+    row.push(more);
+  } else if (more) leave(more);
+  // In order, moving only what is out of place (moving a node restarts nothing, but costs a reflow).
+  let prev: Element | null = null;
+  for (const el of row) {
+    const want: Element | null = prev ? prev.nextElementSibling : box.firstElementChild;
+    if (want !== el) {
+      if (prev) prev.after(el);
+      else box.prepend(el);
+    }
+    prev = el;
+  }
+  // FLIP: from where each one was to where it is now.
+  for (const el of row) {
+    const x0 = was.get(el);
+    if (x0 == null) continue;
+    const dx = x0 - el.getBoundingClientRect().left;
+    if (Math.abs(dx) < 0.5) continue;
+    el.style.transition = 'none';
+    el.style.transform = `translateX(${dx}px)`;
+    void el.offsetWidth;
+    el.style.transition = '';
+    el.style.transform = '';
+  }
+  // And the plate's width, from what it was to what it now needs.
+  box.style.width = '';
+  const width1 = box.getBoundingClientRect().width;
+  if (width0 && Math.abs(width1 - width0) > 0.5) {
+    box.style.width = `${width0}px`;
+    void box.offsetWidth;
+    box.style.width = `${width1}px`;
+    const done = () => {
+      box.style.width = '';
+      box.removeEventListener('transitionend', done);
+    };
+    box.addEventListener('transitionend', done);
+    setTimeout(done, 400);
+  }
+}
+
+/** Great-circle distance in km. */
+function km(a: [number, number], b: [number, number]): number {
+  const r = Math.PI / 180;
+  const h = Math.sin(((b[1] - a[1]) * r) / 2) ** 2 + Math.cos(a[1] * r) * Math.cos(b[1] * r) * Math.sin(((b[0] - a[0]) * r) / 2) ** 2;
+  return 12742 * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
 function pointer(el: HTMLElement, dx: number, dy: number) {
   let ptr = el.querySelector(':scope > .dl-mk-ptr') as HTMLElement | null;
   const len = Math.hypot(dx, dy);

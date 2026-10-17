@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { arc, devicePlaces, separate, type MapData } from '../src/admin/map';
+import { arc, cityPlaces, devicePlaces, separate, type MapData } from '../src/admin/map';
 
 describe('arc (mapcn buildArcCoordinates)', () => {
   it('runs from one point to the other in 64 steps', () => {
@@ -131,5 +131,50 @@ describe('separate', () => {
     );
     for (let i = 0; i < 3; i++)
       for (let j = i + 1; j < 3; j++) expect(Math.hypot(same[i][0] - same[j][0], same[i][1] - same[j][1])).toBeGreaterThan(19);
+  });
+});
+
+describe('cityPlaces', () => {
+  const km = (a: [number, number], b: [number, number]) => {
+    const r = Math.PI / 180;
+    const h = Math.sin(((b[1] - a[1]) * r) / 2) ** 2 + Math.cos(a[1] * r) * Math.cos(b[1] * r) * Math.sin(((b[0] - a[0]) * r) / 2) ** 2;
+    return 12742 * Math.asin(Math.sqrt(h));
+  };
+  const krd = { lat: 45.0355, lon: 38.9753 };
+  const msk = { lat: 55.7558, lon: 37.6173 };
+
+  it('gives someone alone in their city a spot of their own in it, the same every time', () => {
+    const a = cityPlaces([{ key: 'a', ...krd }], msk).get('a')!;
+    const d = km(a, [krd.lon, krd.lat]);
+    expect(d).toBeGreaterThan(1.4);
+    expect(d).toBeLessThan(5.1);
+    expect(
+      cityPlaces(
+        [
+          { key: 'a', ...krd },
+          { key: 'b', ...krd },
+        ],
+        msk,
+      ).get('a'),
+    ).toEqual(a);
+  });
+
+  it('spreads people sharing a city, apart enough to part at zoom 12', () => {
+    const keys = ['a', 'b', 'c', 'd', 'e'];
+    const at = cityPlaces(
+      keys.map((key) => ({ key, ...krd })),
+      msk,
+    );
+    const pts = keys.map((k) => at.get(k)!);
+    for (let i = 0; i < pts.length; i++) {
+      expect(km(pts[i], [krd.lon, krd.lat])).toBeLessThan(6);
+      for (let j = i + 1; j < pts.length; j++) expect(km(pts[i], pts[j])).toBeGreaterThan(1.25);
+    }
+  });
+
+  it('moves anyone in the server’s city off its centre, the same way every time', () => {
+    const a = cityPlaces([{ key: 'a', ...msk }], msk).get('a')!;
+    expect(km(a, [msk.lon, msk.lat])).toBeGreaterThan(2.4);
+    expect(cityPlaces([{ key: 'a', ...msk }], msk).get('a')).toEqual(a);
   });
 });
