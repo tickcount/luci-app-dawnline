@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Put the README screenshots into a browser window on a dawn gradient.
 
-Raw captures live in docs/screenshots/raw/<name>.png; the framed images are
-written to docs/screenshots/<name>.png. Needs a Chromium-based browser for the
-headless render (BROWSER=/path/to/chrome, default: Brave or Chrome on macOS).
+Raw captures live in docs/screenshots/raw/<name>.png at SCALE device pixels
+per CSS pixel (scripts/capture-screenshots.mjs takes them); the framed images
+are written to docs/screenshots/<name>.png at the same scale. Needs a
+Chromium-based browser for the headless render (BROWSER=/path/to/chrome,
+default: Brave or Chrome on macOS).
 Run: scripts/frame-screenshots.py
 """
 import os
@@ -23,10 +25,10 @@ SHOTS = {
     'people': 'router.lan · Dawnline · People',
     'person': 'router.lan · Dawnline · Myata',
     'portal': 'vpn.example.com/kamiro-telosu-bavine',
-    'map': 'router.lan · Dawnline · Overview',
     'access': 'router.lan · Dawnline · Home · Access',
 }
 PAD_X, PAD_Y, BAR = 120, 96, 40
+SCALE = 2
 
 CANDIDATES = [
     os.environ.get('BROWSER', ''),
@@ -75,7 +77,7 @@ def main():
         if not os.path.exists(src):
             print(f'skip {name}: no raw capture')
             continue
-        iw, ih = png_size(src)
+        iw, ih = (v // SCALE for v in png_size(src))
         w, h = iw + 2 * PAD_X, ih + BAR + 2 * PAD_Y
         html = os.path.join(tmp, f'{name}.html')
         with open(html, 'w', encoding='utf-8') as f:
@@ -83,7 +85,7 @@ def main():
                                     gw=int(w * .8), gh=int(h * .5), gw2=int(w * .6), gh2=int(h * .45)))
         out = os.path.join(OUT, f'{name}.png')
         subprocess.run([browser, '--headless=new', '--disable-gpu', '--hide-scrollbars', '--allow-file-access-from-files',
-                        '--force-device-scale-factor=1', f'--window-size={w},{h}', f'--screenshot={out}', f'file://{html}'],
+                        f'--force-device-scale-factor={SCALE}', f'--window-size={w},{h}', f'--screenshot={out}', f'file://{html}'],
                        check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         print(f'{name}: {w}x{h}')
     shutil.rmtree(tmp)

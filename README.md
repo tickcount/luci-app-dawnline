@@ -24,8 +24,6 @@ limits, live traffic and a LuCI admin that follows a modern design.
 |---|---|
 | ![Personal portal](docs/screenshots/portal.png) | ![Access](docs/screenshots/access.png) |
 
-![Where people connect from](docs/screenshots/map.png)
-
 ## Features
 
 - **People, not peers.** One card per person with device chips, live status,
@@ -209,7 +207,8 @@ scripts/lint-ucode.py                 # static ucode checks
 scripts/check-ucode.sh root@router    # compile every ucode file on a router
 scripts/deploy.sh root@router         # install the working tree (backs up configs first)
 scripts/build-packages.sh all         # .ipk and .apk with the OpenWrt SDK in Docker
-scripts/frame-screenshots.py          # frame docs/screenshots/raw/*.png for this README
+scripts/capture-screenshots.mjs       # capture docs/screenshots/raw/*.png from a router
+scripts/frame-screenshots.py          # frame them for this README
 ```
 
 The web bundles are committed: CI fails when they are out of date. Pushing a
