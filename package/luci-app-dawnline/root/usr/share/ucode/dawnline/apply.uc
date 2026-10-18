@@ -82,37 +82,44 @@ export function access_sets(m, usage, states) {
 	return nft.access_sets(m, usage, states);
 };
 
-/** Log an access-table failure once per distinct error; true when the table is in place. */
-function nft_result(err) {
+/**
+ * Log an access-table failure once per distinct error (with what it means
+ * for the devices: none loaded while the table is missing, the previous rules
+ * kept when an older one survived the failed rebuild); the error, or null.
+ */
+function nft_result(err, present) {
 	let was = readfile(NFT_ERR);
 	if (err == null) {
 		if (was != null)
 			unlink(NFT_ERR);
-		return true;
+		return null;
 	}
 	if (was != err) {
-		log('Access rules', "couldn't load — devices aren't loaded into the tunnels until they do", 'error', err);
+		log('Access rules', present
+			? "couldn't be updated — the previous rules stay, and changes to access wait until they load"
+			: "couldn't load — no device is loaded into the tunnels until they do", 'error', err);
 		ensure_dir(RUN_DIR);
 		writefile(NFT_ERR, err);
 	}
-	return false;
+	return err;
 }
 
 /**
  * The table in place: rebuilt with `full`, otherwise members only, rebuilt
- * when that fails (no table yet at boot, or an older shape) — an error only
- * when the rebuild fails too.
+ * when that fails (no table yet at boot, or an older shape). Null, or the
+ * error when the rebuild fails too.
  */
 function load_table(m, sets, full) {
 	let err = full ? nft.rebuild(m, sets) : nft.update(sets);
 	if (err != null && !full)
 		err = nft.rebuild(m, sets);
-	return nft_result(err);
+	return nft_result(err, err != null && nft.present());
 }
 
-/** Full table rebuild (structure changes: servers, LAN subnets). */
+/** Full table rebuild (structure changes: servers, LAN subnets); true when it loaded. */
 export function rebuild_nft(m, sets) {
-	return nft_result(nft.rebuild(m, sets));
+	let err = nft.rebuild(m, sets);
+	return nft_result(err, err != null && nft.present()) == null;
 };
 
 /** Atomically replace set contents only. */
@@ -131,30 +138,55 @@ export function firewall_drift(m) {
 
 /* ---------- runtime sync ---------- */
 
+/**
+ * What an admin should hear when a sync did not fully take: the access table
+ * failed, or a server did not accept its devices. Null when all went in.
+ */
+function sync_warning(m, table, peers) {
+	let out = [];
+	if (table != null)
+		push(out, nft.present()
+			? `Access rules couldn't be updated (${table}): the previous rules stay, so this change isn't in effect yet.`
+			: `Access rules couldn't load (${table}): no device is loaded into the tunnels until they do.`);
+	for (let id, r in peers)
+		if (r != 'ok' && r != 'down')
+			push(out, `Couldn't load devices into ${m.servers[id]?.name ?? id}: ${r}.`);
+	return length(out) ? join(' ', out) + ' Open Diagnostics → Health.' : null;
+}
+
 /*
- * With the lock held: access sets first, and devices into the tunnels only
- * once the table that limits them is in place.
+ * With the lock held: access sets first, then devices into the tunnels.
+ * Fail closed: without the table the firewall would let every loaded device
+ * reach everything, so while it is missing no device is loaded at all. An
+ * older table that survived a failed rebuild keeps limiting them with the
+ * sets it has, and the devices still follow people's states (a revoked one
+ * leaves).
  */
 function locked_sync(m, usage, full) {
 	let states = states_for(m, usage);
 	let sets = nft.access_sets(m, usage, states);
-	let peers = {};
-	if (load_table(m, sets, full))
-		peers = awg.sync_peers(m, states);
+	let table = load_table(m, sets, full);
+	let peers = awg.sync_peers(m, table == null || nft.present() ? states : {});
 	sync_hosts(m);
 	ensure_dir(RUN_DIR);
 	write_json(`${RUN_DIR}/states.json`, states, 0o644);
-	return { peers, states };
+	return { peers, states, table, warning: sync_warning(m, table, peers) };
 }
 
 /**
  * Runtime sync: devices into the tunnels (AmneziaWG peers), access sets,
  * hostnames. Cheap; safe to call often. The model is always read again under
  * the lock (`m` is accepted for older callers and not used); `usage` is the
- * caller's (the agent holds the live counters).
+ * caller's (the agent holds the live counters). The result carries `warning`
+ * (a sentence for the admin) when the sync did not fully take.
  */
 export function sync(m, usage) {
 	return with_lock('apply', () => locked_sync(core.load(), usage ?? core.load_usage()));
+};
+
+/** Is the access table loaded (the agent's tick re-syncs when it is not). */
+export function table_present() {
+	return nft.present();
 };
 
 /**
@@ -209,10 +241,10 @@ export function apply(opts) {
 		let s = locked_sync(m, usage, true);
 		ensure_dir(RUN_DIR);
 		write_file(NET_SIG, net_signature(m), 0o644);
-		return { network, firewall, lp, peers: s.peers };
+		return { network, firewall, lp, peers: s.peers, warning: s.warning };
 	});
 	loop.remember(r.lp);
-	return { network: r.network, firewall: r.firewall, like_home: r.lp.error ? { error: r.lp.error } : !r.lp.off, peers: r.peers };
+	return { network: r.network, firewall: r.firewall, like_home: r.lp.error ? { error: r.lp.error } : !r.lp.off, peers: r.peers, warning: r.warning };
 };
 
 /** Remove everything Dawnline created (used by the uninstaller). */

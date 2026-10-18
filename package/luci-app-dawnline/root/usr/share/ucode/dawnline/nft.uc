@@ -5,7 +5,7 @@
 // changes often (update, one atomic transaction).
 
 import { unlink } from 'fs';
-import { sh, ensure_dir, write_file, rand_hex, ip2int, RUN_DIR } from 'dawnline.util';
+import { sh, ensure_dir, write_file, rand_hex, ip2int, uniq, RUN_DIR } from 'dawnline.util';
 import * as core from 'dawnline.core';
 import * as net from 'dawnline.net';
 import * as loop from 'dawnline.loop';
@@ -74,17 +74,33 @@ export function access_sets(m, usage, states) {
 	return sets;
 };
 
+// Duplicate members (two devices with one address) would make the whole load fail.
 function set_elems(arr) {
+	arr = uniq(arr);
 	return length(arr) ? `elements = { ${join(', ', arr)} }` : '';
 }
 
+/** The portal's TCP ports people may reach through the tunnel (never SSH, DNS or LuCI, whatever is stored). */
+function portal_ports(m) {
+	if (!m.settings.portal_enabled)
+		return [];
+	let ok = (p) => p >= 1 && p <= 65535 && index([ 22, 53, 80, 443 ], p) < 0;
+	let ports = filter([ m.settings.portal_port ], ok);
+	if (core.portal_http(m) && ok(core.portal_http_port(m)))
+		push(ports, core.portal_http_port(m));
+	return ports;
+}
+
 function table(m, sets) {
-	let ifs = [], lan = [], tun = [];
+	let ifs = [], tun = [];
 	let dns_addr = loop.client_dns();
 	if (!ip4(dns_addr))
 		dns_addr = null;
 	let rt = loop.resolver_target();
 	let snap = net.snapshot();
+	// Each server's home networks are its own: with several servers, "all
+	// home" on one never reaches the other's networks (set lan_<id>).
+	let homes = {};
 	for (let id, srv in m.servers) {
 		// Only valid interface names reach here (core.tunnels): they are written into the rules as strings.
 		let tns = core.tunnels(srv);
@@ -93,13 +109,13 @@ function table(m, sets) {
 			push(tun, t.subnet);
 		}
 		if (length(tns))
-			push(lan, ...net.server_net(srv, snap).nets);
+			homes[id] = net.collapse(net.server_net(srv, snap).nets);
 	}
-	lan = net.collapse(lan);
 	tun = net.collapse(tun);
 	let t = [];
 	push(t, 'table inet dawnline {');
-	push(t, `	set lan_nets { type ipv4_addr; flags interval; auto-merge; ${set_elems(lan)} }`);
+	for (let id, nets in homes)
+		push(t, `	set home_${id} { type ipv4_addr; flags interval; auto-merge; ${set_elems(nets)} }`);
 	// Tunnel subnets are never "home", even inside a wider route to the LAN.
 	push(t, `	set tun_nets { type ipv4_addr; flags interval; auto-merge; ${set_elems(tun)} }`);
 	push(t, `	set lan_ok { type ipv4_addr; ${set_elems(sets.lan_ok)} }`);
@@ -118,15 +134,30 @@ function table(m, sets) {
 	push(t, '	}');
 	push(t, '	chain guard {');
 	push(t, '		meta nfproto ipv6 drop');
-	push(t, '		ct state established,related accept');
-	push(t, '		icmp type echo-request fib daddr type local accept');
+	// Every packet is judged by the rules below, not only the first of a
+	// connection: a change of access cuts open connections too, instead of
+	// letting a session or a long UDP flow run on for days. Only what has no
+	// rule of its own passes on its connection: errors and the like, answers
+	// to the admin's port forwards, and the router's own pings.
+	push(t, '		ct state related accept');
+	push(t, '		ct status dnat accept');
+	push(t, '		icmp type { echo-request, echo-reply } fib daddr type local accept');
 	push(t, '		fib daddr type local meta l4proto { tcp, udp } th dport 53 accept');
-	push(t, '		fib daddr type local ip saddr @lan_ok accept');
+	let pp = portal_ports(m);
+	if (length(pp))
+		// Their own portal, also with the VPN on (the address may be this router's).
+		push(t, `		fib daddr type local tcp dport { ${join(', ', pp)} } accept`);
+	// The router itself is part of home: for everyone with all of it, and for
+	// people limited to some networks only on the addresses in those.
+	push(t, '		fib daddr type local ip saddr @lan_all accept');
+	push(t, '		fib daddr type local ip saddr . ip daddr @lan_part accept');
 	push(t, '		fib daddr type local counter drop');
 	if (dns_addr)
 		// DNS through the netns (it forwards to the LAN's DNS), for everyone.
 		push(t, `		ip daddr ${dns_addr} meta l4proto { tcp, udp } th dport 53 accept`);
-	push(t, '		ip daddr @lan_nets ip daddr != @tun_nets ip saddr @lan_all accept');
+	for (let id, nets in homes)
+		for (let tn in core.tunnels(m.servers[id]))
+			push(t, `		iifname "${tn.ifname}" ip daddr @home_${id} ip daddr != @tun_nets ip saddr @lan_all accept`);
 	push(t, '		ip saddr . ip daddr @lan_part ip daddr != @tun_nets accept');
 	// Devices with home access are part of home: they reach each other, where the
 	// server allows it (everyone, or within circles). Within one server: the
@@ -155,7 +186,9 @@ function table(m, sets) {
 	push(t, '	chain to_device {');
 	push(t, '		meta nfproto ipv6 drop');
 	push(t, '		ct status dnat accept');
-	push(t, '		ip saddr @lan_nets ip saddr != @tun_nets ip daddr @lan_all accept');
+	for (let id, nets in homes)
+		for (let tn in core.tunnels(m.servers[id]))
+			push(t, `		oifname "${tn.ifname}" ip saddr @home_${id} ip saddr != @tun_nets ip daddr @lan_all accept`);
 	push(t, '		ip daddr . ip saddr @lan_part ip saddr != @tun_nets accept');
 	push(t, '		counter reject with icmpx admin-prohibited');
 	push(t, '	}');
@@ -195,6 +228,11 @@ export function load(script) {
 	return replace(trim(r.out), f, 'rules') || `nft exited with ${r.code}`;
 };
 
+/** The table as text, for a check (`nft -c -f`) or a test; nothing is loaded. */
+export function render(m, sets) {
+	return table(m, sets);
+};
+
 /** Full table rebuild (structure changes: servers, home networks, DNS paths); null or the error. */
 export function rebuild(m, sets) {
 	return load('table inet dawnline\ndelete table inet dawnline\n' + table(m, sets));
@@ -208,9 +246,10 @@ export function rebuild(m, sets) {
 export function update(sets) {
 	let s = '';
 	for (let name in SETS) {
+		let members = uniq(sets[name]);
 		s += `flush set inet dawnline ${name}\n`;
-		if (length(sets[name]))
-			s += `add element inet dawnline ${name} { ${join(', ', sets[name])} }\n`;
+		if (length(members))
+			s += `add element inet dawnline ${name} { ${join(', ', members)} }\n`;
 	}
 	return load(s);
 };

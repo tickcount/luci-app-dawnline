@@ -1,0 +1,51 @@
+#!/bin/sh
+# Dawnline — after its own package was replaced: restart, check that the new
+# version answers (the LuCI link and the agent), and put the kept previous
+# version back when it does not. Started detached by the updater
+# (usr/libexec/dawnline/updater) with the version being installed.
+#   postupdate <version>
+# Plain shell on purpose: a release whose ucode does not compile cannot check
+# or repair itself, and the admin cannot click Roll back in a page that this
+# same backend serves.
+RUN=/var/run/dawnline
+KEEP=/etc/dawnline/keep/app
+to="${1:-?}"
+
+sleep 2
+/etc/init.d/rpcd reload >/dev/null 2>&1
+/etc/init.d/dawnline restart >/dev/null 2>&1
+
+up() {
+	ubus list luci.dawnline >/dev/null 2>&1 || return 1
+	ubus -t 10 call luci.dawnline rev >/dev/null 2>&1 || return 1
+	pgrep -f '^/usr/bin/ucode /usr/libexec/dawnline/agent' >/dev/null 2>&1
+}
+
+i=0
+while [ "$i" -lt 12 ]; do
+	sleep 5
+	i=$((i + 1))
+	up && exit 0
+done
+
+logger -t dawnline "update to $to failed its check: luci.dawnline or the agent is not up"
+set --
+for f in "$KEEP"/*.ipk "$KEEP"/*.apk; do
+	[ -f "$f" ] && set -- "$@" "$f"
+done
+if [ "$#" -eq 0 ]; then
+	logger -t dawnline "no previous version is kept: nothing to roll back to"
+	exit 1
+fi
+if command -v apk >/dev/null 2>&1; then
+	apk add --allow-untrusted "$@" >/dev/null 2>&1
+else
+	opkg install --force-reinstall --force-downgrade "$@" >/dev/null 2>&1
+fi
+/etc/init.d/rpcd restart >/dev/null 2>&1
+/etc/init.d/dawnline restart >/dev/null 2>&1
+mkdir -p "$RUN"
+# The restored agent reports it in the service log on its start.
+echo "$to" > "$RUN/update-rolled-back"
+logger -t dawnline "rolled back from $to to the kept version"
+exit 0

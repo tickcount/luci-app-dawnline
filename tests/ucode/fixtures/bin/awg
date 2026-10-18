@@ -1,0 +1,10 @@
+#!/bin/sh
+# Stand-in for amneziawg-tools in the ucode tests (no kernel module in a
+# container): `genkey` prints one fixed key, `show all dump` prints the fixture
+# a test has put at /tmp/dawnline-tests/awg-dump (or fails, as the tool does
+# when no interface is up). Anything else fails.
+case "$1 ${2:-} ${3:-}" in
+	'genkey  ') echo 'yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk=' ;;
+	'show all dump') cat /tmp/dawnline-tests/awg-dump ;;
+	*) echo "awg stand-in: unsupported arguments: $*" >&2; exit 1 ;;
+esac

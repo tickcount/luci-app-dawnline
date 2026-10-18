@@ -114,8 +114,14 @@ function reload_module(ctx, before, after) {
 		iface_intent(i, 'update', c.get('network', i, '_dawnline_name') ?? i);
 		sh(`ifdown '${i}'`);
 	}
-	sh('rmmod amneziawg');
+	// Both steps must really happen: the new tools against the old module (or
+	// no module at all) leave every tunnel down while the job says "done".
+	ctx.run('rmmod amneziawg');
+	if (stat('/sys/module/amneziawg'))
+		die('The old AmneziaWG kernel module is still loaded (another AmneziaWG interface may use it): reboot the router to finish the update');
 	ctx.run('modprobe amneziawg');
+	if (!stat('/sys/module/amneziawg'))
+		die("The new AmneziaWG kernel module doesn't load on this firmware: the tunnels stay down until it does (see the log above)");
 	for (let i in ifaces)
 		sh(`ifup '${i}'`);
 }

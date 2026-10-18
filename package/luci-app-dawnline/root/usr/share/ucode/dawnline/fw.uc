@@ -5,11 +5,12 @@
 // named dawnline_* are ever changed.
 
 import { readfile, unlink } from 'fs';
-import { q, sh, sh_out, uniq, uci_put, uci_section, ack_config, write_file, RUN_DIR } from 'dawnline.util';
+import { q, sh, sh_out, uniq, in_nets, uci_put, uci_section, ack_config, write_file, RUN_DIR } from 'dawnline.util';
 import { cursor } from 'uci';
 import * as core from 'dawnline.core';
 import * as net from 'dawnline.net';
 import * as nft from 'dawnline.nft';
+import * as loop from 'dawnline.loop';
 
 const LOOP_ZONE = 'dl_loop';
 /*
@@ -42,12 +43,33 @@ export function sync(m, dry) {
 
 	let snap = net.snapshot(true);
 	let portal_zone = null, want_loop = false;
+	// Where tunnel DNS is sent (dawnline.nft): into the netns for home names
+	// while any server runs "like a home device", and to the LAN's DNS for
+	// everyone else. A server that does not forward to those zones on its own
+	// gets a rule for port 53 alone.
+	let any_loop = length(filter(values(m.servers), (s) => s.lan_like && length(core.tunnels(s)))) > 0;
+	let lan_dns = loop.lan_dns();
+	let lan_dns_zone = null;
+	if (lan_dns)
+		for (let dev, d in snap.devices)
+			if (d.zone && in_nets(lan_dns, d.nets ?? []))
+				lan_dns_zone ??= d.zone;
 	for (let id, srv in m.servers) {
 		if (!length(core.tunnels(srv)))
 			continue;
 		let z = `dawnline_${id}`;
 		let sn = net.server_net(srv, snap);
 		portal_zone ??= sn.wan.zone;
+		if (!srv.lan_like && any_loop)
+			sec(`${z}_loopdns`, 'rule', {
+				name: `Dawnline-${srv.ifname}-names`, src: srv.ifname, dest: LOOP_ZONE,
+				proto: 'tcp udp', dest_port: 53, target: 'ACCEPT',
+			});
+		if (lan_dns_zone && lan_dns_zone != srv.ifname && index(sn.zones, lan_dns_zone) < 0)
+			sec(`${z}_landns`, 'rule', {
+				name: `Dawnline-${srv.ifname}-dns`, src: srv.ifname, dest: lan_dns_zone, dest_ip: lan_dns,
+				proto: 'tcp udp', dest_port: 53, target: 'ACCEPT',
+			});
 		sec(`${z}_zone`, 'zone', {
 			// Forward within the zone (device to device) is decided by the inet dawnline table.
 			name: srv.ifname, network: [ srv.ifname ],

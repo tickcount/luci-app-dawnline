@@ -54,8 +54,8 @@ function service_set(a) {
 			c.delete(core.CONFIG, id, 'port');
 		return id;
 	});
-	apply.sync();
-	return { id };
+	let s = apply.sync();
+	return { id, warning: s.warning };
 }
 
 function service_delete(a) {
@@ -72,8 +72,8 @@ function service_delete(a) {
 					c.delete(core.CONFIG, pid, 'service');
 			}
 	});
-	apply.sync();
-	return { ok: true };
+	let s = apply.sync();
+	return { ok: true, warning: s.warning };
 }
 
 /* ---------- circles ---------- */
@@ -112,9 +112,9 @@ function circle_set(a) {
 		}
 		return { id, edit: !!ci, server: m.servers[server].name };
 	});
-	apply.sync();
+	let s = apply.sync();
 	admin_log('awg', res.edit ? 'changed' : 'added', 'circle', name, res.server);
-	return { id: res.id, circles: values(core.load().circles) };
+	return { id: res.id, circles: values(core.load().circles), warning: s.warning };
 }
 
 function circle_delete(a) {
@@ -128,9 +128,9 @@ function circle_delete(a) {
 				c.delete(core.CONFIG, pid, 'circle');
 		return { name: ci.name, server: m.servers[ci.server]?.name };
 	});
-	apply.sync();
+	let s = apply.sync();
 	admin_log('awg', 'removed', 'circle', res.name, res.server);
-	return { circles: values(core.load().circles) };
+	return { circles: values(core.load().circles), warning: s.warning };
 }
 
 /* ---------- devices at home ---------- */

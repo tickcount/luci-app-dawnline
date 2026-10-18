@@ -154,12 +154,20 @@ function from_device(m, d, t, states, dmp, snap) {
 
 	// The router itself.
 	if (index(router_addrs(snap), t.ip) >= 0) {
-		if (home_access(p))
-			push(steps, step(true, `${t.ip} is this router`, 'Home access includes the router.'));
-		else if (t.port == 53)
+		let portal = m.settings.portal_enabled && (t.port == m.settings.portal_port || (core.portal_http(m) && t.port == core.portal_http_port(m)));
+		if (t.port == 53)
 			push(steps, step(true, `${t.ip} is this router: DNS is open to everyone`, ''));
-		else
-			return stop(steps, step(false, `${t.ip} is this router`, `${p.name} has ${ACCESS_TEXT[p.access]}: only DNS on the router.`));
+		else if (portal)
+			push(steps, step(true, `${t.ip} is this router: the personal portal is open to everyone`, ''));
+		else if (!home_access(p))
+			return stop(steps, step(false, `${t.ip} is this router`, `${p.name} has ${ACCESS_TEXT[p.access]}: only DNS and the portal on the router.`));
+		else {
+			// Like any home address: only on the networks the person reaches.
+			let h = core.person_home(srv, p, snap);
+			if (!h.all && !in_nets(t.ip, h.nets))
+				return stop(steps, step(false, `${t.ip} is this router on a network ${p.name} doesn't reach`, `${p.name} reaches ${join(', ', h.devs) || 'no home network'}.`));
+			push(steps, step(true, `${t.ip} is this router`, h.all ? 'Home access includes the router.' : `On one of the networks ${p.name} reaches.`));
+		}
 		push(steps, via(t.ip));
 		return steps;
 	}

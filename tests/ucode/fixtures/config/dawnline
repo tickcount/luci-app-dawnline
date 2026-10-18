@@ -1,0 +1,43 @@
+# Test fixture: a small installation (one server, two people, one device).
+# migrate.test.uc expects bob's random code, the server's stored MTU 1380 and
+# uhttpd's error_page: the one-time steps remove them.
+
+config settings 'settings'
+	option portal_enabled '1'
+	option portal_port '8443'
+	option portal_host 'vpn.example.com'
+	option log_connections '0'
+	option update_interval '7d'
+	list update_targets 'app'
+
+config server 'main'
+	option name 'Main'
+	option ifname 'awgmain'
+	option port '51820'
+	option subnet '10.9.0.0/29'
+	option private_key 'yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk='
+	option public_key 'xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg='
+	option mtu '1380'
+	option jc '4'
+	option jmin '64'
+	option jmax '128'
+	option s4 '12'
+
+config person 'alice'
+	option server 'main'
+	option name 'Alice'
+	option code 'abcdef-ghijkl-mnopqr'
+	option access 'both'
+
+config person 'bob'
+	option server 'main'
+	option name 'Bob'
+	option code 'XyZ12345'
+	option quota_gb '2'
+
+config device 'alice_phone'
+	option person 'alice'
+	option name 'Phone'
+	option kind 'phone'
+	option address '10.9.0.2'
+	option public_key 'xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg='

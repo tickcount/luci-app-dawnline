@@ -360,7 +360,10 @@ function nightly_backup() {
 			backup.backup_create('auto');
 			write_json(`${DATA_DIR}/backup-state.json`, { auto: sum }, 0o600);
 		}
-		catch (e) {}
+		catch (e) {
+			// Tried again tomorrow; meanwhile the admin should know (a full flash, mostly).
+			slog('dawnline', 'error', `nightly backup failed: ${e.message}`, null, 'Backup');
+		}
 	}
 }
 
@@ -391,7 +394,9 @@ function check_usage_reset(m) {
 
 /*
  * Push devices and access rules when people's states changed, the config
- * file was written (by anyone: rpcd, the portal, the CLI, a restore), or
+ * file was written (by anyone: rpcd, the portal, the CLI, a restore), the
+ * access table is gone (a flushed ruleset: the firewall alone would let every
+ * device reach everything, so the sync unloads them until it is back), or
  * every RESYNC_EVERY seconds anyway. apply.sync reads the model again itself.
  */
 function sync_runtime(t) {
@@ -400,7 +405,7 @@ function sync_runtime(t) {
 	let mt = st ? `${st.mtime}/${st.inode}` : null;
 	let changed = last_states == null || sprintf('%J', t.states) != sprintf('%J', last_states) ||
 		(conf_mtime != null && mt != conf_mtime);
-	if (changed || time() - last_sync > RESYNC_EVERY) {
+	if (changed || time() - last_sync > RESYNC_EVERY || (length(t.m.servers) && !apply.table_present())) {
 		apply.sync(t.m, usage);
 		last_sync = time();
 	}
@@ -491,8 +496,13 @@ function step(i, s, fn) {
 function tick() {
 	ensure_dir(RUN_DIR);
 	writefile(watchdog.BEAT, `${time()}`);
-	// A restore or import drops the live counters; start over from flash.
-	if (!stat(`${RUN_DIR}/usage.json`) && usage.updated)
+	// A restore or import put other counters on flash (dawnline.backup leaves
+	// a marker): start over from them, whatever the watcher wrote since.
+	if (stat(live.USAGE_RELOAD)) {
+		unlink(live.USAGE_RELOAD);
+		usage = live.load_usage(true);
+	}
+	else if (!stat(`${RUN_DIR}/usage.json`) && usage.updated)
 		usage = live.load_usage();
 	let t = { m: null, pol: null, reset: false, events: [] };
 	for (let i, s in STEPS)
@@ -535,7 +545,13 @@ if (was != VERSION) {
 	writefile(`${DATA_DIR}/version`, VERSION);
 }
 slog_restore();
-if (was && was != VERSION)
+// postupdate put this (kept) version back because the new one did not come up.
+let rolled = trim(readfile(`${RUN_DIR}/update-rolled-back`) ?? '');
+unlink(`${RUN_DIR}/update-rolled-back`);
+if (rolled)
+	slog('dawnline', 'error', `update to ${rolled} failed its check — rolled back to ${VERSION}`,
+		'The new version did not answer in LuCI or its agent did not start. Try again from Components, or install it with install.sh to see why.', 'Dawnline');
+else if (was && was != VERSION)
 	slog('dawnline', 'up', `updated · ${was} → ${VERSION}`, null, 'Dawnline');
 else if (crashed)
 	slog('dawnline', 'repair', 'stopped unexpectedly — started again',

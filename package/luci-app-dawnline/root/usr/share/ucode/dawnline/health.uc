@@ -403,8 +403,15 @@ export function health(m) {
 
 	let nft_ok = system('nft list table inet dawnline >/dev/null 2>&1') == 0;
 	push(out, check('nft', 'Access rules loaded', nft_ok ? 'ok' : 'error',
-		nft_ok ? 'Table inet dawnline enforces who may reach LAN and the internet.' : 'Table inet dawnline is missing: access is not enforced.',
+		nft_ok ? 'Table inet dawnline enforces who may reach LAN and the internet.'
+			: 'Table inet dawnline is missing: no device is loaded into the tunnels until it is back.',
 		nft_ok ? null : 'apply'));
+
+	// A device the sync has to leave out (a merged import, a hand-edited config).
+	let data = core.model_errors(m);
+	push(out, check('data', 'People and devices consistent', length(data) ? 'error' : 'ok',
+		length(data) ? `${join(' ', slice(data, 0, 4))}${length(data) > 4 ? ` (${length(data) - 4} more)` : ''} Such devices are left out of the tunnels: fix or remove them.`
+			: 'Every device has a key and an address of its own inside its server.'));
 
 	let fwc = cursor();
 	fwc.load('firewall');

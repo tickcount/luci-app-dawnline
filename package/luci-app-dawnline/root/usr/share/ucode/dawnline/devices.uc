@@ -42,11 +42,11 @@ export function add(person, name, kind, opts) {
 	opts ??= {};
 	let by = opts.by ?? 'admin';
 	let id = store.transact((c, m) => core.create_device(c, m, person, name, kind, { by, keys: awg.new_keys(opts.public_key || null) }));
-	apply.sync();
+	let s = apply.sync();
 	let m = core.load();
 	live.add_event({ type: 'device_added', person, device: id, detail: m.devices[id].name, by });
 	awg.mark_issued(m, id);
-	return { id, config: awg.client_config(m, m.devices[id]) };
+	return { id, config: awg.client_config(m, m.devices[id]), warning: s.warning };
 };
 
 /**
@@ -89,15 +89,19 @@ export function rotate(id, opts) {
 	});
 	// The device a portal page came through would lose its tunnel before the
 	// answer gets out: load the new key a moment after answering.
+	let s = null;
 	if (opts.defer)
 		sh_bg('sleep 3; /usr/bin/dawnline sync');
 	else
-		apply.sync();
+		s = apply.sync();
 	let m = core.load();
 	let d = m.devices[id];
 	live.add_event({ type: 'device_keys', person: d.person, device: id, detail: d.name, by });
 	awg.mark_issued(m, id);
-	return awg.client_config(m, d);
+	let cfg = awg.client_config(m, d);
+	if (s?.warning)
+		cfg.warning = s.warning;
+	return cfg;
 };
 
 /** Remove a device. Returns the runtime sync. */

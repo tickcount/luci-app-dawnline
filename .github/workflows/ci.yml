@@ -1,9 +1,12 @@
 name: CI
 
+# Every push to main and every pull request; also called by build.yml, so a
+# tag never publishes a release without these checks passing on it.
 on:
   push:
     branches: [main]
   pull_request:
+  workflow_call:
 
 permissions:
   contents: read
@@ -43,6 +46,7 @@ jobs:
             exit 1
           fi
 
+      # Sources and the test files (tsconfig.test.json).
       - name: Type check
         id: types
         run: npm run --silent typecheck
@@ -51,12 +55,17 @@ jobs:
         id: tests
         run: npm test
 
+      # The bundles under package/ are committed: a build must change nothing
+      # and leave no new file behind (an output nobody added to git would be
+      # missing from the package).
       - name: Build bundles and check they are committed
         id: build
         run: |
           npm run --silent build
-          if ! git diff --exit-code -- ../package; then
-            echo "::error::The committed bundles are out of date. Run 'npm run build' in web/ and commit the result."
+          changed="$(git status --porcelain --untracked-files=all -- ../package)"
+          if [ -n "$changed" ]; then
+            echo "$changed"
+            echo "::error::The committed bundles are out of date or the build left new files. Run 'npm run build' in web/ and commit the result."
             exit 1
           fi
 
@@ -83,17 +92,25 @@ jobs:
         with:
           persist-credentials: false
 
+      # Every shell script by its shebang (the init script's is "/bin/sh
+      # /etc/rc.common"), so a new hotplug or libexec script is covered the
+      # day it appears. Files without a shebang (keep.d lists) are not shell.
       - name: ShellCheck
         run: |
           shellcheck --version
-          shellcheck -S warning \
-            install.sh \
-            uninstall.sh \
-            package/luci-app-dawnline/root/etc/init.d/dawnline \
-            package/luci-app-dawnline/root/etc/uci-defaults/90_dawnline \
-            package/luci-app-dawnline/root/etc/hotplug.d/iface/95-dawnline \
-            package/luci-app-dawnline/root/usr/libexec/dawnline/heartbeat \
-            scripts/*.sh
+          files="$(grep -rlIE '^#!(/usr)?/bin/(sh|bash|env (sh|bash))( |$)' \
+            install.sh uninstall.sh package/luci-app-dawnline/root scripts tests | sort)"
+          echo "$files"
+          for f in package/luci-app-dawnline/root/etc/init.d/dawnline \
+                   package/luci-app-dawnline/root/etc/hotplug.d/iface/95-dawnline \
+                   package/luci-app-dawnline/root/usr/libexec/dawnline/resolver \
+                   package/luci-app-dawnline/root/usr/libexec/dawnline/heartbeat \
+                   package/luci-app-dawnline/root/usr/libexec/dawnline/postupdate \
+                   package/luci-app-dawnline/root/usr/share/dawnline/portal/www/cgi-bin/portal; do
+            echo "$files" | grep -qx "$f" || { echo "::error file=$f::not found by the shebang scan"; exit 1; }
+          done
+          # shellcheck disable=SC2086
+          shellcheck -S warning $files
 
   ucode:
     name: ucode static checks
@@ -104,20 +121,52 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Use before definition
+      - name: Lint (use before definition, exports, POSIX regexes, rpcd methods)
         run: python3 scripts/lint-ucode.py
 
       - name: Executables keep their mode
         run: |
-          cd package/luci-app-dawnline/root
-          for f in usr/bin/dawnline usr/libexec/dawnline/agent usr/libexec/dawnline/updater usr/libexec/dawnline/resolver usr/libexec/dawnline/heartbeat \
-                   etc/init.d/dawnline etc/uci-defaults/90_dawnline usr/share/dawnline/portal/www/cgi-bin/portal; do
+          for f in usr/bin/dawnline usr/libexec/dawnline/agent usr/libexec/dawnline/updater usr/libexec/dawnline/resolver usr/libexec/dawnline/heartbeat usr/libexec/dawnline/postupdate \
+                   etc/init.d/dawnline etc/uci-defaults/90_dawnline usr/share/dawnline/portal/www/cgi-bin/portal usr/share/dawnline/portal/cgi.uc; do
+            [ -x "package/luci-app-dawnline/root/$f" ] || { echo "::error file=package/luci-app-dawnline/root/$f::not executable (git update-index --chmod=+x $f)"; exit 1; }
+          done
+          for f in scripts/check-ucode.sh scripts/compile-ucode.sh scripts/ucode-container.sh tests/ucode/run.sh tests/ucode/fixtures/bin/awg; do
             [ -x "$f" ] || { echo "::error file=$f::not executable (git update-index --chmod=+x $f)"; exit 1; }
           done
 
       - name: Versions agree
         run: |
           v="$(sed -n 's/^PKG_VERSION:=//p' package/luci-app-dawnline/Makefile)"
-          grep -q "^export const VERSION = '$v';" package/luci-app-dawnline/root/usr/share/ucode/dawnline/util.uc
-          grep -q "\"version\": \"$v\"" web/package.json
+          grep -q "^export const VERSION = '$v';" package/luci-app-dawnline/root/usr/share/ucode/dawnline/util.uc ||
+            { echo "::error::util.uc VERSION differs from the Makefile ($v)"; exit 1; }
+          grep -q "\"version\": \"$v\"" web/package.json ||
+            { echo "::error::web/package.json version differs from the Makefile ($v)"; exit 1; }
+          python3 - "$v" <<'PY'
+          import json, sys
+          v = sys.argv[1]
+          lock = json.load(open('web/package-lock.json'))
+          got = (lock.get('version'), lock.get('packages', {}).get('', {}).get('version'))
+          if got != (v, v):
+              print(f"::error::web/package-lock.json says {got}, the Makefile {v}: run 'npm install' in web/")
+              sys.exit(1)
+          PY
           echo "Version $v"
+
+  ucode-compile:
+    # scripts/compile-ucode.sh and tests/ucode on the release's own ucode and
+    # libuci, in the OpenWrt rootfs containers scripts/ucode-container.sh pins
+    # by digest (24.10 = opkg, 25.12 = apk: the two the packages are built for).
+    name: ucode compiles and tests pass (OpenWrt ${{ matrix.release }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        release: ['24.10', '25.12']
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Compile every ucode file and run tests/ucode
+        run: scripts/ucode-container.sh ${{ matrix.release }}

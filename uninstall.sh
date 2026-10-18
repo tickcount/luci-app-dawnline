@@ -452,6 +452,10 @@ do_backup() {
 do_teardown() {
 	step "Running Dawnline's own removal"
 	if ubus list luci.dawnline >/dev/null 2>&1; then
+		# The removal takes the update lock itself: hand it over (the service is
+		# stopped first, so no automatic update can slip in between).
+		[ "$DRY_RUN" -eq 1 ] || /etc/init.d/dawnline stop >/dev/null 2>&1
+		exec 8>&- 2>/dev/null
 		# The same call as Settings → Remove Dawnline from this router.
 		if act "call luci.dawnline uninstall (Settings → Remove Dawnline)" rpc \
 			ubus -t 120 call luci.dawnline uninstall '{"confirm":"remove"}'; then

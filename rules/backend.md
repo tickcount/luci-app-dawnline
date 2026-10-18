@@ -27,4 +27,5 @@ Read with `code-standards.md`. Everything here runs on a small router (2 × Cort
 
 ## Checks
 
-- `scripts/lint-ucode.py` and `scripts/check-ucode.sh` (compiles on the router) pass before any deploy; new directories and entry points are added to both, and executables to the mode check in `.github/workflows/ci.yml`.
+- `scripts/lint-ucode.py` and `scripts/ucode-container.sh` (compiles and runs `tests/ucode` in the OpenWrt rootfs containers; `scripts/check-ucode.sh` compiles on the router instead) pass before any deploy; new directories and entry points are added to `lint-ucode.py` and `scripts/compile-ucode.sh`, and executables to the mode check in `.github/workflows/ci.yml`.
+- Pure functions get a case in `tests/ucode/<module>.test.uc`; what reads the clock takes an optional `ts` so a test can pass one.

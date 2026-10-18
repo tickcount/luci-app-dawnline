@@ -1,0 +1,22 @@
+#!/usr/bin/ucode
+// Dawnline personal portal as a CGI script: the request handling itself is
+// dawnline.portal. www/cgi-bin/portal (a shell) runs it for requests shaped
+// like a personal link and answers the rest itself.
+'use strict';
+
+import { stdin } from 'fs';
+import { serve } from 'dawnline.portal';
+
+let env = {};
+for (let k in [ 'REQUEST_METHOD', 'REQUEST_URI', 'REMOTE_ADDR', 'HTTPS', 'CONTENT_LENGTH', 'CONTENT_TYPE',
+		'HTTP_HOST', 'HTTP_ORIGIN', 'HTTP_USER_AGENT', 'HTTP_ACCEPT',
+		// The visitor behind Cloudflare (believed only when REMOTE_ADDR is Cloudflare's).
+		'HTTP_CF_CONNECTING_IP' ])
+	env[k] = getenv(k);
+
+serve({
+	env,
+	headers: {},
+	read: (n) => stdin.read(n),
+	write: (s) => print(s),
+});

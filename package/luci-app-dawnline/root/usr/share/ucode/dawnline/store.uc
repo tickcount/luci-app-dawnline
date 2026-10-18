@@ -9,9 +9,14 @@ import * as core from 'dawnline.core';
 /** Section names that are never ids of people, devices, servers, services or circles. */
 export const RESERVED_IDS = [ 'settings', 'main', 'global', 'defaults' ];
 
-/** Commit the dawnline config and keep it readable by root only. */
+/**
+ * Commit the dawnline config and keep it readable by root only. A commit
+ * that did not reach flash (full or read-only overlay) is an error: the
+ * caller's change never happened, and nothing downstream may act on it.
+ */
 export function commit(c) {
-	c.commit(core.CONFIG);
+	if (!c.commit(core.CONFIG))
+		die(`Couldn't save /etc/config/dawnline: ${c.error() ?? 'the write failed'}. Is the flash full?`);
 	system('chmod 600 /etc/config/dawnline');
 };
 

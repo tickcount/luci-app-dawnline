@@ -3,8 +3,10 @@
 
 ucode resolves names where they are used: calling a function that is declared
 further down the same file fails at runtime ("access to undeclared variable").
-Also: calls and named imports must match what a Dawnline module exports, and
-the rpcd methods (dawnline.rpc.*) must match the plugin and its ACL.
+Also: calls and named imports must match what a Dawnline module exports, the
+rpcd methods (dawnline.rpc.*) must match the plugin and its ACL, and regexes
+stay POSIX (rules/backend.md). Imports against the module layering are
+reported as notes, not failures.
 Run: scripts/lint-ucode.py [package root]
 """
 import glob
@@ -22,9 +24,8 @@ files = modules + [
     PLUGIN,
     f"{root}/usr/libexec/dawnline/agent",
     f"{root}/usr/libexec/dawnline/updater",
-    f"{root}/usr/libexec/dawnline/resolver",
     f"{root}/usr/bin/dawnline",
-    f"{root}/usr/share/dawnline/portal/www/cgi-bin/portal",
+    f"{root}/usr/share/dawnline/portal/cgi.uc",
 ]
 files = [f for f in files if os.path.exists(f)]
 bad = 0
@@ -38,6 +39,16 @@ def problem(msg):
 
 def strip_comments(text):
     return re.sub(r'//[^\n]*|/\*.*?\*/', '', text, flags=re.S)
+
+
+def blank_comments(text):
+    """Comments replaced by their newlines: line numbers stay, their text goes."""
+    return re.sub(r'//[^\n]*|/\*.*?\*/', lambda m: '\n' * m.group(0).count('\n'), text, flags=re.S)
+
+
+# A regex literal on one line: `/…/` with no slash inside, followed by flags or
+# a delimiter (so a division keeps out). Good enough for how Dawnline writes them.
+REGEX_LITERAL = re.compile(r'(?<![\w)\]])/((?:\\.|[^/\\\n])+)/[gis]*(?=[,);\s])')
 
 
 def modname(path):
@@ -55,7 +66,7 @@ for f in files:
             problem(f"{f}:{line}: {name}() is used before its definition")
     # In a module an exported function is an expression statement: its closing
     # brace needs a semicolon ("Expecting ';'" breaks the whole module).
-    lines = open(f, encoding='utf-8').read().split('\n')
+    lines = blank_comments(open(f, encoding='utf-8').read()).split('\n')
     inside = None
     for n, text in enumerate(lines, 1):
         if inside is None and re.match(r'^export function \w+\(', text):
@@ -68,6 +79,14 @@ for f in files:
         # not preceded by valid expression"), and let [a, b] = … does not compile.
         if re.search(r'/[^/\n]*\(\?[:=!][^/\n]*/', text):
             problem(f"{f}:{n}: ucode regexes are POSIX: no (?: (?= (?! groups")
+        # Lazy quantifiers (*? +? }?) and the [\s\S] class are PCRE: the C
+        # library's regcomp does something else with them or rejects them.
+        for m in REGEX_LITERAL.finditer(text):
+            body = m.group(1)
+            if re.search(r'(?<!\\)[*+}]\?', body):
+                problem(f"{f}:{n}: ucode regexes are POSIX: no lazy quantifiers (*? +? }}?) in /{body}/")
+            if re.search(r'\[\\[sS]\\[sS]\]', body):
+                problem(f"{f}:{n}: ucode regexes are POSIX: no [\\s\\S] class in /{body}/ (use (.|\\n) or a negated class)")
         if re.match(r'\s*(let|const)\s*[\[{]', text):
             problem(f"{f}:{n}: ucode has no destructuring")
 
@@ -123,6 +142,25 @@ if methods and os.path.exists(ACL):
                 problem(f"{ACL}: {kind} lists {name}, which no dawnline.rpc module defines")
         if 'uci' in acl.get(kind, {}) and 'dawnline' in acl[kind]['uci']:
             problem(f"{ACL}: {kind} grants uci 'dawnline' (private keys, no validation): use the rpc methods")
+
+# Layering (rules/backend.md): util, schema → core → store → domain modules →
+# apply → entry points. A module importing one from a layer above it is
+# reported, not failed, until the existing edges are untangled.
+LAYER = {'util': 0, 'schema': 1, 'core': 2, 'store': 3, 'apply': 5}
+LAYER_NAME = {0: 'util', 1: 'schema', 2: 'core', 3: 'store', 4: 'domain', 5: 'apply'}
+notes = 0
+for f in modules:
+    mod = modname(f)
+    if mod.startswith('rpc.'):
+        continue  # an entry point: may import anything
+    mine = LAYER.get(mod, 4)
+    for dep in re.findall(r"from 'dawnline\.([\w.]+)'", strip_comments(open(f, encoding='utf-8').read())):
+        theirs = LAYER.get(dep, 4)
+        if theirs > mine or (theirs == mine and mine < 4 and dep != mod):
+            print(f"note: {f}: {mod} ({LAYER_NAME[mine]}) imports dawnline.{dep} ({LAYER_NAME[theirs]}), a layer above it")
+            notes += 1
+if notes:
+    print(f"lint-ucode: {notes} layering notes (not failures)")
 
 print(f"lint-ucode: {len(files)} files checked" + (", problems found" if bad else ", ok"))
 sys.exit(bad)

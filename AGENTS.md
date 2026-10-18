@@ -17,13 +17,16 @@ This repo usually sits inside the router-admin workspace (`../AGENTS.md`). Its r
 - `package/luci-app-dawnline/root/` — what lands on the router: ucode modules in `usr/share/ucode/dawnline/` (`rpc/` for the LuCI backend), the agent and updater in `usr/libexec/dawnline/`, the portal in `usr/share/dawnline/portal/`, the init script, rpcd ACL.
 - `web/` — TypeScript sources of the admin UI (`src/admin`) and the portal (`src/portal`), shared code in `src/shared`; the built bundles are committed under `package/`.
 - `install.sh`, `uninstall.sh` — the standalone installer and uninstaller (both have `--dry-run`).
-- `scripts/` — `lint-ucode.py`, `check-ucode.sh` (compiles every module on the router without installing), `deploy.sh` (dev deploy over SSH), `build-packages.sh`, `build-release.sh`, `release-notes.sh`.
+- `scripts/` — `lint-ucode.py`, `compile-ucode.sh` (compiles every ucode file of a tree wherever ucode runs), `check-ucode.sh` (the same on the router, without installing), `ucode-container.sh` (compile and unit tests in the OpenWrt rootfs containers CI uses), `deploy.sh` (dev deploy over SSH), `build-packages.sh`, `build-release.sh`, `release-notes.sh`.
+- `tests/ucode/` — unit tests of the ucode modules (`run.uc` runs every `*.test.uc`; fixtures for `/etc/config` and a stand-in `awg`), run in a container by `run.sh`.
 
 ## Checks before a commit or deploy
 
-- `python3 scripts/lint-ucode.py` and `scripts/check-ucode.sh` (needs the router); new ucode entry points are added to the compile list there and to the executables list in `.github/workflows/ci.yml`.
-- In `web/`: `npm run format:check`, `npm run typecheck`, `npm test`, `npm run build` — and commit the rebuilt bundles.
-- `shellcheck -S warning` for the shell scripts (CI runs it).
+- `python3 scripts/lint-ucode.py` (use before definition, exports, POSIX regexes, rpcd methods; layering notes are informational).
+- `scripts/ucode-container.sh` (needs docker): compiles every ucode file and runs `tests/ucode` on OpenWrt 24.10 and 25.12, exactly what CI does. `scripts/check-ucode.sh` compiles on the router instead when there is no docker. New ucode entry points are added to the compile list in `scripts/compile-ucode.sh`, to `lint-ucode.py`, and to the executables list in `.github/workflows/ci.yml`; a pure function gets a case in `tests/ucode/<module>.test.uc`.
+- In `web/`: `npm run format:check`, `npm run typecheck` (sources and tests), `npm test`, `npm run build` — and commit the rebuilt bundles (CI fails on a changed or new file under `package/`).
+- `shellcheck -S warning` for the shell scripts (CI finds them by shebang).
+- A tag builds only after CI passes on it (`build.yml` calls `ci.yml`).
 
 ## Releases
 

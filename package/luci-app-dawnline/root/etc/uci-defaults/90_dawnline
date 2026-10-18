@@ -57,6 +57,12 @@ grep -qs /usr/libexec/dawnline/heartbeat /etc/crontabs/root || {
 # A reload keeps LuCI logins but sometimes misses the plugin; restart only then.
 sleep 2
 ubus list luci.dawnline >/dev/null 2>&1 || { /etc/init.d/rpcd restart; sleep 2; }
-/etc/init.d/dawnline enable
-/etc/init.d/dawnline restart
+# A fresh install starts the service; an upgrade restarts it only where the
+# admin had it on (a disabled Dawnline stays that way).
+if [ "$PKG_UPGRADE" = 1 ]; then
+	/etc/init.d/dawnline enabled && /etc/init.d/dawnline restart
+else
+	/etc/init.d/dawnline enable
+	/etc/init.d/dawnline restart
+fi
 exit 0

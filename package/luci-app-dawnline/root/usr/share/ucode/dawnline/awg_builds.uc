@@ -41,9 +41,21 @@ export function for_tag(fw, tag) {
 	return { ...fw, tag, postfix: replace(fw.postfix, fw.tag, tag) };
 };
 
-/** AmneziaWG generation of a tools version: 3.x packages carry 3.1, older ones (1.0.x) 2.0. */
+/**
+ * AmneziaWG generation of a package version: 3.x packages carry 3.1; 1.0.x
+ * ones are 2.0 (S3/S4, I1-I5, header ranges) from July 2025 on, and the
+ * first generation before that. A kernel module's version carries the kernel
+ * release in front (6.12.94.3.1.20260906): the AmneziaWG part is at the end.
+ */
 export function gen(version) {
-	return version == null ? null : match(version, /^3\./) ? '3.1' : '2.0';
+	if (version == null)
+		return null;
+	let v = match(`${version}`, /([0-9]+\.[0-9]+\.[0-9]{8})(-r?[0-9]+)?$/)?.[1] ?? `${version}`;
+	if (match(v, /^3\./))
+		return '3.1';
+	if (match(v, /^1\.0\.2024/) || match(v, /^1\.0\.20250[1-6]/))
+		return '1.0';
+	return '2.0';
 };
 
 /** The installed AmneziaWG packages: { name: version | null }. */

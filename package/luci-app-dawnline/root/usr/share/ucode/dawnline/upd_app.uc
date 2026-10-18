@@ -115,8 +115,11 @@ export function install(ctx, arg) {
 	out.to = replace(tag, /^v/, '');
 	ctx.versions(VERSION, out.to);
 	let f = fetch(ctx, tag, ctx.work);
-	// The version being replaced, for Roll back (downloaded again: opkg keeps no package files).
-	if (ctx.pol.keep && out.to != VERSION && upd.kept('app')?.version != VERSION) {
+	// The version being replaced, for Roll back (downloaded again: opkg keeps
+	// no package files). Always for an automatic run: nobody is there to
+	// recover a router whose new version does not come up (postupdate rolls
+	// back to it on its own).
+	if ((ctx.pol.keep || ctx.auto?.()) && out.to != VERSION && upd.kept('app')?.version != VERSION) {
 		ctx.phase(`Keeping Dawnline ${VERSION} for rollback`);
 		try {
 			system(`mkdir -p '${ctx.work}/keep'`);

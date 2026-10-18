@@ -51,6 +51,7 @@ function checkIcon(id: string): string {
   if (id === 'clock') return 'clock';
   if (id === 'agent') return 'activity';
   if (id === 'nft') return 'lock';
+  if (id === 'data') return 'users';
   return 'alert';
 }
 

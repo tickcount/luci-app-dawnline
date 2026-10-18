@@ -1,13 +1,13 @@
 {
   "name": "dawnline-web",
-  "version": "0.5.2",
+  "version": "0.6.0",
   "private": true,
   "license": "MIT",
   "type": "module",
   "scripts": {
     "build": "tsc --noEmit && tsup",
     "dev": "tsup --watch",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "test": "vitest run",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -17,6 +17,7 @@
     "qrcode-generator": "1.4.4"
   },
   "devDependencies": {
+    "@types/node": "22.20.5",
     "prettier": "3.6.2",
     "tsup": "8.5.0",
     "typescript": "5.9.3",

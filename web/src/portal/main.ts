@@ -34,6 +34,8 @@ interface State {
   can_add: boolean;
   /** The admin stopped the person (paused, access ended): the page only shows. */
   locked?: boolean;
+  /** Over plain HTTP: the same link over HTTPS, where the connection settings are. */
+  https_url?: string | null;
   kinds: Kind[];
   version: string;
   /** The router's day (YYYY-MM-DD) when it sends one; the browser's otherwise. */
@@ -87,6 +89,8 @@ class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    /** The HTTPS twin of this link, when the answer was "not over plain HTTP". */
+    public httpsUrl?: string,
   ) {
     super(message);
   }
@@ -106,7 +110,7 @@ async function call<T>(path: string, body?: unknown): Promise<T> {
   } catch {
     /* empty */
   }
-  if (!res.ok) throw new ApiError(res.status, data?.error ?? `Request failed (${res.status})`);
+  if (!res.ok) throw new ApiError(res.status, data?.error ?? `Request failed (${res.status})`, data?.https_url || undefined);
   return data as T;
 }
 
@@ -682,11 +686,44 @@ function main(st: State) {
 
 /* ---------- device flows ---------- */
 
+/**
+ * A plain-HTTP link (an IP address) shows the page, but keys only travel
+ * encrypted: the connection settings are on the HTTPS twin. Its certificate
+ * is the router's own, so the browser warns once; say so.
+ */
+function secureSheet(url: string) {
+  sheet(
+    'Open the link securely',
+    'Connection settings only travel encrypted',
+    h(
+      'div',
+      { class: 'stack gap' },
+      h('p', { class: 'muted' }, 'This page is open without encryption. To add or set up a device, open the same link over HTTPS:'),
+      h('a', { class: 'btn primary block big', href: url }, ic('lock'), h('span', {}, 'Open securely')),
+      h(
+        'p',
+        { class: 'faint s' },
+        'The browser may warn that the certificate is not trusted: it is this router’s own. Choose to continue (“Advanced” → “Proceed”).',
+      ),
+    ),
+  );
+}
+
+/** The secure twin when this page is plain HTTP, else null. */
+const httpsTwin = () => state?.https_url || null;
+
 async function getConfig(d: Device): Promise<ClientConfig | null> {
+  const twin = httpsTwin();
+  if (twin) {
+    secureSheet(twin);
+    return null;
+  }
   try {
     return await call<ClientConfig>(`devices/${d.id}/config`);
   } catch (e) {
-    toast((e as Error).message, true);
+    const er = e as ApiError;
+    if (er.httpsUrl) secureSheet(er.httpsUrl);
+    else toast(er.message, true);
     return null;
   }
 }
@@ -844,15 +881,47 @@ async function connect(d: Device, initial?: 'app' | 'qr' | 'key' | 'file', cfgIn
     else live.replaceChildren(h('span', { class: 'warn' }, 'Waiting for the first connection…'));
   };
   paintLive(d);
-  const watch = window.setInterval(async () => {
+  // Only while the first connection is awaited (every poll is a process on
+  // the router): 5 s at first, then slower, for ten minutes at most, not
+  // while the tab is hidden, and never again once the link stopped working
+  // (a replaced link would otherwise count as guesses from this network).
+  let timer = 0,
+    polls = 0,
+    done = !!d.handshake || d.disabled;
+  const started = Date.now();
+  const poll = async () => {
+    timer = 0;
+    if (done || Date.now() - started > 600_000) return;
+    if (document.hidden) {
+      schedule();
+      return;
+    }
     try {
       const st = await call<State>('state');
       state = st;
-      paintLive(st.person.devices.find((x) => x.id === d.id));
-    } catch {
-      /* ignore */
+      const dev = st.person.devices.find((x) => x.id === d.id);
+      paintLive(dev);
+      if (dev?.online || dev?.handshake) {
+        done = true;
+        return;
+      }
+    } catch (e) {
+      if ((e as ApiError).status === 404 || (e as ApiError).status === 401) {
+        done = true;
+        return;
+      }
     }
-  }, 5000);
+    polls++;
+    schedule();
+  };
+  const schedule = () => {
+    if (!done && !timer) timer = window.setTimeout(poll, polls < 6 ? 5000 : polls < 12 ? 15000 : 30000);
+  };
+  const onVisible = () => {
+    if (!document.hidden && !done && !timer) void poll();
+  };
+  document.addEventListener('visibilitychange', onVisible);
+  schedule();
   sheet(
     d.handshake ? `Connect ${d.name}` : `${d.name} is ready`,
     mobile ? 'Add it to AmneziaVPN on this phone' : 'Scan with the phone’s camera or AmneziaVPN',
@@ -861,7 +930,9 @@ async function connect(d: Device, initial?: 'app' | 'qr' | 'key' | 'file', cfgIn
     live,
   );
   sheetClosed = () => {
-    clearInterval(watch);
+    done = true;
+    if (timer) clearTimeout(timer);
+    document.removeEventListener('visibilitychange', onVisible);
     if (state) main(state);
   };
 }
@@ -1023,6 +1094,11 @@ function guessName(kind: Kind): string {
 
 function addDevice() {
   if (!state) return;
+  const twin = httpsTwin();
+  if (twin) {
+    secureSheet(twin);
+    return;
+  }
   let kind: Kind = guessKind();
   const taken = new Set(state.person.devices.map((d) => d.name.toLowerCase()));
   const suggest = (k: Kind) => {
@@ -1084,6 +1160,10 @@ function addDevice() {
             const dev = r.state.person.devices.find((d) => d.id === r.id)!;
             await connect(dev, undefined, r.config);
           } catch (er) {
+            if ((er as ApiError).httpsUrl) {
+              secureSheet((er as ApiError).httpsUrl as string);
+              return;
+            }
             err.textContent = (er as Error).message;
             submit.disabled = false;
           }

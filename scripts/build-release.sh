@@ -19,9 +19,9 @@ grep -q "\"version\": \"$VERSION\"" "$ROOT/web/package.json" || { echo "web/pack
 mkdir -p "$STAGE/www" "$OUT"
 cp -R "$APP/root/." "$STAGE/"
 cp -R "$APP/htdocs/." "$STAGE/www/"
-chmod 755 "$STAGE/usr/bin/dawnline" "$STAGE/usr/libexec/dawnline/agent" "$STAGE/usr/libexec/dawnline/updater" "$STAGE/usr/libexec/dawnline/resolver" \
+chmod 755 "$STAGE/usr/bin/dawnline" "$STAGE/usr/libexec/dawnline/agent" "$STAGE/usr/libexec/dawnline/updater" "$STAGE/usr/libexec/dawnline/resolver" "$STAGE/usr/libexec/dawnline/postupdate" \
 	"$STAGE/etc/init.d/dawnline" "$STAGE/etc/uci-defaults/90_dawnline" "$STAGE/etc/hotplug.d/iface/95-dawnline" \
-	"$STAGE/usr/share/dawnline/portal/www/cgi-bin/portal"
+	"$STAGE/usr/share/dawnline/portal/www/cgi-bin/portal" "$STAGE/usr/share/dawnline/portal/cgi.uc"
 find "$STAGE" -name '.DS_Store' -delete
 
 TAR="$OUT/luci-app-dawnline-$VERSION.tar.gz"

@@ -11,14 +11,14 @@ import {
 	iface_status as util_iface_status, RUN_DIR, DATA_DIR
 } from 'dawnline.util';
 import * as awg from 'dawnline.awg';
+import * as schema from 'dawnline.schema';
 
 // Online while the WireGuard session lives: it is dropped 180 s after its
 // handshake, and a device that is there renews it every 2 min (a little slack
 // for a renewal that needs a retry). One that left goes offline 1-3 min later.
 export const ONLINE_WINDOW = 190;
-const KEEP_DAYS = 62;
-const KEEP_MONTHS = 24;
-const KEEP_EVENTS = 2000;
+/** A restore put other counters on flash: the agent reloads from there (dawnline.backup writes it). */
+export const USAGE_RELOAD = `${RUN_DIR}/usage.reload`;
 
 /* ---------- retention policy ---------- */
 
@@ -38,9 +38,6 @@ export function category_of(type) {
 	return CATEGORY[type] ?? 'problems';
 };
 
-function int_or(v, d) {
-	return (v == null || v == '' || match(`${v}`, /[^0-9]/)) ? d : +v;
-}
 
 /**
  * Log and history retention from /etc/config/dawnline (read fresh, the
@@ -62,13 +59,14 @@ export function policy(s) {
 	else if (type(cats) != 'array')
 		cats = split(cats, /[ ,]+/);
 	cats = uniq(filter(map(cats, (x) => x == 'devices' ? 'people' : x), (x) => index(CATEGORIES, x) >= 0));
+	// Defaults and ranges come from dawnline.schema, like every other setting.
 	return {
-		keep_days: int_or(s.log_keep_days, 30),
-		max: min(max(int_or(s.log_max, KEEP_EVENTS), 100), 20000),
+		keep_days: schema.get(s, 'log_keep_days'),
+		max: schema.get(s, 'log_max'),
 		categories: cats,
-		persist: index([ '10min', 'hourly', 'off' ], s.log_persist) >= 0 ? s.log_persist : 'hourly',
-		usage_days: min(max(int_or(s.usage_keep_days, KEEP_DAYS), 7), 1830),
-		usage_months: min(max(int_or(s.usage_keep_months, KEEP_MONTHS), 1), 120),
+		persist: schema.get(s, 'log_persist'),
+		usage_days: schema.get(s, 'usage_keep_days'),
+		usage_months: schema.get(s, 'usage_keep_months'),
 	};
 };
 
@@ -110,7 +108,10 @@ export function presence() {
  * handshake, rx, tx } }, presence }. See dawnline.awg.
  */
 export function dump(m) {
-	let d = awg.dump();
+	// Only Dawnline's own tunnels decide `ok`: another AmneziaWG interface on
+	// the router that cannot be read is not our trouble.
+	let mine = m ? map(filter(values(m.servers), (s) => s.private_key && s.enabled), (s) => s.ifname) : null;
+	let d = awg.dump(mine);
 	d.presence = presence();
 	return d;
 };
@@ -134,8 +135,13 @@ function empty_usage() {
 	return { devices: {}, people: {}, updated: 0, flushed: 0 };
 }
 
-export function load_usage() {
-	let u = read_json(`${RUN_DIR}/usage.json`, null) ?? read_json(`${DATA_DIR}/usage.json`, null) ?? empty_usage();
+/**
+ * The usage counters: the live copy in RUN_DIR, else what flash holds. With
+ * `from_flash` only flash counts (a restore put new counters there, and the
+ * watcher may have written the old live ones again since).
+ */
+export function load_usage(from_flash) {
+	let u = (from_flash ? null : read_json(`${RUN_DIR}/usage.json`, null)) ?? read_json(`${DATA_DIR}/usage.json`, null) ?? empty_usage();
 	// Per-app counters of earlier test builds are not kept.
 	delete u.clients;
 	return u;

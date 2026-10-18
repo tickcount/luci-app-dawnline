@@ -16,6 +16,10 @@
 
 /* dialogs */
 .dl-modal .cbi-tabmenu { margin-bottom: 16px; }
+/* A list of things to tick (devices to remove with an old link). */
+.dl-checklist { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 8px; }
+.dl-checklist label { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; }
+.dl-checklist input { margin: 0; }
 .dl-invite { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 22px; align-items: start; }
 .dl-invite img { display: block; width: 100%; border-radius: 18px; box-shadow: 0 0 0 1px var(--dl-line); }
 .dl-invite-side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }

@@ -5,6 +5,8 @@ import { E } from './e';
 import { icon } from '../shared/icons';
 
 export type Method = 'standard' | 'strong' | 'max' | 'off';
+/** The router features a method may need (the boolean ones of AwgCaps). */
+export type AwgNeed = 'v2' | 'v3';
 
 export interface MethodInfo {
   id: Method;
@@ -19,7 +21,7 @@ export interface MethodInfo {
   /** The same, short (server header). */
   short: string;
   /** Router capability it needs. */
-  needs?: keyof AwgCaps;
+  needs?: AwgNeed;
 }
 
 export const METHODS: MethodInfo[] = [
@@ -68,13 +70,13 @@ export const METHODS: MethodInfo[] = [
 
 export const methodInfo = (id: string): MethodInfo | undefined => METHODS.find((x) => x.id === id);
 
-const NEEDS: Record<keyof AwgCaps, string> = {
+const NEEDS: Record<AwgNeed, string> = {
   v2: 'Needs AmneziaWG 1.5 or newer on the router.',
   v3: 'Needs AmneziaWG 3.1 on the router (kmod-amneziawg and amneziawg-tools 3.1).',
 };
 
 /** The same while no AmneziaWG is installed at all ("newer" would be misleading). */
-const NEEDS_NONE: Record<keyof AwgCaps, string> = {
+const NEEDS_NONE: Record<AwgNeed, string> = {
   v2: 'Needs AmneziaWG on the router.',
   v3: 'Needs AmneziaWG 3.1 on the router: install it first.',
 };

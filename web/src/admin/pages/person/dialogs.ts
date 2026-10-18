@@ -18,11 +18,40 @@ export function invite(page: PersonPage) {
   void inviteCard(page.p, server);
 }
 
+/**
+ * A new link locks the old one out of the portal, but not what it already
+ * got: devices added through it keep their tunnel. They are offered for
+ * removal here, ticked, so a leaked link is really contained.
+ */
 export async function newLink(page: PersonPage) {
   const p = page.p;
-  if (!(await confirmDialog('Create a new link?', 'The old link stops working right away.', 'Create new link', true))) return;
-  const r = await attempt(() => api.personRegen(p.id), 'New link created');
-  if (r?.link) await copyText(r.link, 'New link copied');
+  const since = p.code_set ?? 0;
+  const suspect = p.devices.filter((d) => d.created_by === 'portal' && d.created >= since);
+  const boxes = suspect.map(
+    (d) => E('input', { type: 'checkbox', id: `dl-rm-${d.id}`, checked: 'checked', 'data-id': d.id }) as HTMLInputElement,
+  );
+  const body: Node[] = [E('p', {}, 'The old link stops working right away.')];
+  if (suspect.length)
+    body.push(
+      E('p', {}, 'Devices added through the old link keep working until they are removed. Remove them too:'),
+      E(
+        'div',
+        { class: 'dl-checklist' },
+        suspect.map((d, i) => E('label', { for: `dl-rm-${d.id}` }, [boxes[i], ` ${d.name}`])),
+      ),
+    );
+  const go = async () => {
+    const remove = boxes.filter((b) => b.checked).map((b) => b.dataset.id as string);
+    const r = await attempt(
+      () => api.personRegen(p.id, remove),
+      remove.length ? `New link created, ${remove.length} device${remove.length === 1 ? '' : 's'} removed` : 'New link created',
+    );
+    if (!r) return;
+    closeModal();
+    if (remove.length) await page.refresh();
+    if (r.link) await copyText(r.link, 'New link copied');
+  };
+  modal('Create a new link?', body, [cancelButton(), ' ', button('Create new link', go, 'negative')]);
 }
 
 export function editNote(page: PersonPage) {

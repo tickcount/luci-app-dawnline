@@ -312,7 +312,7 @@ function server_create(a) {
 	// after that (by hand, or by an older installer) needs a network restart.
 	let network_restart = !awg.state().handler;
 	sh_bg(network_restart ? '/etc/init.d/network restart; /etc/init.d/dawnline restart' : '/etc/init.d/dawnline restart');
-	return { id, applied: r, network_restart };
+	return { id, applied: r, network_restart, warning: r.warning };
 }
 
 /* ---------- interfaces ---------- */

@@ -48,10 +48,10 @@ function person_update(a) {
 	if (changes)
 		live.add_event_merged({ type: 'person_changed', person: a.id, detail: changes, by: 'admin' }, 120);
 	// Access changes affect the nft sets and client AllowedIPs.
-	apply.sync();
+	let s = apply.sync();
 	let m = core.load();
 	let u = core.load_usage();
-	return { person: view.person_view(m, m.people[a.id], u, live.dump(m), view.states(m, u), { admin: true }), was: before?.access };
+	return { person: view.person_view(m, m.people[a.id], u, live.dump(m), view.states(m, u), { admin: true }), was: before?.access, warning: s.warning };
 }
 
 function person_pause(a) {
@@ -67,16 +67,34 @@ function person_pause(a) {
 	return apply.sync();
 }
 
-/** A new personal link: the old one stops working at once (every portal request carries the code). */
+/**
+ * A new personal link: the old one stops working at once (every portal
+ * request carries the code). What the old link already handed out stays
+ * unless asked: `remove` lists the person's devices to take away with it.
+ */
 function person_regen(a) {
-	store.transact((c, m) => {
+	let gone = store.transact((c, m) => {
 		if (!m.people[a.id])
 			die('Unknown person.');
 		c.set(core.CONFIG, a.id, 'code', core.new_code());
+		c.set(core.CONFIG, a.id, 'code_set', `${time()}`);
+		let gone = [];
+		for (let id in (type(a.remove) == 'array' ? a.remove : []))
+			if (m.devices[id]?.person == a.id) {
+				push(gone, m.devices[id]);
+				core.delete_device(c, m, id);
+			}
+		return gone;
 	});
 	live.add_event({ type: 'link_changed', person: a.id, by: 'admin' });
+	let s = null;
+	if (length(gone)) {
+		for (let d in gone)
+			live.add_event({ type: 'device_removed', person: a.id, device: d.id, detail: d.name, dname: d.name, dkind: d.kind, by: 'admin' });
+		s = apply.sync();
+	}
 	let m = core.load();
-	return { link: core.portal_url(m, m.people[a.id]) };
+	return { link: core.portal_url(m, m.people[a.id]), removed: length(gone), warning: s?.warning };
 }
 
 /** The personal code and links (Copy link, QR, invite): admins only, unlike status. */
@@ -142,7 +160,7 @@ export const methods = {
 		call: wrap(person_update),
 	},
 	person_pause: { args: { id: '', paused: false }, call: wrap(person_pause) },
-	person_regen: { args: { id: '' }, call: wrap(person_regen) },
+	person_regen: { args: { id: '', remove: [] }, call: wrap(person_regen) },
 	person_links: { args: { id: '' }, call: wrap(person_links) },
 	person_delete: { args: { id: '' }, call: wrap(person_delete) },
 	person_usage: { args: { id: '', days: 30 }, call: wrap(person_usage) },

@@ -64,6 +64,8 @@ export interface Person {
   /** Circle id on their server (when the server uses circles); admin only. */
   circle?: string;
   created?: number;
+  /** When the personal link was last made (0: unknown); admin only. */
+  code_set?: number;
 }
 
 export type MeshMode = 'off' | 'all' | 'circles';
@@ -170,6 +172,11 @@ export interface Geo {
 export interface AwgCaps {
   v2: boolean;
   v3: boolean;
+  /** Generations of the tools and the kernel module ('1.0' | '2.0' | '3.1'; null unknown). */
+  tools?: string | null;
+  kmod?: string | null;
+  /** The two differ: a feature counts only when both have it. */
+  mismatch?: boolean;
 }
 
 /** Whether AmneziaWG can run here: tools and kernel module installed, the module loaded, netifd's proto handler present. */

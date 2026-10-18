@@ -6,11 +6,13 @@
 
 import { readfile, stat, unlink } from 'fs';
 import {
-	q, sh, sh_out, rand_int, rand_bytes, valid_key, ensure_dir, write_file, read_json, write_json, lock, unlock,
+	q, sh, sh_out, rand_int, rand_bytes, valid_key, ip2int, ensure_dir, write_file, read_json, write_json, lock, unlock,
 	slog, iface_status, DATA_DIR, RUN_DIR
 } from 'dawnline.util';
 import * as core from 'dawnline.core';
 import * as net from 'dawnline.net';
+import * as pkg from 'dawnline.pkg';
+import * as builds from 'dawnline.awg_builds';
 
 /** Names in .conf files (and AmneziaVPN keys); netifd uses `awg_<key>`. */
 export const OBF_CONF = {
@@ -132,22 +134,94 @@ function rand_h(used) {
 	}
 }
 
+// caps() answers from here while the tool, the protocol script and the module file are the same.
+const CAPS = `${RUN_DIR}/awg-caps.json`;
+
 /**
- * What the installed AmneziaWG can do, from the netifd protocol script (the
- * options it passes on) and the `awg` tool (the keys it accepts):
+ * What the installed AmneziaWG can do: the netifd protocol script (the
+ * options it passes on) and the `awg` tool (the keys it accepts) say what the
+ * tools know, the kernel module's package version what the kernel runs, and
+ * a feature counts only when both have it (tools 3.1 over a 2.0 module would
+ * configure header protection that the kernel silently lacks):
  *   v2 — S3/S4, I1-I5, header ranges (AWG 1.5/2.0)
  *   v3 — header protection, trailers, padding, timing (AWG 3.1)
+ *   tools / kmod — their generations ('1.0', '2.0', '3.1'; null unknown)
+ *   mismatch — the two differ
  */
 export function caps() {
-	let script = readfile('/lib/netifd/proto/amneziawg.sh') ?? '';
+	let rel = trim(readfile('/proc/sys/kernel/osrelease') ?? '');
+	let key = `${stat(`/lib/modules/${rel}/amneziawg.ko`)?.mtime ?? 0}/${stat(TOOL)?.mtime ?? 0}/${stat(PROTO)?.mtime ?? 0}`;
+	let cached = read_json(CAPS, null);
+	if (cached?.key == key && cached.caps)
+		return cached.caps;
+	let script = readfile(PROTO) ?? '';
 	let tool = sh_out("grep -a -o -m1 'HeaderProtectionKey' /usr/bin/awg 2>/dev/null") ?? '';
-	let v2 = index(script, 'awg_s3') >= 0 && index(script, 'awg_i1') >= 0;
-	let v3 = v2 && index(script, 'awg_header_protection_key') >= 0 && tool != '';
-	return { v2, v3 };
+	let t2 = index(script, 'awg_s3') >= 0 && index(script, 'awg_i1') >= 0;
+	let t3 = t2 && index(script, 'awg_header_protection_key') >= 0 && tool != '';
+	let tools = !stat(TOOL) ? null : t3 ? '3.1' : t2 ? '2.0' : '1.0';
+	// A module installed by hand has no package: then the tools are believed.
+	let kmod = builds.gen(pkg.version('kmod-amneziawg'));
+	let out = {
+		v2: t2 && (kmod == null || kmod != '1.0'),
+		v3: t3 && (kmod == null || kmod == '3.1'),
+		tools, kmod, mismatch: tools != null && kmod != null && tools != kmod,
+	};
+	ensure_dir(RUN_DIR);
+	write_json(CAPS, { key, caps: out }, 0o644);
+	return out;
 };
 
-/** First junk packet shaped like a DNS answer (AmneziaVPN's own default for 3.1). */
-const DNS_MIMIC = '<r 2><b 0x858000010001000000000669636c6f756403636f6d0000010001c00c000100010000105a00044d583737>';
+/**
+ * Why this AmneziaWG cannot run a server's disguise values, or null: a 3.1
+ * preset after a rollback to a 2.0 build would come up without the header
+ * protection every device expects, so such a server is kept down instead
+ * (dawnline.netifd).
+ */
+export function obf_unsupported(o) {
+	let c = caps();
+	let has = (keys) => length(filter(keys, (k) => o?.[k] != null && o[k] != '')) > 0;
+	let v3 = [ 'header_protection_key', 'content_padding_addition', 'rekey_after_time', 'rekey_timeout', 'reject_after_time',
+		'keepalive_timeout', 'max_handshake_attempts', 'random_trailers', 'disable_cookies' ];
+	let v2 = [ 's3', 's4', 'i1', 'i2', 'i3', 'i4', 'i5' ];
+	let ranged = length(filter([ 'h1', 'h2', 'h3', 'h4' ], (k) => match(`${o?.[k] ?? ''}`, /-/))) > 0;
+	if (has(v3) && !c.v3)
+		return `its disguise needs AmneziaWG 3.1 (installed: ${c.kmod ?? c.tools ?? 'none'})`;
+	if ((has(v2) || ranged) && !c.v2)
+		return `its disguise needs AmneziaWG 2.0 (installed: ${c.kmod ?? c.tools ?? 'none'})`;
+	return null;
+};
+
+/**
+ * Signature packets shaped like DNS, made fresh for each server: the same
+ * fixed bytes on every router (AmneziaVPN's own 3.1 default is one constant
+ * answer about icloud.com) would be one rule for a DPI to match. A query and
+ * an answer about a name of this server's own, with its own TTL and address.
+ *   <r N> random bytes, <rc N> random letters, <b 0x..> fixed bytes
+ */
+function dns_name_hex() {
+	let hex = (s) => {
+		let out = '';
+		for (let i = 0; i < length(s); i++)
+			out += sprintf('%02x', ord(s, i));
+		return out;
+	};
+	let tld = [ 'com', 'net', 'org', 'io' ][rand_int(0, 3)];
+	let n = rand_int(5, 9);
+	return { labels: `<b 0x${sprintf('%02x', n)}><rc ${n}><b 0x${sprintf('%02x', length(tld))}${hex(tld)}00>`, len: n + length(tld) + 2 };
+}
+
+function dns_query() {
+	let name = dns_name_hex();
+	// id, flags (standard query, recursion desired), 1 question, name, type A, class IN
+	return `<r 2><b 0x01000001000000000000>${name.labels}<b 0x00010001>`;
+}
+
+function dns_answer() {
+	let name = dns_name_hex();
+	let ttl = sprintf('%08x', rand_int(300, 86400));
+	// id, flags (answer, authoritative, recursion), 1 question, 1 answer, name, A IN, pointer, A IN, ttl, 4 bytes
+	return `<r 2><b 0x85800001000100000000>${name.labels}<b 0x00010001c00c00010001${ttl}0004><r 4>`;
+}
 
 /**
  * Generate obfuscation parameters for a method:
@@ -164,7 +238,7 @@ export function obf_preset(name) {
 			jc: `${rand_int(4, 6)}`, jmin: '10', jmax: '50',
 			s1: '12', s2: '12', s3: '12', s4: '12',
 			h1: '1', h2: '2', h3: '3', h4: '4',
-			i1: DNS_MIMIC,
+			i1: dns_query(), i2: dns_answer(),
 			header_protection_key: sh_out('awg genkey'),
 			content_padding_addition: '10-100',
 			rekey_after_time: '100-120', rekey_timeout: '3-7', reject_after_time: '150-180',
@@ -299,8 +373,10 @@ export function client_config(m, dev) {
 		push(lines, `PresharedKey = ${dev.preshared_key}`);
 	push(lines, `AllowedIPs = ${join(', ', allowed)}`);
 	push(lines, `Endpoint = ${ep}:${srv.port}`);
+	// With 3.1 (its apps take ranges) the keep-alive is jittered like the
+	// other timers; a fixed beat would be the one regular thing left.
 	if (srv.keepalive > 0)
-		push(lines, `PersistentKeepalive = ${srv.keepalive}`);
+		push(lines, `PersistentKeepalive = ${srv.obf.header_protection_key ? `${srv.keepalive}-${srv.keepalive + 10}` : srv.keepalive}`);
 	return {
 		name: dev.name,
 		person: p.name,
@@ -361,7 +437,9 @@ export function sync_peers(m, states) {
 		let lines = [ '[Interface]', `PrivateKey = ${srv.private_key}`, `ListenPort = ${srv.port}`, '' ];
 		for (let did, d in m.devices) {
 			let p = m.people[d.person];
-			if (!p || p.server != id || d.disabled || states[p.id] != 'active' || !d.public_key || !d.address)
+			// One malformed line makes syncconf refuse the whole server: such a device
+			// stays out (Health's Data check names it).
+			if (!p || p.server != id || d.disabled || states[p.id] != 'active' || !valid_key(d.public_key) || ip2int(d.address) == null)
 				continue;
 			push(lines, '[Peer]', `PublicKey = ${d.public_key}`);
 			if (d.preshared_key)
@@ -381,17 +459,24 @@ export function sync_peers(m, states) {
 
 /**
  * Parse `awg show all dump`. Returns { ok, ifaces: { ifname: {...} }, peers: { pubkey: {...} } }.
- * Interface lines have many fields (AmneziaWG adds obfuscation values); peer
- * lines always have 9. The tool fails when any one interface can't be read,
- * but still prints the others: those are kept and `ok` is false, so only the
- * interfaces listed in `ifaces` are known.
+ * Lines are told apart by their shape, not their length (each AmneziaWG
+ * generation adds fields to the interface line): an interface line carries
+ * its private and public key and a port, a peer line the peer's key, a
+ * preshared key or "(none)" and an endpoint. The tool fails when any one
+ * interface can't be read, but still prints the others: with `wanted` (the
+ * ifnames that matter) `ok` means those were all read, so another tunnel's
+ * trouble is not ours.
  */
-export function dump() {
+export function dump(wanted) {
 	let r = sh('awg show all dump');
 	let out = { ok: r.code == 0, ifaces: {}, peers: {} };
 	for (let line in split(r.out, '\n')) {
 		let f = split(line, '\t');
-		if (length(f) == 9) {
+		if (length(f) < 5 || !valid_key(f[1]))
+			continue;
+		if (valid_key(f[2]) && match(f[3] ?? '', /^[0-9]+$/))
+			out.ifaces[f[0]] = { public_key: f[2], port: +f[3] };
+		else if (length(f) >= 9 && (f[2] == '(none)' || valid_key(f[2]))) {
 			let ep = f[3] == '(none)' ? '' : f[3];
 			out.peers[f[1]] = {
 				ifname: f[0],
@@ -401,10 +486,9 @@ export function dump() {
 				tx: +f[7],
 			};
 		}
-		else if (length(f) >= 5) {
-			out.ifaces[f[0]] = { public_key: f[2], port: +f[3] };
-		}
 	}
+	if (!out.ok && type(wanted) == 'array')
+		out.ok = length(filter(wanted, (n) => !out.ifaces[n])) == 0;
 	return out;
 };
 

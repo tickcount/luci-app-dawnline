@@ -19,8 +19,14 @@
 // other sites' logs. The portal can only manage the person's own devices
 // within their limits, and not those the admin turned off (dawnline.devices).
 //
+// Changes through a link are limited too (a link is not a terminal: a few
+// dozen every quarter hour), and the configurations themselves (keys, the
+// disguise) only go over HTTPS: a plain-HTTP link (an IP address in Settings)
+// shows the page, but gets them from its HTTPS twin.
+//
 // handle() serves one request: `io` = { env, headers, read(n), write(s) }; the
-// CGI script (www/cgi-bin/portal) is its wrapper.
+// CGI script (cgi.uc) is its wrapper, behind the shell door www/cgi-bin/portal
+// that answers anything not shaped like a link (its not_found() twin).
 
 import { stat, readfile } from 'fs';
 import { read_json, write_json, ensure_dir, lock, unlock, cloudflare_ip, ip2int, today, VERSION, RUN_DIR } from 'dawnline.util';
@@ -41,6 +47,8 @@ const SHARED_LIMIT = FAIL_LIMIT * 25;
 const SHARED_KEY = 'cloudflare';
 // Clients remembered at most (the oldest go first).
 const RATE_MAX = 2000;
+// Changes one link may make within FAIL_WINDOW (each one writes flash and syncs the tunnels).
+const ACTION_LIMIT = 40;
 const BODY_MAX = 8192;
 // The early end of a request (a response was written).
 const DONE = '__dawnline_done__';
@@ -216,6 +224,21 @@ function rate_fail(r) {
 		live.add_event({ type: 'portal_blocked', detail: k == SHARED_KEY ? 'all Cloudflare visitors' : k });
 }
 
+/** One more change through this link; refused beyond ACTION_LIMIT per window. */
+function rate_action(r) {
+	let key = `act:${r.person.id}`;
+	let l = lock('portal-rate');
+	let st = rate_state();
+	let v = st[key] ?? { first: time(), count: 0 };
+	v.count++;
+	st[key] = v;
+	ensure_dir(RUN_DIR);
+	write_json(RATE, st, 0o600);
+	unlock(l);
+	if (v.count > ACTION_LIMIT)
+		fail(r, '429 Too Many Requests', 'Too many changes in a short time. Try again in a few minutes.');
+}
+
 /* ---------- pages ---------- */
 
 /** The app shell; it reads the code from its own URL and sends it along. */
@@ -295,6 +318,26 @@ function need_open(r) {
 		fail(r, '403 Forbidden', why);
 }
 
+/** The same link over HTTPS (for a plain-HTTP visitor), or null when this is it. */
+function https_url(r) {
+	if (r.https)
+		return null;
+	let host = r.host;
+	let h = match(host, /^\[/) ? match(host, /^(\[[^\]]*\])/)?.[1] : split(host, ':')[0];
+	let port = r.m.settings.portal_port;
+	return `https://${h}${port == 443 ? '' : `:${port}`}${r.base}`;
+}
+
+/**
+ * Keys and the disguise never travel in the clear: over plain HTTP a
+ * configuration is refused, and the answer names the HTTPS link to use.
+ */
+function need_https(r) {
+	let u = https_url(r);
+	if (u)
+		send_json(r, '403 Forbidden', { error: 'Open this link over HTTPS to get the connection settings.', https_url: u });
+}
+
 /** Everything the page shows. */
 function state(r) {
 	let m = r.m, person = r.person;
@@ -318,6 +361,8 @@ function state(r) {
 		},
 		can_add: length(person.devices) < person.device_limit,
 		locked: LOCKED[v.state] != null,
+		// Over plain HTTP: where the configurations are (keys only travel encrypted).
+		https_url: https_url(r),
 		kinds: core.KINDS,
 		// The router's day: access ends and usage days follow its clock, not the browser's.
 		today: today(),
@@ -339,9 +384,11 @@ function api_state(r) {
 
 function api_add(r) {
 	need_open(r);
+	need_https(r);
 	let b = body(r);
 	if (!devices.ready())
 		fail(r, '503 Service Unavailable', NOT_READY);
+	rate_action(r);
 	let res = guard(r, () => devices.add(r.person.id, b.name, b.kind, { by: 'portal', public_key: b.public_key }));
 	reload(r);
 	send_json(r, '200 OK', { id: res.id, config: res.config, state: state(r) });
@@ -350,6 +397,7 @@ function api_add(r) {
 function api_config(r, id) {
 	let d = own_device(r, id);
 	need_open(r);
+	need_https(r);
 	awg.mark_issued(r.m, d.id);
 	send_json(r, '200 OK', awg.client_config(r.m, d));
 }
@@ -361,6 +409,7 @@ const ACTIONS = {
 		return {};
 	},
 	rotate: (r, d, b) => {
+		need_https(r);
 		if (!devices.ready())
 			fail(r, '503 Service Unavailable', NOT_READY);
 		let config = guard(r, () => devices.rotate(d.id, { by: 'portal', person: r.person.id, defer: d.address == r.peer }));
@@ -379,6 +428,7 @@ function api_device(r, id) {
 	let act = ACTIONS[b.action];
 	if (!act)
 		fail(r, '400 Bad Request', 'Unknown action.');
+	rate_action(r);
 	let res = act(r, d, b);
 	reload(r);
 	send_json(r, '200 OK', { ok: true, ...res, state: state(r) });
@@ -425,7 +475,7 @@ export function handle(io) {
 	let host = header('host') ?? '';
 	let m = core.load();
 	let r = {
-		io, env, m, path, https,
+		io, env, m, path, https, host,
 		method: env.REQUEST_METHOD ?? 'GET',
 		peer: env.REMOTE_ADDR ?? '',
 		buckets: buckets(env),

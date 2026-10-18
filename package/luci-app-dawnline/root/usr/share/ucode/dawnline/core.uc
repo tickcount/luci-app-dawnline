@@ -8,6 +8,7 @@ import {
 	rand_hex, rand_bytes, date_end, month_key, read_json, DATA_DIR, RUN_DIR, uniq
 } from 'dawnline.util';
 import * as net from 'dawnline.net';
+import * as schema from 'dawnline.schema';
 import { policy as updates_policy } from 'dawnline.updates';
 
 export const CONFIG = 'dawnline';
@@ -68,28 +69,31 @@ export function open_cursor() {
 export function load(c) {
 	c ??= open_cursor();
 	let s = c.get_all(CONFIG, 'settings') ?? {};
+	// Types, defaults and ranges of the settings live in dawnline.schema (one
+	// place): what is read here is what settings_update would have accepted.
+	let g = (k) => schema.get(s, k);
 	let m = {
 		settings: {
-			portal_enabled: bool(s.portal_enabled, false),
-			portal_port: toint(s.portal_port, 8443),
-			portal_host: s.portal_host ?? '',
+			portal_enabled: g('portal_enabled'),
+			portal_port: g('portal_port'),
+			portal_host: g('portal_host'),
 			// More addresses for the same links (the main one is portal_host).
-			portal_alt: filter(type(s.portal_alt) == 'array' ? s.portal_alt : s.portal_alt ? [ s.portal_alt ] : [], (x) => x != ''),
-			portal_cert: s.portal_cert ?? '',
-			portal_key: s.portal_key ?? '',
-			portal_title: s.portal_title ?? 'Dawnline',
+			portal_alt: g('portal_alt'),
+			portal_cert: g('portal_cert'),
+			portal_key: g('portal_key'),
+			portal_title: g('portal_title'),
 			// Where unknown portal links go instead of a bare 404 (empty = 404).
-			portal_redirect: s.portal_redirect ?? '',
-			default_device_limit: toint(s.default_device_limit, 3),
-			geo_enabled: bool(s.geo_enabled, false),
-			geo_provider: s.geo_provider == 'ipapi.co' ? 'ipapi.co' : 'ipwho.is',
-			hostnames: bool(s.hostnames, true),
-			domain: s.domain ?? 'lan',
-			log_connections: bool(s.log_connections, true),
+			portal_redirect: g('portal_redirect'),
+			default_device_limit: g('default_device_limit'),
+			geo_enabled: g('geo_enabled'),
+			geo_provider: g('geo_provider'),
+			hostnames: g('hostnames'),
+			domain: g('domain'),
+			log_connections: g('log_connections'),
 			// Repair tunnels and services on its own (the agent, every minute).
-			watchdog: bool(s.watchdog, true),
+			watchdog: g('watchdog'),
 			// Second DNS for "home names" devices, used by the device when the tunnel is down.
-			home_dns_fallback: s.home_dns_fallback == 'none' ? '' : (s.home_dns_fallback ?? '1.1.1.1'),
+			home_dns_fallback: g('home_dns_fallback'),
 			// Settings → Updates (automatic checks and updates of the components).
 			updates: updates_policy(s),
 			// Raw retention values; dawnline.live policy() interprets them.
@@ -158,6 +162,8 @@ export function load(c) {
 			access: index(ACCESS, r.access) >= 0 ? r.access : 'internet',
 			device_limit: toint(r.device_limit, m.settings.default_device_limit),
 			code: r.code ?? '',
+			// When the personal link was last made (0 for links from before this was kept).
+			code_set: toint(r.code_set, 0),
 			expires: r.expires ?? '',
 			quota_gb: num(r.quota_gb, 0),
 			quota_period: r.quota_period == 'total' ? 'total' : 'month',
@@ -236,23 +242,23 @@ function within_hours(h, ts) {
 	return h[0] < h[1] ? (cur >= h[0] && cur < h[1]) : (cur >= h[0] || cur < h[1]);
 }
 
-/** Bytes used in the person's quota period. */
-export function person_usage(p, usage) {
+/** Bytes used in the person's quota period (the month of `ts`, default now). */
+export function person_usage(p, usage, ts) {
 	let u = usage?.people?.[p.id];
 	if (!u)
 		return 0;
 	if (p.quota_period == 'total')
 		return (u.total?.[0] ?? 0) + (u.total?.[1] ?? 0);
-	let mm = u.months?.[month_key()];
+	let mm = u.months?.[month_key(ts)];
 	return mm ? mm[0] + mm[1] : 0;
 };
 
-/** Quota in bytes for the current period (base + this month's bonus), 0 = unlimited. */
-export function person_quota(p) {
+/** Quota in bytes for the period of `ts` (default now): base + that month's bonus, 0 = unlimited. */
+export function person_quota(p, ts) {
 	if (!(p.quota_gb > 0))
 		return 0;
 	let gb = p.quota_gb;
-	if (p.bonus_gb > 0 && p.bonus_month == month_key())
+	if (p.bonus_gb > 0 && p.bonus_month == month_key(ts))
 		gb += p.bonus_gb;
 	return gb * 1073741824;
 };
@@ -272,8 +278,8 @@ export function own_state(m, p, usage, ts) {
 	// "notify" keeps access after the end date (shown in Overview and People).
 	if (person_expired(p, ts) && p.expire_action != 'notify')
 		return 'expired';
-	let quota = person_quota(p);
-	if (quota > 0 && person_usage(p, usage) >= quota)
+	let quota = person_quota(p, ts);
+	if (quota > 0 && person_usage(p, usage, ts) >= quota)
 		return 'quota';
 	let h = parse_hours(p.hours);
 	if (h && !within_hours(h, ts))
@@ -512,6 +518,7 @@ export function create_person(c, m, a) {
 	c.set(CONFIG, slug, 'access', access);
 	c.set(CONFIG, slug, 'device_limit', `${limit}`);
 	c.set(CONFIG, slug, 'code', new_code());
+	c.set(CONFIG, slug, 'code_set', `${time()}`);
 	c.set(CONFIG, slug, 'created', `${time()}`);
 	if (a.expires)
 		c.set(CONFIG, slug, 'expires', a.expires);
@@ -747,6 +754,69 @@ export function server_errors(m, srv, others_subnets) {
 		}
 	if (srv.endpoint != '' && !valid_host(srv.endpoint))
 		push(errs, 'Endpoint must be a hostname or IP address.');
+	return errs;
+};
+
+/**
+ * What is wrong inside a model as a whole, beyond each server: devices with
+ * an address outside their server's subnet, the server's own address, a
+ * prefix on it or one shared with another device (the access sets are keyed
+ * by address, and one bad peer line makes `awg syncconf` refuse the whole
+ * server), malformed keys, people and devices pointing at servers, people,
+ * circles or services that do not exist, and two people with one link. [] when
+ * it is consistent. Import, restore and Health check it; the runtime sync
+ * skips what it would reject (dawnline.awg, dawnline.nft).
+ */
+export function model_errors(m) {
+	let errs = [];
+	let codes = {}, addrs = {};
+	for (let id, p in m.people) {
+		let who = `Person ${p.name}`;
+		if (p.server != '' && !m.servers[p.server])
+			push(errs, `${who}: server ${p.server} does not exist.`);
+		if (p.circle != '' && !m.circles[p.circle])
+			push(errs, `${who}: circle ${p.circle} does not exist.`);
+		for (let sid in p.services)
+			if (!m.services[sid])
+				push(errs, `${who}: home service ${sid} does not exist.`);
+		if (p.code != '') {
+			if (codes[p.code])
+				push(errs, `${who}: has the same personal link as ${codes[p.code]}.`);
+			codes[p.code] = p.name;
+		}
+	}
+	for (let id, d in m.devices) {
+		let p = m.people[d.person];
+		let who = `Device ${d.name}${p ? ` of ${p.name}` : ''}`;
+		if (!p) {
+			push(errs, `${who}: person ${d.person} does not exist.`);
+			continue;
+		}
+		if (!valid_key(d.public_key))
+			push(errs, `${who}: the public key is not a key.`);
+		if (d.private_key != '' && !valid_key(d.private_key))
+			push(errs, `${who}: the private key is not a key.`);
+		if (d.preshared_key != '' && !valid_key(d.preshared_key))
+			push(errs, `${who}: the preshared key is not a key.`);
+		let n = ip2int(d.address);
+		if (n == null) {
+			push(errs, `${who}: address ${d.address || '(none)'} is not a plain IPv4 address.`);
+			continue;
+		}
+		let srv = m.servers[p.server];
+		let t = srv ? parse_cidr(srv.subnet) : null;
+		if (t && (n < t.first || n > t.last))
+			push(errs, `${who}: address ${d.address} is outside ${srv.name}'s tunnel ${srv.subnet}.`);
+		else if (t && n == t.first)
+			push(errs, `${who}: address ${d.address} is the router's own address on ${srv.name}.`);
+		let key = `${p.server} ${d.address}`;
+		if (addrs[key])
+			push(errs, `${who}: address ${d.address} is also used by ${addrs[key]}.`);
+		addrs[key] = who;
+	}
+	for (let id, ci in m.circles)
+		if (!m.servers[ci.server])
+			push(errs, `Circle ${ci.name}: server ${ci.server} does not exist.`);
 	return errs;
 };
 

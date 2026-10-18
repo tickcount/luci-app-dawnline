@@ -2,7 +2,7 @@
 // OpenWrt 24.10, apk on 25.12. Commands that change packages take a log(line)
 // callback, which gets their output line by line.
 
-import { access, popen } from 'fs';
+import { access, popen, stat } from 'fs';
 import { q } from 'dawnline.util';
 
 function run(cmd) {
@@ -79,20 +79,56 @@ export function refresh(log) {
 	return logged(is_apk() ? 'apk update' : 'opkg update', log).code == 0;
 };
 
+/** Free space on the overlay in KB (null when unknown). */
+function overlay_free_kb() {
+	let out = run('df -Pk /overlay 2>/dev/null || df -Pk / 2>/dev/null').out;
+	let m = match(out, /\n\S+\s+[0-9]+\s+[0-9]+\s+([0-9]+)\s/);
+	return m ? +m[1] : null;
+}
+
+/**
+ * Room for `files` (or `need_kb` from the feeds): the package manager
+ * unpacks before it removes, so a full flash leaves half an install behind.
+ * Dies with the numbers.
+ */
+function preflight(files, need_kb, log) {
+	let free = overlay_free_kb();
+	if (free == null)
+		return;
+	let need = need_kb ?? 512;
+	for (let f in files ?? [])
+		need += int(((stat(f)?.size ?? 0) * 3) / 1024);
+	if (free < need)
+		die(`Not enough free space on the router: ${int(free / 1024)} MB free, about ${int(need / 1024) + 1} MB needed. Remove old backups or packages first`);
+	log?.(`  ${int(free / 1024)} MB free on the overlay`);
+}
+
 /** Package files (from a release): force also reinstalls the same version or goes back to an older one. */
 export function install_files(files, force, log) {
+	preflight(files, 0, log);
 	let args = join(' ', map(files, q));
-	return logged(is_apk()
-		? `apk add --allow-untrusted ${args}`
-		: `opkg install ${force ? '--force-reinstall --force-downgrade ' : ''}${args}`, log).code == 0;
+	if (!is_apk())
+		return logged(`opkg install ${force ? '--force-reinstall --force-downgrade ' : ''}${args}`, log).code == 0;
+	// apk leaves an installed version alone, whatever the file: a reinstall
+	// that changed nothing is a failure, not a silent "done".
+	let marker = '/usr/share/ucode/dawnline/util.uc';
+	let before = force ? stat(marker)?.mtime : null;
+	let ok = logged(`apk add --allow-untrusted ${args}`, log).code == 0;
+	if (ok && force && before != null && stat(marker)?.mtime == before) {
+		log?.('  apk did not reinstall the version that is already installed');
+		die("apk doesn't reinstall an installed version. Install a different release, or run install.sh on the router");
+	}
+	return ok;
 };
 
 /** Packages by name from the feeds. */
 export function add(names, log) {
+	preflight(null, 2048, log);
 	return logged(is_apk() ? `apk add ${join(' ', map(names, q))}` : `opkg install ${join(' ', map(names, q))}`, log).code == 0;
 };
 
 export function upgrade(names, log) {
+	preflight(null, 2048, log);
 	return logged(is_apk() ? `apk upgrade ${join(' ', map(names, q))}` : `opkg upgrade ${join(' ', map(names, q))}`, log).code == 0;
 };
 
@@ -105,7 +141,9 @@ export function upgradable() {
 	let up = {};
 	if (is_apk()) {
 		for (let line in split(run('apk version -l "<"').out, '\n')) {
-			let m = match(line, /^(\S+?)-([0-9][^ ]*)\s+<\s+(\S+)/);
+			// "name-version-rN < newer": the version is what follows the last dash
+			// before the release suffix (a name may hold digits, a version no dash).
+			let m = match(line, /^(\S+)-([^- ]+-r[0-9]+)\s+<\s+(\S+)/);
 			if (m)
 				up[m[1]] = m[3];
 		}

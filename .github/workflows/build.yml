@@ -12,10 +12,19 @@ on:
   workflow_dispatch:
 
 # Read-only by default; only the release job may write (publish the release).
+# Everything that runs here is pinned to a digest or a commit: the packages
+# it publishes are installed as root on every router with automatic updates
+# on, so a re-pointed tag must not be able to change what gets built.
 permissions:
   contents: read
 
 jobs:
+  # The same checks as on main (ci.yml), on the tag itself: nothing is built or
+  # published until they pass.
+  ci:
+    name: CI
+    uses: ./.github/workflows/ci.yml
+
   version:
     name: Version
     runs-on: ubuntu-24.04
@@ -23,7 +32,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
 
@@ -44,21 +53,21 @@ jobs:
   build:
     name: Build ${{ matrix.type }}
     runs-on: ubuntu-24.04
-    needs: version
+    needs: [version, ci]
     strategy:
       fail-fast: true
       matrix:
         include:
-          - { type: ipk, sdk: 'itdoginfo/openwrt-sdk-ipk:24.10.6' }
-          - { type: apk, sdk: 'itdoginfo/openwrt-sdk-apk:25.12.3' }
+          - { type: ipk, sdk: 'itdoginfo/openwrt-sdk-ipk:24.10.6@sha256:a6bd28c380b251ebdb1d6d5f83e55ecb0a3c1808b5a8f4841424abc8019a903f' }
+          - { type: apk, sdk: 'itdoginfo/openwrt-sdk-apk:25.12.3@sha256:6d832008ddd1b8ec4edc84f5e6e0bf22a13ba2d6888083a8e69fa26d752c276f' }
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: '22'
           cache: npm
@@ -77,7 +86,7 @@ jobs:
         run: scripts/build-packages.sh ${{ matrix.type }}
 
       - name: Upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: package-${{ matrix.type }}
           path: dist/luci-app-dawnline-${{ needs.version.outputs.version }}.${{ matrix.type }}
@@ -94,7 +103,7 @@ jobs:
     steps:
       # The whole history and the tags: the notes list the commits since the previous tag.
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -105,7 +114,7 @@ jobs:
           cat notes.md
 
       - name: Download packages
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           pattern: package-*
           path: release
@@ -118,7 +127,7 @@ jobs:
           cat sha256sums.txt
 
       - name: Publish the release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           name: Dawnline ${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}

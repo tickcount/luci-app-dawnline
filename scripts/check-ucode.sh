@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Compile-check every ucode file on a router without installing anything:
-# the tree is unpacked under /tmp/dlc and modules are resolved from there.
+# the tree is unpacked under /tmp/dlc and scripts/compile-ucode.sh runs there
+# (the same check CI runs in an OpenWrt rootfs container, scripts/ucode-container.sh).
 #   scripts/check-ucode.sh [root@host]
 set -euo pipefail
 HOST="${1:-root@outline.lan}"
@@ -12,21 +13,6 @@ TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 python3 "$(dirname "$0")/lint-ucode.py" "$ROOT"
 ( cd "$ROOT" && COPYFILE_DISABLE=1 tar -czf "$TMP/t.tgz" usr etc )
 scp -q "$TMP/t.tgz" "$HOST:/tmp/dl-check.tgz"
-ssh "$HOST" sh <<'REMOTE'
-rm -rf /tmp/dlc && mkdir -p /tmp/dlc && tar -xzf /tmp/dl-check.tgz -C /tmp/dlc && rm /tmp/dl-check.tgz
-cd /tmp/dlc
-rc=0
-# Modules by their import name: dawnline/x.uc is dawnline.x, dawnline/rpc/x.uc dawnline.rpc.x.
-for f in usr/share/ucode/dawnline/*.uc usr/share/ucode/dawnline/rpc/*.uc; do
-	[ -f "$f" ] || continue
-	n=$(echo "${f#usr/share/ucode/}" | sed 's/\.uc$//; s#/#.#g')
-	out=$(ucode -L '/tmp/dlc/usr/share/ucode/*.uc' -e "import * as x from '$n';" 2>&1) || { echo "FAIL $f"; echo "$out" | head -8; rc=1; }
-done
-for f in usr/share/rpcd/ucode/luci.dawnline usr/libexec/dawnline/agent usr/libexec/dawnline/updater usr/bin/dawnline usr/share/dawnline/portal/www/cgi-bin/portal; do
-	[ -f "$f" ] || continue
-	out=$(ucode -L '/tmp/dlc/usr/share/ucode/*.uc' -c -o /dev/null "$f" 2>&1) || { echo "FAIL $f"; echo "$out" | head -8; rc=1; }
-done
-rm -rf /tmp/dlc
-[ $rc = 0 ] && echo "all ucode files compile"
-exit $rc
-REMOTE
+ssh "$HOST" 'rm -rf /tmp/dlc && mkdir -p /tmp/dlc && tar -xzf /tmp/dl-check.tgz -C /tmp/dlc && rm /tmp/dl-check.tgz'
+# The script goes over stdin (`sh -s`), nothing of it stays on the router.
+ssh "$HOST" 'sh -s /tmp/dlc; rc=$?; rm -rf /tmp/dlc; exit $rc' < "$(dirname "$0")/compile-ucode.sh"

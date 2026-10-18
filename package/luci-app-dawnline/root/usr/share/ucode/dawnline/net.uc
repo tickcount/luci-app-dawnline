@@ -9,8 +9,8 @@
 //   lan_device   extra interfaces that count as the home network (list)
 //
 // Home access is enforced by destination: the networks routed out of the
-// chosen interfaces form the nft `lan_nets` set, and the tunnel's firewall
-// zone gets a forwarding to each of their zones.
+// chosen interfaces form the server's nft `home_<id>` set, and the tunnel's
+// firewall zone gets a forwarding to each of their zones.
 
 import { readfile, readlink, lsdir, stat } from 'fs';
 import { cursor } from 'uci';

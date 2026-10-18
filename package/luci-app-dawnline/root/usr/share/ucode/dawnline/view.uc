@@ -96,6 +96,7 @@ export function person_view(m, p, usage, dmp, states, opts) {
 		v.home_nets = p.home_nets;
 		v.circle = p.circle;
 		v.created = p.created;
+		v.code_set = p.code_set;
 	}
 	return v;
 };

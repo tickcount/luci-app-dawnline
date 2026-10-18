@@ -1,15 +1,23 @@
-// luci.dawnline RPC bindings. The backend reports failures as { error }.
+// luci.dawnline RPC bindings. The backend reports failures as { error }, and
+// a change the router saved but could not fully put into effect (access rules
+// that did not load, a server that refused its devices) as { warning }.
 
 import type { Network, PortHold } from './netcheck';
 import type { AwgCaps, AwgState, Circle, ClientConfig, DayUsage, HealthCheck, LogEvent, MeshMode, Person, Status } from '../shared/types';
+import { notify } from './ui/toast';
+
+/** Throw a backend failure; show a warning the answer carries. */
+function settle<T>(r: any): T {
+  if (r && typeof r === 'object') {
+    if (typeof r.error === 'string') throw new Error(r.error);
+    if (typeof r.warning === 'string' && r.warning) notify(r.warning, 'warning', 12000);
+  }
+  return r as T;
+}
 
 function call<T>(method: string, params: string[] = []) {
   const fn = rpc.declare<any>({ object: 'luci.dawnline', method, params });
-  return async (...args: unknown[]): Promise<T> => {
-    const r = await fn(...args);
-    if (r && typeof r === 'object' && typeof r.error === 'string') throw new Error(r.error);
-    return r as T;
-  };
+  return async (...args: unknown[]): Promise<T> => settle<T>(await fn(...args));
 }
 
 export interface SetupDefaults {
@@ -360,9 +368,7 @@ async function personUpdate(id: string, patch: PersonPatch): Promise<{ person: P
     'dns_mode',
   ] as const;
   const args: unknown[] = [id, ...keys.map((k) => patch[k]), patch.paused, patch.services, patch.circle, patch.home_nets];
-  const r = await personUpdateRaw(...args);
-  if (r && typeof r.error === 'string') throw new Error(r.error);
-  return r;
+  return settle(await personUpdateRaw(...args));
 }
 
 const status = call<Status>('status', ['days']);
@@ -459,7 +465,8 @@ export const api = {
     'quota_period',
   ]),
   personPause: call<unknown>('person_pause', ['id', 'paused']),
-  personRegen: call<{ link: string | null }>('person_regen', ['id']),
+  /** A new link; `remove` lists devices (ids) to take away with the old one. */
+  personRegen: call<{ link: string | null; removed: number }>('person_regen', ['id', 'remove']),
   personDelete: call<unknown>('person_delete', ['id']),
   personUsage: call<{ person: DayUsage[]; devices: Record<string, DayUsage[]> }>('person_usage', ['id', 'days']),
   deviceCreate: call<{ id: string; config: ClientConfig }>('device_create', ['person', 'name', 'kind']),

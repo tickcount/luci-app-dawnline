@@ -68,6 +68,15 @@ export function sync(m) {
 				'Dawnline never changes interfaces it did not create. Choose another interface name for this server.');
 			continue;
 		}
+		// A disguise this build cannot run (a 3.1 preset after a rollback to
+		// 2.0): the kernel would drop those options silently and run a tunnel
+		// no device can reach. Down, and said so, until the build or the
+		// disguise is changed.
+		let why = tools ? awg.obf_unsupported(srv.obf) : null;
+		if (why) {
+			block(srv, `is kept down: ${why}`, 'Install that AmneziaWG build in Dawnline → Components, or switch the disguise on the Server page.');
+			continue;
+		}
 		delete srv.blocked;
 		want[ifn] = true;
 		if (!tools)

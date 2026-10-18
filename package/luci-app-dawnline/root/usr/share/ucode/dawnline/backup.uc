@@ -3,7 +3,7 @@
 // only Dawnline's own regular files, and servers that cannot take over one of
 // the router's own interfaces or networks.
 
-import { readfile, stat, unlink, lsdir } from 'fs';
+import { readfile, stat, unlink, lsdir, rename } from 'fs';
 import { cursor } from 'uci';
 import {
 	q, sh, ensure_dir, read_json, write_json, write_file, file_exists, rand_hex, lock, unlock, DATA_DIR, RUN_DIR, VERSION
@@ -15,24 +15,36 @@ import * as net from 'dawnline.net';
 import * as health from 'dawnline.health';
 
 const BACKUP_DIR = `${DATA_DIR}/backups`;
-const KEEP_BACKUPS = 10;
+/**
+ * How many backups of each kind stay (the newest): the nightly ones must not
+ * push out what the admin made by hand or what a removal left behind.
+ */
+const KEEP = { manual: 10, auto: 7, 'pre-delete': 5, 'pre-remove': 3, 'pre-update': 3, 'pre-restore': 3, 'pre-import': 3 };
 const NAME = /^dawnline-([0-9]{8}-[0-9]{6})(-([a-z0-9-]+))?\.tar\.gz$/;
 /** What a backup holds (paths inside the archive, relative to /). */
 const FILES = [ 'etc/config/dawnline', 'etc/dawnline/usage.json', 'etc/dawnline/events.json' ];
+/**
+ * Kinds that hold the config alone (about 20 KB): the history can be a
+ * megabyte or more, and these are made often and never to bring history
+ * back. Manual, pre-restore and pre-import backups protect the data that is
+ * about to be replaced, so they take everything.
+ */
+const CONFIG_ONLY = [ 'auto', 'pre-delete', 'pre-remove', 'pre-update' ];
 /** The unpacked size a backup may have (the upload itself is limited to 4 MB). */
 const MAX_UNPACKED = 16 * 1024 * 1024;
 
 /* ---------- checking a configuration before it is used ---------- */
 
 /**
- * What is wrong with the servers of a configuration about to replace the
- * current one (cursor `c` holds it): each must have a valid, unique interface
+ * What is wrong with a configuration about to replace the current one
+ * (cursor `c` holds it): each server must have a valid, unique interface
  * name that is not one of the router's own interfaces, a free subnet and a
- * unique port. [] when it can be used.
+ * unique port, and the people and devices must be consistent
+ * (core.model_errors). [] when it can be used.
  */
 export function config_errors(c) {
 	let m = core.load(c);
-	let errs = [];
+	let errs = core.model_errors(m);
 	let nc = cursor();
 	nc.load('network');
 	let foreign = health.foreign_subnets();
@@ -92,30 +104,41 @@ export function backup_list() {
 };
 
 /**
- * Make a backup now; returns its name. The oldest beyond KEEP_BACKUPS are
- * removed, except `keep` (the backup being restored, which must survive the
- * backup made just before restoring it).
+ * Make a backup now; returns its name. Written whole or not at all (a half
+ * archive from a full flash never shows up as a backup). Of each kind the
+ * oldest beyond KEEP are removed, except `keep` (the backup being restored,
+ * which must survive the backup made just before restoring it).
  */
 export function backup_create(reason, keep) {
+	let kind = reason && match(reason, /^[a-z0-9-]{1,24}$/) ? reason : 'manual';
+	let config_only = index(CONFIG_ONLY, kind) >= 0;
 	// Flush live counters first so the backup has current usage.
-	let u = read_json(`${RUN_DIR}/usage.json`, null);
-	if (u)
-		write_json(`${DATA_DIR}/usage.json`, u, 0o600);
-	live.persist_events();
+	if (!config_only) {
+		let u = read_json(`${RUN_DIR}/usage.json`, null);
+		if (u)
+			write_json(`${DATA_DIR}/usage.json`, u, 0o600);
+		live.persist_events();
+	}
 	ensure_dir(BACKUP_DIR, 0o700);
 	let t = localtime();
-	let tag = reason && match(reason, /^[a-z0-9-]{1,24}$/) ? `-${reason}` : '';
-	let name = sprintf('dawnline-%04d%02d%02d-%02d%02d%02d%s.tar.gz', t.year, t.mon, t.mday, t.hour, t.min, t.sec, tag);
-	let files = join(' ', map(filter(FILES, (f) => file_exists(`/${f}`)), q));
-	let r = sh(`tar -czf ${q(BACKUP_DIR + '/' + name)} -C / ${files}`);
-	if (r.code != 0)
-		die(`Backup failed: ${trim(r.out)}`);
+	let name = sprintf('dawnline-%04d%02d%02d-%02d%02d%02d%s.tar.gz', t.year, t.mon, t.mday, t.hour, t.min, t.sec, kind == 'manual' ? '' : `-${kind}`);
+	let want = config_only ? [ FILES[0] ] : FILES;
+	let files = join(' ', map(filter(want, (f) => file_exists(`/${f}`)), q));
+	// Not a NAME until it is complete.
+	let tmp = `${BACKUP_DIR}/.${name}.tmp`;
+	let r = sh(`tar -czf ${q(tmp)} -C / ${files}`);
+	if (r.code != 0 || !rename(tmp, `${BACKUP_DIR}/${name}`)) {
+		unlink(tmp);
+		die(`Backup failed: ${trim(r.out) || 'the archive could not be written (is the flash full?)'}`);
+	}
 	system(`chmod 600 ${q(BACKUP_DIR + '/' + name)}`);
-	let all = backup_list();
-	let old = filter(all, (b) => b.name != keep && b.name != name);
-	let room = KEEP_BACKUPS - 1 - (length(old) < length(all) - 1 ? 1 : 0);
-	for (let i = room; i < length(old); i++)
-		unlink(`${BACKUP_DIR}/${old[i].name}`);
+	let by_kind = {};
+	for (let b in backup_list())
+		if (b.name != keep && b.name != name)
+			push(by_kind[b.reason] ??= [], b);
+	for (let k, list in by_kind)
+		for (let i = KEEP[k] ?? 3; i < length(list); i++)
+			unlink(`${BACKUP_DIR}/${list[i].name}`);
 	return name;
 };
 
@@ -155,14 +178,24 @@ function check_archive(path) {
 		die('Backup is too large.');
 }
 
-/** Put the files unpacked in `dir` in place, under the config lock. */
+/**
+ * Put the files unpacked in `dir` in place, under the config lock. The
+ * config goes first: when it cannot be written nothing else is touched, and
+ * a data file that fails afterwards is reported, not ignored.
+ */
 function install_files(dir) {
 	ensure_dir(DATA_DIR, 0o700);
 	let l = lock('config');
-	for (let f in FILES) {
-		let data = readfile(`${dir}/${f}`);
-		if (data != null)
-			write_file(`/${f}`, data, 0o600);
+	try {
+		for (let f in FILES) {
+			let data = readfile(`${dir}/${f}`);
+			if (data != null && !write_file(`/${f}`, data, 0o600))
+				die(`Couldn't write /${f}. Is the flash full?`);
+		}
+	}
+	catch (e) {
+		unlock(l);
+		die(e.message);
 	}
 	unlock(l);
 	system('chmod 600 /etc/config/dawnline');
@@ -185,9 +218,11 @@ export function backup_restore(name, path) {
 		die(e.message);
 	}
 	system(`rm -rf ${q(dir)}`);
-	// Live counters must follow the restored file.
+	// Live counters must follow the restored file: the agent reloads them from
+	// flash on its next tick (its watcher may write the old ones again before).
 	unlink(`${RUN_DIR}/usage.json`);
 	unlink(`${RUN_DIR}/events.json`);
+	write_file(live.USAGE_RELOAD, `${time()}`, 0o600);
 	return apply.apply();
 };
 
@@ -279,7 +314,9 @@ export function import_json(data) {
 	system(`rm -rf ${q(dir)}`);
 	backup_create('pre-import');
 	let l = lock('config');
-	write_file('/etc/config/dawnline', text, 0o600);
+	let ok = write_file('/etc/config/dawnline', text, 0o600);
 	unlock(l);
+	if (!ok)
+		die("Couldn't write /etc/config/dawnline. Is the flash full?");
 	return apply.apply();
 };

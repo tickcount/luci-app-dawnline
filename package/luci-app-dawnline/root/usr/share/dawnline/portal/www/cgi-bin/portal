@@ -1,21 +1,49 @@
-#!/usr/bin/ucode
-// Dawnline personal portal as a CGI script: the request handling itself is
-// dawnline.portal.
-'use strict';
+#!/bin/sh
+# Dawnline personal portal, the door: uhttpd runs this for every request.
+# Anything that is not shaped like a personal link (/<word-code>[/…]) gets
+# the portal's bare answer from here, in a shell that costs nothing, so a
+# scanner or a flood on the root never starts ucode (compiling the portal's
+# module graph is ~140 ms of CPU). Links go on to the portal itself
+# (/usr/share/dawnline/portal/cgi.uc), which judges the code.
+#
+# The answer here is byte for byte the portal's own not_found(): keep both
+# in step (dawnline.portal headers(), SECURITY_HEADERS, not_found()).
 
-import { stdin } from 'fs';
-import { serve } from 'dawnline.portal';
+path="${REQUEST_URI%%\?*}"
+w='[a-z][a-z][a-z][a-z][a-z][a-z]'
+case "$path" in
+	/$w-$w-$w|/$w-$w-$w/*) exec /usr/bin/ucode /usr/share/dawnline/portal/cgi.uc ;;
+esac
 
-let env = {};
-for (let k in [ 'REQUEST_METHOD', 'REQUEST_URI', 'REMOTE_ADDR', 'HTTPS', 'CONTENT_LENGTH', 'CONTENT_TYPE',
-		'HTTP_HOST', 'HTTP_ORIGIN', 'HTTP_USER_AGENT', 'HTTP_ACCEPT',
-		// The visitor behind Cloudflare (believed only when REMOTE_ADDR is Cloudflare's).
-		'HTTP_CF_CONNECTING_IP' ])
-	env[k] = getenv(k);
+# HSTS pins the whole name: only when the visitor is on the standard port.
+hsts=
+if [ "$HTTPS" = on ]; then
+	port="${HTTP_HOST##*:}"
+	case "$HTTP_HOST" in *:*) ;; *) port=443 ;; esac
+	case "$HTTP_HOST" in *\]) port=443 ;; esac
+	[ "$port" = 443 ] && hsts=1
+fi
 
-serve({
-	env,
-	headers: {},
-	read: (n) => stdin.read(n),
-	write: (s) => print(s),
-});
+# Files always get the 404: a missing asset must not turn into someone's website.
+file=
+case "$path" in
+	/luci-static|/luci-static/*|/cgi-bin|/cgi-bin/*|/ubus|/ubus/*) file=1 ;;
+	*) case "${path##*/}" in *.*) file=1 ;; esac ;;
+esac
+redirect=
+[ -n "$file" ] || redirect="$(uci -q get dawnline.settings.portal_redirect)"
+
+if [ -n "$redirect" ]; then
+	printf 'Status: 302 Found\r\n'
+	printf 'X-Content-Type-Options: nosniff\r\nReferrer-Policy: no-referrer\r\nX-Frame-Options: DENY\r\nCache-Control: no-store\r\n'
+	printf 'Location: %s\r\nContent-Type: text/plain\r\n' "$redirect"
+	[ -n "$hsts" ] && printf 'Strict-Transport-Security: max-age=31536000\r\n'
+	printf '\r\nMoved\n'
+else
+	printf 'Status: 404 Not Found\r\n'
+	printf 'X-Content-Type-Options: nosniff\r\nReferrer-Policy: no-referrer\r\nX-Frame-Options: DENY\r\nCache-Control: no-store\r\n'
+	printf 'Content-Type: text/plain\r\n'
+	[ -n "$hsts" ] && printf 'Strict-Transport-Security: max-age=31536000\r\n'
+	printf '\r\nNot found\n'
+fi
+exit 0

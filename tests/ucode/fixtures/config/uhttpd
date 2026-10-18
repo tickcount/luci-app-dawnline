@@ -1,0 +1,8 @@
+# Test fixture: LuCI's web server as versions before 0.4 left it, with the
+# portal as its error page (migrate.uhttpd removes that).
+
+config uhttpd 'main'
+	list listen_http '0.0.0.0:80'
+	list listen_https '0.0.0.0:443'
+	option home '/www'
+	option error_page '/cgi-bin/dawnline-portal'

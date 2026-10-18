@@ -72,6 +72,8 @@ const ctx = {
 	pol: POL,
 	work: `/tmp/dawnline-update.${PID}`,
 	log, phase, run, save,
+	// An automatic run (nobody is watching: the previous version is always kept).
+	auto: () => job.auto,
 	versions: (from, to) => {
 		job.from = from;
 		job.to = to;
@@ -241,16 +243,23 @@ function auto() {
 	install(todo);
 }
 
-/** The restarts the job asked for, in one go, after its final state is saved. */
+/**
+ * The restarts the job asked for, in one go, after its final state is saved.
+ * Dawnline's own package is restarted by postupdate, a shell that also checks
+ * the new version and rolls back to the kept one when it does not come up.
+ */
 function restarts() {
+	if (after.app) {
+		let to = replace(`${job.to ?? ''}`, /[^A-Za-z0-9.-]/g, '');
+		system(`/usr/libexec/dawnline/postupdate '${to}' </dev/null >/dev/null 2>&1 &`);
+		return;
+	}
 	let cmds = [];
-	if (after.app)
-		push(cmds, '/etc/init.d/rpcd reload');
-	else if (after.apply)
+	if (after.apply)
 		push(cmds, '/usr/bin/dawnline apply');
 	if (after.uhttpd)
 		push(cmds, '/etc/init.d/uhttpd restart');
-	if (after.app || after.apply || after.uhttpd)
+	if (after.apply || after.uhttpd)
 		push(cmds, '/etc/init.d/dawnline restart');
 	if (length(cmds))
 		system(`( sleep 2; ${join('; ', cmds)} ) </dev/null >/dev/null 2>&1 &`);

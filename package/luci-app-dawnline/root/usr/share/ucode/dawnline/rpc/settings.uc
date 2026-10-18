@@ -115,10 +115,11 @@ function settings_update(a) {
 		check_portal(core.load(c), m);
 		return { restart, was: m.settings };
 	});
+	let s = null;
 	if (res.restart)
 		system('/etc/init.d/dawnline reload >/dev/null 2>&1');
 	else
-		apply.sync();
+		s = apply.sync();
 	// The changes worth a line: the portal and the watchdog (other settings are housekeeping).
 	let now = core.load().settings, was = res.was;
 	if (now.portal_enabled != was.portal_enabled)
@@ -140,7 +141,10 @@ function settings_update(a) {
 	}
 	if (now.watchdog != was.watchdog)
 		admin_log('dawnline', now.watchdog ? 'turned on' : 'turned off', null, 'the watchdog', now.watchdog ? null : 'problems are only logged, nothing is repaired');
-	return settings_get({});
+	let out = settings_get({});
+	if (s?.warning)
+		out.warning = s.warning;
+	return out;
 }
 
 export const methods = {
