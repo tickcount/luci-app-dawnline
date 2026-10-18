@@ -4,7 +4,7 @@ import type { AwgCaps } from '../shared/types';
 import { E } from './e';
 import { icon } from '../shared/icons';
 
-export type Method = 'standard' | 'strong' | 'max' | 'off';
+export type Method = 'standard' | 'strong' | 'balanced' | 'max' | 'off';
 /** The router features a method may need (the boolean ones of AwgCaps). */
 export type AwgNeed = 'v2' | 'v3';
 
@@ -56,6 +56,17 @@ export const METHODS: MethodInfo[] = [
     short: 'Any AmneziaWG app',
   },
   {
+    id: 'balanced',
+    title: 'Balanced',
+    ic: 'shieldplus',
+    stealth: 3,
+    speed: 3,
+    needs: 'v2',
+    text: 'AmneziaWG 2.0: junk packets, padded packets and a first packet that looks like DNS. For networks that learned to spot 1.0-style junk.',
+    apps: 'AmneziaVPN 4.8.12 or newer, AmneziaWG 2.0+ apps',
+    short: 'AmneziaWG 2.0+ apps',
+  },
+  {
     id: 'max',
     title: 'Maximum',
     ic: 'lock',
@@ -71,7 +82,7 @@ export const METHODS: MethodInfo[] = [
 export const methodInfo = (id: string): MethodInfo | undefined => METHODS.find((x) => x.id === id);
 
 const NEEDS: Record<AwgNeed, string> = {
-  v2: 'Needs AmneziaWG 1.5 or newer on the router.',
+  v2: 'Needs AmneziaWG 2.0 or newer on the router (kmod-amneziawg and amneziawg-tools from July 2025 on).',
   v3: 'Needs AmneziaWG 3.1 on the router (kmod-amneziawg and amneziawg-tools 3.1).',
 };
 

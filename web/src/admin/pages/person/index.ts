@@ -48,7 +48,7 @@ export class PersonPage {
   async fetch(full: boolean): Promise<Loaded> {
     const [st, ev, use] = await Promise.all([
       api.status(30),
-      full ? api.events(5000).catch(() => null) : Promise.resolve(null),
+      full ? api.events(2000, this.id).catch(() => null) : Promise.resolve(null),
       full ? api.personUsage(this.id, 30).catch(() => null) : Promise.resolve(null),
     ]);
     return { st, ev: ev?.events ?? null, use };

@@ -13,6 +13,15 @@ import { onNavigate } from './ui/nav';
 
 // mapcn requires maplibre-gl ^6 (the globe projection came with 5): an ES module, its worker beside it.
 const MAPLIBRE = 'https://unpkg.com/maplibre-gl@6.14.0/dist';
+// What those files must be (sha384): code from a CDN runs inside the LuCI
+// page, where it could use the admin's session. A modulepreload with an
+// integrity carries the check into the import(); the stylesheet has its own.
+// The worker (loaded by the library) runs in its own context without the page
+// or the session, so it goes unchecked.
+const MAPLIBRE_SRI = {
+  module: 'sha384-q26X6R1yFeg0QR9SHHn6U3Nb0ddRRTtwxsahubv5R89/v5nijKpk9KviUp9ZLySk',
+  css: 'sha384-1TZtfVz7qtwR5vD7cMwjGT+9uiK4lqE3pbUOPwYO6OCpb+TYP0S9vLIhG02JCU04',
+};
 const STYLE_DARK = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
 const STYLE_LIGHT = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
 
@@ -29,19 +38,35 @@ let loading: Promise<any> | null = null;
  * leaves it alone), with the worker URL set as mapcn does.
  */
 function loadMapLibre(host: HTMLElement): Promise<any> {
-  host.appendChild(E('link', { rel: 'stylesheet', href: `${MAPLIBRE}/maplibre-gl.css` }));
+  host.appendChild(
+    E('link', { rel: 'stylesheet', href: `${MAPLIBRE}/maplibre-gl.css`, integrity: MAPLIBRE_SRI.css, crossorigin: 'anonymous' }),
+  );
   if (loading) return loading;
   const url = `${MAPLIBRE}/maplibre-gl.mjs`;
-  loading = import(/* @vite-ignore */ url).then(
-    (gl) => {
-      if (!gl.getWorkerUrl()) gl.setWorkerUrl(`${MAPLIBRE}/maplibre-gl-worker.mjs`);
-      return gl;
-    },
-    () => {
-      loading = null;
-      throw new Error('Could not load the map library (no internet access from this browser?)');
-    },
-  );
+  // The preload fetches and checks the module; the module map keeps the
+  // result, so the import() below gets the checked copy or fails with it.
+  const preload = new Promise<void>((resolve, reject) => {
+    const link = E('link', { rel: 'modulepreload', href: url, integrity: MAPLIBRE_SRI.module, crossorigin: 'anonymous' });
+    link.addEventListener('load', () => resolve());
+    link.addEventListener('error', () => reject(new Error('integrity')));
+    document.head.appendChild(link);
+  });
+  loading = preload
+    .then(() => import(/* @vite-ignore */ url))
+    .then(
+      (gl) => {
+        if (!gl.getWorkerUrl()) gl.setWorkerUrl(`${MAPLIBRE}/maplibre-gl-worker.mjs`);
+        return gl;
+      },
+      (e: Error) => {
+        loading = null;
+        throw new Error(
+          e?.message === 'integrity'
+            ? 'The map library from the CDN is not the expected file: not loading it.'
+            : 'Could not load the map library (no internet access from this browser?)',
+        );
+      },
+    );
   return loading;
 }
 

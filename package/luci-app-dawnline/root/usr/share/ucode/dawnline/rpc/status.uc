@@ -11,7 +11,7 @@ import * as net from 'dawnline.net';
 import * as loop from 'dawnline.loop';
 import * as awg from 'dawnline.awg';
 import * as lookup from 'dawnline.lookup';
-import { wrap, clamp_days } from 'dawnline.rpc.common';
+import { wrap, str, clamp_days } from 'dawnline.rpc.common';
 
 /** Router location plus one point per (device, recent client address). */
 function geo_view(m, usage, dmp) {
@@ -172,9 +172,12 @@ function status(a) {
 	};
 }
 
+/** The newest `limit` events; `person` keeps one person's only, `since` only those after a time. */
 function events_list(a) {
 	// Tunnel down/up events of older versions: the service log tells it better (names, reasons).
-	let ev = filter(live.load_events(), (e) => e.type != 'server_down' && e.type != 'server_up');
+	let person = str(a.person), since = +a.since || 0;
+	let ev = filter(live.load_events(), (e) => e.type != 'server_down' && e.type != 'server_up' &&
+		(!person || e.person == person) && (!since || (e.ts ?? 0) > since));
 	let n = +a.limit || 300;
 	return { events: with_hosts(slice(ev, length(ev) > n ? length(ev) - n : 0)), total: length(ev), policy: live.policy() };
 }
@@ -239,14 +242,15 @@ function usage_clear(a) {
 }
 
 /** The live revision (dawnline.live.PRESENCE): pages refresh when it moves; 0 without the agent. */
+/** The live revision, and the version answering (a page notices an update under it). */
 function rev() {
-	return { rev: +(live.presence()?.rev ?? 0) };
+	return { rev: +(live.presence()?.rev ?? 0), version: VERSION };
 }
 
 export const methods = {
 	rev: { call: wrap(rev) },
 	status: { args: { days: 30 }, call: wrap(status) },
-	events: { args: { limit: 300 }, call: wrap(events_list) },
+	events: { args: { limit: 300, person: '', since: 0 }, call: wrap(events_list) },
 	logs_clear: { args: { person: '', device: '', category: '', older_days: '' }, call: wrap(logs_clear) },
 	usage_clear: { args: { scope: '', id: '' }, call: wrap(usage_clear) },
 	geo_clear: { call: wrap((a) => { geo.clear(); return { ok: true }; }) },

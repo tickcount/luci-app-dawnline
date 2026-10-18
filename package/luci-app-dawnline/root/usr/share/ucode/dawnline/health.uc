@@ -11,6 +11,7 @@ import * as fw from 'dawnline.fw';
 import * as loop from 'dawnline.loop';
 import * as net from 'dawnline.net';
 import * as awg from 'dawnline.awg';
+import * as builds from 'dawnline.awg_builds';
 import * as lookup from 'dawnline.lookup';
 import * as pc from 'dawnline.portalcert';
 
@@ -253,13 +254,27 @@ function endpoint_check(id, title, srv, host, proto_note) {
 
 const NO_PROTO = "netifd doesn't know the amneziawg protocol (AmneziaWG missing, or the network wasn't restarted after installing it).";
 
+/** Free space on the overlay in KB (null when unknown). */
+function overlay_free_kb() {
+	let out = sh('df -Pk /overlay 2>/dev/null || df -Pk / 2>/dev/null').out;
+	let m = match(out ?? '', /\n\S+\s+[0-9]+\s+[0-9]+\s+([0-9]+)\s/);
+	return m ? +m[1] : null;
+}
+
 /** Is AmneziaWG there and usable: packages, kernel module, netifd's protocol handler. */
 function awg_check() {
 	let st = awg.load();
 	let title = 'AmneziaWG installed';
-	if (length(st.missing ?? []))
+	if (length(st.missing ?? [])) {
+		// The module was built for the kernel of the firmware it was installed on.
+		let kc = builds.kernel_changed();
+		if (kc && index(st.missing, 'kmod-amneziawg') >= 0)
+			return check('awg', title, 'error',
+				`The firmware changed (kernel ${kc.was} → ${kc.now}): the AmneziaWG build installed for it is gone. Install the build for this firmware.`,
+				'install:awg', 'AmneziaWG needs a build for the new firmware');
 		return check('awg', title, 'error', `${join(' and ', st.missing)} ${length(st.missing) == 1 ? 'is' : 'are'} missing.`, 'install:awg',
 			'AmneziaWG isn’t installed');
+	}
 	if (!st.loaded) {
 		// load() tried it: the second modprobe only repeats why.
 		let why = trim(sh('modprobe amneziawg 2>&1; dmesg | grep -i amneziawg | tail -n 3').out);
@@ -396,6 +411,15 @@ export function health(m) {
 	push(out, check('agent', 'Background agent running', agent ? 'ok' : 'error',
 		'Counts traffic and enforces end dates and quotas.', agent ? null : 'restart'));
 
+	// A full overlay fails every config write on the router, Dawnline's and
+	// OpenWrt's own; backups and history are what Dawnline adds to it.
+	let free = overlay_free_kb();
+	if (free != null)
+		push(out, check('flash', 'Free space on the router', free < 512 ? 'error' : free < 2048 ? 'warn' : 'ok',
+			free < 2048 ? `${int(free / 1024 * 10) / 10} MB free: settings may stop saving. Remove old backups (Settings → Backups) or shorten the history.`
+				: `${int(free / 1024)} MB free on the overlay.`,
+			null, 'The router is running out of flash'));
+
 	if (!length(m.servers)) {
 		push(out, check('server', 'Server configured', 'warn', 'Run the setup wizard on the Server tab.'));
 		return out;
@@ -472,6 +496,10 @@ export function fix(id) {
 	}
 	let m = match(id ?? '', /^ifup:([a-z][a-z0-9_]{0,11})$/);
 	if (m) {
+		// Only Dawnline's own tunnels: never another interface of the router.
+		let mine = filter(values(core.load().servers), (s) => s.ifname == m[1] && s.private_key);
+		if (!length(mine))
+			die(`${m[1]} is not one of Dawnline's tunnels.`);
 		system(`ifup ${q(m[1])}`);
 		return { ok: true };
 	}

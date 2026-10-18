@@ -243,7 +243,7 @@ async function applyDisguise(ctx: CoreCtx, srv: Server, m: Method, same: boolean
   const devices = people.reduce((n, p) => n + p.devices.length, 0);
   const ok = await confirmDialog(
     same ? 'Generate new disguise values?' : `Switch to ${info.title}?`,
-    `${devices} AmneziaWG device${devices === 1 ? '' : 's'} stop connecting until they import their configuration again (from their personal link or from you).${m === 'max' ? ' They need an app with AmneziaWG 3.1.' : ''}`,
+    `${devices} AmneziaWG device${devices === 1 ? '' : 's'} stop connecting until they import their configuration again (from their personal link or from you).${m === 'max' ? ' They need an app with AmneziaWG 3.1.' : m === 'balanced' ? ' They need an app with AmneziaWG 2.0 or newer.' : ''}`,
     same ? 'Generate and apply' : 'Switch and apply',
     true,
   );
@@ -351,7 +351,7 @@ function overviewTile(srv: Server): HTMLElement {
   const pad = ['s1', 's2', 's3', 's4'].filter((k) => +o[k]).map((k) => `${k.toUpperCase()} ${o[k]}`);
   if (pad.length) chips.push(pad.slice(0, 2).join(' · ') + (pad.length > 2 ? ` +${pad.length - 2}` : ''));
   if (['h1', 'h2', 'h3', 'h4'].some((k) => o[k] && o[k] !== String(['h1', 'h2', 'h3', 'h4'].indexOf(k) + 1))) chips.push('H1–H4 random');
-  if (o.i1) chips.push(o.i1.includes('0x8580') ? 'DNS-like first packet' : 'Signature packets');
+  if (o.i1) chips.push(/0x(8580|0100)0001/.test(o.i1) ? 'DNS-like first packets' : 'Signature packets');
   if (o.header_protection_key) chips.push('Encrypted headers');
   if (!chips.length) chips.push(m?.id === 'off' ? 'Plain WireGuard' : 'No values yet');
   return E('div', { class: 'dl-bento-tile dl-disg' }, [

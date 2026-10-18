@@ -23,16 +23,19 @@ test('policy categories', () => {
 	eq(live.policy({ log_category: [], log_connections: '0' }).categories, [], 'explicit empty list wins');
 });
 
+// Ranges come from dawnline.schema: a stored value outside them (an older
+// version, a hand edit) reads as the default, as settings_update would have refused it.
 test('policy ranges', () => {
-	eq(live.policy({ log_max: '50' }).max, 100, 'max floor');
-	eq(live.policy({ log_max: '99999' }).max, 20000, 'max ceiling');
+	eq(live.policy({ log_max: '50' }).max, 2000, 'max below the floor: default');
+	eq(live.policy({ log_max: '99999' }).max, 2000, 'max above the ceiling: default');
+	eq(live.policy({ log_max: '150' }).max, 150, 'max in range');
 	eq(live.policy({ log_max: 'abc' }).max, 2000, 'bad max');
 	eq(live.policy({ log_keep_days: '0' }).keep_days, 0, 'keep forever');
 	eq(live.policy({ log_keep_days: '-3' }).keep_days, 30, 'negative days');
 	eq(live.policy({ log_persist: '10min' }).persist, '10min', 'persist');
 	eq(live.policy({ log_persist: 'daily' }).persist, 'hourly', 'bad persist');
-	eq(live.policy({ usage_keep_days: '1' }).usage_days, 7, 'usage days floor');
-	eq(live.policy({ usage_keep_months: '500' }).usage_months, 120, 'usage months ceiling');
+	eq(live.policy({ usage_keep_days: '1' }).usage_days, 62, 'usage days below the floor: default');
+	eq(live.policy({ usage_keep_months: '500' }).usage_months, 24, 'usage months above the ceiling: default');
 });
 
 test('policy from the config', () => {

@@ -29,6 +29,17 @@ test('obf_preset standard and strong', () => {
 		}
 });
 
+test('obf_preset balanced', () => {
+	for (let i = 0; i < 25; i++) {
+		let o = awg.obf_preset('balanced');
+		eq(awg.obf_errors(o), [], 'balanced is valid');
+		ok(+o.jc >= 4 && +o.jc <= 8, `jc=${o.jc}`);
+		ok(+o.s3 >= 8 && +o.s3 <= 48 && +o.s4 >= 4 && +o.s4 <= 16, `padding ${o.s3}/${o.s4}`);
+		ok(substr(o.i1, 0, 3) == '<r ' && substr(o.i2, 0, 3) == '<r ', 'DNS-shaped signature packets');
+		eq(o.header_protection_key, null, 'no 3.1 values');
+	}
+});
+
 test('obf_preset max', () => {
 	let o = awg.obf_preset('max');
 	eq(o.header_protection_key, 'yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk=', 'key from awg genkey');
@@ -36,7 +47,12 @@ test('obf_preset max', () => {
 	ok(substr(o.i1, 0, 3) == '<r ', 'DNS-like first packet');
 	eq([ o.random_trailers, o.disable_cookies, o.content_padding_addition ], [ 'on', 'on', '10-100' ], '3.1 options');
 	ok(substr(o.i2, 0, 3) == '<r ', 'DNS-answer second packet');
-	ok(o.i1 != awg.obf_preset('max').i1, 'signature packets differ between servers');
+	// The template varies by name length and top-level domain (the letters
+	// themselves are random at run time): over many servers, more than one shape.
+	let shapes = {};
+	for (let i = 0; i < 20; i++)
+		shapes[awg.obf_preset('max').i1] = true;
+	ok(length(keys(shapes)) > 1, 'signature packets differ between servers');
 	// The preset passes the server's own validation (jmin/jmax may be small: 0.5.2).
 	eq(awg.obf_errors(o), [], 'max is valid');
 });

@@ -141,8 +141,9 @@ function check_people(m, states, events) {
 		let by_admin = (x) => x == 'paused' || x == 'server_off';
 		if (prev != null && prev != st && !by_admin(prev) && !by_admin(st))
 			push(events, { type: st == 'active' ? 'resumed' : 'paused', person: id, detail: REASON[st] ?? st });
-		// "Remove their devices" when the end date passes.
-		if (core.person_expired(p, ts) && p.expire_action == 'remove' && length(p.devices)) {
+		// "Remove their devices" when the end date passes: irreversible, so never
+		// on a clock that has not been set yet (a router before NTP is in 1970).
+		if (core.person_expired(p, ts) && p.expire_action == 'remove' && length(p.devices) && localtime(ts).year >= 2025) {
 			store.transact((c, mm) => {
 				for (let d in mm.people[id]?.devices ?? [])
 					core.delete_device(c, mm, d);
@@ -154,17 +155,26 @@ function check_people(m, states, events) {
 }
 
 let last_home = 0;
+// Addresses the watcher saw connect since the last tick: looked up first.
+let geo_pending = {};
 
-/** Locate new client addresses for the admin map (a couple per minute). */
+/**
+ * Locate client addresses for the admin map: the ones that just connected
+ * first, then anything still shown that is missing or stale — a few per
+ * minute, within a time budget, so a slow service never holds the tick.
+ */
 function check_geo(m) {
-	if (!m.settings.geo_enabled)
+	if (!m.settings.geo_enabled) {
+		geo_pending = {};
 		return;
+	}
 	let cache = geo.load();
-	let ips = [];
+	let ips = keys(geo_pending);
+	geo_pending = {};
 	for (let id, rec in usage.devices)
 		for (let ip in keys(rec.ips ?? {}))
 			push(ips, ip);
-	let changed = geo.resolve(m.settings, cache, ips, 2);
+	let changed = geo.resolve(m.settings, cache, uniq(ips), 3, 12);
 	if (time() - last_home > 3600) {
 		last_home = time();
 		let wan = live.iface_status('wan')?.['ipv4-address']?.[0]?.address;
@@ -267,17 +277,16 @@ function watch() {
 		}
 	if (!length(keys(people)))
 		return;
-	// The status first, then what takes longer (a geo lookup may wait on the network).
 	save_presence(keys(people));
 	if (!length(events))
 		return;
 	live.collect(m, usage, d);
 	live.save_usage(usage, false);
-	if (m.settings.geo_enabled && length(ips)) {
-		let cache = geo.load();
-		if (geo.resolve(m.settings, cache, ips, length(ips)))
-			geo.save(cache);
-	}
+	// A location lookup waits on the network: never here, on the next tick
+	// (check_geo). The event carries the place when the cache already knows it.
+	if (m.settings.geo_enabled)
+		for (let ip in ips)
+			geo_pending[ip] = true;
 	for (let e in events)
 		if (e.type == 'connect')
 			e.where = place_of(e.detail);
@@ -512,8 +521,10 @@ function tick() {
 	let persist = t.reset || time() - last_flush >= FLUSH_EVERY;
 	step('save', { who: 'Traffic' }, () => {
 		live.save_usage(usage, persist);
-		if (persist)
+		if (persist) {
 			last_flush = time();
+			geo.flush();
+		}
 	});
 	step('slog', { who: 'Dawnline', quiet: true }, () => slog_trim(persist));
 	step('events', { who: 'Activity' }, () => {
@@ -528,6 +539,7 @@ function tick() {
 function shutdown() {
 	live.save_usage(usage, true);
 	live.persist_events();
+	geo.flush();
 	slog_trim(true);
 	// A clean stop: the next start is not a crash.
 	unlink(watchdog.BEAT);

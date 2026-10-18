@@ -50,6 +50,7 @@ function checkIcon(id: string): string {
   if (/^(ep_|home_|resolver)/.test(id)) return 'globe';
   if (id === 'clock') return 'clock';
   if (id === 'agent') return 'activity';
+  if (id === 'flash') return 'download';
   if (id === 'nft') return 'lock';
   if (id === 'data') return 'users';
   return 'alert';

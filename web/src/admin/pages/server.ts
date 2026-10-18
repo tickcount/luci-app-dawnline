@@ -87,7 +87,9 @@ export class ServerPage {
     dom.content(this.root, [this.tabsEl, this.headEl, this.secEl, this.bodyEl]);
     this.paint();
     // Live numbers on the Overview; settings forms are left alone while open,
-    // and so is anything that has the keyboard focus.
+    // and so is anything that has the keyboard focus. A page object survives
+    // Outline's navigation: the previous visit's poller must not pile up.
+    this.poller?.stop();
     this.poller = createPoller({
       fetch: () => api.status(31),
       every: 30,

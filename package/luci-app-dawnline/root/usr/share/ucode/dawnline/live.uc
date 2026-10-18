@@ -403,6 +403,10 @@ export function persist_events(pol) {
 			unlink(`${DATA_DIR}/events.json`);
 		return;
 	}
+	// Only when something was logged since the last copy: flash is written rarely.
+	let live_st = stat(`${RUN_DIR}/events.json`);
+	if (!live_st || live_st.mtime <= (stat(`${DATA_DIR}/events.json`)?.mtime ?? 0))
+		return;
 	let ev = read_json(`${RUN_DIR}/events.json`, null);
 	if (ev != null) {
 		ensure_dir(DATA_DIR, 0o700);

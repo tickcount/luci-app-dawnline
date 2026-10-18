@@ -3,6 +3,11 @@
 // focused button), so a background refresh never takes it away.
 
 import { onLiveChange } from './live';
+import { onNavigate } from '../ui/nav';
+import { notify } from '../ui/toast';
+
+/** Failed ticks in a row before the page says the router is out of reach. */
+const LOST_AFTER = 3;
 
 /**
  * Request tickets: an answer is shown only if nothing newer was shown before
@@ -46,27 +51,41 @@ export interface Poller<T> {
   stop(): void;
 }
 
+/**
+ * A poller lives with its page: it stops itself when Outline navigates away
+ * (its DOM is gone, its ticks would keep asking the router), skips ticks while
+ * the tab is hidden, and says so once when the router stops answering.
+ */
 export function createPoller<T>(o: PollerOptions<T>): Poller<T> {
   const seq = new Sequence();
+  let failed = 0;
   const load = async (quiet: boolean, live: boolean): Promise<T | null> => {
     const t = seq.next();
-    const d = await o.fetch(live).catch(() => null);
+    let d: T | null = null;
+    try {
+      d = await o.fetch(live);
+      if (failed >= LOST_AFTER) notify('The router answers again.', 'success', 3000);
+      failed = 0;
+    } catch {
+      if (++failed === LOST_AFTER) notify('The router is not answering: what you see may be out of date.', 'warning', 8000);
+      return null;
+    }
     if (d == null || !seq.take(t)) return null;
     o.apply(d, quiet);
     return d;
   };
   const refresh = (quiet = false) => load(quiet, false);
-  const tick = () => ((o.active?.() ?? true) ? load(true, false) : Promise.resolve(null));
+  const visible = () => document.visibilityState === 'visible';
+  const tick = () => (visible() && (o.active?.() ?? true) ? load(true, false) : Promise.resolve(null));
   poll.add(tick, o.every);
-  const off = o.live ? onLiveChange(() => void ((o.active?.() ?? true) && load(true, true))) : null;
-  return {
-    refresh,
-    claim: () => seq.claim(),
-    stop: () => {
-      poll.remove(tick);
-      off?.();
-    },
+  const off = o.live ? onLiveChange(() => void (visible() && (o.active?.() ?? true) && load(true, true))) : null;
+  const stop = () => {
+    poll.remove(tick);
+    off?.();
+    offNav();
   };
+  const offNav = onNavigate(stop);
+  return { refresh, claim: () => seq.claim(), stop };
 }
 
 /** The keyboard focus (or an open native picker's input) is inside `el`. */

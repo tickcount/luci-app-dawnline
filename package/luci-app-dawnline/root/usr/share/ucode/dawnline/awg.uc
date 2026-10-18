@@ -247,12 +247,12 @@ export function obf_preset(name) {
 		};
 	if (name == 'off')
 		return { jc: '0', jmin: '0', jmax: '0', s1: '0', s2: '0', h1: '1', h2: '2', h3: '3', h4: '4' };
-	let strong = name == 'strong';
+	let strong = name == 'strong', balanced = name == 'balanced';
 	let o = {};
-	o.jc = `${strong ? rand_int(6, 10) : rand_int(3, 6)}`;
-	let jmin = rand_int(64, strong ? 128 : 96);
+	o.jc = `${strong ? rand_int(6, 10) : balanced ? rand_int(4, 8) : rand_int(3, 6)}`;
+	let jmin = rand_int(64, strong || balanced ? 128 : 96);
 	o.jmin = `${jmin}`;
-	o.jmax = `${jmin + rand_int(strong ? 200 : 32, strong ? 600 : 160)}`;
+	o.jmax = `${jmin + rand_int(strong ? 200 : balanced ? 150 : 32, strong ? 600 : balanced ? 400 : 160)}`;
 	let s1 = rand_int(15, 64), s2 = rand_int(15, 64);
 	while (s1 + 56 == s2)
 		s2 = rand_int(15, 64);
@@ -261,8 +261,18 @@ export function obf_preset(name) {
 	let used = {};
 	for (let k in [ 'h1', 'h2', 'h3', 'h4' ])
 		o[k] = rand_h(used);
+	if (balanced) {
+		// AmneziaWG 2.0: padded cookie and data packets (S4 costs MTU, kept
+		// small: core.tunnel_mtu) and DNS-shaped signature packets before each
+		// handshake — what 1.0 traffic lacks and gets recognised by.
+		o.s3 = `${rand_int(8, 48)}`;
+		o.s4 = `${rand_int(4, 16)}`;
+		o.i1 = dns_query();
+		o.i2 = dns_answer();
+	}
 	return o;
 };
+
 
 export function obf_errors(o) {
 	let errs = [];
@@ -345,6 +355,37 @@ function conf_filename(m, p, dev) {
 	return label(dev) + '.conf';
 }
 
+/**
+ * The junk a device sends is its own: within the preset's own ranges, the
+ * count and sizes are shifted a little by the device (deterministic, so the
+ * configuration keeps its fingerprint), so two phones of one family do not
+ * share one profile. Server-side values (headers, padding sizes, the header
+ * protection key) stay the server's.
+ */
+function client_obf(srv, dev) {
+	let o = { ...srv.obf };
+	if (obf_neutral(o) || !(+o.jc > 0))
+		return o;
+	let key = `${srv.id}/${dev.id}/${srv.obf.h1 ?? ''}`;
+	let seed = 2166136261;
+	for (let i = 0; i < length(key); i++)
+		seed = ((seed ^ ord(key, i)) * 16777619) & 0x7fffffff;
+	let pick = (n) => {
+		seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+		return seed % n;
+	};
+	let jc = +o.jc, jmin = +o.jmin, jmax = +o.jmax;
+	o.jc = `${max(1, min(10, jc + pick(3) - 1))}`;
+	if (jmax > jmin + 32) {
+		let d = pick(17);
+		o.jmin = `${jmin + d}`;
+		o.jmax = `${jmax - pick(17)}`;
+		if (+o.jmax <= +o.jmin)
+			o.jmax = `${+o.jmin + 32}`;
+	}
+	return o;
+}
+
 export function client_config(m, dev) {
 	let p = m.people[dev.person];
 	let srv = p ? m.servers[p.server] : null;
@@ -363,10 +404,11 @@ export function client_config(m, dev) {
 	push(lines, `MTU = ${mtu}`);
 	// "Off" is plain WireGuard: neutral values (no junk, H1-H4 = 1-4) are left
 	// out, so any WireGuard app accepts the file.
-	if (!obf_neutral(srv.obf))
+	let obf = client_obf(srv, dev);
+	if (!obf_neutral(obf))
 		for (let k in core.OBF_KEYS)
-			if (srv.obf[k] != null && srv.obf[k] != '')
-				push(lines, `${OBF_CONF[k]} = ${srv.obf[k]}`);
+			if (obf[k] != null && obf[k] != '')
+				push(lines, `${OBF_CONF[k]} = ${obf[k]}`);
 	push(lines, '', '[Peer]');
 	push(lines, `PublicKey = ${srv.public_key}`);
 	if (dev.preshared_key)
@@ -396,7 +438,7 @@ export function client_config(m, dev) {
 			psk_key: dev.preshared_key,
 			server_pub_key: srv.public_key,
 			persistent_keep_alive: `${srv.keepalive}`,
-			obfuscation: srv.obf,
+			obfuscation: obf,
 		},
 	};
 };
@@ -578,10 +620,15 @@ function fnv32(str) {
 	return sprintf('%08x', h);
 }
 
-/** What a device holds, minus its private key: changes when it must import again. */
+/**
+ * What a device holds, minus its private key: changes when it must import
+ * again. The junk count and sizes (Jc, Jmin, Jmax) are the device's own and
+ * never have to match the server, so they are left out: a change there is
+ * no reason to import again.
+ */
 export function config_fingerprint(m, dev) {
 	let c = dev ? client_config(m, dev) : null;
-	return c ? fnv32(join('\n', filter(split(c.conf, '\n'), (l) => !match(l, /^PrivateKey/)))) : null;
+	return c ? fnv32(join('\n', filter(split(c.conf, '\n'), (l) => !match(l, /^(PrivateKey|Jc|Jmin|Jmax) /)))) : null;
 };
 
 /** Device id → fingerprint of the configuration last shown or downloaded. */

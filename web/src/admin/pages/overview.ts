@@ -17,6 +17,7 @@ import { repaint } from '../state/poller';
 import { daysTile, speedTile } from '../widgets/tiles';
 import { coreOf } from '../cores';
 import { healthNotices, runFix } from '../widgets/health';
+import { onNavigate } from '../ui/nav';
 
 interface Attention {
   tone: string;
@@ -156,6 +157,7 @@ export class ServerOverview {
           '.',
         ]),
       ]);
+    this.map?.destroy();
     this.map = new ConnectionMap(
       {
         openPerson: (id) => (location.href = personUrl(id)),
@@ -163,6 +165,13 @@ export class ServerOverview {
       },
       this.range,
     );
+    // A WebGL map outlives the page's DOM unless it is told: free it when
+    // Outline navigates away (the page object itself may be reused).
+    const offNav = onNavigate(() => {
+      offNav();
+      this.map?.destroy();
+      this.map = null;
+    });
     const legend = E('div', { class: 'dl-map-legend' }, [
       E('span', {}, [E('i', { class: 'line live' }), 'Live tunnel']),
       E('span', {}, [E('i', { class: 'line' }), 'Seen recently']),

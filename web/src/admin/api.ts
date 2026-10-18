@@ -405,7 +405,7 @@ export interface ServiceLog {
 export type Health = { checks: HealthCheck[] } & ServiceLog;
 
 export const api = {
-  rev: call<{ rev: number }>('rev'),
+  rev: call<{ rev: number; version?: string }>('rev'),
   personUpdate,
   settingsGet: call<SettingsData>('settings_get'),
   portalInfo: call<PortalInfo>('portal_info'),
@@ -413,7 +413,8 @@ export const api = {
   serviceSet: call<{ id: string }>('service_set', ['id', 'name', 'address', 'ports']),
   serviceDelete: call<unknown>('service_delete', ['id']),
   geoClear: call<unknown>('geo_clear'),
-  events: call<{ events: LogEvent[]; total: number; policy: LogsInfo['policy'] }>('events', ['limit']),
+  /** The newest `limit` events; a person's only, or only those after `since` (a ts), when given. */
+  events: call<{ events: LogEvent[]; total: number; policy: LogsInfo['policy'] }>('events', ['limit', 'person', 'since']),
   logsClear,
   interfaces: call<InterfacesData>('interfaces', ['id']),
   serverInterfaces: call<InterfacesData>('server_interfaces', [

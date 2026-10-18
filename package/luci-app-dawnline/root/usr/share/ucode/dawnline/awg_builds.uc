@@ -4,6 +4,7 @@
 
 import { readfile } from 'fs';
 import { connect } from 'ubus';
+import { ensure_dir, read_json, write_json, DATA_DIR } from 'dawnline.util';
 import * as pkg from 'dawnline.pkg';
 
 export const SOURCES = {
@@ -28,7 +29,36 @@ export function firmware() {
 	let arch = rel.arch ?? match(readfile('/etc/openwrt_release') ?? '', /DISTRIB_ARCH='([^']*)'/)?.[1];
 	if (!rel.version || length(target) != 2 || !arch)
 		return null;
-	return { tag: `v${rel.version}`, postfix: `_v${rel.version}_${arch}_${target[0]}_${target[1]}`, ext: pkg.ext() };
+	return { tag: `v${rel.version}`, postfix: `_v${rel.version}_${arch}_${target[0]}_${target[1]}`, ext: pkg.ext(),
+		snapshot: match(rel.version, /SNAPSHOT/) != null };
+};
+
+/** What was installed, for whom: /etc/dawnline/awg.json (survives a sysupgrade with the data). */
+export const RECORD = `${DATA_DIR}/awg.json`;
+
+/**
+ * Remember which build was installed on which kernel. After a firmware
+ * upgrade the module is gone (it was built for that kernel): Health can then
+ * say so and offer the build for the new one (dawnline.health).
+ */
+export function record(source, tag, packages) {
+	ensure_dir(DATA_DIR, 0o700);
+	write_json(RECORD, {
+		osrelease: trim(readfile('/proc/sys/kernel/osrelease') ?? ''),
+		source, tag, packages, installed: time(),
+	}, 0o600);
+};
+
+/**
+ * The firmware the recorded AmneziaWG build was for, when it is not this one
+ * (and the module is gone): { was, now, tag, source }, else null.
+ */
+export function kernel_changed() {
+	let r = read_json(RECORD, null);
+	let now = trim(readfile('/proc/sys/kernel/osrelease') ?? '');
+	if (!r?.osrelease || r.osrelease == now)
+		return null;
+	return { was: r.osrelease, now, tag: r.tag, source: r.source };
 };
 
 /** The file name of a package in a build. */

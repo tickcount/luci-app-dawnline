@@ -11,6 +11,8 @@
 
 path="${REQUEST_URI%%\?*}"
 w='[a-z][a-z][a-z][a-z][a-z][a-z]'
+# The expansion is meant as a pattern (a word of six letters), not literally.
+# shellcheck disable=SC2254
 case "$path" in
 	/$w-$w-$w|/$w-$w-$w/*) exec /usr/bin/ucode /usr/share/dawnline/portal/cgi.uc ;;
 esac

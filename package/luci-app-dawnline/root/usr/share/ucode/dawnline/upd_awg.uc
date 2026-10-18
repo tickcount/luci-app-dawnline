@@ -52,6 +52,9 @@ export function check(ctx) {
 	if (!fw)
 		return { installed: cur, gen: builds.gen(cur), packages: installed, current: null, ru, sources: {}, update: false, status: '',
 			note: 'Cannot detect the firmware target' };
+	if (fw.snapshot)
+		return { installed: cur, gen: builds.gen(cur), packages: installed, current: null, ru, sources: {}, update: false, status: '',
+			note: 'This is a SNAPSHOT firmware: the AmneziaWG projects publish builds for releases only' };
 	let dir = `${ctx.work}/check`;
 	system(`mkdir -p '${dir}'`);
 	let sources = {};
@@ -233,5 +236,6 @@ export function install(ctx, arg) {
 		pkg.remove([ builds.RU ], ctx.log);
 	out.after = builds.installed();
 	settle(ctx, before, out.after);
+	builds.record(id, fw.tag, out.after);
 	return out;
 };

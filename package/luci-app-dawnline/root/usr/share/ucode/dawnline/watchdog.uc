@@ -12,12 +12,16 @@ import * as health from 'dawnline.health';
 import * as awg from 'dawnline.awg';
 import * as nft from 'dawnline.nft';
 import * as netifd from 'dawnline.netifd';
+import * as upd from 'dawnline.updates';
 
 export const STATE = `${RUN_DIR}/watchdog.json`;
 /** The agent writes the time here on every tick. */
 export const BEAT = `${RUN_DIR}/agent.beat`;
 // Seconds before the next repair, by the number of repairs so far.
 const WAIT = [ 0, 120, 600, 1800, 3600 ];
+// Good minutes in a row before a repaired target's count of repairs is
+// forgotten: one good minute between two failures is still flapping.
+const SETTLED = 10;
 
 /** Why a tunnel is down (AmneziaWG; kept here for older callers). */
 export function iface_errors(ifname) {
@@ -77,8 +81,10 @@ function probes(m) {
 		id: 'rpc', src: 'dawnline', name: 'LuCI link', who: 'LuCI', ok: system('ubus list luci.dawnline >/dev/null 2>&1') == 0,
 		problem: "can't reach Dawnline (luci.dawnline is missing in rpcd)", back: 'reaches Dawnline again',
 		detail: () => sh_out('logread -l 400 2>/dev/null | grep rpcd | tail -n 4'),
-		// A reload keeps LuCI logins; a restart (second try) signs everyone out.
-		repair: { what: 'reloading rpcd', run: (n) => system(n > 1 ? '/etc/init.d/rpcd restart >/dev/null 2>&1' : '/etc/init.d/rpcd reload >/dev/null 2>&1') },
+		// A reload keeps LuCI logins; a restart (second try) signs everyone out —
+		// and after three it stops: restarting rpcd every hour for good would
+		// sign every admin out for good.
+		repair: { what: 'reloading rpcd', max: 3, run: (n) => system(n > 1 ? '/etc/init.d/rpcd restart >/dev/null 2>&1' : '/etc/init.d/rpcd reload >/dev/null 2>&1') },
 	});
 	return out;
 }
@@ -87,6 +93,9 @@ function probes(m) {
 export function run(m) {
 	let now = time();
 	let fix = m.settings.watchdog;
+	// An update is replacing packages or restarting tunnels: what looks broken
+	// meanwhile is being worked on; repairs would only get in its way.
+	let busy = upd.busy();
 	let st = read_json(STATE, {});
 	let t = type(st.targets) == 'object' ? st.targets : {};
 	let repairs = filter(st.repairs ?? [], (r) => now - r.ts < 86400);
@@ -100,16 +109,30 @@ export function run(m) {
 			if (x.reported)
 				slog(p.src, 'up', p.back + (x.stuck ? ' · restored' : x.tries ? ` (after ${x.tries} repair${x.tries > 1 ? 's' : ''})` : ''), null, p.who);
 			x.bad = 0;
-			x.tries = 0;
 			x.next = 0;
 			x.reported = false;
 			x.stuck = false;
+			// The repairs so far are forgotten only once it has stayed up a while:
+			// a target that fails every other minute keeps its back-off.
+			x.good = (x.good ?? 0) + 1;
+			if (x.good >= SETTLED) {
+				x.tries = 0;
+				x.good = 0;
+			}
 			continue;
 		}
+		x.good = 0;
 		// One bad minute can be a restart in progress.
 		if (++x.bad < 2)
 			continue;
-		if (!fix || !p.repair) {
+		if (busy)
+			continue;
+		if (p.repair?.max && x.tries >= p.repair.max && !x.reported) {
+			slog(p.src, 'error', `${p.problem} — not repaired again (${p.repair.max} repairs didn't help)`, p.detail?.(), p.who);
+			x.reported = true;
+			continue;
+		}
+		if (!fix || !p.repair || (p.repair.max && x.tries >= p.repair.max)) {
 			if (!x.reported)
 				slog(p.src, 'error', p.problem, p.detail?.(), p.who);
 			x.reported = true;

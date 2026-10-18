@@ -34,16 +34,21 @@ export function clamp_days(v) {
 	return n >= 1 ? (n > 400 ? 400 : int(n)) : 30;
 };
 
-export const METHODS = [ 'off', 'standard', 'strong', 'max' ];
+export const METHODS = [ 'off', 'standard', 'strong', 'balanced', 'max' ];
 
 /** A disguise method the installed AmneziaWG can run. */
 export function check_method(name) {
 	if (index(METHODS, name) < 0)
 		die('Unknown disguise method.');
-	if (name == 'max' && !awg.caps().v3)
+	let c = awg.caps();
+	if (name == 'max' && !c.v3)
 		die(awg.installed()
 			? 'Maximum needs AmneziaWG 3.1 on the router (kmod-amneziawg, amneziawg-tools 3.1): install a 3.1 build in Dawnline → Components.'
 			: 'AmneziaWG is not installed: install it in Dawnline → Components, then choose Maximum.');
+	if (name == 'balanced' && !c.v2)
+		die(awg.installed()
+			? 'Balanced needs AmneziaWG 2.0 or newer on the router: install a current build in Dawnline → Components.'
+			: 'AmneziaWG is not installed: install it in Dawnline → Components, then choose Balanced.');
 	return name;
 };
 

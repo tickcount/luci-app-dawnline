@@ -137,7 +137,7 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
   const loadLog = async (force = false) => {
     const own = o.events?.();
     if (own && !force) return showLog(own);
-    const ev = await api.events(5000).catch(() => null);
+    const ev = await api.events(2000, person.id).catch(() => null);
     if (ev) showLog(ev.events);
   };
 
