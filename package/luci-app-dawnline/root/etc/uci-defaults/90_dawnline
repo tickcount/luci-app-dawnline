@@ -1,6 +1,13 @@
 #!/bin/sh
 # Dawnline first-run / upgrade housekeeping.
 
+# Locations are off by default since 0.5.2 (lookups send addresses to a third
+# party); a router that had them on by the old default keeps them on.
+if [ -f /etc/config/dawnline ] && [ -z "$(uci -q get dawnline.settings.geo_enabled)" ]; then
+	uci -q set dawnline.settings.geo_enabled=1
+	uci -q commit dawnline
+fi
+
 [ -f /etc/config/dawnline ] || cat > /etc/config/dawnline <<'CFG'
 config settings 'settings'
 	option portal_enabled '0'

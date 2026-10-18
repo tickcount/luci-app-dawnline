@@ -452,12 +452,13 @@ export function handle(io) {
 		if (p.code == code)
 			r.person = p;
 
-	// A wrong code or a blocked client: indistinguishable from a path that does
-	// not exist. Only well-formed guesses count towards the limit.
-	if (rate_blocked(r))
-		not_found(r);
+	// A wrong code is indistinguishable from a path that does not exist. Only
+	// well-formed guesses count towards the limit, and a client over it is just
+	// no longer counted: a valid link always opens, so guesses from a shared
+	// address (every Cloudflare visitor) cannot lock its owner out.
 	if (r.person == null) {
-		rate_fail(r);
+		if (!rate_blocked(r))
+			rate_fail(r);
 		not_found(r);
 	}
 	r.base = `/${code}`;

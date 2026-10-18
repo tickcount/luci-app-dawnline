@@ -11,6 +11,7 @@ import { portalPortHelp } from '../../netcheck';
 import { icon } from '../../../shared/icons';
 import { fmtDay } from '../../../shared/format';
 import { installMissing } from '../../pkgs';
+import { notify } from '../../ui/toast';
 import { section, type SettingsHost } from './common';
 
 /** Summary of the portal checks: those that failed or warn, and the worst state. */
@@ -380,8 +381,18 @@ export function portalCard(host: SettingsHost): HTMLElement {
       E('span'),
       button(
         'Save',
-        () =>
-          host.save(
+        () => {
+          // The port's help line already says what is wrong: do not send it anyway.
+          const h = portalPortHelp(
+            port.value.trim() === '' ? eff.portal_port : Number(port.value),
+            host.d.tcp_taken ?? [],
+            picked.some(isIp),
+          );
+          if (h.bad) {
+            notify(`Listening port: ${h.text}`, 'warning');
+            return;
+          }
+          return host.save(
             {
               portal_enabled: isOn(pOn) ? '1' : '0',
               portal_host: picked[0] ?? '',
@@ -392,7 +403,8 @@ export function portalCard(host: SettingsHost): HTMLElement {
             },
             'Saved',
             'portal',
-          ),
+          );
+        },
         'positive',
       ),
     ],

@@ -30,6 +30,8 @@ import {
   date,
   dayDiff,
   daysLeft,
+  endsIn,
+  endsSoon,
   initials,
   todayOf,
 } from '../../shared/format';
@@ -66,12 +68,7 @@ const stopReason = (p: Person): Exclude<Person['state'], 'active' | 'server_off'
 
 function needsAttention(p: Person, today: string): boolean {
   const left = daysLeft(p.expires, today);
-  return (
-    p.state === 'quota' ||
-    p.state === 'expired' ||
-    (left != null && left <= Math.max(p.expire_warn, 3)) ||
-    (!!p.quota_limit && p.quota_used >= p.quota_limit * 0.9)
-  );
+  return p.state === 'quota' || p.state === 'expired' || endsSoon(p, left) || (!!p.quota_limit && p.quota_used >= p.quota_limit * 0.9);
 }
 
 /** A month more, from the end date or from today once it has passed. */
@@ -357,12 +354,12 @@ export class PeoplePage {
     const pills: Node[] = [];
     const why = stopReason(p);
     if (p.expires && why !== 'expired') {
-      const soon = left != null && left >= 0 && left <= Math.max(p.expire_warn, 3);
+      const soon = endsSoon(p, left);
       const over = left != null && left < 0;
       pills.push(
         E('span', { class: `dl-pill-ic${over ? ' bad' : soon ? ' warn' : ''}`, title: `Access ends ${date(p.expires)}` }, [
           icon('calendar'),
-          over ? `ended ${date(p.expires)}` : soon ? `ends in ${left} day${left === 1 ? '' : 's'}` : `until ${date(p.expires)}`,
+          over ? `ended ${date(p.expires)}` : soon ? endsIn(left as number) : `until ${date(p.expires)}`,
         ]),
       );
     }
@@ -410,7 +407,7 @@ export class PeoplePage {
 
     // Ending soon (the strip below handles an end that has passed).
     const fixes: Node[] = [];
-    if (p.expires && left != null && left <= Math.max(p.expire_warn, 3) && why !== 'expired')
+    if (p.expires && endsSoon(p, left) && why !== 'expired')
       fixes.push(
         E(
           'button',

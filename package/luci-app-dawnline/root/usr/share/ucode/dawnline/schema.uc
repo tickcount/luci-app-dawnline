@@ -124,7 +124,8 @@ export const SETTINGS = {
 	default_device_limit: { type: 'int', dflt: 3, min: 1, max: 32, msg: 'Default device limit must be 1-32.' },
 	hostnames: { type: 'bool', dflt: true },
 	domain: { type: 'domain', dflt: 'lan', msg: 'Domain may use lowercase letters, digits, dashes and dots.' },
-	geo_enabled: { type: 'bool', dflt: true },
+	// Off until the admin turns it on: lookups send people's addresses to a third party.
+	geo_enabled: { type: 'bool', dflt: false },
 	geo_provider: { type: 'enum', dflt: 'ipwho.is', values: [ 'ipwho.is', 'ipapi.co' ], msg: 'Unknown location service.' },
 	log_connections: { type: 'bool', dflt: true },
 	watchdog: { type: 'bool', dflt: true },

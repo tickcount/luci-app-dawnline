@@ -57,24 +57,43 @@ export function uhttpd() {
 		store.transact((w, m) => w.delete('dawnline', 'settings', 'portal_443'));
 };
 
-/** 1380 was every server's stored MTU before it became automatic (by device type and disguise). */
+/*
+ * Steps that cannot tell from the config whether they ran are recorded in
+ * `settings.migrated` (a list), so they run exactly once.
+ */
+function migrated(c, name) {
+	let done = c.get('dawnline', 'settings', 'migrated') ?? [];
+	return index(type(done) == 'array' ? done : [ done ], name) >= 0;
+}
+
+function mark_migrated(w, name) {
+	let done = w.get('dawnline', 'settings', 'migrated') ?? [];
+	w.set('dawnline', 'settings', 'migrated', [ ...(type(done) == 'array' ? done : [ done ]), name ]);
+}
+
+/*
+ * 1380 was every server's stored MTU before it became automatic (by device
+ * type and disguise). Once only: an admin may choose 1380 again on purpose.
+ */
 function auto_mtu() {
 	let c = cursor();
 	c.load('dawnline');
+	if (migrated(c, 'auto_mtu'))
+		return;
 	let any = false;
 	c.foreach('dawnline', 'server', (s) => {
 		if (s.mtu == '1380')
 			any = true;
 	});
-	if (!any)
-		return;
 	store.transact((w, m) => {
 		w.foreach('dawnline', 'server', (s) => {
 			if (s.mtu == '1380')
 				w.delete('dawnline', s['.name'], 'mtu');
 		});
+		mark_migrated(w, 'auto_mtu');
 	});
-	slog('dawnline', 'info', 'MTU is now automatic', null, 'Servers');
+	if (any)
+		slog('dawnline', 'info', 'MTU is now automatic', null, 'Servers');
 }
 
 /** All of them, in order. */

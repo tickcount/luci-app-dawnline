@@ -106,8 +106,8 @@ export function rename(page: PersonPage) {
       button(
         'Save',
         async () => {
-          closeModal();
-          await page.patch({ name: input.value }, 'Renamed');
+          // The dialog stays open on a refusal, with the name still typed.
+          if (await page.patch({ name: input.value.trim() }, 'Renamed')) closeModal();
         },
         'positive',
       ),

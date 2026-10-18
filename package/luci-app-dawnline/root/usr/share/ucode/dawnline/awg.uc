@@ -118,7 +118,9 @@ export function server_keys() {
 
 /* ---------- obfuscation ---------- */
 
-const OBF_SPEC = { jc: [ 0, 10 ], jmin: [ 64, 1024 ], jmax: [ 64, 1024 ], s1: [ 0, 64 ], s2: [ 0, 64 ], s3: [ 0, 64 ], s4: [ 0, 32 ] };
+// Junk packets may be tiny (the 3.1 preset sends 10-50 bytes, as AmneziaVPN
+// does); the ceiling keeps them under the path MTU.
+const OBF_SPEC = { jc: [ 0, 10 ], jmin: [ 0, 1024 ], jmax: [ 0, 1024 ], s1: [ 0, 64 ], s2: [ 0, 64 ], s3: [ 0, 64 ], s4: [ 0, 32 ] };
 
 function rand_h(used) {
 	for (let i = 0; i < 50; i++) {
@@ -194,10 +196,8 @@ export function obf_errors(o) {
 		let v = o[k];
 		if (v == null || v == '')
 			continue;
-		if (!match(v, /^[0-9]+$/) || +v < r[0] || +v > r[1]) {
-			if (!(v == '0' && (k == 'jmin' || k == 'jmax')))
-				push(errs, `${k}=${v} (${r[0]}-${r[1]})`);
-		}
+		if (!match(v, /^[0-9]+$/) || +v < r[0] || +v > r[1])
+			push(errs, `${k}=${v} (${r[0]}-${r[1]})`);
 	}
 	if (o.jmin != null && o.jmax != null && +o.jmin > +o.jmax)
 		push(errs, 'jmin > jmax');
@@ -252,6 +252,25 @@ export function obf_neutral(o) {
 	return true;
 };
 
+/*
+ * The .conf file name doubles as the tunnel name in WireGuard apps (15
+ * characters at most): the device first, so a person's devices stay apart,
+ * and a number when the cut would still make two of them alike.
+ */
+function conf_filename(m, p, dev) {
+	let label = (d) => trim(substr(trim(replace(lc(d.name + '-' + p.id), /[^a-z0-9]+/g, '-'), '-'), 0, 15), '-');
+	let order = sort(map(p.devices, (id) => m.devices[id]),
+		(a, b) => (a.created - b.created) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+	let seen = {};
+	for (let d in order) {
+		let l = label(d);
+		let n = seen[l] = (seen[l] ?? 0) + 1;
+		if (d.id == dev.id)
+			return (n > 1 ? trim(substr(l, 0, 15 - length(`-${n}`)), '-') + `-${n}` : l) + '.conf';
+	}
+	return label(dev) + '.conf';
+}
+
 export function client_config(m, dev) {
 	let p = m.people[dev.person];
 	let srv = p ? m.servers[p.server] : null;
@@ -286,7 +305,7 @@ export function client_config(m, dev) {
 		name: dev.name,
 		person: p.name,
 		server: srv.name,
-		filename: `${substr(replace(lc(p.id + '-' + dev.name), /[^a-z0-9]+/g, '-'), 0, 15)}.conf`,
+		filename: conf_filename(m, p, dev),
 		conf: join('\n', lines) + '\n',
 		has_private_key: dev.private_key != '',
 		amnezia: {

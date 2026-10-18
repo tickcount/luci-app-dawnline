@@ -127,6 +127,19 @@ export function daysLeft(s: string, today: string | number = Date.now()): number
   return diff >= 0 ? diff + 1 : diff;
 }
 
+/**
+ * Whether an end date is close enough to warn about, by the person's own
+ * setting (`expire_warn` days; 0 = never). `left` is daysLeft().
+ */
+export function endsSoon(p: { expire_warn: number }, left: number | null): boolean {
+  return left != null && left > 0 && p.expire_warn > 0 && left <= p.expire_warn;
+}
+
+/** "ends today", "ends tomorrow", "ends in 7 days" for daysLeft() > 0. */
+export function endsIn(left: number): string {
+  return left <= 1 ? 'ends today' : left === 2 ? 'ends tomorrow' : `ends in ${left} days`;
+}
+
 /** "1 event", "2,000 events". */
 export function plural(n: number, one: string, many = `${one}s`): string {
   return `${n.toLocaleString('en-GB')} ${n === 1 ? one : many}`;

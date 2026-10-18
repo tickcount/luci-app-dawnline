@@ -1,5 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, addMonthsClamped, date, dayDiff, daysLeft, fmtDay, kb, plural, shiftDay, todayOf } from '../src/shared/format';
+import {
+  addDays,
+  addMonthsClamped,
+  date,
+  dayDiff,
+  daysLeft,
+  endsIn,
+  endsSoon,
+  fmtDay,
+  kb,
+  plural,
+  shiftDay,
+  todayOf,
+} from '../src/shared/format';
 
 describe('months', () => {
   it('clamps the day to the end of the month', () => {
@@ -30,6 +43,19 @@ describe('router days', () => {
     expect(daysLeft('2026-10-20', '2026-10-14')).toBe(7);
     expect(daysLeft('2026-10-13', '2026-10-14')).toBe(-1);
     expect(daysLeft('', '2026-10-14')).toBeNull();
+  });
+  it('warns by the person’s own window, never with 0', () => {
+    expect(endsSoon({ expire_warn: 3 }, 1)).toBe(true);
+    expect(endsSoon({ expire_warn: 3 }, 3)).toBe(true);
+    expect(endsSoon({ expire_warn: 3 }, 4)).toBe(false);
+    expect(endsSoon({ expire_warn: 0 }, 1)).toBe(false);
+    expect(endsSoon({ expire_warn: 3 }, -1)).toBe(false);
+    expect(endsSoon({ expire_warn: 3 }, null)).toBe(false);
+  });
+  it('says when access ends', () => {
+    expect(endsIn(1)).toBe('ends today');
+    expect(endsIn(2)).toBe('ends tomorrow');
+    expect(endsIn(7)).toBe('ends in 7 days');
   });
   it('takes today from a series', () => {
     expect(todayOf([{ day: '2026-10-15' }, { day: '2026-10-16' }])).toBe('2026-10-16');

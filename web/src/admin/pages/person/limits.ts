@@ -7,7 +7,7 @@ import { notify } from '../../ui/toast';
 import { seg } from '../../ui/controls';
 import { attachTip } from '../../ui/tooltip';
 import { icon } from '../../../shared/icons';
-import { ACCESS_LABEL, bytes, date, daysLeft, shiftDay } from '../../../shared/format';
+import { ACCESS_LABEL, bytes, date, daysLeft, endsSoon, shiftDay } from '../../../shared/format';
 import { resetUsageDialog } from '../../logs';
 import { homeAccess } from '../../access';
 import { endSettings } from './dialogs';
@@ -78,7 +78,7 @@ function endTile(page: PersonPage): HTMLElement {
       p.expires
         ? E(
             'span',
-            { class: left != null && left < 0 ? 'dl-bad' : left != null && left <= p.expire_warn ? 'dl-warn' : 'dl-ok' },
+            { class: left != null && left < 0 ? 'dl-bad' : endsSoon(p, left) ? 'dl-warn' : 'dl-ok' },
             left != null && left < 0 ? 'ended' : `${left} day${left === 1 ? '' : 's'} left`,
           )
         : E('span', { class: 'dl-faint' }, 'no end date'),

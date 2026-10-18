@@ -8,7 +8,7 @@ import { api } from '../api';
 import { svg } from '../ui/layout';
 import { attachTip } from '../ui/tooltip';
 import { icon } from '../../shared/icons';
-import { ago, bits, bytes, daysLeft, initials, todayOf } from '../../shared/format';
+import { ago, bits, bytes, daysLeft, endsIn, endsSoon, initials, todayOf } from '../../shared/format';
 import { ConnectionMap, rangeControl, type Range } from '../map';
 import { personUrl } from '../urls';
 import { eventRow } from '../events/render';
@@ -46,8 +46,7 @@ function attention(st: Status): Attention[] {
     else if (p.state === 'expired') out.push({ tone: 'warn', text: [link(personUrl(p.id), p.name), '’s access has ended.'] });
     else {
       const left = daysLeft(p.expires, today);
-      if (left != null && left >= 0 && left <= Math.max(p.expire_warn, 3))
-        out.push({ tone: '', text: [link(personUrl(p.id), p.name), `’s access ends in ${left} day${left === 1 ? '' : 's'}.`] });
+      if (endsSoon(p, left)) out.push({ tone: '', text: [link(personUrl(p.id), p.name), `’s access ${endsIn(left as number)}.`] });
       if (p.quota_limit && p.quota_used >= p.quota_limit * 0.9)
         out.push({ tone: '', text: [link(personUrl(p.id), p.name), ' has used 90% of the data limit.'] });
     }

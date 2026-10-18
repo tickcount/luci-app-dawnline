@@ -10,6 +10,21 @@ import { section } from './common';
 
 function uninstall() {
   const confirmInput = input('', { placeholder: 'remove' });
+  // Live only once the word is typed, as the router itself demands.
+  const go = button(
+    'Remove Dawnline',
+    async () => {
+      if (await attempt(() => api.uninstall(confirmInput.value.trim()), 'Dawnline removed')) {
+        closeModal();
+        setTimeout(() => location.reload(), 800);
+      }
+    },
+    'negative',
+    { disabled: true },
+  );
+  confirmInput.addEventListener('input', () => {
+    go.disabled = confirmInput.value.trim() !== 'remove';
+  });
   modal(
     'Remove Dawnline?',
     [
@@ -20,20 +35,7 @@ function uninstall() {
       ),
       confirmInput,
     ],
-    [
-      cancelButton(),
-      ' ',
-      button(
-        'Remove Dawnline',
-        async () => {
-          if (await attempt(() => api.uninstall(confirmInput.value.trim()), 'Dawnline removed')) {
-            closeModal();
-            setTimeout(() => location.reload(), 800);
-          }
-        },
-        'negative',
-      ),
-    ],
+    [cancelButton(), ' ', go],
   );
 }
 

@@ -5,7 +5,21 @@
 // devices on the left, access on the right.
 
 import type { ClientConfig, Device, Kind, Person } from '../shared/types';
-import { ACCESS_LABEL, KIND_LABEL, addDays, ago, byDeviceState, bytes, date, daysLeft, initials, isoDay, parseDay } from '../shared/format';
+import {
+  ACCESS_LABEL,
+  KIND_LABEL,
+  addDays,
+  ago,
+  byDeviceState,
+  bytes,
+  date,
+  daysLeft,
+  endsIn,
+  endsSoon,
+  initials,
+  isoDay,
+  parseDay,
+} from '../shared/format';
 import { iconSvg } from '../shared/icons';
 import { qrSvg } from '../shared/qr';
 import { vpnKey } from '../shared/vpnkey';
@@ -430,7 +444,7 @@ function accessCard(st: State): HTMLElement {
           left != null
             ? h(
                 'span',
-                { class: `s ${left <= Math.max(p.expire_warn, 3) ? 'warn' : 'ok'}` },
+                { class: `s ${endsSoon(p, left) ? 'warn' : 'ok'}` },
                 left >= 0 ? `${left} day${left === 1 ? '' : 's'} left` : 'ended',
               )
             : null,
@@ -599,13 +613,8 @@ function main(st: State) {
   const notice =
     p.state !== 'active'
       ? alertRow(stateTone(p), ...stateNotice(p))
-      : left != null && left >= 0 && left <= Math.max(p.expire_warn, 1)
-        ? alertRow(
-            'warn',
-            'calendar',
-            `Your access ends ${left === 0 ? 'today' : `in ${left} day${left === 1 ? '' : 's'}`}`,
-            `On ${date(p.expires)}. Ask the admin to extend it.`,
-          )
+      : endsSoon(p, left)
+        ? alertRow('warn', 'calendar', `Your access ${endsIn(left as number)}`, `On ${date(p.expires)}. Ask the admin to extend it.`)
         : null;
 
   // The device this page was opened from comes first.

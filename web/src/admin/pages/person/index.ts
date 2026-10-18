@@ -136,16 +136,18 @@ export class PersonPage {
    * Apply a change now and repaint from the router's answer. Answers of
    * refreshes already on their way are dropped, so they can't paint the old state over it.
    */
-  async patch(patch: PersonPatch, ok?: string) {
+  /** Save a change; true when the router took it (a refusal is already a toast). */
+  async patch(patch: PersonPatch, ok?: string): Promise<boolean> {
     this.poller?.claim();
     const r = await attempt(() => api.personUpdate(this.p.id, patch), ok);
-    if (!r) return;
+    if (!r) return false;
     this.poller?.claim();
     const i = this.st.people.findIndex((x) => x.id === this.p.id);
     r.person.rate ??= this.p.rate;
     if (i >= 0) this.st.people[i] = r.person;
     this.p = r.person;
     this.paint();
+    return true;
   }
 
   /** Today on the router (the last day of its traffic series). */

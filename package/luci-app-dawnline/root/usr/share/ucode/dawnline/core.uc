@@ -81,7 +81,7 @@ export function load(c) {
 			// Where unknown portal links go instead of a bare 404 (empty = 404).
 			portal_redirect: s.portal_redirect ?? '',
 			default_device_limit: toint(s.default_device_limit, 3),
-			geo_enabled: bool(s.geo_enabled, true),
+			geo_enabled: bool(s.geo_enabled, false),
 			geo_provider: s.geo_provider == 'ipapi.co' ? 'ipapi.co' : 'ipwho.is',
 			hostnames: bool(s.hostnames, true),
 			domain: s.domain ?? 'lan',
