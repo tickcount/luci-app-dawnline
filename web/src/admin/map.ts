@@ -10,6 +10,7 @@ import { E } from './e';
 import { ago, initials } from '../shared/format';
 import { icon, iconSvg } from '../shared/icons';
 import { onNavigate } from './ui/nav';
+import { placeKey, shimmerOpacity } from './places/model';
 
 // mapcn requires maplibre-gl ^6 (the globe projection came with 5): an ES module, its worker beside it.
 const MAPLIBRE = 'https://unpkg.com/maplibre-gl@6.14.0/dist';
@@ -82,6 +83,8 @@ const CLICK_ZOOM = 10;
 const CITY_KM = 30;
 /** Screen distance at which two markers stand clear of each other (the server's plate and an avatar, with room). */
 const PART_PX = 62;
+/** The replay's dotted arc: a dot every this many screen pixels. */
+const DOT_PX = 4;
 /** Below these zooms plates turn compact (a continent) or mid-sized (a country). */
 const LOD_FAR = 4.5;
 const LOD_MID = 7;
@@ -146,7 +149,7 @@ export function visiblePoints(data: MapData, range: Range): GeoPoint[] {
     if (data.device && p.device !== data.device) continue;
     if (range === 'online' ? !p.online : data.now - p.ts > WINDOW[range]) continue;
     // Where people are: each device once. A person's page: every city each device was in.
-    const key = data.device ? `${p.city}|${p.cc}` : data.person ? `${p.device}|${p.city}|${p.cc}` : p.device;
+    const key = data.device ? placeKey(p) : data.person ? `${p.device}|${p.city}|${p.cc}` : p.device;
     const cur = best.get(key);
     if (!cur || (p.online && !cur.online) || (p.online === cur.online && p.ts > cur.ts)) best.set(key, p);
   }
@@ -200,6 +203,17 @@ export class ConnectionMap {
   /** The folded keys the layers were last filtered for (a filter only changes when they do). */
   private hiddenKey = '';
   private focused: string | null = null;
+  /** Destroyed: a mount still waiting for the library stops there instead of drawing into a dropped element. */
+  private dead = false;
+  /** A device's places (its window) by placeKey: what the replay switches on and off. */
+  private places = new Map<
+    string,
+    { el: HTMLElement; tile: HTMLElement; label: HTMLElement; when: HTMLElement | null; g: Group; n: number; kind: string }
+  >();
+  /** The replay of a device's moves: the place the light is on and the time under it; null outside it. */
+  private replaying: { active: string | null; when: string } | null = null;
+  /** The replay's arc dots, kept for a style reload (a theme switch) in the middle of a move. */
+  private bandDots: unknown[] = [];
   private card: HTMLElement;
   readonly el: HTMLElement;
   private status: HTMLElement;
@@ -223,6 +237,7 @@ export class ConnectionMap {
       this.status.textContent = (e as Error).message;
       return;
     }
+    if (this.dead) return;
     this.map = new this.gl.Map({
       container: this.el,
       style: isDark() ? STYLE_DARK : STYLE_LIGHT,
@@ -285,14 +300,13 @@ export class ConnectionMap {
         'circle-stroke-opacity': ['case', ['get', 'online'], 0.35, 0.15],
       },
     });
-    // A device's trail through its places in time order (its window): fine gray dots.
-    this.map.addSource('dl-trail', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+    // A device's move in its replay: a dotted arc, transparent but where the shimmer is (band, bandAt).
+    this.map.addSource('dl-band', { type: 'geojson', data: { type: 'FeatureCollection', features: this.bandDots } });
     this.map.addLayer({
-      id: 'dl-trail',
-      type: 'line',
-      source: 'dl-trail',
-      layout: { 'line-join': 'round', 'line-cap': 'round' },
-      paint: { 'line-color': RECENT, 'line-width': 1.5, 'line-opacity': 0.85, 'line-dasharray': [0, 2.5] },
+      id: 'dl-band',
+      type: 'circle',
+      source: 'dl-band',
+      paint: { 'circle-radius': 1.4, 'circle-color': LIVE, 'circle-opacity': 0 },
     });
     // mapcn's MapArc paint (width 2, opacity 0.85, rounded) with the Basic Arc example's dashes;
     // recent arcs under live ones.
@@ -321,6 +335,7 @@ export class ConnectionMap {
   }
 
   destroy() {
+    this.dead = true;
     this.dropCard();
     for (const p of this.piles.values()) p.marker.remove();
     this.piles.clear();
@@ -334,7 +349,7 @@ export class ConnectionMap {
   private groups(pts: GeoPoint[]): Group[] {
     const map = new Map<string, Group>();
     for (const p of pts) {
-      const key = `${p.person}|${p.city || `${p.lat.toFixed(1)},${p.lon.toFixed(1)}`}|${p.cc}`;
+      const key = `${p.person}|${placeKey(p)}`;
       let g = map.get(key);
       if (!g) {
         g = {
@@ -416,31 +431,16 @@ export class ConnectionMap {
       this.add(el, [home.lon, home.lat], true);
     }
 
-    // A device's places joined oldest to newest, each step bowed like an arc.
-    const steps = data.device ? [...placed].sort((a, b) => Number(a.g.online) - Number(b.g.online) || a.g.ts - b.g.ts) : [];
-    this.map.getSource('dl-trail')?.setData({
-      type: 'FeatureCollection',
-      features:
-        steps.length > 1
-          ? [
-              {
-                type: 'Feature',
-                properties: {},
-                geometry: { type: 'LineString', coordinates: steps.slice(1).flatMap((x, i) => arc(steps[i].at, x.at)) },
-              },
-            ]
-          : [],
-    });
-    const numbers = new Map(data.device ? devicePlaces(data, this.range).map((p) => [`${p.city}|${p.cc}`, p.n]) : []);
+    // A device's places, numbered as the list under the map (its strips say when it was where).
+    const numbers = new Map(data.device ? devicePlaces(data, this.range).map((p) => [placeKey(p), p.n]) : []);
 
     this.people = [];
+    this.places.clear();
     for (const { g, at } of placed) {
       const n = g.points.length;
       const person = data.people.find((x) => x.id === g.person);
       if (data.person) {
-        const el = data.device
-          ? this.stepMarker(g, at, person, numbers.get(`${g.points[0].city}|${g.points[0].cc}`) ?? 0)
-          : this.placeMarker(g, at, person);
+        const el = data.device ? this.deviceMarker(g, at, person, numbers.get(placeKey(g)) ?? 0) : this.placeMarker(g, at, person);
         this.add(el, at);
         continue;
       }
@@ -820,21 +820,109 @@ export class ConnectionMap {
   }
 
   /**
-   * A place in a device's window: the live one as a blue tile with the device's icon and
-   * "now", the earlier ones as small gray tiles numbered by recency (1 = most recent).
+   * A place in a device's window: on, a blue tile with the device's icon and "now" (the live
+   * place); off, a small gray tile numbered by recency (1 = most recent). One element whose
+   * state changes, so the replay can move the light from place to place (paintPlace).
    */
-  private stepMarker(g: Group, at: [number, number], person: Person | undefined, n: number): HTMLElement {
-    if (g.online) return this.placeMarker(g, at, person);
-    const when = ago(g.ts, this.data!.now);
-    const el = E('button', { type: 'button', class: 'dl-mk place step', 'aria-label': `${n}: ${g.city || 'an unknown city'}, ${when}` }, [
-      E('span', { class: 'dl-mk-tile sm' }, String(n)),
-      E('span', { class: 'dl-mk-label below' }, [g.city || g.cc || '?', ` · ${when}`]),
-    ]);
+  private deviceMarker(g: Group, at: [number, number], person: Person | undefined, n: number): HTMLElement {
+    const kind = person?.devices.find((d) => d.id === g.points[0].device)?.kind ?? 'other';
+    const tile = E('span', { class: 'dl-mk-tile' });
+    const label = E('span', { class: 'dl-mk-label below' });
+    const el = E('button', { type: 'button', class: 'dl-mk place step' }, [tile, label]);
     el.addEventListener('click', (ev) => {
       ev.stopPropagation();
       this.openPopup(g, at, el);
     });
+    const key = placeKey(g);
+    this.places.set(key, { el, tile, label, when: null, g, n, kind });
+    this.paintPlace(key, false);
     return el;
+  }
+
+  /** A device's place as the replay has it (or, outside it, as it is now); `animate` lets the light come in. */
+  private paintPlace(key: string, animate: boolean) {
+    const x = this.places.get(key);
+    if (!x) return;
+    const r = this.replaying;
+    const on = r ? r.active === key : x.g.online;
+    const was = x.el.classList.contains('online');
+    const city = x.g.city || x.g.cc || '?';
+    x.el.classList.toggle('online', on);
+    x.el.classList.toggle('faded', !!r && !on);
+    x.tile.classList.toggle('sm', !on);
+    if (on || !x.n) x.tile.innerHTML = iconSvg(x.kind, 'dl-mk-tile-ic');
+    else x.tile.textContent = String(x.n);
+    x.when = null;
+    if (on) {
+      // In the replay the time goes on the city's line (two lines would run into a place below).
+      x.when = E('span', { class: `dl-mk-when${r ? ' inline' : ''}` }, r ? r.when : 'now');
+      x.label.replaceChildren(city, r ? ' · ' : '', x.when);
+    } else x.label.replaceChildren(`${city} · ${x.g.online ? 'now' : ago(x.g.ts, this.data!.now)}`);
+    const when = on ? (r ? r.when : 'now') : x.g.online ? 'now' : ago(x.g.ts, this.data!.now);
+    x.el.setAttribute('aria-label', `${x.n ? `${x.n}: ` : ''}${x.g.city || 'an unknown city'}, ${when}`);
+    if (animate && on && !was) {
+      x.el.classList.remove('arrive');
+      void x.el.offsetWidth;
+      x.el.classList.add('arrive');
+      setTimeout(() => x.el.classList.remove('arrive'), 500);
+    }
+  }
+
+  /**
+   * The replay of a device's moves (its window): `active` is the place (placeKey) the light is on,
+   * `when` the time under it; null goes back to how things are now. A change of place animates.
+   */
+  replay(state: { active: string | null; when: string } | null, animate = true) {
+    const prev = this.replaying;
+    this.replaying = state;
+    // The same place a moment later: only its time changes.
+    if (prev && state && prev.active === state.active) {
+      const x = state.active ? this.places.get(state.active) : null;
+      if (x?.when) x.when.textContent = state.when;
+      return;
+    }
+    for (const key of this.places.keys()) if (key !== state?.active) this.paintPlace(key, animate);
+    if (state?.active) this.paintPlace(state.active, animate);
+    // Tiles grow and shrink: spread the crowded ones again, now and once they have their size.
+    this.declutter();
+    setTimeout(() => this.declutter(), 320);
+  }
+
+  /** A device's place lit while its row under the map is hovered; null for none. */
+  hoverPlace(key: string | null) {
+    for (const [k, x] of this.places) x.el.classList.toggle('hl', k === key);
+  }
+
+  /**
+   * The dots of the arc between two places (a move in the replay), as many as fit on screen at
+   * DOT_PX apart, all transparent until bandAt() brings the shimmer in; no arguments clear them.
+   */
+  band(from?: [number, number], to?: [number, number]) {
+    this.bandDots = [];
+    if (this.map && from && to) {
+      const pts = arc(from, to);
+      const px = pts.map((c) => this.map.project(c));
+      const len = [0];
+      for (let i = 1; i < px.length; i++) len.push(len[i - 1] + Math.hypot(px[i].x - px[i - 1].x, px[i].y - px[i - 1].y));
+      const total = len[len.length - 1];
+      const n = Math.max(2, Math.round(total / DOT_PX));
+      let j = 0;
+      for (let i = 0; i <= n; i++) {
+        const d = (total * i) / n;
+        while (j < len.length - 2 && len[j + 1] < d) j++;
+        const t = len[j + 1] > len[j] ? (d - len[j]) / (len[j + 1] - len[j]) : 0;
+        const at = [pts[j][0] + (pts[j + 1][0] - pts[j][0]) * t, pts[j][1] + (pts[j + 1][1] - pts[j][1]) * t];
+        this.bandDots.push({ type: 'Feature', properties: { pos: i / n }, geometry: { type: 'Point', coordinates: at } });
+      }
+    }
+    if (!this.map?.getLayer('dl-band')) return;
+    this.map.setPaintProperty('dl-band', 'circle-opacity', 0);
+    this.map.getSource('dl-band').setData({ type: 'FeatureCollection', features: this.bandDots });
+  }
+
+  /** The shimmer along the band's arc, its middle at `c` (a share of the arc: see places/model). */
+  bandAt(c: number) {
+    if (this.map?.getLayer('dl-band')) this.map.setPaintProperty('dl-band', 'circle-opacity', shimmerOpacity(c));
   }
 
   /**
@@ -894,9 +982,17 @@ export class ConnectionMap {
     const b = new this.gl.LngLatBounds(pts[0], pts[0]);
     pts.forEach((c) => b.extend(c));
     const h = this.el.clientHeight || 380;
+    // A person's and a device's places have their name (and "now") under the tile; a device's
+    // window has the replay's controls in its top corner.
+    const below = !!this.data?.person;
     const opts = {
       // Just enough room for the labels: the server's chip above its plate, a place's name above its dot.
-      padding: { top: Math.min(60, h / 5), bottom: Math.min(40, h / 8), left: 48, right: 48 },
+      padding: {
+        top: this.data?.device ? Math.min(56, h / 4) : Math.min(60, h / 5),
+        bottom: below ? Math.min(52, h / 4) : Math.min(40, h / 8),
+        left: 48,
+        right: 48,
+      },
       // A person's page shows a little more around a single place.
       maxZoom: this.data?.person ? 11 : 12,
     };

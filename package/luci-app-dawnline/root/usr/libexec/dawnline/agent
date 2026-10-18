@@ -154,41 +154,6 @@ function check_people(m, states, events) {
 	}
 }
 
-let last_home = 0;
-// Addresses the watcher saw connect since the last tick: looked up first.
-let geo_pending = {};
-
-/**
- * Locate client addresses for the admin map: the ones that just connected
- * first, then anything still shown that is missing or stale — a few per
- * minute, within a time budget, so a slow service never holds the tick.
- */
-function check_geo(m) {
-	if (!m.settings.geo_enabled) {
-		geo_pending = {};
-		return;
-	}
-	let cache = geo.load();
-	let ips = keys(geo_pending);
-	geo_pending = {};
-	for (let id, rec in usage.devices)
-		for (let ip in keys(rec.ips ?? {}))
-			push(ips, ip);
-	let changed = geo.resolve(m.settings, cache, uniq(ips), 3, 12);
-	if (time() - last_home > 3600) {
-		last_home = time();
-		let wan = live.iface_status('wan')?.['ipv4-address']?.[0]?.address;
-		changed = geo.resolve_home(m.settings, cache, wan) || changed;
-	}
-	if (changed)
-		geo.save(cache);
-}
-
-function place_of(ip) {
-	let pl = geo.place(geo.load(), ip);
-	return pl ? join(' · ', filter([ pl.city, pl.org ], (x) => x)) : null;
-}
-
 /** Connections from home: the DHCP name of the address, as it is now. */
 function named(e) {
 	let h = net.event_hosts(e, net.lan_names());
@@ -223,6 +188,116 @@ function save_presence(people) {
 		person_rev[pid] = rev;
 	ensure_dir(RUN_DIR);
 	write_json(live.PRESENCE, { online: last_online, endpoint: last_endpoint, rev, people: person_rev }, 0o600);
+}
+
+/* ---------- locations ---------- */
+
+// A lookup run: this many addresses at most, within this many seconds; a run
+// still going after GEO_KILL seconds (past every timeout) is given up.
+const GEO_PER_RUN = 3;
+const GEO_BUDGET = 12;
+const GEO_KILL = 60;
+
+let last_home = 0;
+// Addresses the watcher saw connect or roam that wait for a run.
+let geo_pending = {};
+// The run in a child process (uloop.task) and when it started; null when none.
+let geo_task = null, geo_since = 0;
+
+/** Every client address still shown on the map (the cache never pushes these out). */
+function geo_shown() {
+	let ips = [];
+	for (let id, rec in usage.devices)
+		for (let ip in keys(rec.ips ?? {}))
+			push(ips, ip);
+	return uniq(ips);
+}
+
+/*
+ * A run's results: into the cache (the agent is its only writer), onto the
+ * connections in the activity log that were logged before their place was
+ * known, and to open pages at once: the revision moves for the people seen
+ * from those addresses.
+ */
+function geo_done(found) {
+	let cache = geo.load();
+	if (type(found) != 'object' || !geo.merge(cache, found, geo_shown()))
+		return;
+	geo.save(cache);
+	let where = {};
+	for (let ip, r in found)
+		if (r)
+			where[ip] = geo.label(r);
+	if (!length(keys(where)))
+		return;
+	let m = watch_model(), people = {};
+	for (let id, rec in usage.devices)
+		for (let ip in keys(where))
+			if (rec.ips?.[ip] && m.devices[id])
+				people[m.devices[id].person] = true;
+	live.set_places(where, time() - 3600);
+	save_presence(keys(people));
+}
+
+/*
+ * Locate client addresses for the admin map in a child process: a lookup
+ * waits on the network for seconds, and neither the 1-second watcher nor the
+ * tick may wait with it. Addresses that just connected go first, at once
+ * (the watcher calls this on a connect); the tick adds anything still shown
+ * that is missing or stale (`more`). One run at a time, a few addresses each;
+ * what just connected and did not fit waits for the next run.
+ */
+function geo_lookup(m, more) {
+	if (!m.settings.geo_enabled) {
+		geo_pending = {};
+		return;
+	}
+	if (geo_task && !geo_task.finished()) {
+		if (time() - geo_since < GEO_KILL)
+			return;
+		geo_task.kill();
+	}
+	geo_task = null;
+	let todo = geo.stale(geo.load(), [ ...keys(geo_pending), ...(more ?? []) ]);
+	let want = slice(todo, 0, GEO_PER_RUN);
+	let rest = {};
+	for (let ip in slice(todo, GEO_PER_RUN))
+		if (geo_pending[ip])
+			rest[ip] = true;
+	geo_pending = rest;
+	if (!length(want))
+		return;
+	let provider = m.settings.geo_provider;
+	let t = null;
+	t = uloop.task(() => {
+		// The child shares the instance lock: it must not keep it past the agent (a restart would find it taken).
+		instance.close();
+		return geo.lookup_all(provider, want, GEO_PER_RUN, GEO_BUDGET);
+	}, (found) => {
+		if (geo_task == t)
+			geo_task = null;
+		geo_done(found);
+		if (length(keys(geo_pending)))
+			geo_lookup(watch_model());
+	});
+	geo_task = t;
+	geo_since = time();
+}
+
+/** The tick: shown addresses missing or stale get a run; the router's own place about hourly. */
+function check_geo(m) {
+	geo_lookup(m, geo_shown());
+	if (!m.settings.geo_enabled || time() - last_home <= 3600)
+		return;
+	last_home = time();
+	let cache = geo.load();
+	let wan = live.iface_status('wan')?.['ipv4-address']?.[0]?.address;
+	if (geo.resolve_home(m.settings, cache, wan))
+		geo.save(cache);
+}
+
+function place_of(ip) {
+	return geo.label(geo.place(geo.load(), ip));
 }
 
 /*
@@ -282,16 +357,19 @@ function watch() {
 		return;
 	live.collect(m, usage, d);
 	live.save_usage(usage, false);
-	// A location lookup waits on the network: never here, on the next tick
-	// (check_geo). The event carries the place when the cache already knows it.
-	if (m.settings.geo_enabled)
-		for (let ip in ips)
-			geo_pending[ip] = true;
+	// The event carries the place when the cache already knows it. A new
+	// address is looked up at once, in a child process (geo_lookup): its place
+	// goes onto this event and the revision moves again when it is known.
 	for (let e in events)
 		if (e.type == 'connect')
 			e.where = place_of(e.detail);
 	live.add_events(map(events, (e) => e.type == 'disconnect' ? e : named(e)), live.policy(m.settings.retention));
 	save_presence(keys(people));
+	if (m.settings.geo_enabled && length(ips)) {
+		for (let ip in ips)
+			geo_pending[ip] = true;
+		geo_lookup(m);
+	}
 }
 
 // What the service log was already told. On flash: the public address often

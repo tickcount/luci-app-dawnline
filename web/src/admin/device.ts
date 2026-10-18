@@ -23,7 +23,8 @@ import { clearLogDialog, exportEvents, resetUsageDialog } from './logs';
 import { coreFor, coreOf, type Core } from './cores';
 import { plainWg } from './cores/awg';
 import { onLiveChange } from './state/live';
-import { ConnectionMap, devicePlaces, rangeControl, type MapData, type Range } from './map';
+import { ConnectionMap, rangeControl, type Range } from './map';
+import { PlacesView } from './places/render';
 import { personUrl } from './urls';
 
 /** What the page that opens a device hands over. */
@@ -135,6 +136,7 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
   const showLog = (events: LogEvent[]) => {
     logEvents = events.filter((e) => e.device === d.id);
     dom.content(log, deviceEvents(events, d.id, now));
+    view?.update({ events });
   };
   /** The page's events when it has them; otherwise a fetch (`force` after clearing). */
   const loadLog = async (force = false) => {
@@ -144,31 +146,11 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
     if (ev) showLog(ev.events);
   };
 
-  // Where this device connected from, in time order (option B): a map with its trail and the list.
+  // Where this device connected from: the map, a row per place with a strip of when it was
+  // there (from the log's connections), and a replay of the period on the map.
   let range: Range = '30d';
   let map: ConnectionMap | null = null;
-  const places = E('div', { class: 'dl-dplaces' });
-  const mapData = (): MapData => ({ geo: geo!, people: [p], now: now ?? Date.now() / 1000, person: p.id, device: d.id });
-  const paintPlaces = () => {
-    if (!geo?.enabled) return;
-    const list = devicePlaces(mapData(), range);
-    dom.content(
-      places,
-      list.length
-        ? list.map((x) =>
-            E('div', { class: 'dl-dplace-row' }, [
-              E('span', { class: `dl-dplace-n${x.online ? ' live' : ''}` }, x.online ? icon(d.kind) : String(x.n)),
-              E('span', { class: 'dl-row-main dl-stack' }, [
-                E('span', {}, [x.city || x.cc || 'Unknown city', x.org ? E('span', { class: 'dl-muted' }, ` · ${x.org}`) : '']),
-                E('span', { class: 'dl-mono dl-faint' }, x.ip),
-              ]),
-              E('span', { class: x.online ? 'dl-dplace-now' : 'dl-faint dl-nowrap' }, x.online ? 'now' : ago(x.ts, now)),
-            ]),
-          )
-        : E('div', { class: 'dl-sub' }, 'No locations in this period.'),
-    );
-  };
-
+  let view: PlacesView | null = null;
   const paint = () => {
     dom.content(titleEl, [
       E('span', { class: `dl-dcard-ic${d.online ? ' on' : ''}` }, icon(d.kind)),
@@ -290,8 +272,7 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
     now = st.now;
     today = todayOf(st.series);
     paint();
-    map?.update(mapData());
-    paintPlaces();
+    view?.update({ geo: st.geo, now: st.now, person: p, device: d });
   };
   /** After a change made here: this drawer and the page. */
   const changed = async () => {
@@ -376,6 +357,13 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
       range,
       220,
     );
+    const v = (view = new PlacesView(map, range, {
+      geo,
+      now: now ?? Date.now() / 1000,
+      person: p,
+      device: d,
+      events: o.events?.() ?? null,
+    }));
     locationsSec = E('section', { class: 'dl-dsec' }, [
       E('div', { class: 'dl-dsec-head' }, [
         E('h4', {}, 'Locations'),
@@ -383,16 +371,14 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
           range,
           (r) => {
             range = r;
-            map?.setRange(r);
-            paintPlaces();
+            v.setRange(r);
           },
           false,
         ),
       ]),
-      E('div', { class: 'dl-dmap' }, map.el),
-      places,
+      E('div', { class: 'dl-dmap' }, [map.el, v.controls]),
+      v.el,
     ]);
-    paintPlaces();
   }
   // Connecting is what the drawer is for until the device is set up (or its configuration is old);
   // after that it goes to the bottom.
@@ -413,10 +399,11 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
   const handle = drawer(titleEl, body, foot, () => {
     clearInterval(watch);
     off();
+    view?.destroy();
     map?.destroy();
   });
   paint();
-  if (map) requestAnimationFrame(() => map?.mount(mapData()));
+  if (map && view) requestAnimationFrame(() => view && map?.mount(view.mapData()));
 }
 
 /** ⋯ on a device card: quick actions (everything else is in the panel; click the card). */

@@ -51,6 +51,43 @@
 .dl-dplace-n.live { background: #3b82f6; color: #fff; }
 .dl-dplace-n .dl-icon { width: 12px; height: 12px; }
 .dl-dplace-now { color: #3b82f6; }
+/* With the log's connections, each place has a strip: when the device was there in the range (the
+   live place's blue). The highlight (hover, the replay's place) reaches past the content on both
+   sides, the separators stay with the content. */
+.dl-dplaces.strips .dl-dplace-row { position: relative; display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; column-gap: 10px; row-gap: 9px;
+  margin: 0 -10px; padding: 11px 10px; border-top: 0; border-radius: 10px; transition: background .15s; }
+.dl-dplaces.strips .dl-dplace-row + .dl-dplace-row::before { content: ''; position: absolute; left: 10px; right: 10px; top: 0; height: 1px; background: var(--dl-line); }
+.dl-dplaces.strips .dl-dplace-row:is(:hover, .cur) { background: var(--dl-soft); }
+.dl-dplaces.strips .dl-dplace-row:is(:hover, .cur)::before, .dl-dplaces.strips .dl-dplace-row:is(:hover, .cur) + .dl-dplace-row::before { opacity: 0; }
+.dl-dplace-strip { grid-column: 2 / 4; position: relative; height: 6px; border-radius: 3px; background: var(--dl-track); }
+.dl-dplaces.can-replay .dl-dplace-strip { cursor: ew-resize; touch-action: none; }
+.dl-dplace-strip i { position: absolute; top: 0; bottom: 0; min-width: 2px; border-radius: 2px; background: #8a8a8a; }
+.dl-dplace-strip.live i { background: #3b82f6; }
+/* The replay's moment: a tick on every strip. */
+.dl-dplaces.replay .dl-dplace-strip::after { content: ''; position: absolute; left: var(--at); top: -4px; bottom: -4px; width: 2px; margin-left: -1px; border-radius: 1px;
+  background: var(--dl-fg); box-shadow: 0 0 0 2px var(--dialog-bg, var(--dl-elevated)); pointer-events: none; }
+.dl-dplace-axis { position: relative; height: 16px; margin: 4px 0 0 30px; font-size: 11px; line-height: 16px; color: var(--dl-fg-faint); }
+.dl-dplace-axis span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
+/* The replay's controls in the map's top corner, and the place it lights. */
+.dl-dmap { position: relative; }
+.dl-map-replay { position: absolute; left: 10px; top: 10px; z-index: 3; display: flex; align-items: center; gap: 6px; }
+.dl-map-btn { all: unset; box-sizing: border-box; cursor: pointer; width: 28px; height: 28px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--dl-elevated); border: 1px solid var(--dl-line); color: var(--dl-fg); }
+.dl-map-btn:hover { background: color-mix(in srgb, var(--dl-fg) 8%, var(--dl-elevated)); }
+.dl-map-btn:focus-visible { outline: 2px solid var(--dl-ring); }
+.dl-map-btn .dl-icon { width: 13px; height: 13px; }
+.dl-map-chip { display: inline-flex; align-items: center; height: 28px; box-sizing: border-box; padding: 0 10px; border-radius: 8px; font-size: 11.5px; white-space: nowrap;
+  background: var(--dl-elevated); border: 1px solid var(--dl-line); color: var(--dl-fg); font-variant-numeric: tabular-nums; }
+.dl-mk.step .dl-mk-tile { transition: width .3s cubic-bezier(.2, .8, .2, 1), height .3s cubic-bezier(.2, .8, .2, 1), border-radius .3s, background-color .3s, color .3s,
+  box-shadow .3s, transform .24s; }
+.dl-mk.step .dl-mk-tile.sm .dl-mk-tile-ic { width: 11px; height: 11px; }
+.dl-mk.step.faded > * { opacity: .5; }
+/* The place in the light (or hovered in the list) over its neighbours, its name readable. */
+.dl-mk.step:is(.online, .hl) { z-index: 2; }
+.dl-mk.step.hl .dl-mk-tile { box-shadow: 0 0 0 3px color-mix(in srgb, #3b82f6 55%, transparent); }
+.dl-mk.step.arrive .dl-mk-tile { animation: dl-mk-arrive .45s cubic-bezier(.2, .8, .2, 1); }
+@keyframes dl-mk-arrive { 0% { transform: scale(.8); } 55% { transform: scale(1.12); } 100% { transform: scale(1); } }
+.dl-mk-when.inline { display: inline; }
 /* Someone on top of the server: folded into a count on its plate until there is room. */
 /* MapLibre writes the marker's own opacity (fading what is behind the globe): ours goes on its parts. */
 .dl-mk > * { transition: opacity .15s; opacity: var(--dl-mk-fade, 1); }
@@ -116,14 +153,15 @@
 .dl-lod-far .dl-mk-more { margin-left: 4px; font-size: 10px; }
 /* Place names only from the country level: far out they would crowd the plates. */
 .dl-mk-label { transition: opacity .2s ease; }
-.dl-lod-far .dl-mk-label { opacity: 0; }
+/* A device's few places keep their names at any distance. */
+.dl-lod-far .dl-mk:not(.step) .dl-mk-label { opacity: 0; }
 .dl-lod-mid .dl-mk-host { width: 36px; height: 36px; }
 .dl-lod-mid .dl-mk-dock, .dl-lod-mid .dl-mk-pile-box { height: 36px; }
 .dl-lod-mid .dl-mk-face .dl-mk-av { width: 24px; height: 24px; font-size: 9px; }
 .dl-lod-mid .dl-mk-face > .dl-mk-badge { height: 12px; min-width: 12px; margin-left: -10px; bottom: -7px; }
 .dl-lod-mid .dl-mk-face > .dl-mk-badge:has(> svg:only-child) { width: 12px; }
 .dl-lod-mid .dl-mk-face > .dl-mk-badge .dl-mk-badge-ic { width: 8px; height: 8px; }
-@media (prefers-reduced-motion: reduce) { .dl-mk-dock, .dl-mk-pile-box, .dl-mk-face, .dl-mk-av, .dl-mk-tile, .dl-mk-host, .dl-mk-face > .dl-mk-badge { transition: none; animation: none; } }
+@media (prefers-reduced-motion: reduce) { .dl-mk-dock, .dl-mk-pile-box, .dl-mk-face, .dl-mk-av, .dl-mk-tile, .dl-mk.step .dl-mk-tile, .dl-mk-host, .dl-mk-face > .dl-mk-badge { transition: none; animation: none; } }
 .dl-mk-hub:has(.dl-mk-host.docked) .dl-mk-host { cursor: zoom-in; }
 /* A marker moved clear of a crowd: a line back to its real spot, and a dot there. */
 .dl-mk-ptr { position: absolute; left: 50%; top: 50%; width: 0; height: 0; z-index: -1; pointer-events: none; }

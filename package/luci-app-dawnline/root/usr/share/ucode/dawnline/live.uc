@@ -395,6 +395,35 @@ export function add_event_merged(e, window) {
 	unlock(l);
 };
 
+/**
+ * Places for connections logged before their address was located (the
+ * lookup finishes after the event): connect events since `since` from an
+ * address in `where` ({ ip: "City · ISP" }) that have no place yet get it.
+ * Returns true when `ev` changed.
+ */
+export function fill_places(ev, where, since) {
+	let changed = false;
+	for (let i = length(ev) - 1; i >= 0 && ev[i].ts >= since; i--) {
+		let e = ev[i];
+		if (e.type == 'connect' && !e.where && where[e.detail]) {
+			e.where = where[e.detail];
+			changed = true;
+		}
+	}
+	return changed;
+};
+
+/** fill_places() on the live log, written only when something changed. */
+export function set_places(where, since) {
+	let l = lock('events');
+	let ev = load_events();
+	if (fill_places(ev, where, since)) {
+		ensure_dir(RUN_DIR);
+		write_json(`${RUN_DIR}/events.json`, ev, 0o600);
+	}
+	unlock(l);
+};
+
 /** Save the log to flash, or drop the flash copy when it is kept in RAM only. */
 export function persist_events(pol) {
 	pol ??= policy();

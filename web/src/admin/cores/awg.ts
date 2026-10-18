@@ -408,7 +408,7 @@ function overviewTile(srv: Server): HTMLElement {
       E('a', { href: `${L.url('admin/network/dawnline/server')}?server=${encodeURIComponent(srv.id)}&section=awg` }, 'Change'),
     ]),
     E('div', { class: 'dl-disg-id' }, [
-      E('span', { class: 'dl-disg-ic' }, icon(m?.ic ?? 'shield')),
+      E('span', { class: `dl-disg-ic${m?.id === 'off' ? ' off' : ''}` }, icon(m?.ic ?? 'shield')),
       E('span', { class: 'dl-stack' }, [
         E('b', {}, m ? m.title : (legacyTitle(srv.preset) ?? 'Custom')),
         E('span', { class: 'dl-sub' }, m ? m.short : legacyTitle(srv.preset) ? 'Switch to Balanced or Maximum' : 'Set by hand'),

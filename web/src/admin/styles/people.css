@@ -34,8 +34,9 @@
 .dl-chip:hover { background: var(--dl-soft-hover); }
 .dl-chip:focus-visible { outline: 2px solid var(--dl-ring); outline-offset: 2px; }
 .dl-chip .dl-icon { width: 14px; height: 14px; color: var(--dl-fg-muted); }
-.dl-chip.add { background: transparent; box-shadow: inset 0 0 0 1px var(--dl-line); color: var(--dl-fg-muted); aspect-ratio: 1; padding: 0; justify-content: center; }
-.dl-chip.add:hover { background: var(--dl-soft); color: var(--dl-fg); }
+.dl-chip.add { background: transparent; border: 1px dashed color-mix(in srgb, var(--dl-fg) 28%, transparent); color: var(--dl-fg-muted); }
+.dl-chip.add:hover { background: var(--dl-soft); color: var(--dl-fg); border-color: color-mix(in srgb, var(--dl-fg) 45%, transparent); }
+.dl-chip.add:hover .dl-icon { color: var(--dl-fg); }
 .dl-chip.disabled .dl-chip-name { text-decoration: line-through; color: var(--dl-fg-faint); }
 .dl-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dl-dot { flex: 0 0 auto; width: 6px; height: 6px; border-radius: 50%; background: var(--dl-fg-faint); opacity: .6; }

@@ -48,3 +48,21 @@ test('endpoint_ip', () => {
 	eq(live.endpoint_ip('[2001:db8::1]:41821'), '2001:db8::1', 'v6');
 	eq(live.endpoint_ip(''), '', 'none');
 });
+
+// A connect is logged before its new address is located; the place comes later.
+test('fill_places', () => {
+	let ev = [
+		{ type: 'connect', detail: '1.1.1.1', where: null, ts: 100 },
+		{ type: 'connect', detail: '1.1.1.1', where: null, ts: 200 },
+		{ type: 'disconnect', detail: null, ts: 210 },
+		{ type: 'connect', detail: '8.8.8.8', where: 'Mountain View · Google', ts: 220 },
+		{ type: 'connect', detail: '9.9.9.9', where: null, ts: 230 },
+	];
+	ok(live.fill_places(ev, { '1.1.1.1': 'Sydney · Cloudflare', '8.8.8.8': 'Elsewhere' }, 150), 'changed');
+	eq(ev[1].where, 'Sydney · Cloudflare', 'the waiting connect gets its place');
+	eq(ev[0].where, null, 'older than `since`: left alone');
+	eq(ev[3].where, 'Mountain View · Google', 'a place already there stays');
+	eq(ev[4].where, null, 'another address');
+	ok(!live.fill_places(ev, { '7.7.7.7': 'X' }, 0), 'nothing to fill: unchanged');
+	ok(!live.fill_places([], { '1.1.1.1': 'X' }, 0), 'empty log');
+});

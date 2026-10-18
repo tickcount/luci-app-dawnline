@@ -111,6 +111,8 @@ export class ServerOverview {
   st!: Status;
   el = E('div', { class: 'dl-srvov' });
   map: ConnectionMap | null = null;
+  /** Whether the map card was made for locations on (a map) or off (a link to Settings); null before the first. */
+  mapOn: boolean | null = null;
   range: Range = 'online';
   parts: Record<string, HTMLElement> = {};
   healthAt = 0;
@@ -124,11 +126,11 @@ export class ServerOverview {
   /** Build once; later calls to update() keep the map instance. */
   mount(st: Status): HTMLElement {
     this.st = scoped(st, this.srvId);
-    for (const k of ['health', 'bento', 'side', 'activity']) this.parts[k] = E('div', {});
+    for (const k of ['health', 'bento', 'map', 'side', 'activity']) this.parts[k] = E('div', {});
     dom.content(this.el, [
       this.parts.health,
       this.parts.bento,
-      this.mapCard(),
+      this.parts.map,
       E('div', { class: 'dl-grid2' }, [this.parts.activity, this.parts.side]),
     ]);
     this.paint();
@@ -140,7 +142,6 @@ export class ServerOverview {
   update(st: Status, quiet = false) {
     this.st = scoped(st, this.srvId);
     this.paint(quiet);
-    this.map?.update(this.mapData());
     // Health checks cost more than a status call: once a minute is plenty.
     if (Date.now() - this.healthAt > 60_000) void this.loadHealth();
   }
@@ -168,6 +169,21 @@ export class ServerOverview {
     return { geo: this.st.geo, people: this.st.people, now: this.st.now };
   }
 
+  /**
+   * The map keeps its instance between updates. Its card is made again only
+   * when locations were turned on or off, or when the map was freed: leaving
+   * the page frees it, and Outline brings this same overview back on return.
+   */
+  paintMap() {
+    const on = this.st.geo.enabled;
+    if (on === this.mapOn && (!on || this.map)) {
+      this.map?.update(this.mapData());
+      return;
+    }
+    this.mapOn = on;
+    dom.content(this.parts.map, this.mapCard());
+  }
+
   mapCard(): HTMLElement {
     const st = this.st;
     const head = E('div', { class: 'dl-panel-head pad' }, [
@@ -181,6 +197,8 @@ export class ServerOverview {
         this.map?.setRange(r);
       }),
     ]);
+    this.map?.destroy();
+    this.map = null;
     if (!st.geo.enabled)
       return E('div', { class: 'dl-panel flush' }, [
         head,
@@ -190,27 +208,27 @@ export class ServerOverview {
           '.',
         ]),
       ]);
-    this.map?.destroy();
-    this.map = new ConnectionMap(
+    const map = (this.map = new ConnectionMap(
       {
         openPerson: (id) => (location.href = personUrl(id)),
         openDevice: (id, dev) => (location.href = personUrl(id, dev)),
       },
       this.range,
-    );
+    ));
     // A WebGL map outlives the page's DOM unless it is told: free it when
-    // Outline navigates away (the page object itself may be reused).
+    // Outline navigates away. The page object is reused on return, and its
+    // next update finds the map gone and makes the card again (paintMap).
     const offNav = onNavigate(() => {
       offNav();
-      this.map?.destroy();
-      this.map = null;
+      map.destroy();
+      if (this.map === map) this.map = null;
     });
     const legend = E('div', { class: 'dl-map-legend' }, [
       E('span', {}, [E('i', { class: 'line live' }), 'Live tunnel']),
       E('span', {}, [E('i', { class: 'line' }), 'Seen recently']),
     ]);
-    const wrap = E('div', { class: 'dl-map-wrap' }, [this.map.el, legend]);
-    requestAnimationFrame(() => this.map!.mount(this.mapData()));
+    const wrap = E('div', { class: 'dl-map-wrap' }, [map.el, legend]);
+    requestAnimationFrame(() => map.mount(this.mapData()));
     return E('div', { class: 'dl-panel flush' }, [head, wrap]);
   }
 
@@ -218,6 +236,7 @@ export class ServerOverview {
     const st = this.st;
     const srv = st.servers[0];
 
+    this.paintMap();
     repaint(
       this.parts.bento,
       E('div', { class: 'dl-bento' }, [this.onlineTile(), this.speedTile(), coreOf(srv).overviewTile(srv), this.monthTile()]),

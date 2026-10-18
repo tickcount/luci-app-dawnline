@@ -3,8 +3,9 @@
 // Client addresses are looked up once with a third-party service (ipwho.is,
 // ipapi.co as fallback) and cached: the live copy in RUN_DIR (tmpfs), put on
 // flash (DATA_DIR/geo.json) by flush() about hourly, like the usage
-// counters. Only the agent performs lookups, on its minute tick and within a
-// time budget, never on the 1-second watcher; the UI reads the cache.
+// counters. Only the agent performs lookups, in a child process (the network
+// may take seconds; neither its watcher nor its tick waits for them) and
+// merges them into the cache itself; the UI reads the cache.
 
 import { stat } from 'fs';
 import { read_json, write_json, sh_out, q, ensure_dir, ip2int, DATA_DIR, RUN_DIR } from 'dawnline.util';
@@ -13,7 +14,7 @@ const CACHE = `${RUN_DIR}/geo.json`;
 const SAVED = `${DATA_DIR}/geo.json`;
 const TTL = 30 * 86400;
 const RETRY = 86400;
-// Entries kept at least; addresses still shown are never pushed out (resolve).
+// Entries kept at least; addresses still shown are never pushed out (merge).
 const CAP = 500;
 
 // [base, prefix] of ranges with no meaningful location (private, CGNAT, multicast, …).
@@ -99,40 +100,64 @@ export function lookup(provider, ip) {
 };
 
 /**
- * Resolve up to `max` of `ips` that are missing or stale, within `budget`
- * seconds (each lookup may wait on the network). Returns true when the cache
- * changed (the caller saves it). `ips` is also what is still shown: the cache
- * is kept bounded by dropping other entries only, oldest first, so a lookup
- * is never repeated for an address that is still on the map.
+ * The public addresses of `ips` the cache does not know or knows from too
+ * long ago (a failed lookup is retried after a day), once each and in order.
+ * Returns an empty array when there is nothing to look up.
  */
-export function resolve(settings, cache, ips, max, budget) {
-	let now = time(), changed = false, done = 0;
-	let started = now;
+export function stale(cache, ips, ts) {
+	let now = ts ?? time(), out = [], seen = {};
 	for (let ip in ips) {
-		if (done >= max || (budget != null && time() - started >= budget))
-			break;
-		if (!is_public(ip))
+		if (seen[ip] || !is_public(ip))
 			continue;
+		seen[ip] = true;
 		let c = cache.ips[ip];
 		if (c && ((c.fail && now - c.fail < RETRY) || (!c.fail && c.asn != null && now - c.ts < TTL)))
 			continue;
-		let r = lookup(settings.geo_provider, ip);
-		done++;
-		changed = true;
-		if (r) {
-			delete r.ip;
-			r.ts = now;
-			cache.ips[ip] = r;
-		}
-		else
-			cache.ips[ip] = { fail: now };
+		push(out, ip);
 	}
-	let shown = {};
-	for (let ip in ips)
-		shown[ip] = true;
+	return out;
+};
+
+/**
+ * Look up at most `max` of `ips`, within `budget` seconds (each lookup may
+ * wait on the network). Returns { ip: place, or false when the services had
+ * nothing } for the ones tried. Network only, no cache: the agent runs it in
+ * a child process and merges the result itself.
+ */
+export function lookup_all(provider, ips, max, budget) {
+	let started = time(), out = {}, done = 0;
+	for (let ip in ips) {
+		if (done >= max || (budget != null && time() - started >= budget))
+			break;
+		let r = lookup(provider, ip);
+		done++;
+		if (r)
+			delete r.ip;
+		out[ip] = r ?? false;
+	}
+	return out;
+};
+
+/**
+ * Put lookup_all() results into the cache. Returns true when the cache
+ * changed (the caller saves it). `shown` is what is still on the map: the
+ * cache is kept bounded by dropping other entries only, oldest first, so a
+ * lookup is never repeated for an address that is still on the map.
+ */
+export function merge(cache, found, shown, ts) {
+	let now = ts ?? time(), changed = false;
+	for (let ip, r in found) {
+		if (!is_public(ip))
+			continue;
+		cache.ips[ip] = r ? { ...r, ts: now } : { fail: now };
+		changed = true;
+	}
+	let keep = {};
+	for (let ip in shown)
+		keep[ip] = true;
 	let all = keys(cache.ips);
 	if (length(all) > CAP) {
-		let other = sort(filter(all, (ip) => !shown[ip]),
+		let other = sort(filter(all, (ip) => !keep[ip]),
 			(a, b) => (cache.ips[a].ts ?? cache.ips[a].fail ?? 0) - (cache.ips[b].ts ?? cache.ips[b].fail ?? 0));
 		for (let i = 0; i < length(all) - CAP && i < length(other); i++) {
 			delete cache.ips[other[i]];
@@ -157,6 +182,11 @@ export function resolve_home(settings, cache, wan_ip) {
 export function place(cache, ip) {
 	let c = cache.ips[ip];
 	return (c && !c.fail) ? c : null;
+};
+
+/** "City · ISP" for the activity log; null for no place. */
+export function label(pl) {
+	return pl ? join(' · ', filter([ pl.city, pl.org ], (x) => x)) : null;
 };
 
 export function clear() {

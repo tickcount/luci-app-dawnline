@@ -438,7 +438,7 @@ export class PeoplePage {
           icon(d.kind),
           E('span', { class: 'dl-chip-name' }, d.name),
           !d.handshake && !d.disabled ? E('span', { class: 'dl-chip-tag' }, 'not set up') : '',
-          // Online shows as the green dashed chip (.dl-chip.live); no dots.
+          // Online shows as the green chip (.dl-chip.live); no dots.
         ],
       );
     });
@@ -448,30 +448,19 @@ export class PeoplePage {
         'button',
         {
           type: 'button',
-          // Just a "+": the slots above say how many there are.
           class: 'dl-chip add',
-          'aria-label': 'Add device',
-          title: free > 0 ? 'Add device' : 'Add device · over the limit, admins can still add',
+          title: free > 0 ? 'Add device' : 'Over the limit: admins can still add',
           click: (ev: Event) => {
             ev.preventDefault();
             addDevice(p, this.deviceOpts(p));
           },
         },
-        icon('plus'),
+        [icon('plus'), 'Add device'],
       ),
     );
 
-    // Ending soon (the strip below handles an end that has passed); someone new
-    // without a device yet gets a nudge to send the link.
+    // Ending soon (the strip below handles an end that has passed).
     const fixes: Node[] = [];
-    if (!p.devices.length && portal && !stopped(p))
-      fixes.push(
-        E(
-          'button',
-          { type: 'button', class: 'dl-fix', click: () => inviteCard(p, this.st.servers.find((s) => s.id === p.server)?.name ?? 'Home') },
-          'Send invite',
-        ),
-      );
     if (p.expires && endsSoon(p, left) && why !== 'expired')
       fixes.push(
         E(
