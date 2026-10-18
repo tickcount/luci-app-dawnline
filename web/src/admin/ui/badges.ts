@@ -49,13 +49,28 @@ export function accessBadge(p: Person): HTMLElement {
   return el;
 }
 
+/** Why a person's devices cannot connect right now, in two words. */
+const STOPPED: Partial<Record<Person['state'], string>> = {
+  paused: 'Paused',
+  expired: 'Access ended',
+  quota: 'Data limit',
+  hours: 'Outside hours',
+  server_off: 'Server off',
+  no_server: 'No server',
+};
+
 /**
  * A device's status as coloured text, no dots (only avatars carry one). `now`
  * is the router's clock; `waiting` is the text before the first connection.
+ * With the person, a device that cannot come back says why ("Paused",
+ * "Data limit") instead of a "Last seen" that reads like it might.
  */
-export function deviceStatus(d: Device, now?: number, waiting = 'Not set up yet'): HTMLElement {
-  if (d.disabled) return E('span', { class: 'dl-dstat' }, 'Disabled');
+export function deviceStatus(d: Device, now?: number, waiting = 'Not set up yet', p?: Person): HTMLElement {
+  const seen = d.handshake ? `Last seen ${ago(d.handshake, now)} · ${new Date(d.handshake * 1000).toLocaleString()}` : '';
+  if (d.disabled) return E('span', { class: 'dl-dstat', title: seen }, 'Disabled');
   if (d.online) return E('span', { class: 'dl-dstat ok' }, 'Connected');
+  const why = p && STOPPED[p.state];
+  if (why) return E('span', { class: 'dl-dstat warn', title: seen || 'Not connected yet' }, why);
   if (!d.handshake) return E('span', { class: 'dl-dstat warn', title: 'Waiting for the first connection' }, waiting);
-  return E('span', { class: 'dl-dstat' }, `Last seen ${ago(d.handshake, now)}`);
+  return E('span', { class: 'dl-dstat', title: new Date(d.handshake * 1000).toLocaleString() }, `Last seen ${ago(d.handshake, now)}`);
 }

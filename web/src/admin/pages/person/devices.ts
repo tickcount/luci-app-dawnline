@@ -50,7 +50,7 @@ export function devicesPart(page: PersonPage): HTMLElement {
       E('span', { class: 'dl-dcard-ic' }, icon(d.kind)),
       E('button', { type: 'button', class: 'dl-dcard-title', click: () => open(d) }, [
         E('b', {}, d.name),
-        deviceStatus(d, now),
+        deviceStatus(d, now, undefined, p),
         d.config_stale ? E('span', { class: 'dl-pill warn dl-stale' }, 'Update config') : '',
       ]),
       more(d),

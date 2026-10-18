@@ -10,11 +10,12 @@ import { confirmDialog } from '../ui/modal';
 import { copyText, downloadFile } from '../ui/files';
 import { attempt, notify } from '../ui/toast';
 import { input } from '../ui/controls';
-import { callout, card, group, row, svg } from '../ui/layout';
+import { callout, card, firstBad, group, liveRow, row, svg } from '../ui/layout';
+import { keepaliveHelp, mtuHelp, portHelp, type PortHold } from '../netcheck';
 import { qrSvg } from '../../shared/qr';
 import { vpnKey } from '../../shared/vpnkey';
 import { icon } from '../../shared/icons';
-import { methodInfo, methodPicker, type Method } from '../disguise';
+import { methodInfo, methodPicker, type Method, defaultMethod, legacyTitle } from '../disguise';
 import { coreHead, type Core, type CoreCtx } from './common';
 
 /** `.conf` names of the disguise parameters, in file order. */
@@ -198,6 +199,13 @@ function fileCard(cfg: AwgConfig): HTMLElement {
   ]);
 }
 
+/** The configuration carries no disguise values: plain WireGuard, any WireGuard app takes it. */
+export function plainWg(cfg: AwgConfig): boolean {
+  const o = (cfg.amnezia.obfuscation ?? {}) as Record<string, string | undefined>;
+  const neutral: Record<string, string> = { h1: '1', h2: '2', h3: '3', h4: '4' };
+  return Object.entries(o).every(([k, v]) => v == null || v === '' || v === (neutral[k] ?? '0'));
+}
+
 /** File / key / QR switcher for a client configuration; opens on the file unless asked otherwise. */
 export async function connectBlock(cfg: AwgConfig, initial: 'file' | 'key' | 'qr' = 'file'): Promise<HTMLElement> {
   if (!cfg.has_private_key)
@@ -211,7 +219,11 @@ export async function connectBlock(cfg: AwgConfig, initial: 'file' | 'key' | 'qr
     qr: () =>
       E('div', { class: 'dl-qr-pane' }, [
         svg(qrSvg(cfg.conf), 'dl-qr'),
-        E('span', { class: 'dl-sub' }, 'Scan with AmneziaVPN or AmneziaWG on the device.'),
+        E(
+          'span',
+          { class: 'dl-sub' },
+          plainWg(cfg) ? 'Scan with AmneziaVPN or any WireGuard app on the device.' : 'Scan with AmneziaVPN or AmneziaWG on the device.',
+        ),
       ]),
     key: () =>
       E('div', { class: 'dl-stack gap8' }, [
@@ -243,7 +255,7 @@ async function applyDisguise(ctx: CoreCtx, srv: Server, m: Method, same: boolean
   const devices = people.reduce((n, p) => n + p.devices.length, 0);
   const ok = await confirmDialog(
     same ? 'Generate new disguise values?' : `Switch to ${info.title}?`,
-    `${devices} AmneziaWG device${devices === 1 ? '' : 's'} stop connecting until they import their configuration again (from their personal link or from you).${m === 'max' ? ' They need an app with AmneziaWG 3.1.' : m === 'balanced' ? ' They need an app with AmneziaWG 2.0 or newer.' : ''}`,
+    `${devices} AmneziaWG device${devices === 1 ? ' stops' : 's stop'} connecting until ${devices === 1 ? 'it imports its' : 'they import their'} configuration again (from their personal link or from you).${m === 'max' ? ' They need an app with AmneziaWG 3.1.' : m === 'balanced' ? ' They need an app with AmneziaWG 2.0 or newer.' : ''}${ctx.st.servers.length === 1 && devices ? ' To keep the old disguise for some people, add a second server and move them there.' : ''}`,
     same ? 'Generate and apply' : 'Switch and apply',
     true,
   );
@@ -263,30 +275,54 @@ export function settingsCard(ctx: CoreCtx, srv: Server): HTMLElement {
     inputmode: 'numeric',
     class: 'cbi-input-text dl-w-port dl-mono',
   });
-  const now = `${srv.mtus.computer} for computers and routers, ${srv.mtus.phone} for phones and tablets`;
-  const mtuHint = srv.mtu
-    ? `Now ${now}. Empty = automatic.`
-    : `Automatic by device type and disguise: now ${now}. Lower it if some sites hang.`;
   const ka = input(String(srv.keepalive ?? ''), { placeholder: '25', inputmode: 'numeric', class: 'cbi-input-text dl-w-port dl-mono' });
   const current = methodInfo(srv.preset) ? (srv.preset as Method) : undefined;
-  let selected: Method = current ?? 'standard';
+  let selected: Method = current ?? defaultMethod(st.awg);
   const apply = button('', () => applyDisguise(ctx, srv, selected, selected === current), 'neutral');
   const label = () =>
     dom.content(apply, selected === current ? [icon('reset'), ' Generate new values'] : [`Switch to ${methodInfo(selected)!.title}`]);
   label();
   const tools = st.awg_state?.tools !== false;
+  // Who holds which port arrives once the card is built (netstat on the
+  // router); until then the port is only checked for its range.
+  let holds: PortHold[] = [];
+  const portRow = liveRow('UDP port', port, () =>
+    portHelp(
+      Number(port.value),
+      holds,
+      `Opened on the WAN firewall automatically.${Number(port.value) === 4500 ? ' 4500 is IPsec’s port: most networks let it through.' : ''}`,
+    ),
+  );
+  api
+    .serverPorts(srv.id)
+    .then((r) => {
+      holds = r.udp_taken ?? [];
+      portRow.refresh();
+    })
+    .catch(() => {});
+  const mtuRow = liveRow('MTU', mtu, () => mtuHelp(mtu.value, srv.mtus));
+  const kaRow = liveRow('Keep-alive', ka, () => keepaliveHelp(ka.value));
   return card(
     '',
     [
       coreHead('AmneziaWG', srv.ifname),
-      group('globe', 'Listening', 'Where devices reach this core from the internet', [
-        row('UDP port', port, 'Opened on the WAN firewall automatically.'),
-      ]),
+      group('globe', 'Listening', 'Where devices reach this core from the internet', [portRow]),
       group('file', 'In every device configuration', 'Changing these marks devices “Update config” until they import again', [
-        row('MTU', mtu, mtuHint),
-        row('Keep-alive', ka, 'Seconds between packets devices send to keep NAT open. 0 = off.'),
+        mtuRow,
+        kaRow,
       ]),
       group('shield', 'Disguise', 'So networks that block VPNs do not recognise the tunnel. Off = plain WireGuard', [
+        // A server from before 0.8 on the old junk-only disguise: it runs, but is no longer offered.
+        legacyTitle(srv.preset)
+          ? callout('warn', [
+              E('b', {}, legacyTitle(srv.preset)!),
+              ' is AmneziaWG 1.0 junk only, which networks learned to spot; it is not offered any more. Switch to ',
+              E('b', {}, 'Balanced'),
+              ' or ',
+              E('b', {}, 'Maximum'),
+              ': devices import their configuration again.',
+            ])
+          : '',
         methodPicker(
           st.awg,
           selected,
@@ -331,7 +367,19 @@ export function settingsCard(ctx: CoreCtx, srv: Server): HTMLElement {
     ],
     [
       E('span', { class: 'dl-sub' }, 'Port, MTU and keep-alive apply at once.'),
-      button('Save', () => ctx.save({ port: port.value, mtu: mtu.value, keepalive: ka.value }, 'AmneziaWG saved'), 'positive'),
+      button(
+        'Save',
+        () => {
+          // The help lines already say what is wrong: do not send it anyway.
+          const bad = firstBad([portRow, mtuRow, kaRow]);
+          if (bad) {
+            notify(bad, 'warning');
+            return;
+          }
+          return ctx.save({ port: port.value, mtu: mtu.value, keepalive: ka.value }, 'AmneziaWG saved');
+        },
+        'positive',
+      ),
     ],
   );
 }
@@ -361,7 +409,10 @@ function overviewTile(srv: Server): HTMLElement {
     ]),
     E('div', { class: 'dl-disg-id' }, [
       E('span', { class: 'dl-disg-ic' }, icon(m?.ic ?? 'shield')),
-      E('span', { class: 'dl-stack' }, [E('b', {}, m ? m.title : 'Custom'), E('span', { class: 'dl-sub' }, m ? m.short : 'Set by hand')]),
+      E('span', { class: 'dl-stack' }, [
+        E('b', {}, m ? m.title : (legacyTitle(srv.preset) ?? 'Custom')),
+        E('span', { class: 'dl-sub' }, m ? m.short : legacyTitle(srv.preset) ? 'Switch to Balanced or Maximum' : 'Set by hand'),
+      ]),
     ]),
     m
       ? E('div', { class: 'dl-disg-meters' }, [

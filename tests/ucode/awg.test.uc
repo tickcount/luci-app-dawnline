@@ -13,27 +13,17 @@ test('obf_preset off', () => {
 	eq(awg.obf_errors(o), [], 'valid');
 });
 
-test('obf_preset standard and strong', () => {
-	for (let name in [ 'standard', 'strong' ])
-		for (let i = 0; i < 25; i++) {
-			let o = awg.obf_preset(name);
-			eq(awg.obf_errors(o), [], `${name} is valid`);
-			let jc = +o.jc, jmin = +o.jmin, jmax = +o.jmax;
-			ok(name == 'strong' ? jc >= 6 && jc <= 10 : jc >= 3 && jc <= 6, `${name} jc=${o.jc}`);
-			ok(jmin >= 64 && jmax > jmin && jmax <= 1024, `${name} junk sizes ${o.jmin}-${o.jmax}`);
-			ok(+o.s1 + 56 != +o.s2, 's1 + 56 != s2');
-			eq(length(uniq([ o.h1, o.h2, o.h3, o.h4 ])), 4, 'distinct headers');
-			for (let k in [ 'h1', 'h2', 'h3', 'h4' ])
-				ok(+o[k] >= 5, `${k} above the reserved values`);
-			eq(o.s3, null, 'no 2.0 values');
-		}
-});
-
 test('obf_preset balanced', () => {
 	for (let i = 0; i < 25; i++) {
 		let o = awg.obf_preset('balanced');
 		eq(awg.obf_errors(o), [], 'balanced is valid');
 		ok(+o.jc >= 4 && +o.jc <= 8, `jc=${o.jc}`);
+		let jmin = +o.jmin, jmax = +o.jmax;
+		ok(jmin >= 64 && jmax > jmin && jmax <= 1024, `junk sizes ${o.jmin}-${o.jmax}`);
+		ok(+o.s1 + 56 != +o.s2, 's1 + 56 != s2');
+		eq(length(uniq([ o.h1, o.h2, o.h3, o.h4 ])), 4, 'distinct headers');
+		for (let k in [ 'h1', 'h2', 'h3', 'h4' ])
+			ok(+o[k] >= 5, `${k} above the reserved values`);
 		ok(+o.s3 >= 8 && +o.s3 <= 48 && +o.s4 >= 4 && +o.s4 <= 16, `padding ${o.s3}/${o.s4}`);
 		ok(substr(o.i1, 0, 3) == '<r ' && substr(o.i2, 0, 3) == '<r ', 'DNS-shaped signature packets');
 		eq(o.header_protection_key, null, 'no 3.1 values');

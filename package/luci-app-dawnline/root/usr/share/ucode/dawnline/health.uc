@@ -233,23 +233,77 @@ function reply_check(id, title, proto, port, r) {
 
 const PRIVATE = map([ '100.64.0.0/10', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16' ], parse_cidr);
 
+/** What kind of IPv4 the WAN has: public, cgnat (100.64/10), private (behind another router), or none. */
+export function wan_kind(wan) {
+	let wc = wan ? ip2int(wan) : null;
+	if (wc == null)
+		return 'none';
+	if (in_cidr(wc, PRIVATE[0]))
+		return 'cgnat';
+	return length(filter(PRIVATE, (c) => in_cidr(wc, c))) ? 'private' : 'public';
+};
+
+/**
+ * What a public address points at, for Health and the "as you type" check on
+ * the server page: { host, ips, ips4, ips6, wan, kind (wan_kind), cloudflare,
+ * here (an IPv4 of it is this router's WAN), v6_only }.
+ */
+export function endpoint_facts(srv, host) {
+	let ips = host ? lookup.resolve(host) : [];
+	let wan = srv ? (net.wan_address(srv) ?? lookup.wan_ipv4(srv.wan_zone)) : lookup.wan_ipv4('wan');
+	let ips4 = filter(ips, (a) => ip2int(a) != null), ips6 = filter(ips, (a) => ip2int(a) == null);
+	return {
+		host, ips, ips4, ips6, wan: wan ?? null, kind: wan_kind(wan),
+		cloudflare: length(filter(ips, (a) => cloudflare_ip(a))) > 0,
+		here: wan != null && index(ips4, wan) >= 0,
+		v6_only: !length(ips4) && length(ips6) > 0,
+	};
+};
+
+/** The facts in words: { status: ok|warn|error, text }. `proto_note` names what must get through ("UDP 4500"). */
+export function endpoint_words(f, proto_note) {
+	if (!f.host)
+		return { status: 'error', text: 'No public address: devices will not know where to connect.' };
+	if (!length(f.ips))
+		return { status: 'error', text: `${f.host} does not resolve.` };
+	if (f.cloudflare)
+		return { status: 'error', text: `${f.host} → ${join(', ', f.ips)} (Cloudflare). ${proto_note} reaches the router only if this name is DNS-only there, or use the router's IP.` };
+	if (f.v6_only)
+		return { status: f.kind == 'public' ? 'warn' : 'ok', text: `${f.host} → ${join(', ', f.ips6)}: IPv6 only, so only devices with IPv6 connect${f.kind == 'public' ? ` (the router's IPv4 ${f.wan} has no name)` : ''}.` };
+	if (f.kind == 'cgnat' || f.kind == 'private')
+		return { status: 'warn', text: f.kind == 'cgnat'
+			? `The WAN address ${f.wan} is CGNAT (shared by the ISP): ${proto_note} cannot be forwarded to this router from outside unless the ISP gives a public address or IPv6.`
+			: `The WAN address ${f.wan} is private: this router is behind another one. Forward ${proto_note} on it, or devices cannot connect.` };
+	if (f.wan && !f.here)
+		return { status: 'warn', text: `${f.host} points at ${join(', ', f.ips4)}, not this router (WAN ${f.wan}). Check your DNS / DDNS.` };
+	return { status: 'ok', text: f.here ? `${f.host} points at this router (${f.wan}).` : `${f.host} → ${join(', ', f.ips)}` };
+};
+
 /** What a public address resolves to and whether that reaches this router (for a core's protocol). */
 function endpoint_check(id, title, srv, host, proto_note) {
-	if (!host)
-		return check(id, title, 'error', 'No public address: devices will not know where to connect.');
-	let ips = lookup.resolve(host);
-	let wan = net.wan_address(srv) ?? lookup.wan_ipv4(srv.wan_zone);
-	let wc = wan ? ip2int(wan) : null;
-	let cgnat = wc != null && length(filter(PRIVATE, (c) => in_cidr(wc, c))) > 0;
-	if (!length(ips))
-		return check(id, title, 'error', `${host} does not resolve.`);
-	if (cgnat)
-		return check(id, title, 'warn', `WAN address ${wan} is private: forward ${proto_note} on the upstream router, or devices cannot connect.`);
-	if (length(filter(ips, (a) => cloudflare_ip(a))))
-		return check(id, title, 'error', `${host} → ${join(', ', ips)} (Cloudflare). ${proto_note} reaches the router only if this name is DNS-only there, or use the router's IP.`);
-	if (wan && index(ips, wan) < 0)
-		return check(id, title, 'warn', `${host} resolves to ${join(', ', ips)}, but the WAN address is ${wan}. Check your DNS / DDNS.`);
-	return check(id, title, 'ok', `${host} → ${join(', ', ips)}`);
+	let w = endpoint_words(endpoint_facts(srv, host), proto_note);
+	return check(id, title, w.status, w.text);
+}
+
+/**
+ * Policy routing by another package (mwan3, pbr): an fwmark rule ahead of
+ * Dawnline's (pref < 5205) whose table has a default route of its own sends
+ * marked tunnel traffic straight out, past "like a home device". Reported,
+ * since those marks belong to that package. [] when none.
+ */
+function policy_routing() {
+	let out = [];
+	for (let line in split(sh_out('ip -4 rule show 2>/dev/null') ?? '', '\n')) {
+		let mm = match(line, /^(\d+):.*fwmark 0x([0-9a-f]+)(\/0x[0-9a-f]+)?.* lookup (\S+)/);
+		if (!mm || +mm[1] >= 5205)
+			continue;
+		let routes = sh_out(`ip -4 route show table ${q(mm[4])} 2>/dev/null`) ?? '';
+		let def = match(routes, /(^|\n)default [^\n]*/)?.[0] ?? '';
+		if (def == '' || match(def, /local default/) || index(def, `dev ${net.INTERNAL.transit}`) >= 0)
+			continue;
+		push(out, `pref ${mm[1]} fwmark 0x${mm[2]} → table ${mm[4]}`);
+	}
+	return out;
 }
 
 const NO_PROTO = "netifd doesn't know the amneziawg protocol (AmneziaWG missing, or the network wasn't restarted after installing it).";
@@ -301,19 +355,30 @@ function awg_checks(m, id, srv, label, fwc, dmp, rep) {
 			(st ? `${srv.ifname} is down${length(codes) ? ': ' + join(', ', codes) : ''}.` : `${srv.ifname} does not exist.`),
 			up ? null : (st ? 'ifup:' + srv.ifname : 'apply')));
 	if (up) {
-		let expected = 0;
+		// By key, not by count: a stale peer standing in for a missing one would
+		// make the numbers match.
 		let states = apply.states_for(m, core.load_usage());
+		let wanted = {}, expected = 0;
 		for (let did, d in m.devices) {
 			let p = m.people[d.person];
-			if (p?.server == id && !d.disabled && states[d.person] == 'active')
+			if (p?.server == id && !d.disabled && index(awg.SOFT_STATES, states[d.person]) >= 0) {
+				wanted[d.public_key] = true;
 				expected++;
+			}
 		}
-		let actual = 0;
+		let loaded = {}, actual = 0;
 		for (let k, p in dmp.peers)
-			if (p.ifname == srv.ifname)
+			if (p.ifname == srv.ifname) {
+				loaded[k] = true;
 				actual++;
-		push(out, check(`peers_${id}`, `AmneziaWG devices loaded${label}`, expected == actual ? 'ok' : 'warn',
-			`${actual} of ${expected} active devices are loaded in the tunnel.`, expected == actual ? null : 'sync'));
+			}
+		let missing = length(filter(keys(wanted), (k) => !loaded[k]));
+		let extra = length(filter(keys(loaded), (k) => !wanted[k]));
+		let same = !missing && !extra;
+		push(out, check(`peers_${id}`, `AmneziaWG devices loaded${label}`, same ? 'ok' : 'warn',
+			same ? `${actual} device${actual == 1 ? ' is' : 's are'} loaded in the tunnel.` :
+			`${missing} of ${expected} device${expected == 1 ? '' : 's'} missing${extra ? `, ${extra} loaded that should not be` : ''}.`,
+			same ? null : 'sync'));
 	}
 	let rule = fwc.get('firewall', `dawnline_${id}_port`) == 'rule';
 	let zone = fwc.get('firewall', `dawnline_${id}_zone`) == 'zone';
@@ -430,6 +495,14 @@ export function health(m) {
 		nft_ok ? 'Table inet dawnline enforces who may reach LAN and the internet.'
 			: 'Table inet dawnline is missing: no device is loaded into the tunnels until it is back.',
 		nft_ok ? null : 'apply'));
+
+	if (length(filter(values(m.servers), (s) => s.lan_like && s.enabled))) {
+		let pr = policy_routing();
+		push(out, check('policy', 'Internet like a home device not bypassed', length(pr) ? 'warn' : 'ok',
+			length(pr) ? `Policy routing on the router (${join('; ', pr)}) sends marked traffic straight out, past the home-device path: tunnel traffic it matches skips your LAN's proxies and filters.`
+				: 'No other policy routing ahead of the tunnel rules.',
+			null, 'Other policy routing bypasses the home-device path'));
+	}
 
 	// A device the sync has to leave out (a merged import, a hand-edited config).
 	let data = core.model_errors(m);

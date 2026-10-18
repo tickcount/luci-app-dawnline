@@ -6,8 +6,8 @@ import { E } from '../../e';
 import { button } from '../../ui/button';
 import { cancelButton, closeModal, modal } from '../../ui/modal';
 import { input, isOn, sw } from '../../ui/controls';
-import { group, liveRow, needRow, row } from '../../ui/layout';
-import { portalPortHelp } from '../../netcheck';
+import { firstBad, group, liveRow, needRow, row } from '../../ui/layout';
+import { hostHelp, portalPortHelp, titleHelp, urlHelp } from '../../netcheck';
 import { icon } from '../../../shared/icons';
 import { fmtDay } from '../../../shared/format';
 import { installMissing } from '../../pkgs';
@@ -132,6 +132,12 @@ export function portalCard(host: SettingsHost): HTMLElement {
         button('Add', () => {
           const h = other.value.trim().toLowerCase();
           if (!h) return;
+          // The router would refuse it on Save: say so here.
+          const check = hostHelp(h);
+          if (check.bad) {
+            notify(check.text, 'warning');
+            return;
+          }
           addRow(h);
           if (!picked.includes(h)) picked = [...picked, h];
           other.value = '';
@@ -273,6 +279,8 @@ export function portalCard(host: SettingsHost): HTMLElement {
     portalPortHelp(port.value.trim() === '' ? eff.portal_port : Number(port.value), host.d.tcp_taken ?? [], picked.some(isIp)),
   );
   refreshPort = listenRow.refresh;
+  const titleRow = liveRow('Title', title, () => titleHelp(title.value));
+  const redirectRow = liveRow('Unknown links', redirect, () => urlHelp(redirect.value));
   const custom = !!(s.portal_cert && s.portal_key);
   const kind = !c ? 'Portal is off' : custom ? 'Your files' : c.self_signed ? 'Self-signed' : 'Let’s Encrypt';
   const certFiles = () => {
@@ -363,10 +371,7 @@ export function portalCard(host: SettingsHost): HTMLElement {
       E('span', { class: 'dl-muted' }, 'A page where each person adds and manages their devices with their personal link.'),
       httpsRow ? E('div', { class: 'dl-list' }, [httpsRow]) : '',
       group('network', 'Port', 'How the portal listens (80 and 443 stay free)', [listenRow]),
-      group('edit', 'Appearance', 'What people see', [
-        row('Title', title, 'Shown at the top of the portal.'),
-        row('Unknown links', redirect, 'Where a wrong or old link goes, for example your website. Empty shows a plain “Not found”.'),
-      ]),
+      group('edit', 'Appearance', 'What people see', [titleRow, redirectRow]),
       group('link', 'Addresses', 'Pick one or more; the first is the main link', [
         opts,
         E('div', { class: 'dl-stack gap8' }, [
@@ -382,14 +387,10 @@ export function portalCard(host: SettingsHost): HTMLElement {
       button(
         'Save',
         () => {
-          // The port's help line already says what is wrong: do not send it anyway.
-          const h = portalPortHelp(
-            port.value.trim() === '' ? eff.portal_port : Number(port.value),
-            host.d.tcp_taken ?? [],
-            picked.some(isIp),
-          );
-          if (h.bad) {
-            notify(`Listening port: ${h.text}`, 'warning');
+          // The help lines already say what is wrong: do not send it anyway.
+          const bad = firstBad([listenRow, titleRow, redirectRow]);
+          if (bad) {
+            notify(bad, 'warning');
             return;
           }
           return host.save(

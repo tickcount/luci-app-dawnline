@@ -34,8 +34,9 @@ test('validate: host and hosts', () => {
 	eq(schema.validate('portal_host', 'vpn.example.com'), 'vpn.example.com', 'name');
 	eq(schema.validate('portal_host', '203.0.113.7'), '203.0.113.7', 'address');
 	throws(() => schema.validate('portal_host', 'bad host!'), /hostname or IP/, 'bad');
-	eq(schema.validate('portal_alt', [ 'a.example.com', ' a.example.com ', 'bad host', 'b.example.com' ]),
-		[ 'a.example.com', 'b.example.com' ], 'trimmed, deduplicated, bad ones dropped');
+	eq(schema.validate('portal_alt', [ 'a.example.com', ' a.example.com ', '', 'b.example.com' ]),
+		[ 'a.example.com', 'b.example.com' ], 'trimmed, deduplicated, empty ones dropped');
+	throws(() => schema.validate('portal_alt', [ 'a.example.com', 'bad host' ]), /hostnames or IP/, 'a typo is refused, not dropped');
 	eq(schema.validate('portal_alt', []), null, 'empty list removes the option');
 	eq(schema.validate('portal_alt', 'a.example.com'), null, 'not a list');
 });

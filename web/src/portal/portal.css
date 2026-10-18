@@ -22,6 +22,29 @@
 }
 
 :root {
+  /* Motion (the rules are in the "Motion" section at the end): a strong ease-out for
+     arrivals, an ease-in for departures, iOS's sheet curve, and two springs sampled
+     into linear(): `--spring` settles with a 1.5% overshoot, `--spring-pop` with 12%. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in: cubic-bezier(0.55, 0, 1, 0.45);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  /* prettier-ignore */
+  --spring: linear(
+    0, 0.022, 0.079, 0.158, 0.249, 0.344, 0.438, 0.527, 0.61, 0.684, 0.749, 0.805, 0.852, 0.891, 0.923, 0.949, 0.969, 0.984, 0.996, 1.004,
+    1.009, 1.013, 1.014, 1.015, 1.015, 1.014, 1.013, 1.012, 1.01, 1.009, 1.008, 1.006, 1.005, 1.004, 1.003, 1.002, 1.002, 1.001, 1.001, 1.001, 1
+  );
+  /* prettier-ignore */
+  --spring-pop: linear(
+    0, 0.034, 0.122, 0.244, 0.383, 0.526, 0.662, 0.785, 0.889, 0.974, 1.038, 1.083, 1.111, 1.124, 1.126, 1.119, 1.106, 1.09, 1.072, 1.054,
+    1.038, 1.023, 1.01, 1, 0.993, 0.988, 0.985, 0.984, 0.984, 0.985, 0.987, 0.989, 0.992, 0.994, 0.996, 0.998, 0.999, 1, 1.001, 1.002, 1
+  );
+  --dur-press: 120ms;
+  --dur-hover: 150ms;
+  --dur-pop: 180ms;
+  --dur-swap: 260ms;
+  --dur-enter: 440ms;
+  --dur-sheet: 440ms;
+  --dur-exit: 160ms;
   --bg: #fcfcfc;
   --card: #ffffff;
   --elevated: #ffffff;
@@ -87,6 +110,10 @@ html,
 body {
   margin: 0;
 }
+/* The page keeps its width when a sheet locks the scroll: no sideways jump behind the scrim. */
+html {
+  scrollbar-gutter: stable;
+}
 body {
   background: var(--bg);
   color: var(--text);
@@ -99,6 +126,16 @@ body {
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
   min-height: 100dvh;
+  /* An app, not a document: the arrow over text. Controls set the hand; what is typed
+     or copied by hand (fields, the key, the link, the configuration) keeps the I-beam. */
+  cursor: default;
+}
+input,
+textarea,
+.keybox .mono,
+.linkrow .mono,
+.conf {
+  cursor: text;
 }
 body.locked {
   overflow: hidden;
@@ -109,6 +146,11 @@ a {
 }
 a:hover {
   text-decoration: underline;
+}
+/* Links drawn as controls (store badges, buttons) stay controls: no underline on hover. */
+a.btn:hover,
+a.badge:hover {
+  text-decoration: none;
 }
 h1,
 h2 {
@@ -535,10 +577,6 @@ h2 {
 .dstat.here {
   color: var(--info);
 }
-.dot.here {
-  background: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
-}
 .dname {
   font-weight: 500;
   white-space: nowrap;
@@ -557,33 +595,6 @@ h2 {
 }
 .dstat.warn {
   color: var(--warn);
-}
-.dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--faint);
-  display: inline-block;
-  flex: 0 0 auto;
-}
-.dot.ok {
-  background: var(--ok);
-  box-shadow: 0 0 0 3px var(--ok-wash);
-}
-.dot.warn {
-  background: var(--warn);
-}
-.dot.pulse {
-  animation: pulse 1.6s ease-in-out infinite;
-}
-@keyframes pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 var(--warn-wash);
-  }
-  50% {
-    box-shadow: 0 0 0 6px transparent;
-  }
 }
 .duse {
   display: flex;
@@ -691,9 +702,6 @@ h2 {
   border-radius: var(--radius);
   color: var(--text);
   text-align: left;
-  transition:
-    background 0.15s,
-    border-color 0.15s;
 }
 .slot.add:hover {
   background: var(--soft);
@@ -843,9 +851,9 @@ input[type='text'] {
   height: 44px;
 }
 input[type='text']:focus {
-  outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
-  outline-offset: 0;
+  outline: none;
   border-color: transparent;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 60%, transparent);
 }
 .lbl {
   display: block;
@@ -874,14 +882,21 @@ input[type='text']:focus {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 68px;
+  height: 63px;
   min-width: 0;
   border-radius: 12px;
   box-shadow: inset 0 0 0 1px var(--line);
   color: var(--muted);
   font-size: 12.5px;
+  /* The body's 22px would leave its leading under the letters: the label sat low, more room under it than over the icon. */
+  line-height: 15px;
   font-weight: 500;
   text-align: center;
+}
+.kind .ic {
+  /* The icon wrapper carries the text's line height otherwise: a gap twice the one set. */
+  display: inline-flex;
+  line-height: 0;
 }
 .kind .ic-svg {
   width: 20px;
@@ -986,13 +1001,14 @@ input[type='text']:focus {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  background: transparent;
-  transition: background 0.2s;
 }
-.sheet.open {
+.scrim {
+  position: absolute;
+  inset: 0;
   background: var(--scrim);
 }
 .sheet-panel {
+  position: relative;
   width: 100%;
   max-width: 520px;
   max-height: 92vh;
@@ -1003,11 +1019,6 @@ input[type='text']:focus {
   border: 1px solid var(--line);
   border-bottom: 0;
   padding: 6px 16px max(20px, env(safe-area-inset-bottom));
-  transform: translateY(100%);
-  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-.sheet.open .sheet-panel {
-  transform: none;
 }
 .grab {
   width: 36px;
@@ -1042,18 +1053,62 @@ input[type='text']:focus {
     border-bottom: 1px solid var(--line);
     padding: 20px;
     max-width: 480px;
-    transform: scale(0.97);
-    opacity: 0;
-    transition:
-      transform 0.18s ease,
-      opacity 0.18s ease;
-  }
-  .sheet.open .sheet-panel {
-    transform: none;
-    opacity: 1;
   }
   .grab {
     display: none;
+  }
+}
+/* A question before something that cannot be undone (main.ts ask): narrow and centred,
+   the action's icon in its colour over the question, one line of what happens, two buttons. */
+.ask {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding-top: 6px;
+}
+.ask h2 {
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 600;
+}
+.ask p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+}
+.ask-ic {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 6px;
+}
+.ask-ic .ic-svg {
+  width: 24px;
+  height: 24px;
+}
+.ask-ic.bad {
+  background: var(--bad-wash);
+  color: var(--bad);
+}
+.ask-ic.warn {
+  background: var(--warn-wash);
+  color: var(--warn);
+}
+.ask-actions {
+  width: 100%;
+  margin-top: 10px;
+}
+@media (min-width: 640px) {
+  .sheet-panel.asks {
+    max-width: 360px;
+    padding: 24px 20px 20px;
+  }
+  .ask {
+    padding-top: 0;
   }
 }
 .tabs {
@@ -1088,9 +1143,17 @@ input[type='text']:focus {
   align-items: center;
   text-align: center;
 }
+/* The code, night look (shared/qr): light dots on a black card with a fine outline.
+   `.light`: the plain look, for scanners that read only dark on light. */
 .qr {
   width: min(240px, 70vw);
   aspect-ratio: 1;
+  background: #0a0a0a;
+  border-radius: 22px;
+  padding: 12px;
+  box-shadow: inset 0 0 0 1px #ffffff2e;
+}
+.qr.light {
   background: #fff;
   border-radius: 12px;
   padding: 10px;
@@ -1184,7 +1247,7 @@ input[type='text']:focus {
   display: none;
 }
 .confbox > summary > .ic:first-child {
-  transition: transform 0.15s;
+  transition: transform 200ms var(--ease-out);
   color: var(--muted);
 }
 .confbox[open] > summary > .ic:first-child {
@@ -1241,7 +1304,7 @@ details > summary {
 .tip {
   position: fixed;
   z-index: 50;
-  transform: translate(-50%, -100%);
+  translate: -50% -100%;
   padding: 6px 10px;
   border-radius: 10px;
   font-size: 12px;
@@ -1259,8 +1322,7 @@ details > summary {
   position: fixed;
   left: 50%;
   bottom: max(20px, env(safe-area-inset-bottom));
-  transform: translate(-50%, 20px);
-  opacity: 0;
+  translate: -50% 0;
   z-index: 60;
   background: var(--primary);
   color: var(--primary-fg);
@@ -1268,20 +1330,1004 @@ details > summary {
   border-radius: 999px;
   font-weight: 500;
   font-size: 14px;
-  transition: all 0.25s;
   max-width: 90vw;
-}
-.toast.show {
-  opacity: 1;
-  transform: translate(-50%, 0);
 }
 .toast.bad {
   background: var(--bad);
   color: #fff;
 }
+/* First visit without a device: two steps and the add button, before the slot grid. */
+.firststeps {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.firststeps p {
+  margin: 0;
+  font-size: 14px;
+}
+.firststeps h2 {
+  margin: 0;
+  font-size: 17px;
+}
+.firststeps .steps {
+  margin: 0;
+}
+
+/* Which app the code is for. */
+.pane .seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--soft, rgba(127, 127, 127, 0.12));
+  margin-bottom: 10px;
+}
+.pane .seg button {
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.pane .seg button.on {
+  background: var(--card, #fff);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+/* ---------- setting up a device: two numbered steps ---------- */
+.setup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.setup .center {
+  display: flex;
+  justify-content: center;
+  text-align: center;
+}
+.step {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--card);
+  padding: 14px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.step-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.step-n {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--soft);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  flex: none;
+}
+.step-n:empty {
+  display: none;
+}
+.step-ic {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--soft);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.step-title {
+  font-weight: 600;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+.chip {
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(58, 131, 247, 0.16);
+  color: var(--accent);
+  white-space: nowrap;
+}
+.fold-link {
+  all: unset;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--muted);
+  padding: 4px 0;
+}
+.fold-link:hover {
+  color: var(--text);
+}
+.badge {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px 8px 8px;
+  border-radius: 12px;
+  min-height: 56px;
+  background: var(--soft);
+  color: var(--text);
+  min-width: 0;
+}
+.badge:hover {
+  background: var(--soft-hover);
+}
+.badge.primary {
+  background: var(--primary);
+  color: var(--primary-fg);
+}
+.badge-ic {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(127, 127, 127, 0.18);
+}
+.badge-ic .ic-svg {
+  width: 20px;
+  height: 20px;
+}
+.badge-txt {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  min-width: 0;
+  flex: 1;
+}
+.badge-top {
+  font-size: 11px;
+  opacity: 0.7;
+}
+.badge-main {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.badge-chev {
+  opacity: 0.5;
+  display: inline-flex;
+  flex: none;
+}
+.badges2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.badges2 .badge-chev {
+  display: none;
+}
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pill {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  padding: 7px 10px 7px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.pill .ic-svg {
+  width: 14px;
+  height: 14px;
+}
+.pill.on {
+  border-color: var(--accent);
+  background: rgba(58, 131, 247, 0.12);
+  color: var(--text);
+}
+.howto {
+  margin: 0;
+  padding: 0 4px 0 22px;
+  font-size: 13px;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.howto b {
+  font-weight: 500;
+  color: var(--text);
+}
+.linkrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 6px 6px 12px;
+  border-radius: 12px;
+  background: var(--soft);
+  min-width: 0;
+}
+.linkrow .mono {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.qr.small {
+  width: 148px;
+  flex: none;
+}
+/* A code and what to do with it, under it. (Not `.row.wrap`: `.wrap` is the page.) */
+.code-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.code-row > .stack {
+  align-self: stretch;
+}
+/* A dense code (an AmneziaVPN key): the full width of its card, edge to edge with the text, so a phone camera resolves the modules. */
+.qr.big {
+  width: 100%;
+}
+/* A small control that unfolds a choice, as opposed to a text link. */
+.pill-link {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 8px 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.pill-link:hover {
+  color: var(--text);
+  background: var(--soft);
+}
+.pill-link .ic-svg {
+  width: 13px;
+  height: 13px;
+  transform: rotate(90deg);
+}
+/* A line that belongs to the step's title, not to the content under it. */
+.step-sub {
+  margin-top: -8px;
+}
+/* A folded card: its head is the button that opens it, a chevron at the end. */
+.step-head.fold {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  color: inherit;
+}
+.fold-chev {
+  display: inline-flex;
+  color: var(--muted);
+}
+.fold-chev .ic-svg {
+  width: 16px;
+  height: 16px;
+}
+.step.folded {
+  padding-bottom: 14px;
+}
+
+/* Waiting for the first connection (waitpath.ts): the way from the device to the home router. */
+.way {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--soft);
+}
+.way-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.way-end {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--soft-hover);
+  color: var(--muted);
+}
+.way-end .ic-svg {
+  width: 18px;
+  height: 18px;
+}
+.way-end.home {
+  color: var(--info);
+  background: color-mix(in srgb, var(--info) 14%, transparent);
+}
+.way-track {
+  position: relative;
+  flex: 1;
+  height: 8px;
+}
+/* One dotted line, three layers through the same dots: the dots, the light along them, the green that fills them. */
+.way-track::before,
+.way-glow,
+.way-fill {
+  position: absolute;
+  inset: 0;
+  -webkit-mask: radial-gradient(circle, #000 1.4px, transparent 1.9px) 0 50% / 9px 8px repeat-x;
+  mask: radial-gradient(circle, #000 1.4px, transparent 1.9px) 0 50% / 9px 8px repeat-x;
+}
+.way-track::before {
+  content: '';
+  background: var(--faint);
+  opacity: 0.55;
+}
+.way-glow {
+  overflow: hidden;
+}
+.way-glow i {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 32%, var(--info) 50%, transparent 68%);
+  transform: translateX(-70%);
+}
+.way-fill {
+  background: var(--ok);
+  clip-path: inset(0 100% 0 0);
+}
+.way-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 2px;
+}
+.way-text > :empty {
+  display: none;
+}
+.way.done .way-end {
+  background: var(--ok-wash);
+  color: var(--ok);
+}
+.way.done .way-fill {
+  clip-path: inset(0);
+}
+.way.done .way-glow,
+.way.stopped .way-glow {
+  opacity: 0;
+}
+
+/* ---------- Motion ---------- */
+/*
+ * How the portal moves. A personal page opened now and then, so polish first
+ * (subtle, production-quiet), restraint where things are used often, and a
+ * little delight only where it is rare (the sunrise, the first connection):
+ * - arrivals ease out fast and come into focus: opacity, a short rise, a blur
+ *   that clears; departures are shorter, smaller and ease in;
+ * - a press scales down at once; hover only changes colour;
+ * - Escape and other keys never animate; nothing loops except a spinner;
+ * - only transform, opacity, filter and clip-path move, plus a sheet's height
+ *   (one fixed box, motion.ts followHeight);
+ * - prefers-reduced-motion keeps the fades and drops the travel (end of file).
+ * motion.ts measures and starts what needs script (heights, FLIP, swaps, pulls).
+ */
+
+/* Press and hover: everything tappable. Placed last: the controls reset with `all: unset`. */
+.btn,
+.badge,
+.pill,
+.kind,
+.icon-btn,
+.slot.add,
+.slot-ic,
+.name-chip,
+.fold-link,
+.pill-link,
+.tabs > button,
+.seg > button,
+.menu-item {
+  transition:
+    transform var(--dur-press) var(--ease-out),
+    background-color var(--dur-hover) var(--ease-out),
+    border-color var(--dur-hover) var(--ease-out),
+    box-shadow var(--dur-hover) var(--ease-out),
+    color var(--dur-hover) var(--ease-out),
+    opacity var(--dur-hover) var(--ease-out);
+}
+.btn:active,
+.pill:active,
+.kind:active,
+.icon-btn:active,
+.fold-link:active,
+.pill-link:active,
+.tabs > button:active,
+.seg > button:active {
+  transform: scale(0.97);
+}
+/* Wide surfaces give less: the same press reads larger on them. */
+.badge:active,
+.slot.add:active {
+  transform: scale(0.985);
+}
+.name-chip:active {
+  transform: scale(0.96);
+}
+.btn[disabled]:active {
+  transform: none;
+}
+/* The ⋯ whose menu is open stays pressed. */
+.icon-btn[aria-expanded='true'] {
+  background: var(--soft-hover);
+  color: var(--text);
+}
+.kind .ic,
+.menu-item .ic {
+  transition: color var(--dur-hover) var(--ease-out);
+}
+.spark i {
+  transition:
+    opacity 120ms var(--ease-out),
+    filter 120ms var(--ease-out);
+}
+input,
+textarea {
+  transition:
+    border-color var(--dur-hover) var(--ease-out),
+    box-shadow var(--dur-hover) var(--ease-out);
+}
+
+/* The visit's first paint: blocks rise in, in reading order (motion.ts intro sets --i).
+   The add slot's `all: unset` (two classes) would reset the animation: it is named here. */
+.intro,
+.slot.add.intro {
+  animation: rise-in var(--dur-enter) var(--ease-out) backwards;
+  animation-delay: calc(40ms + var(--i, 0) * 45ms);
+}
+/* The sun rises from behind the horizon, once. */
+.top.first .sun {
+  animation: sunrise 900ms var(--ease-out) 120ms backwards;
+}
+/* The meters fill and the bars grow, after their cards have arrived. */
+.wrap.first .meter i {
+  animation: fill-x 800ms var(--ease-out) 300ms backwards;
+}
+.wrap.first .slots i.used,
+.wrap.first .slots i.over {
+  animation: fill-x 480ms var(--ease-out) backwards;
+  animation-delay: calc(320ms + var(--i, 0) * 50ms);
+}
+.wrap.first .spark i {
+  transform-origin: bottom;
+  animation: grow-y 560ms var(--ease-out) backwards;
+  animation-delay: calc(320ms + var(--i, 0) * 30ms);
+}
+.wrap.first .avatar.online::after {
+  animation: pop-in 480ms var(--spring-pop) 420ms backwards;
+}
+.wrap.first .hero-ic {
+  animation: pop-in 520ms var(--spring-pop) 160ms backwards;
+}
+
+/* A repaint: a new block rises in, a value that changed comes into focus, an icon swaps with a little spring. */
+.enter,
+.slot.add.enter {
+  animation: rise-in 360ms var(--ease-out) backwards;
+}
+/* What a card just unfolded: one piece after the other (setup sheet). */
+.unfold {
+  animation: rise-in 320ms var(--ease-out) backwards;
+  animation-delay: calc(30ms + var(--i, 0) * 40ms);
+}
+.swap {
+  animation: focus-in var(--dur-swap) var(--ease-out) backwards;
+}
+.swap-ic {
+  animation: icon-in 280ms var(--spring) backwards;
+}
+.copied > .ic,
+.copied .badge-ic .ic {
+  color: var(--ok);
+}
+.badge.primary.copied .badge-ic .ic {
+  color: inherit;
+}
+
+/* Dropdown menu: grows out of its button, leaves quicker and smaller. */
+.menu {
+  opacity: 0;
+  transform: translateY(-4px) scale(0.96);
+  transform-origin: top right;
+  filter: blur(2px);
+  transition:
+    opacity var(--dur-pop) var(--ease-out),
+    transform 220ms var(--ease-out),
+    filter var(--dur-pop) var(--ease-out);
+}
+.menu.up {
+  transform: translateY(4px) scale(0.96);
+  transform-origin: bottom right;
+}
+.menu.show {
+  opacity: 1;
+  transform: none;
+  filter: none;
+}
+.menu.gone {
+  opacity: 0;
+  transform: scale(0.98);
+  filter: none;
+  pointer-events: none;
+  transition-duration: 120ms;
+  transition-timing-function: var(--ease-in);
+}
+
+/* Tooltip: comes up out of the pointer once, then only follows it. */
+.tip {
+  opacity: 0;
+  transform: translateY(4px) scale(0.96);
+  transform-origin: 50% 100%;
+  transition:
+    opacity 120ms var(--ease-out),
+    transform var(--dur-pop) var(--ease-out);
+}
+.tip.show {
+  opacity: 1;
+  transform: none;
+}
+
+/* Toast: rises into focus; goes quicker, barely moving. */
+.toast {
+  opacity: 0;
+  transform: translateY(12px) scale(0.96);
+  filter: blur(4px);
+  transition:
+    transform 380ms var(--ease-out),
+    opacity 240ms var(--ease-out),
+    filter 240ms var(--ease-out);
+}
+.toast.show {
+  opacity: 1;
+  transform: none;
+  filter: none;
+}
+.toast.gone {
+  opacity: 0;
+  transform: translateY(4px) scale(0.98);
+  filter: blur(2px);
+  transition-duration: var(--dur-exit);
+  transition-timing-function: var(--ease-in);
+}
+
+/* Sheets. Phones: slides up on iOS's curve, can be pulled down (motion.ts pullToClose). */
+.scrim {
+  opacity: 0;
+  transition: opacity 300ms var(--ease-out);
+}
+.sheet.open .scrim {
+  opacity: 1;
+}
+.sheet.closing .scrim {
+  transition-duration: 260ms;
+}
+.sheet-panel {
+  transform: translateY(100%);
+  transition: transform var(--dur-sheet) var(--ease-drawer);
+}
+.sheet.open .sheet-panel {
+  transform: none;
+}
+.sheet.closing .sheet-panel {
+  transition-duration: 300ms;
+}
+.sheet-panel.dragging {
+  transition: none;
+}
+.sheet-panel.morphing {
+  overflow: hidden;
+}
+/* A question turning into a sheet: the width animates, the cap waits for the end. */
+.sheet-panel.morphing-w {
+  max-width: none;
+}
+@media (max-width: 639px) {
+  .grab,
+  .sheet-head,
+  .ask {
+    touch-action: none;
+  }
+  .grab {
+    cursor: grab;
+  }
+}
+/* Desktop: a dialog that comes into focus, its content settling just after it. */
+@media (min-width: 640px) {
+  .sheet-panel {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+    filter: blur(4px);
+    transition:
+      opacity 220ms var(--ease-out),
+      transform 320ms var(--ease-out),
+      filter 220ms var(--ease-out);
+  }
+  .sheet.open .sheet-panel {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+  .sheet.closing .sheet-panel {
+    opacity: 0;
+    transform: scale(0.98);
+    filter: blur(2px);
+    transition-duration: var(--dur-exit);
+    transition-timing-function: var(--ease-in);
+  }
+  .sheet.closing .scrim {
+    transition-duration: 180ms;
+  }
+  .sheet.fresh .sheet-inner > .sheet-head,
+  .sheet.fresh .sheet-body > :not(.setup),
+  .sheet.fresh .setup > * {
+    animation: settle-in 280ms var(--ease-out) backwards;
+    animation-delay: calc(20ms + var(--i, 0) * 25ms);
+  }
+}
+/* A question opens with its icon springing in. */
+.sheet.fresh .ask-ic {
+  animation: pop-in 520ms var(--spring-pop) 80ms backwards;
+}
+/* What a swap lifts out of the flow while it fades (motion.ts swap): under the new content, not over it. */
+.sheet-inner,
+.tab-body,
+.setup {
+  position: relative;
+  isolation: isolate;
+}
+.ghost {
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* Tabs and segments: a copy of the row in the picked look, clipped to the pick, slides (motion.ts slider). */
+.slides {
+  position: relative;
+}
+.slide-hl {
+  position: absolute;
+  inset: 0;
+  margin: 0 !important;
+  pointer-events: none;
+}
+.slide-hl.placed {
+  transition: clip-path 300ms var(--ease-out);
+}
+.tabs.slide-hl {
+  background: var(--soft-hover);
+}
+.pane .seg.slide-hl {
+  background: var(--card);
+}
+.slide-hl > button,
+.slide-hl > button.on {
+  background: none;
+  box-shadow: none;
+  color: var(--text);
+  transition: none;
+}
+.tabs.slides > button.on,
+.pane .seg.slides > button.on {
+  background: none;
+  box-shadow: none;
+}
+
+/* Setup repaints (motion.ts restyle): what flipped starts from its other look; a card that
+   just folded shows its chevron with a little spring. */
+.fold.to-off .fold-chev {
+  animation: icon-in 280ms var(--spring) backwards;
+}
+.pill.to-on {
+  animation: pill-on var(--dur-pop) var(--ease-out);
+}
+.pill.to-off {
+  animation: pill-off var(--dur-pop) var(--ease-out);
+}
+.pill.to-on .ic,
+.kind.on .ic {
+  animation: pop-sm 340ms var(--spring-pop);
+}
+/* A code that now encodes something else comes into focus out of a blur. */
+.qr.swap {
+  animation: qr-in 360ms var(--ease-out) backwards;
+}
+/* A key shown comes into focus; the mask fades back. */
+.conf-v.unmask {
+  animation: unmask 420ms var(--ease-out) backwards;
+}
+.conf-mask.unmask {
+  animation: focus-in 200ms var(--ease-out) backwards;
+}
+.confbox[open] > .conf {
+  animation: rise-in 260ms var(--ease-out) backwards;
+}
+
+/* The first connection (waitpath.ts): a light runs along the way while the page waits;
+   connected, the dots fill green from the device to the router, then the router end lights. */
+.way-glow i {
+  animation: way-run 2s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+.way-glow {
+  transition: opacity 200ms var(--ease-out);
+}
+.way-fill {
+  transition: clip-path 700ms var(--ease-out) 80ms;
+}
+.way-end {
+  transition:
+    background-color 300ms var(--ease-out),
+    color 300ms var(--ease-out);
+}
+/* The green reaches the server last: it lights up when the dots get there. */
+.way.done .way-end.home {
+  transition-delay: 600ms;
+}
+.way.done .way-end.home .ic {
+  animation: pop-sm 420ms var(--spring-pop) 600ms;
+}
+
+/* A button waiting for the router: the label gives way to a spinner (motion.ts busy). */
+.btn {
+  --spin: var(--text);
+}
+.btn.primary {
+  --spin: var(--primary-fg);
+}
+.btn.danger-solid {
+  --spin: #fff;
+}
+.btn.busy {
+  position: relative;
+  color: transparent !important;
+  cursor: progress;
+}
+.btn.busy[disabled] {
+  opacity: 1;
+}
+.btn.busy::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--spin) 28%, transparent);
+  border-top-color: var(--spin);
+  animation:
+    spin 700ms linear infinite,
+    focus-in var(--dur-hover) var(--ease-out);
+}
+.btn[disabled] {
+  transition: opacity var(--dur-hover) var(--ease-out);
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+    filter: blur(4px);
+  }
+}
+@keyframes settle-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+@keyframes focus-in {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+  }
+}
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes icon-in {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+    filter: blur(3px);
+  }
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+    filter: blur(4px);
+  }
+}
+@keyframes pop-sm {
+  from {
+    transform: scale(0.82);
+  }
+}
+@keyframes sunrise {
+  from {
+    transform: translateY(10px);
+  }
+}
+@keyframes fill-x {
+  from {
+    clip-path: inset(0 100% 0 0 round 999px);
+  }
+  to {
+    clip-path: inset(0 0 0 0 round 999px);
+  }
+}
+@keyframes grow-y {
+  from {
+    transform: scaleY(0);
+  }
+}
+@keyframes pill-on {
+  from {
+    border-color: var(--line);
+    background-color: transparent;
+    color: var(--muted);
+  }
+}
+@keyframes pill-off {
+  from {
+    border-color: var(--accent);
+    background-color: rgba(58, 131, 247, 0.12);
+    color: var(--text);
+  }
+}
+@keyframes qr-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+    filter: blur(6px);
+  }
+}
+@keyframes unmask {
+  from {
+    opacity: 0.25;
+    filter: blur(5px);
+  }
+}
+/* The light goes along the way, then rests a beat before the next run. */
+@keyframes way-run {
+  0% {
+    transform: translateX(-70%);
+  }
+  72%,
+  100% {
+    transform: translateX(70%);
+  }
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Less motion: what says "this changed" still fades in; nothing travels, scales, blurs or turns. */
 @media (prefers-reduced-motion: reduce) {
-  * {
-    transition: none !important;
-    animation: none !important;
+  .intro,
+  .slot.add.intro,
+  .enter,
+  .slot.add.enter,
+  .unfold,
+  .swap,
+  .swap-ic,
+  .qr.swap,
+  .conf-v.unmask,
+  .confbox[open] > .conf,
+  .wrap.first .hero-ic,
+  .wrap.first .avatar.online::after,
+  .sheet.fresh .sheet-inner > .sheet-head,
+  .sheet.fresh .sheet-body > :not(.setup),
+  .sheet.fresh .setup > *,
+  .sheet.fresh .ask-ic {
+    animation-name: fade;
+    animation-duration: 200ms;
+  }
+  .top.first .sun,
+  .wrap.first .meter i,
+  .wrap.first .slots i.used,
+  .wrap.first .slots i.over,
+  .wrap.first .spark i,
+  .fold.to-off .fold-chev,
+  .pill.to-on .ic,
+  .kind.on .ic,
+  .way.done .way-end.home .ic {
+    animation: none;
+  }
+  /* The way holds still while waiting; connected, it turns green at once. */
+  .way-glow {
+    display: none;
+  }
+  .way-fill {
+    transition: none;
+  }
+  .sheet-panel,
+  .sheet.open .sheet-panel,
+  .sheet.closing .sheet-panel,
+  .menu,
+  .menu.up,
+  .menu.gone,
+  .tip,
+  .toast,
+  .toast.gone {
+    transform: none;
+    filter: none;
+  }
+  .sheet-panel {
+    opacity: 0;
+    transition: opacity 200ms var(--ease-out);
+  }
+  .sheet.open .sheet-panel {
+    opacity: 1;
+  }
+  .slide-hl.placed,
+  .confbox > summary > .ic:first-child {
+    transition: none;
+  }
+  .btn:active,
+  .badge:active,
+  .pill:active,
+  .kind:active,
+  .icon-btn:active,
+  .slot.add:active,
+  .name-chip:active,
+  .fold-link:active,
+  .pill-link:active,
+  .tabs > button:active,
+  .seg > button:active {
+    transform: none;
   }
 }

@@ -39,6 +39,24 @@ export interface SetupDefaults {
   tcp_taken: PortHold[];
   awg: AwgCaps;
   awg_state?: AwgState;
+  /** Where the suggested address came from: ddns, cert, wan, portal ('' = nothing found). */
+  endpoint_from?: string;
+  /** What the WAN's IPv4 is: public, private (behind another router), cgnat, none. */
+  wan_kind?: 'public' | 'private' | 'cgnat' | 'none';
+  wan_ip?: string | null;
+}
+
+/** Where a public address points (rpc endpoint_probe): the facts and their verdict in words. */
+export interface EndpointProbe {
+  host: string;
+  ips: string[];
+  wan: string | null;
+  kind: 'public' | 'private' | 'cgnat' | 'none';
+  cloudflare: boolean;
+  here: boolean;
+  v6_only: boolean;
+  status: 'ok' | 'warn' | 'error';
+  text: string;
 }
 
 export interface Backup {
@@ -323,7 +341,8 @@ export type PersonPatch = Partial<
     | 'bonus_gb'
     | 'hours'
     | 'note'
-    | 'dns_mode',
+    | 'dns_mode'
+    | 'server',
     string
   >
 > & { paused?: boolean; services?: string[]; circle?: string; home_nets?: string[] };
@@ -349,6 +368,7 @@ const personUpdateRaw = rpc.declare<any>({
     'services',
     'circle',
     'home_nets',
+    'server',
   ],
 });
 
@@ -367,7 +387,7 @@ async function personUpdate(id: string, patch: PersonPatch): Promise<{ person: P
     'note',
     'dns_mode',
   ] as const;
-  const args: unknown[] = [id, ...keys.map((k) => patch[k]), patch.paused, patch.services, patch.circle, patch.home_nets];
+  const args: unknown[] = [id, ...keys.map((k) => patch[k]), patch.paused, patch.services, patch.circle, patch.home_nets, patch.server];
   return settle(await personUpdateRaw(...args));
 }
 
@@ -452,6 +472,10 @@ export const api = {
   ]),
   serverObfuscation: call<unknown>('server_obfuscation', ['id', 'preset']),
   serverUpdate: call<unknown>('server_update', ['id', 'values']),
+  /** What an existing server's ports and a new tunnel network must avoid (checked as you type). */
+  serverPorts: call<{ udp_taken: PortHold[]; tcp_taken: PortHold[]; networks?: Network[] }>('server_ports', ['id']),
+  /** Where a public address points, for the live help under the field (debounced by the caller). */
+  endpointProbe: call<EndpointProbe>('endpoint_probe', ['host', 'id', 'port']),
   serverDelete: call<unknown>('server_delete', ['id']),
   /** The personal link, its code and every address it works on (main first); not part of the status. */
   personLinks: call<{ code: string; link: string | null; links: string[] }>('person_links', ['id']),

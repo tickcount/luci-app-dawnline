@@ -17,7 +17,27 @@ function settle(ok = false) {
 
 export function modal(title: string, body: Child, actions: Child, cls = '') {
   settle();
-  ui.showModal(title, [E('div', { class: `dl-modal ${cls}` }, body), E('div', { class: 'button-row' }, actions)]);
+  const bodyEl = E('div', { class: `dl-modal ${cls}` }, body);
+  const rowEl = E('div', { class: 'button-row' }, actions);
+  // Enter in a field submits: the dialog's positive button (buttons, selects
+  // and text areas keep their own Enter).
+  bodyEl.addEventListener('keydown', (ev: KeyboardEvent) => {
+    // Escape closes the dialog only: a drawer under it stays (it listens on the document).
+    if (ev.key === 'Escape') {
+      ev.preventDefault();
+      ev.stopPropagation();
+      closeModal();
+      return;
+    }
+    if (ev.key !== 'Enter' || ev.shiftKey || ev.ctrlKey || ev.metaKey || ev.altKey) return;
+    const t = ev.target as HTMLElement;
+    if (!t || ['TEXTAREA', 'BUTTON', 'SELECT', 'A'].includes(t.tagName)) return;
+    const go = rowEl.querySelector<HTMLButtonElement>('.cbi-button-positive');
+    if (!go || go.disabled) return;
+    ev.preventDefault();
+    go.click();
+  });
+  ui.showModal(title, [bodyEl, rowEl]);
 }
 
 export function closeModal() {

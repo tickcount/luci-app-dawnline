@@ -34,6 +34,13 @@ export function attachTip(el: HTMLElement, content: () => (Node | string)[]) {
   el.addEventListener('mouseenter', show);
   el.addEventListener('mousemove', show);
   el.addEventListener('mouseleave', hideTip);
+  // No hover on a touch screen: a tap on the anchor shows it, the next tap
+  // anywhere (the document listener below) hides it.
+  el.addEventListener('pointerup', (ev: PointerEvent) => {
+    if (ev.pointerType === 'mouse') return;
+    if (anchor === el) hideTip();
+    else show(ev as unknown as MouseEvent);
+  });
 }
 
 onNavigate(hideTip);

@@ -18,7 +18,7 @@ import { devicesPart } from './devices';
 import { limitsPart } from './limits';
 import { activityPart, placesPart } from './activity';
 
-type Part = 'head' | 'devices' | 'traffic' | 'places' | 'activity' | 'limits';
+type Part = 'crumbs' | 'head' | 'devices' | 'traffic' | 'places' | 'activity' | 'limits';
 
 interface Loaded {
   st: Status;
@@ -69,16 +69,10 @@ export class PersonPage {
         E('a', { class: 'cbi-button', href: L.url('admin/network/dawnline/server') }, 'Back to Servers'),
       ]);
     this.p = p;
-    for (const k of ['head', 'devices', 'traffic', 'places', 'activity', 'limits'] as Part[]) this.parts[k] = E('div', {});
+    for (const k of ['crumbs', 'head', 'devices', 'traffic', 'places', 'activity', 'limits'] as Part[]) this.parts[k] = E('div', {});
     this.parts.devices.className = 'dl-person-devices';
     const root = E('div', {}, [
-      E('nav', { class: 'dl-crumbs', 'aria-label': 'Breadcrumb' }, [
-        E('a', { href: peopleUrl(p.server) }, this.st.servers.find((x) => x.id === p.server)?.name ?? 'Servers'),
-        E('span', {}, '/'),
-        E('a', { href: peopleUrl(p.server) }, 'People'),
-        E('span', {}, '/'),
-        E('span', {}, p.name),
-      ]),
+      this.parts.crumbs,
       this.parts.head,
       E('div', { class: 'dl-grid-person' }, [
         E('div', { class: 'dl-col' }, [this.parts.devices, this.parts.traffic, this.parts.places, this.parts.activity]),
@@ -176,7 +170,20 @@ export class PersonPage {
   }
 
   /** Every part; a `quiet` (periodic) repaint leaves alone the parts that have the keyboard focus. */
+  /** Server / People / name: the server changes when the person is moved. */
+  private crumbs(): HTMLElement {
+    const p = this.p;
+    return E('nav', { class: 'dl-crumbs', 'aria-label': 'Breadcrumb' }, [
+      E('a', { href: peopleUrl(p.server) }, this.st.servers.find((x) => x.id === p.server)?.name ?? 'Servers'),
+      E('span', {}, '/'),
+      E('a', { href: peopleUrl(p.server) }, 'People'),
+      E('span', {}, '/'),
+      E('span', {}, p.name),
+    ]);
+  }
+
   paint(quiet = false) {
+    repaint(this.parts.crumbs, this.crumbs(), quiet);
     repaint(this.parts.head, headPart(this), quiet);
     repaint(this.parts.traffic, trafficPart(this), quiet);
     repaint(this.parts.devices, devicesPart(this), quiet);

@@ -1,11 +1,13 @@
-// Person page dialogs: rename, note, when access ends, new link, invite, delete.
+// Person page dialogs: rename, note, when access ends, move to a server, new link, invite, delete.
 
 import { E } from '../../e';
 import { api } from '../../api';
 import { button } from '../../ui/button';
 import { cancelButton, closeModal, confirmDialog, modal } from '../../ui/modal';
 import { copyText } from '../../ui/files';
-import { attempt } from '../../ui/toast';
+import { attempt, notify } from '../../ui/toast';
+import { liveField } from '../../ui/layout';
+import { nameHelp } from '../../netcheck';
 import { inviteCard } from '../../invite';
 import { peopleUrl } from '../../urls';
 import type { PersonPage } from './index';
@@ -126,15 +128,21 @@ export function endSettings(page: PersonPage) {
 
 export function rename(page: PersonPage) {
   const input = E('input', { type: 'text', class: 'cbi-input-text', value: page.p.name, maxlength: 48 }) as HTMLInputElement;
+  const nameRow = liveField('Name', input, () => nameHelp(input.value, [], 'Shown in their portal and apps.'));
   modal(
     'Rename',
-    [field('Name', input)],
+    [nameRow],
     [
       cancelButton(),
       ' ',
       button(
         'Save',
         async () => {
+          const h = nameRow.help();
+          if (h.bad) {
+            notify(h.text, 'warning');
+            return;
+          }
           // The dialog stays open on a refusal, with the name still typed.
           if (await page.patch({ name: input.value.trim() }, 'Renamed')) closeModal();
         },
@@ -143,6 +151,45 @@ export function rename(page: PersonPage) {
     ],
   );
   setTimeout(() => input.select(), 50);
+}
+
+/** Another server: every device gets an address there and needs its configuration again. */
+export function moveToServer(page: PersonPage) {
+  const p = page.p;
+  const others = page.st.servers.filter((s) => s.id !== p.server);
+  const sel = E(
+    'select',
+    { class: 'cbi-input-select' },
+    others.map((s) => E('option', { value: s.id }, `${s.name} · ${s.endpoint || 'no address'}:${s.port}`)),
+  ) as HTMLSelectElement;
+  const n = p.devices.length;
+  modal(
+    `Move ${p.name} to another server`,
+    [
+      field('Server', sel),
+      E(
+        'p',
+        { class: 'dl-muted' },
+        n
+          ? `${n} device${n === 1 ? ' gets a new address and stops' : 's get new addresses and stop'} connecting until ${n === 1 ? 'it imports its' : 'they import their'} configuration again (from the personal link or from you). Circles and home networks of the old server are left behind.`
+          : 'They have no devices yet: nothing else changes.',
+      ),
+    ],
+    [
+      cancelButton(),
+      ' ',
+      button(
+        'Move',
+        async () => {
+          if (await page.patch({ server: sel.value }, `Moved to ${others.find((s) => s.id === sel.value)?.name ?? 'the server'}`)) {
+            closeModal();
+            if (n) notify('Devices are marked “Update config” until they import again.', 'info', 6000);
+          }
+        },
+        'positive',
+      ),
+    ],
+  );
 }
 
 export async function remove(page: PersonPage) {

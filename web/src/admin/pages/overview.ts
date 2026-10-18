@@ -8,7 +8,7 @@ import { api } from '../api';
 import { svg } from '../ui/layout';
 import { attachTip } from '../ui/tooltip';
 import { icon } from '../../shared/icons';
-import { ago, bits, bytes, daysLeft, endsIn, endsSoon, initials, todayOf } from '../../shared/format';
+import { ago, bits, bytes, date, daysLeft, endsIn, endsSoon, initials, todayOf } from '../../shared/format';
 import { ConnectionMap, rangeControl, type Range } from '../map';
 import { personUrl } from '../urls';
 import { eventRow } from '../events/render';
@@ -17,6 +17,8 @@ import { repaint } from '../state/poller';
 import { daysTile, speedTile } from '../widgets/tiles';
 import { coreOf } from '../cores';
 import { healthNotices, runFix } from '../widgets/health';
+import { attempt } from '../ui/toast';
+import { isIpv4 } from '../netcheck';
 import { onNavigate } from '../ui/nav';
 
 interface Attention {
@@ -48,6 +50,9 @@ function attention(st: Status): Attention[] {
     else {
       const left = daysLeft(p.expires, today);
       if (endsSoon(p, left)) out.push({ tone: '', text: [link(personUrl(p.id), p.name), `’s access ${endsIn(left as number)}.`] });
+      // "Keep access" at the end date: nothing changes on its own, so it is said here.
+      else if (left != null && left < 0 && p.expire_action === 'notify')
+        out.push({ tone: '', text: [link(personUrl(p.id), p.name), `’s end date passed (${date(p.expires)}) · access kept.`] });
       if (p.quota_limit && p.quota_used >= p.quota_limit * 0.9)
         out.push({ tone: '', text: [link(personUrl(p.id), p.name), ' has used 90% of the data limit.'] });
     }
@@ -64,12 +69,40 @@ function attention(st: Status): Attention[] {
             ]
           : [`${stale.length} devices need their configuration again (networks or DNS changed).`],
     });
+  // A server that gives devices an IPv4 that is no longer the router's: one click puts the new one in.
+  for (const s of st.servers)
+    if (st.wan && isIpv4(s.endpoint) && s.endpoint !== st.wan)
+      out.push({
+        tone: 'warn',
+        text: [
+          `Public address changed: ${s.name} still gives devices ${s.endpoint}, the router is ${st.wan} now. `,
+          E(
+            'button',
+            {
+              type: 'button',
+              class: 'dl-fix',
+              click: async (ev: Event) => {
+                const b = ev.currentTarget as HTMLButtonElement;
+                b.disabled = true;
+                await attempt(
+                  () => api.serverUpdate(s.id, { endpoint: st.wan }),
+                  `${s.name} uses ${st.wan} now — devices need their configuration again`,
+                );
+                b.disabled = false;
+              },
+            },
+            'Use the new address',
+          ),
+          ' A DDNS name would follow it by itself.',
+        ],
+      });
   if (st.servers.some((s) => s.lan_like) && st.like_home.error)
     out.push({
       tone: 'warn',
       text: [`Internet through the LAN is off: ${st.like_home.error} `, link(L.url('admin/network/dawnline/diagnostics'), 'Details')],
     });
-  if (!st.settings.portal_enabled)
+  // Only while setting up: an admin who keeps the portal off has decided so.
+  if (!st.settings.portal_enabled && !st.people.length)
     out.push({ tone: '', text: ['The personal portal is off. ', link(L.url('admin/network/dawnline/settings'), 'Turn on')] });
   return out;
 }
@@ -390,6 +423,12 @@ export class ServerOverview {
 
   /** The last 30 days, today on the right, with the peak. */
   monthTile(): HTMLElement {
-    return daysTile(this.st.series, '');
+    // Who used the most this month (the People sort has it too, a click away).
+    const top = [...this.st.people]
+      .map((p) => [p, p.month[0] + p.month[1]] as const)
+      .filter(([, n]) => n > 0)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 2);
+    return daysTile(this.st.series, top.length ? `Most: ${top.map(([p, n]) => `${p.name} ${bytes(n)}`).join(' · ')}` : '');
   }
 }

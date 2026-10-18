@@ -17,7 +17,10 @@ import { copyPersonLink, inviteCard } from '../invite';
 import { personUrl } from '../urls';
 import { scoped } from '../state/scope';
 import { createPoller, focusInside, type Poller } from '../state/poller';
+import { onNavigate } from '../ui/nav';
 import { accessPicker } from '../widgets/access-picker';
+import { firstBad, liveField } from '../ui/layout';
+import { expiresHelp, limitHelp, nameHelp, quotaHelp } from '../netcheck';
 import { coreFor } from '../cores';
 import { icon } from '../../shared/icons';
 import {
@@ -37,6 +40,22 @@ import {
 } from '../../shared/format';
 
 type Sid = string;
+
+/** Per-browser conveniences (a tab, a sort): storage may be absent or refuse. */
+function remembered(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+function remember(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* no storage */
+  }
+}
 
 /** Device slots as a row of segments (one per allowed device, used ones lit) and "2 of 10". */
 function slotBar(p: Person): HTMLElement {
@@ -89,9 +108,14 @@ export class PeoplePage {
   /** The cards, one per person, in the current sort order. */
   private list: HTMLElement = E('div', { class: 'dl-plist', role: 'list' });
   // `?filter=online` (from Overview) preselects a tab.
+  // The tab and the sort are remembered in this browser; ?filter= (from Overview) wins for the tab.
   filter: Filter =
-    (['all', 'online', 'attention', 'paused'] as Filter[]).find((f) => f === new URLSearchParams(location.search).get('filter')) ?? 'all';
-  sort: SortBy = 'seen';
+    (['all', 'online', 'attention', 'paused'] as Filter[]).find(
+      (f) => f === (new URLSearchParams(location.search).get('filter') ?? remembered('dl.people.filter')),
+    ) ?? 'all';
+  sort: SortBy = (['seen', 'name', 'usage'] as SortBy[]).find((x) => x === remembered('dl.people.sort')) ?? 'seen';
+  /** What the admin typed into Find (name, note, device, address). */
+  query = '';
   noFooter = true;
   /** Set when shown as a server's People section: only that server's people. */
   serverId: string | null = null;
@@ -208,11 +232,37 @@ export class PeoplePage {
         'aria-label': 'Sort',
         change: (ev: Event) => {
           page.sort = (ev.target as HTMLSelectElement).value as SortBy;
+          remember('dl.people.sort', page.sort);
           page.decorate();
         },
       },
-      [E('option', { value: 'seen' }, 'Last seen'), E('option', { value: 'name' }, 'Name'), E('option', { value: 'usage' }, 'Usage')],
+      [
+        E('option', { value: 'seen', selected: page.sort === 'seen' ? 'selected' : null }, 'Last seen'),
+        E('option', { value: 'name', selected: page.sort === 'name' ? 'selected' : null }, 'Name'),
+        E('option', { value: 'usage', selected: page.sort === 'usage' ? 'selected' : null }, 'Usage'),
+      ],
     );
+    // Find, once the list is long enough to need it; "/" focuses it.
+    const find = E('input', {
+      type: 'search',
+      class: 'cbi-input-text dl-people-find',
+      placeholder: 'Find…',
+      'aria-label': 'Find a person or device',
+      hidden: st.people.length > 8 ? null : 'hidden',
+      input: (ev: Event) => {
+        page.query = (ev.target as HTMLInputElement).value.trim().toLowerCase();
+        page.decorate();
+      },
+    }) as HTMLInputElement;
+    const onSlash = (ev: KeyboardEvent) => {
+      const t = ev.target as HTMLElement;
+      if (ev.key === '/' && !find.hidden && !['INPUT', 'TEXTAREA', 'SELECT'].includes(t?.tagName) && !t?.isContentEditable) {
+        ev.preventDefault();
+        find.focus();
+      }
+    };
+    document.addEventListener('keydown', onSlash);
+    onNavigate(() => document.removeEventListener('keydown', onSlash));
     const wrap = E('div', { class: 'dl-root' }, [
       page.serverId
         ? ''
@@ -234,6 +284,7 @@ export class PeoplePage {
         E('div', { class: 'dl-seg dl-people-tabs', role: 'tablist' }),
         // Sort and add stay together on the right, wrapping as one group.
         E('div', { class: 'dl-toolbar-end' }, [
+          find,
           sort,
           page.serverId ? button([icon('plus'), ' Add person'], () => page.openCreate(), 'add') : '',
         ]),
@@ -290,6 +341,7 @@ export class PeoplePage {
               class: f === this.filter ? 'on' : '',
               click: () => {
                 this.filter = f;
+                remember('dl.people.filter', f);
                 this.decorate();
               },
             },
@@ -298,10 +350,14 @@ export class PeoplePage {
         ),
       );
     }
+    const q = this.query;
+    const hay = (p: Person) =>
+      [p.name, p.note ?? '', ...p.devices.flatMap((d) => [d.name, d.address, d.hostname, d.endpoint])].join(' ').toLowerCase();
     const match = (p: Person) => {
       if (this.filter === 'online' && !p.online) return false;
       if (this.filter === 'attention' && !attn(p)) return false;
       if (this.filter === 'paused' && !paused(p)) return false;
+      if (q && !hay(p).includes(q)) return false;
       return true;
     };
     // Whatever the sort: people who can connect, then those held by a limit or an end
@@ -405,8 +461,17 @@ export class PeoplePage {
       ),
     );
 
-    // Ending soon (the strip below handles an end that has passed).
+    // Ending soon (the strip below handles an end that has passed); someone new
+    // without a device yet gets a nudge to send the link.
     const fixes: Node[] = [];
+    if (!p.devices.length && portal && !stopped(p))
+      fixes.push(
+        E(
+          'button',
+          { type: 'button', class: 'dl-fix', click: () => inviteCard(p, this.st.servers.find((s) => s.id === p.server)?.name ?? 'Home') },
+          'Send invite',
+        ),
+      );
     if (p.expires && endsSoon(p, left) && why !== 'expired')
       fixes.push(
         E(
@@ -612,7 +677,15 @@ export class PeoplePage {
       return;
     }
     const name = E('input', { type: 'text', class: 'cbi-input-text', placeholder: 'e.g. Myata', maxlength: 48 }) as HTMLInputElement;
-    const access = accessPicker('internet');
+    // The last person's access and data limit come back pre-filled (most are alike).
+    const last = (() => {
+      try {
+        return JSON.parse(remembered('dl.person.last') ?? '{}') as { access?: Person['access']; quota?: string };
+      } catch {
+        return {} as { access?: Person['access']; quota?: string };
+      }
+    })();
+    const access = accessPicker(last.access ?? 'internet');
     const limit = E('input', {
       type: 'number',
       class: 'cbi-input-text',
@@ -627,6 +700,7 @@ export class PeoplePage {
       min: 0,
       step: 'any',
       placeholder: 'Unlimited',
+      value: last.quota ?? '',
     }) as HTMLInputElement;
     const quick = (label: string, months: number) =>
       E(
@@ -636,6 +710,7 @@ export class PeoplePage {
           class: 'cbi-button cbi-button-neutral',
           click: () => {
             expires.value = months ? addMonthsClamped(todayOf(st.series), months) : '';
+            expires.dispatchEvent(new Event('change'));
           },
         },
         label,
@@ -655,44 +730,62 @@ export class PeoplePage {
         E('label', { class: 'cbi-value-title' }, label),
         E('div', { class: 'cbi-value-field' }, [w, help ? E('div', { class: 'cbi-value-description' }, help) : '']),
       ]);
+    // Each field says what its value means, or what is wrong, as it is typed; Create refuses what the router would.
+    const today = todayOf(st.series);
+    const nameRow = liveField('Name', name, () => nameHelp(name.value, [], 'Shown in their portal and apps.'));
+    const limitRow = liveField('Devices', limit, () => limitHelp(limit.value));
+    const expRow = liveField(
+      'End date',
+      expires,
+      () => expiresHelp(expires.value, today, daysLeft, date),
+      E('div', { class: 'dl-actions' }, [expires, quick('1 month', 1), quick('3 months', 3), quick('1 year', 12), quick('None', 0)]),
+    );
+    const quotaRow = liveField('Monthly data (GB)', quota, () => quotaHelp(quota.value));
+    // The quick buttons set the date without an input event.
+    expires.addEventListener('change', () => expRow.refresh());
+    const portalOn = st.settings.portal_enabled;
 
     modal(
       'Add person',
       [
-        row('Name', name),
+        nameRow,
         server ? row('Server', server) : '',
         E('div', { class: 'cbi-value dl-block' }, [
           E('label', { class: 'cbi-value-title' }, 'Access'),
           E('div', { class: 'cbi-value-field' }, access.el),
         ]),
-        row('Devices', limit, 'How many devices they can add themselves.'),
-        row(
-          'End date',
-          E('div', { class: 'dl-actions' }, [expires, quick('1 month', 1), quick('3 months', 3), quick('1 year', 12), quick('None', 0)]),
-          'Optional.',
-        ),
-        row('Monthly data (GB)', quota, 'Optional. They are paused when it runs out and resumed next month.'),
+        limitRow,
+        expRow,
+        quotaRow,
       ],
       [
         cancelButton(),
         ' ',
         button(
-          'Create and copy link',
+          // Without the portal there is no link to copy.
+          portalOn ? 'Create and copy link' : 'Create',
           async () => {
+            const bad = firstBad([nameRow, limitRow, expRow, quotaRow]);
+            if (bad) {
+              notify(bad, 'warning');
+              return;
+            }
             const r = await attempt(() =>
               api.personCreate(
                 name.value.trim(),
                 '',
                 server?.value ?? srv.id,
                 access.get(),
-                String(Number(limit.value) || st.settings.default_device_limit),
+                limit.value.trim(),
                 expires.value,
                 quota.value.trim(),
                 'month',
               ),
             );
             if (!r) return;
-            if (r.link) await copyText(r.link, 'Personal link copied');
+            remember('dl.person.last', JSON.stringify({ access: access.get(), quota: quota.value.trim() }));
+            // After the await some browsers refuse the clipboard: the card has its own Copy.
+            if (r.link) await copyText(r.link, 'Personal link copied', true);
             this.showCreated(r.id, name.value.trim(), r.link, st.servers.find((x) => x.id === (server?.value ?? srv.id))?.name ?? srv.name);
             await this.refresh();
           },
@@ -711,10 +804,31 @@ export class PeoplePage {
       });
       return;
     }
+    // No portal, no link: the two ways on from here, as buttons.
+    const p = this.person(id);
     modal(
       `${name} is ready`,
       [E('p', {}, 'Created. Turn on the personal portal in Settings to get a link, or add devices for them here.')],
-      [E('button', { class: 'cbi-button cbi-button-positive', click: closeModal }, 'Done')],
+      [
+        E('button', { class: 'cbi-button cbi-button-neutral', click: closeModal }, 'Done'),
+        ' ',
+        E(
+          'a',
+          { class: 'cbi-button cbi-button-neutral', href: `${L.url('admin/network/dawnline/settings')}?section=portal` },
+          'Open Settings',
+        ),
+        ' ',
+        p
+          ? button(
+              'Add device',
+              () => {
+                closeModal();
+                addDevice(p, this.deviceOpts(p));
+              },
+              'positive',
+            )
+          : '',
+      ],
     );
   }
 }

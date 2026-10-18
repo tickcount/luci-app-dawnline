@@ -4,7 +4,7 @@
 
 import { cursor } from 'uci';
 import {
-	valid_name, valid_key, valid_host, valid_date, slugify, parse_cidr, cidr_overlaps, int2ip, ip2int,
+	valid_name, valid_key, valid_host, valid_date, slugify, host_label, ucut, NAME_RULE, parse_cidr, cidr_overlaps, int2ip, ip2int,
 	rand_hex, rand_bytes, date_end, month_key, read_json, DATA_DIR, RUN_DIR, uniq
 } from 'dawnline.util';
 import * as net from 'dawnline.net';
@@ -482,7 +482,7 @@ export function new_code() {
 
 export function create_person(c, m, a) {
 	if (!valid_name(a.name))
-		fail('Enter a name (up to 48 characters).');
+		fail(NAME_RULE);
 	// The id is a UCI section name: letters, digits and underscores only (a dash
 	// makes uci drop the section). Repeated names get _2, _3, …
 	let base = replace(a.slug ?? slugify(a.name), /-/g, '_');
@@ -540,7 +540,7 @@ export function update_person(c, m, id, a) {
 	let set = (k, v) => (v == null || v == '') ? c.delete(CONFIG, id, k) : c.set(CONFIG, id, k, `${v}`);
 	if (a.name != null) {
 		if (!valid_name(a.name))
-			fail('Enter a name (up to 48 characters).');
+			fail(NAME_RULE);
 		set('name', trim(a.name));
 	}
 	if (a.access != null) {
@@ -599,7 +599,7 @@ export function update_person(c, m, id, a) {
 		set('hours', a.hours);
 	}
 	if (a.note != null)
-		set('note', substr(trim(a.note), 0, 500));
+		set('note', ucut(trim(a.note), 500));
 	if (type(a.services) == 'array') {
 		for (let sid in a.services)
 			if (!m.services[sid])
@@ -614,6 +614,24 @@ export function update_person(c, m, id, a) {
 		if (a.circle != '' && (!ci || ci.server != p.server))
 			fail('Unknown circle.');
 		set('circle', a.circle);
+	}
+	// Another server: every device gets an address in its tunnel (so each
+	// needs its configuration again); circles and home networks are the old
+	// server's and go.
+	if (a.server != null && a.server != '' && a.server != p.server) {
+		if (!m.servers[a.server])
+			fail('Unknown server.');
+		set('server', a.server);
+		p.server = a.server;
+		for (let did in p.devices) {
+			let addr = alloc_address(m, m.servers[a.server]);
+			if (!addr)
+				fail(`No free address left on ${m.servers[a.server].name}.`);
+			m.devices[did].address = addr;
+			c.set(CONFIG, did, 'address', addr);
+		}
+		c.delete(CONFIG, id, 'circle');
+		c.delete(CONFIG, id, 'home_net');
 	}
 	if (type(a.home_nets) == 'array') {
 		let nets = uniq(filter(map(a.home_nets, (x) => trim(`${x}`)), (x) => match(x, /^[A-Za-z0-9_.@-]{1,32}$/)));
@@ -821,6 +839,50 @@ export function model_errors(m) {
 };
 
 /**
+ * Give every device on a server an address in `subnet` (the server's new
+ * tunnel network), lowest first: used by server_update when the network
+ * changes. Each device then needs its configuration again (the address is
+ * in it). Fails when the subnet cannot hold them.
+ */
+export function renumber_server(c, m, srv, subnet) {
+	srv.subnet = subnet;
+	for (let pid, p in m.people)
+		if (p.server == srv.id)
+			for (let did in p.devices)
+				m.devices[did].address = '';
+	for (let pid, p in m.people)
+		if (p.server == srv.id)
+			for (let did in p.devices) {
+				let addr = alloc_address(m, srv);
+				if (!addr)
+					fail(`${subnet} has no room for every device on ${srv.name}.`);
+				m.devices[did].address = addr;
+				c.set(CONFIG, did, 'address', addr);
+			}
+	c.set(CONFIG, srv.id, 'subnet', subnet);
+};
+
+/**
+ * The DNS labels of a person's devices, { device id: label }, unique within
+ * the person: two devices whose names give one label ("iPhone" and
+ * "iPhone!", or two Cyrillic names) get -2, -3 by age. Hostnames in
+ * /tmp/hosts (dawnline.apply) and the ones the UI shows (dawnline.view) both
+ * come from here, so what is shown resolves.
+ */
+export function device_labels(m, p) {
+	let out = {}, used = {};
+	let devs = sort(map(p.devices, (id) => m.devices[id]), (a, b) => (a.created - b.created) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+	for (let d in devs) {
+		let base = host_label(d.name), l = base;
+		for (let n = 2; used[l]; n++)
+			l = `${substr(base, 0, 37)}-${n}`;
+		used[l] = true;
+		out[d.id] = l;
+	}
+	return out;
+};
+
+/**
  * Port forwards from `zone` for `proto` that aren't Dawnline's: [{ from, to, name }].
  * A forwarded port never reaches the router itself, so nothing here can listen on it.
  */
@@ -883,7 +945,9 @@ export function portal_link(m, p, host) {
 		return `http://${host}${hp == 80 ? '' : `:${hp}`}/${p.code}`;
 	}
 	let pp = portal_public_port(m);
-	return `https://${host}${pp == 443 ? '' : `:${pp}`}/${p.code}`;
+	// An IPv6 address needs its brackets in a URL.
+	let h = index(host, ':') >= 0 && !match(host, /^\[/) ? `[${host}]` : host;
+	return `https://${h}${pp == 443 ? '' : `:${pp}`}/${p.code}`;
 };
 
 /** The main link (QR, invite card, Copy link). */

@@ -18,6 +18,8 @@
 					"settings_get",
 					"portal_info",
 					"interfaces",
+					"server_ports",
+					"endpoint_probe",
 					"events"
 				]
 			}

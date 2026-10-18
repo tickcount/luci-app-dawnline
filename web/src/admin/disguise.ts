@@ -4,7 +4,7 @@ import type { AwgCaps } from '../shared/types';
 import { E } from './e';
 import { icon } from '../shared/icons';
 
-export type Method = 'standard' | 'strong' | 'balanced' | 'max' | 'off';
+export type Method = 'balanced' | 'max' | 'off';
 /** The router features a method may need (the boolean ones of AwgCaps). */
 export type AwgNeed = 'v2' | 'v3';
 
@@ -36,31 +36,11 @@ export const METHODS: MethodInfo[] = [
     short: 'Any WireGuard app',
   },
   {
-    id: 'standard',
-    title: 'Standard',
-    ic: 'shield',
-    stealth: 2,
-    speed: 4,
-    text: 'Junk packets and random headers. Gets through most VPN blocking with no speed cost.',
-    apps: 'Every AmneziaWG and AmneziaVPN app',
-    short: 'Any AmneziaWG app',
-  },
-  {
-    id: 'strong',
-    title: 'Strong',
-    ic: 'shieldplus',
-    stealth: 3,
-    speed: 3,
-    text: 'More and larger junk packets for networks that block VPNs aggressively. Connects a little slower.',
-    apps: 'Every AmneziaWG and AmneziaVPN app',
-    short: 'Any AmneziaWG app',
-  },
-  {
     id: 'balanced',
     title: 'Balanced',
-    ic: 'shieldplus',
+    ic: 'shield',
     stealth: 3,
-    speed: 3,
+    speed: 4,
     needs: 'v2',
     text: 'AmneziaWG 2.0: junk packets, padded packets and a first packet that looks like DNS. For networks that learned to spot 1.0-style junk.',
     apps: 'AmneziaVPN 4.8.12 or newer, AmneziaWG 2.0+ apps',
@@ -80,6 +60,17 @@ export const METHODS: MethodInfo[] = [
 ];
 
 export const methodInfo = (id: string): MethodInfo | undefined => METHODS.find((x) => x.id === id);
+
+/** The disguise a new server gets: the strongest this router can run. */
+export const defaultMethod = (caps: AwgCaps): Method => (caps.v3 ? 'max' : caps.v2 ? 'balanced' : 'off');
+
+/**
+ * Servers made before 0.8 may carry the old Standard or Strong disguise
+ * (1.0-style junk only, which networks learned to spot). They keep running;
+ * the picker offers Balanced or Maximum instead. The title for such a server, or null.
+ */
+export const legacyTitle = (preset: string): string | null =>
+  preset === 'standard' ? 'Standard (old)' : preset === 'strong' ? 'Strong (old)' : null;
 
 const NEEDS: Record<AwgNeed, string> = {
   v2: 'Needs AmneziaWG 2.0 or newer on the router (kmod-amneziawg and amneziawg-tools from July 2025 on).',
@@ -148,7 +139,9 @@ export function methodPicker(
             E(
               'div',
               { class: 'dl-method-foot' },
-              ok ? [icon('phone'), E('span', {}, m.apps)] : [icon('alert'), E('span', {}, (installed ? NEEDS : NEEDS_NONE)[m.needs!])],
+              ok
+                ? [icon(m.id === 'off' ? 'wireguard' : 'amneziawg'), E('span', {}, m.apps)]
+                : [icon('alert'), E('span', {}, (installed ? NEEDS : NEEDS_NONE)[m.needs!])],
             ),
           ],
         );

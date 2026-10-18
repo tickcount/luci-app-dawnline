@@ -21,6 +21,8 @@ const EVENT_TONE: Record<string, string> = {
   person_removed: '',
   paused: 'warn',
   resumed: 'ok',
+  expiring: 'warn',
+  expired_kept: '',
   portal_blocked: 'bad',
   person_changed: '',
   devices_removed: 'warn',
@@ -35,6 +37,8 @@ const EVENT_ICON: Record<string, string> = {
   person_changed: 'edit',
   paused: 'pause',
   resumed: 'play',
+  expiring: 'calendar',
+  expired_kept: 'calendar',
 };
 
 function eventIcon(st: Names, e: LogEvent): string {
@@ -135,6 +139,10 @@ export function eventText(st: Pick<Status, 'people'>, e: LogEvent): Node[] {
     case 'person_changed':
       // The detail lists changed fields by their option names (device_limit, expire_action).
       return [...you('changed'), kind('person'), b(who), ...(detail ? [m(` · ${detail.replace(/_/g, ' ')}`)] : [])];
+    case 'expiring':
+      return [kind('Person'), b(who), m(`’s access ends in ${e.detail ?? 'a few days'}`)];
+    case 'expired_kept':
+      return [kind('Person'), b(who), m(`’s end date passed (${e.detail ?? ''}) · access kept`)];
     case 'paused':
       return [kind('Person'), b(who), m(` paused — ${e.detail ?? ''}`)];
     case 'resumed':

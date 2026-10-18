@@ -6,7 +6,7 @@
 // config_get_bool does, so the service and the code never disagree.
 
 import { stat } from 'fs';
-import { ip2int, valid_host } from 'dawnline.util';
+import { ip2int, valid_host, ulength } from 'dawnline.util';
 import { INTERVALS, TARGETS } from 'dawnline.updates';
 
 /* ---------- addresses ---------- */
@@ -114,7 +114,7 @@ export function to_int(v, dflt, lo, hi) {
 export const SETTINGS = {
 	portal_enabled: { type: 'bool', dflt: false, restart: true },
 	portal_host: { type: 'host', dflt: '', restart: true, msg: 'Public address must be a hostname or IP address.' },
-	portal_alt: { type: 'hosts', dflt: [], restart: true },
+	portal_alt: { type: 'hosts', dflt: [], restart: true, msg: 'Other addresses must be hostnames or IP addresses.' },
 	portal_port: { type: 'int', dflt: 8443, min: 1, max: 65535, restart: true,
 		msg: 'Choose a free port between 1 and 65535 (not 22, 53, 80 or 443).' },
 	portal_title: { type: 'text', dflt: 'Dawnline', max: 64, msg: 'Portal title: up to 64 characters on one line.' },
@@ -165,9 +165,13 @@ export function validate(key, val) {
 	let t = spec.type;
 	if (t == 'hosts') {
 		let lst = [];
-		for (let x in (type(val) == 'array' ? val : []))
-			if (type(x) == 'string' && valid_host(trim(x)) && index(lst, trim(x)) < 0)
+		for (let x in (type(val) == 'array' ? val : [])) {
+			// A typo must not vanish on Save: refused, like the main address.
+			if (type(x) != 'string' || (trim(x) != '' && !valid_host(trim(x))))
+				bad(spec, key);
+			if (trim(x) != '' && index(lst, trim(x)) < 0)
 				push(lst, trim(x));
+		}
 		return length(lst) ? lst : null;
 	}
 	if (t == 'targets') {
@@ -223,7 +227,7 @@ export function validate(key, val) {
 			bad(spec, key);
 	}
 	else if (t == 'text') {
-		if (length(val) > spec.max || match(val, /[[:cntrl:]]/))
+		if (ulength(val) > spec.max || match(val, /[[:cntrl:]]/))
 			bad(spec, key);
 	}
 	return val;

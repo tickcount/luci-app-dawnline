@@ -116,6 +116,8 @@ export interface Server {
   up: boolean;
   uptime: number;
   peers: number;
+  /** The newest handshake from a public address that is not the router's own (0: never). */
+  reached?: number;
   online: number;
   obf: Record<string, string>;
 }
@@ -218,6 +220,8 @@ export interface Status {
   awg: AwgCaps;
   /** Absent from routers that run an older backend: treat as fine. */
   awg_state?: AwgState;
+  /** The router's public IPv4 (null when none or private). */
+  wan?: string | null;
   like_home: { active: boolean; dev?: string; address?: string; bridged?: boolean; off?: boolean; error?: string };
 }
 

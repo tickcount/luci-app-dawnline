@@ -4,7 +4,7 @@
 // time, so a slow DNS server must not hold up the whole admin UI.
 
 import { readfile } from 'fs';
-import { q, sh, ensure_dir, read_json, write_json, ip2int, rand_hex, RUN_DIR } from 'dawnline.util';
+import { q, sh, ensure_dir, read_json, write_json, ip2int, is_ip6, rand_hex, RUN_DIR } from 'dawnline.util';
 import * as live from 'dawnline.live';
 import * as net from 'dawnline.net';
 
@@ -23,9 +23,10 @@ function valid_name(h) {
 }
 
 /**
- * IPv4 addresses of each name: { host: [ ip, … ] } (empty when it does not
- * resolve). IP addresses map to themselves. Every uncached name is asked of
- * every server at once; the first server (in SERVERS order) that answers wins.
+ * Addresses of each name, IPv4 and IPv6: { host: [ ip, … ] } (empty when it
+ * does not resolve). IP addresses map to themselves. Every uncached name is
+ * asked of every server at once, A and AAAA; the first server (in SERVERS
+ * order) that answers wins.
  */
 export function resolve_all(hosts) {
 	let out = {}, now = time(), todo = [];
@@ -33,7 +34,7 @@ export function resolve_all(hosts) {
 	for (let h in hosts) {
 		if (h == null || out[h] != null)
 			continue;
-		if (ip2int(h) != null) {
+		if (ip2int(h) != null || is_ip6(h)) {
 			out[h] = [ h ];
 			continue;
 		}
@@ -55,15 +56,17 @@ export function resolve_all(hosts) {
 	let cmds = [];
 	for (let i = 0; i < length(todo); i++)
 		for (let j = 0; j < length(SERVERS); j++)
-			// nslookup's own timeout: some firmware builds BusyBox without `timeout`.
-			push(cmds, `( nslookup -type=a -timeout=${TIMEOUT} -retry=1 ${q(todo[i])} ${SERVERS[j]} 2>/dev/null | awk '/^Address/ && NR>2 {print $NF}' > ${dir}/${i}.${j} ) &`);
+			for (let t in [ 'a', 'aaaa' ])
+				// nslookup's own timeout: some firmware builds BusyBox without `timeout`.
+				push(cmds, `( nslookup -type=${t} -timeout=${TIMEOUT} -retry=1 ${q(todo[i])} ${SERVERS[j]} 2>/dev/null | awk '/^Address/ && NR>2 {print $NF}' > ${dir}/${i}.${j}.${t} ) &`);
 	sh(`mkdir -p ${dir}; ${join(' ', cmds)} wait`);
 	for (let i = 0; i < length(todo); i++) {
 		let ips = [];
-		for (let j = 0; j < length(SERVERS) && !length(ips); j++) {
-			let r = readfile(`${dir}/${i}.${j}`) ?? '';
-			ips = filter(split(trim(r), '\n'), (x) => ip2int(x) != null);
-		}
+		for (let j = 0; j < length(SERVERS) && !length(ips); j++)
+			for (let t in [ 'a', 'aaaa' ]) {
+				let r = readfile(`${dir}/${i}.${j}.${t}`) ?? '';
+				push(ips, ...filter(split(trim(r), '\n'), (x) => ip2int(x) != null || is_ip6(x)));
+			}
 		out[todo[i]] = ips;
 		cache[todo[i]] = { ts: now, ips };
 	}

@@ -29,7 +29,7 @@ export const CATEGORY = {
 	device_added: 'people', device_removed: 'people', devices_removed: 'people',
 	device_changed: 'people', device_keys: 'people', link_changed: 'people',
 	person_added: 'people', person_removed: 'people', person_changed: 'people',
-	paused: 'people', resumed: 'people',
+	paused: 'people', resumed: 'people', expiring: 'people', expired_kept: 'people',
 	server_down: 'problems', server_up: 'problems', portal_blocked: 'problems',
 };
 export const CATEGORIES = [ 'connections', 'people', 'problems' ];

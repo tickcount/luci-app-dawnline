@@ -53,7 +53,22 @@ export function dropdown(anchor: HTMLElement, items: (MenuItem | null)[]) {
     if (!menu.contains(ev.target as Node) && !anchor.contains(ev.target as Node)) close();
   };
   const onKey = (ev: KeyboardEvent) => {
-    if (ev.key === 'Escape') close();
+    if (ev.key === 'Escape' || ev.key === 'Tab') return close();
+    // Arrow keys walk the items (wrapping), Home/End jump; a menu that has the
+    // keyboard focus must not scroll the page under it.
+    const items = [...menu.querySelectorAll<HTMLButtonElement>('button:not([disabled])')];
+    if (!items.length || !['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(ev.key)) return;
+    ev.preventDefault();
+    const i = items.indexOf(document.activeElement as HTMLButtonElement);
+    const next =
+      ev.key === 'Home'
+        ? 0
+        : ev.key === 'End'
+          ? items.length - 1
+          : ev.key === 'ArrowDown'
+            ? (i + 1) % items.length
+            : (i - 1 + items.length) % items.length;
+    items[next].focus({ preventScroll: true });
   };
   const offNav = onNavigate(close);
   menu.dlAnchor = anchor;

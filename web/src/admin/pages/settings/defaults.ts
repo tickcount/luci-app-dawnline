@@ -3,7 +3,9 @@
 import { E } from '../../e';
 import { button } from '../../ui/button';
 import { input, isOn, sw } from '../../ui/controls';
-import { row } from '../../ui/layout';
+import { firstBad, liveRow } from '../../ui/layout';
+import { notify } from '../../ui/toast';
+import { domainHelp, fallbackDnsHelp, limitHelp } from '../../netcheck';
 import { section, type SettingsHost } from './common';
 
 export function defaultsCard(host: SettingsHost): HTMLElement {
@@ -17,28 +19,37 @@ export function defaultsCard(host: SettingsHost): HTMLElement {
     inputmode: 'decimal',
     class: 'cbi-input-text dl-w-ip dl-mono',
   });
+  const limitRow = liveRow('Devices per person', limit, () => {
+    // Empty keeps the default (the router stores nothing then).
+    if (!limit.value.trim()) return { text: 'The default, 3. Pre-filled when you add someone.', bad: false };
+    const h = limitHelp(limit.value);
+    return h.bad ? h : { text: 'Pre-filled when you add someone.', bad: false };
+  });
+  const domainRow = liveRow(
+    'Device hostnames',
+    domain,
+    () => domainHelp(domain.value),
+    E('div', { class: 'dl-hostport' }, [hn, E('span', { class: 'dl-faint dl-mono' }, 'phone.myata.'), domain]),
+  );
+  const fallbackRow = liveRow('Fallback DNS', fallback, () => {
+    const h = fallbackDnsHelp(fallback.value);
+    return h.bad ? h : { text: `For Home-only devices using home names: ${h.text}`, bad: false };
+  });
   return section(
     'defaults',
-    'Defaults',
-    [
-      row('Devices per person', limit, 'Pre-filled when you add someone.'),
-      row(
-        'Device hostnames',
-        E('div', { class: 'dl-hostport' }, [hn, E('span', { class: 'dl-faint dl-mono' }, 'phone.myata.'), domain]),
-        'Name devices in your home DNS.',
-      ),
-      row(
-        'Fallback DNS',
-        fallback,
-        'For Home-only devices using home names: the second DNS server, used by the device when the tunnel is down. Empty = none.',
-      ),
-    ],
+    'New people',
+    [limitRow, domainRow, fallbackRow],
     [
       E('span'),
       button(
         'Save',
-        () =>
-          host.save(
+        () => {
+          const bad = firstBad([limitRow, domainRow, fallbackRow]);
+          if (bad) {
+            notify(bad, 'warning');
+            return;
+          }
+          return host.save(
             {
               default_device_limit: limit.value,
               hostnames: isOn(hn) ? '1' : '0',
@@ -47,7 +58,8 @@ export function defaultsCard(host: SettingsHost): HTMLElement {
             },
             'Saved',
             'defaults',
-          ),
+          );
+        },
         'positive',
       ),
     ],

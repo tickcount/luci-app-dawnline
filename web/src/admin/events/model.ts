@@ -20,6 +20,8 @@ const CATEGORY: Record<string, LogCategory> = {
   person_changed: 'people',
   paused: 'people',
   resumed: 'people',
+  expiring: 'people',
+  expired_kept: 'people',
   portal_blocked: 'problems',
 };
 

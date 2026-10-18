@@ -3,7 +3,13 @@
 import { E } from '../e';
 import { errorText, notify } from './toast';
 
-export async function copyText(text: string, what = 'Copied to clipboard') {
+/**
+ * Copy to the clipboard and say so. `quiet`: a copy that is a convenience
+ * after something else (a link right after creating a person): browsers
+ * refuse a write outside the click that started it (Safari after an await),
+ * and then nothing is said — the link is on screen with its own Copy button.
+ */
+export async function copyText(text: string, what = 'Copied to clipboard', quiet = false): Promise<boolean> {
   try {
     if (navigator.clipboard && window.isSecureContext) {
       await navigator.clipboard.writeText(text);
@@ -16,8 +22,10 @@ export async function copyText(text: string, what = 'Copied to clipboard') {
       if (!ok) throw new Error('Copying is blocked here. Select the text and copy it by hand.');
     }
     notify(what, 'success', 2500);
+    return true;
   } catch (e) {
-    notify(errorText(e), 'error');
+    if (!quiet) notify(errorText(e), 'error');
+    return false;
   }
 }
 

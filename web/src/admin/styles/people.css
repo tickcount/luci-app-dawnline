@@ -56,3 +56,6 @@
 .cbi-value.dl-block { display: block !important; }
 .cbi-value.dl-block > .cbi-value-title { display: block; width: auto; float: none; text-align: left; padding: 0 0 8px; }
 .cbi-value.dl-block > .cbi-value-field { display: block; width: 100%; margin: 0; }
+/* Find (shown once the list is long): a compact search field beside the sort. */
+.dl-people-find { width: 160px; min-width: 0; }
+.dl-people-find[hidden] { display: none; }

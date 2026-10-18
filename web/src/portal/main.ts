@@ -21,14 +21,56 @@ import {
   parseDay,
 } from '../shared/format';
 import { iconSvg } from '../shared/icons';
-import { qrSvg } from '../shared/qr';
+import { denseQr, qrSvg } from '../shared/qr';
 import { vpnKey } from '../shared/vpnkey';
+import { h, ic, type Kid } from './dom';
+import { waitPath, type Way } from './waitpath';
+import {
+  beat,
+  busy,
+  calm,
+  copied,
+  fold,
+  followHeight,
+  intro,
+  leave,
+  pullToClose,
+  replay,
+  restyle,
+  settle,
+  slider,
+  snap,
+  swap,
+} from './motion';
+import {
+  APP_NAME,
+  appsFor,
+  hereLabel,
+  deviceNoun,
+  importPath,
+  setupFromHash,
+  setupLink,
+  inWebview,
+  osGroup,
+  PLATFORM_LABEL,
+  platformOf,
+  routerStore,
+  sameDevice,
+  scanPath,
+  storeFor,
+  updateLine,
+  type AppId,
+  type Platform,
+  type Preset,
+  type Store,
+} from './setup';
 
 interface State {
   title: string;
   person: Person;
   /** device_mesh: devices with home access reach each other through the tunnel. */
-  server: { name: string; endpoint: string; device_mesh?: boolean };
+  /** awg_disguise: false = plain WireGuard, any WireGuard app connects. */
+  server: { name: string; endpoint: string; device_mesh?: boolean; awg_disguise?: boolean; preset?: Preset };
   /** The device this page was opened from (through the tunnel), if any. */
   here?: string | null;
   can_add: boolean;
@@ -40,40 +82,14 @@ interface State {
   version: string;
   /** The router's day (YYYY-MM-DD) when it sends one; the browser's otherwise. */
   today?: string;
+  /** The router's clock (epoch seconds): relative times are measured against it, not the phone's. */
+  now?: number;
 }
 
 /** Today on the router, for days left and chart labels. */
 const today = () => state?.today ?? isoDay(new Date());
-
-type Attrs = Record<string, string | number | boolean | EventListener | null | undefined>;
-type Kid = Node | string | null | undefined | false | Kid[];
-
-function h(tag: string, attrs: Attrs = {}, ...kids: Kid[]): HTMLElement {
-  const el = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs)) {
-    if (v == null || v === false) continue;
-    if (k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2), v as EventListener);
-    else if (k === 'class') el.className = String(v);
-    else if (v === true) el.setAttribute(k, '');
-    else el.setAttribute(k, String(v));
-  }
-  const add = (c: Kid) => {
-    if (c == null || c === false) return;
-    if (Array.isArray(c)) c.forEach(add);
-    else el.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
-  };
-  kids.forEach(add);
-  return el;
-}
-
-function ic(name: string): HTMLElement {
-  const s = h('span', { class: 'ic' });
-  s.innerHTML = iconSvg(name, 'ic-svg');
-  return s;
-}
-
-const LOGO =
-  '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 15a9 9 0 0 1 18 0z" fill="currentColor"/><rect x="2" y="17" width="20" height="2" rx="1" fill="currentColor" opacity=".45"/></svg>';
+/** Now on the router (seconds), for "last connected 3 min ago". */
+const now = () => state?.now ?? Date.now() / 1000;
 
 const app = document.getElementById('app')!;
 const base = app.dataset.base ?? '';
@@ -116,17 +132,27 @@ async function call<T>(path: string, body?: unknown): Promise<T> {
 
 /* ---------- small UI pieces ---------- */
 
-function toast(msg: string, bad = false) {
-  const t = h('div', { class: `toast${bad ? ' bad' : ''}`, role: 'status' }, msg);
-  document.body.appendChild(t);
-  requestAnimationFrame(() => t.classList.add('show'));
-  setTimeout(() => {
-    t.classList.remove('show');
-    setTimeout(() => t.remove(), 300);
-  }, 2600);
+/** One toast at a time: a new one sends the last away first. */
+let toastEl: HTMLElement | null = null;
+function dropToast(t: HTMLElement) {
+  if (toastEl === t) toastEl = null;
+  t.classList.remove('show');
+  t.classList.add('gone');
+  setTimeout(() => t.remove(), 200);
 }
 
-async function copy(text: string, what = 'Copied') {
+function toast(msg: string, bad = false) {
+  if (toastEl) dropToast(toastEl);
+  const t = h('div', { class: `toast${bad ? ' bad' : ''}`, role: 'status' }, msg);
+  document.body.appendChild(t);
+  void t.offsetWidth;
+  t.classList.add('show');
+  toastEl = t;
+  setTimeout(() => dropToast(t), 2600);
+}
+
+/** `from`: the control that copied, which then shows a check for a moment. */
+async function copy(text: string, what = 'Copied', from?: EventTarget | null) {
   try {
     await navigator.clipboard.writeText(text);
   } catch {
@@ -137,7 +163,31 @@ async function copy(text: string, what = 'Copied') {
     ta.remove();
     if (!ok) return toast('Copying is blocked here. Select the text and copy it by hand.', true);
   }
+  copied(from instanceof HTMLElement ? from : null, iconSvg('check', 'ic-svg'));
   toast(what);
+}
+
+/**
+ * On phones a share sheet hands the file straight to the VPN app, where a
+ * download would land in Files. Returns the action, or null where files
+ * cannot be shared.
+ */
+function shareFile(cfg: ClientConfig): (() => Promise<void>) | null {
+  const nav = navigator as Navigator & { canShare?: (d: unknown) => boolean };
+  // Desktop browsers claim they can share files and then do nothing, or open a
+  // sheet with nowhere useful: there a download is the right thing anyway.
+  if (!/Android|iPhone|iPad/.test(navigator.userAgent)) return null;
+  if (typeof nav.share !== 'function' || typeof File === 'undefined') return null;
+  const file = new File([cfg.conf], cfg.filename, { type: 'application/octet-stream' });
+  if (!nav.canShare?.({ files: [file] })) return null;
+  return async () => {
+    try {
+      await nav.share({ files: [file], title: cfg.filename });
+    } catch (e) {
+      // Cancelled: nothing to do. Refused by the browser: the file still has to get out.
+      if ((e as Error)?.name !== 'AbortError') download(cfg.filename, cfg.conf);
+    }
+  };
 }
 
 function download(name: string, text: string) {
@@ -152,18 +202,20 @@ function download(name: string, text: string) {
   }, 1000);
 }
 
+// One tooltip for the page: it fades in where the pointer is, then only follows it
+// (moving from bar to bar never replays the entrance).
 let tipEl: HTMLElement | null = null;
 function tip(el: HTMLElement, lines: () => string[]) {
   const show = (ev: MouseEvent) => {
-    tipEl ??= document.body.appendChild(h('div', { class: 'tip' }));
+    tipEl ??= document.body.appendChild(h('div', { class: 'tip', role: 'tooltip' }));
     tipEl.replaceChildren(...lines().map((l, i) => h('div', { class: i ? 'muted' : 'tip-title' }, l)));
-    tipEl.style.display = '';
     tipEl.style.left = `${ev.clientX}px`;
     tipEl.style.top = `${ev.clientY - 10}px`;
+    tipEl.classList.add('show');
   };
   el.addEventListener('mouseenter', show);
   el.addEventListener('mousemove', show);
-  el.addEventListener('mouseleave', () => tipEl && (tipEl.style.display = 'none'));
+  el.addEventListener('mouseleave', () => tipEl?.classList.remove('show'));
 }
 
 function spark(values: number[]): HTMLElement {
@@ -172,6 +224,7 @@ function spark(values: number[]): HTMLElement {
   values.forEach((v, i) => {
     const b = h('i', { class: v ? '' : 'zero' });
     b.style.height = `${Math.max(8, (v / max) * 100)}%`;
+    b.style.setProperty('--i', String(i));
     const back = values.length - 1 - i;
     tip(b, () => [
       back === 0
@@ -190,9 +243,11 @@ function spark(values: number[]): HTMLElement {
 async function once(btn: HTMLButtonElement, fn: () => Promise<void>) {
   if (btn.disabled) return;
   btn.disabled = true;
+  const idle = busy(btn);
   try {
     await fn();
   } finally {
+    idle();
     btn.disabled = false;
   }
 }
@@ -201,11 +256,27 @@ async function once(btn: HTMLButtonElement, fn: () => Promise<void>) {
 
 let sheetEl: HTMLElement | null = null;
 let sheetClosed: (() => void) | null = null;
+/** The sheet sits at the bottom (phones): it slides up and can be pulled down. */
+const bottomSheet = () => window.matchMedia('(max-width: 639px)').matches;
 
+// A sheet is a history entry: the phone's back button closes it instead of leaving the page.
+let sheetHistory = false;
+window.addEventListener('popstate', () => {
+  if (sheetEl) {
+    sheetHistory = false;
+    closeSheet();
+  }
+});
+
+/** `immediate`: gone at once (Escape: what the keyboard does never animates). */
 function closeSheet(immediate = false) {
   if (!sheetEl) return;
   const s = sheetEl;
   sheetEl = null;
+  if (sheetHistory) {
+    sheetHistory = false;
+    history.back();
+  }
   document.body.classList.remove('locked');
   sheetClosed?.();
   sheetClosed = null;
@@ -214,16 +285,66 @@ function closeSheet(immediate = false) {
     return;
   }
   s.classList.remove('open');
-  setTimeout(() => s.remove(), 250);
+  s.classList.add('closing');
+  setTimeout(() => s.remove(), bottomSheet() ? 320 : 180);
 }
 
-function sheet(title: string, sub: string | null, ...content: Kid[]) {
-  const replacing = !!sheetEl;
-  closeSheet(true);
+/**
+ * Open a sheet with this content, or turn the open one into it: the panel then
+ * keeps its place (and its history entry) while the old content fades out, the
+ * new one comes in and the size follows, so a flow of sheets reads as one.
+ * `asks`: the narrow question look (ask), which the panel also morphs out of.
+ */
+function present(label: string, inner: Node[], asks = false) {
+  if (sheetEl) {
+    sheetClosed?.();
+    sheetClosed = null;
+    const panel = sheetEl.querySelector('.sheet-panel') as HTMLElement;
+    panel.setAttribute('aria-label', label);
+    panel.setAttribute('role', asks ? 'alertdialog' : 'dialog');
+    // A question that turns into a sheet (or back) changes width too: let the panel morph it.
+    if (panel.classList.contains('asks') !== asks) {
+      panel.dataset.morph = 'width';
+      panel.classList.toggle('asks', asks);
+    }
+    panel.scrollTop = 0;
+    swap(panel.querySelector('.sheet-inner') as HTMLElement, inner);
+    return;
+  }
+  const box = h('div', { class: 'sheet-inner' }, ...inner);
   const panel = h(
     'div',
-    { class: 'sheet-panel', role: 'dialog', 'aria-modal': 'true', 'aria-label': title },
+    { class: `sheet-panel${asks ? ' asks' : ''}`, role: asks ? 'alertdialog' : 'dialog', 'aria-modal': 'true', 'aria-label': label },
     h('div', { class: 'grab' }),
+    box,
+  );
+  const scrim = h('div', { class: 'scrim', onclick: () => closeSheet() });
+  const s = h('div', { class: 'sheet fresh' }, scrim, panel);
+  // On a dialog the content settles in just after it; on phones the slide is the motion.
+  box
+    .querySelectorAll<HTMLElement>(':scope > .sheet-head, .sheet-body > :not(.setup), .setup > *')
+    .forEach((el, i) => el.style.setProperty('--i', String(Math.min(i, 6))));
+  document.body.appendChild(s);
+  document.body.classList.add('locked');
+  if (!sheetHistory) {
+    try {
+      history.pushState({ sheet: true }, '');
+      sheetHistory = true;
+    } catch {
+      /* no history */
+    }
+  }
+  followHeight(panel, box);
+  pullToClose(panel, scrim, () => closeSheet(), bottomSheet);
+  void s.offsetWidth;
+  s.classList.add('open');
+  setTimeout(() => s.classList.remove('fresh'), 700);
+  sheetEl = s;
+}
+
+/** A sheet: a title (and a line under it), a close button, the content. */
+function sheet(title: string, sub: string | null, ...content: Kid[]) {
+  present(title, [
     h(
       'div',
       { class: 'sheet-head' },
@@ -231,44 +352,86 @@ function sheet(title: string, sub: string | null, ...content: Kid[]) {
       h('button', { class: 'icon-btn', 'aria-label': 'Close', onclick: () => closeSheet() }, ic('x')),
     ),
     h('div', { class: 'sheet-body' }, ...content),
+  ]);
+}
+
+/**
+ * A question before something that cannot be undone (Remove, New keys): narrow
+ * and centred, the action's icon in its colour, one line of what happens, Cancel
+ * and the action (no ×: Cancel says it). `run` holds the action's button busy.
+ */
+function ask(o: {
+  icon: string;
+  tone: 'bad' | 'warn';
+  title: string;
+  text: string;
+  action: string;
+  actionClass: string;
+  run: () => Promise<void>;
+}) {
+  present(
+    o.title,
+    [
+      h(
+        'div',
+        { class: 'ask' },
+        h('span', { class: `ask-ic ${o.tone}` }, ic(o.icon)),
+        h('h2', {}, o.title),
+        h('p', { class: 'muted' }, o.text),
+        h(
+          'div',
+          { class: 'row gap ask-actions' },
+          h('button', { type: 'button', class: 'btn block', onclick: () => closeSheet() }, 'Cancel'),
+          h(
+            'button',
+            {
+              type: 'button',
+              class: `btn ${o.actionClass} block`,
+              onclick: (ev: Event) => once(ev.currentTarget as HTMLButtonElement, o.run),
+            },
+            o.action,
+          ),
+        ),
+      ),
+    ],
+    true,
   );
-  const s = h(
-    'div',
-    {
-      class: 'sheet',
-      onclick: (e: Event) => {
-        if (e.target === s) closeSheet();
-      },
-    },
-    panel,
-  );
-  document.body.appendChild(s);
-  document.body.classList.add('locked');
-  if (replacing) s.classList.add('open');
-  else requestAnimationFrame(() => s.classList.add('open'));
-  sheetEl = s;
-  return panel;
 }
 
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
-    closeMenu();
-    closeSheet();
+    closeMenu(true);
+    closeSheet(true);
   }
 });
 
 /* ---------- dropdown menu ---------- */
 
 let menuEl: HTMLElement | null = null;
-function closeMenu() {
-  menuEl?.remove();
+/** The button the open menu belongs to: pressing it again closes the menu. */
+let menuFor: HTMLElement | null = null;
+
+/** `immediate`: gone at once (Escape). */
+function closeMenu(immediate = false) {
+  const m = menuEl;
+  if (!m) return;
   menuEl = null;
+  menuFor?.setAttribute('aria-expanded', 'false');
+  menuFor = null;
+  if (immediate) {
+    m.remove();
+    return;
+  }
+  m.classList.remove('show');
+  m.classList.add('gone');
+  setTimeout(() => m.remove(), 150);
 }
 document.addEventListener('click', (e) => {
   if (menuEl && !menuEl.contains(e.target as Node)) closeMenu();
 });
 
 function menu(anchor: HTMLElement, all: ({ label: string; icon: string; danger?: boolean; run: () => unknown } | null)[]) {
+  if (menuFor === anchor) return closeMenu();
   closeMenu();
   // Separators only between items.
   const items = all.filter((it, i) => it || (i > 0 && all[i - 1] && all.slice(i + 1).some(Boolean)));
@@ -296,19 +459,45 @@ function menu(anchor: HTMLElement, all: ({ label: string; icon: string; danger?:
   );
   document.body.appendChild(m);
   const r = anchor.getBoundingClientRect();
-  const w = 230;
+  const w = 230,
+    mh = m.offsetHeight;
+  // Under the button, or over it where the screen ends: it grows out of the button either way.
+  const up = r.bottom + 6 + mh > window.innerHeight - 8 && r.top - 6 - mh > 8;
+  m.classList.toggle('up', up);
   m.style.left = `${Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w))}px`;
-  m.style.top = `${r.bottom + 6 + window.scrollY}px`;
+  m.style.top = `${(up ? r.top - 6 - mh : r.bottom + 6) + window.scrollY}px`;
+  void m.offsetWidth;
+  m.classList.add('show');
+  anchor.setAttribute('aria-expanded', 'true');
   menuEl = m;
+  menuFor = anchor;
 }
 
 /* ---------- views ---------- */
 
+// The sun rises from behind the horizon once, on the visit's first paint.
+const LOGO =
+  '<svg viewBox="0 0 24 24" aria-hidden="true"><defs><clipPath id="dl-sky"><rect width="24" height="17"/></clipPath></defs>' +
+  '<g clip-path="url(#dl-sky)"><path class="sun" d="M3 15a9 9 0 0 1 18 0z" fill="currentColor"/></g>' +
+  '<rect x="2" y="17" width="20" height="2" rx="1" fill="currentColor" opacity=".45"/></svg>';
+
+/** The blocks of a page that come in on the first paint, in reading order. */
+const INTRO = '.alert, .hello, .card-head, .access-card, .dcard, .slot.add, .firststeps, .devices > .faint, .signin, .wrap > .card';
+let booted = false;
+
+/**
+ * Draw the page. The visit's first paint comes in (blocks rise in, the meters
+ * fill, the sun rises); a repaint only moves what changed: keyed blocks glide
+ * to their new places, new ones rise in, changed values come into focus.
+ */
 function shell(...content: Kid[]) {
+  const before = booted ? snap(app) : null;
+  const first = !booted ? ' first' : '';
+  const wrap = h('main', { class: `wrap${first}` }, ...content);
   app.replaceChildren(
     h(
       'header',
-      { class: 'top' },
+      { class: `top${first}` },
       h(
         'div',
         { class: 'brand' },
@@ -321,8 +510,11 @@ function shell(...content: Kid[]) {
         h('span', { class: 'faint' }, '· Dawnline'),
       ),
     ),
-    h('main', { class: 'wrap' }, ...content),
+    wrap,
   );
+  if (before) settle(app, before);
+  else intro(wrap, INTRO);
+  booted = true;
 }
 
 /** The link stopped working while the page was open (code regenerated, person removed). */
@@ -330,7 +522,7 @@ function linkGone() {
   shell(
     h(
       'div',
-      { class: 'card signin' },
+      { class: 'card signin', 'data-key': 'gone' },
       h('div', { class: 'hero-ic' }, ic('key')),
       h('h1', {}, 'This link no longer works'),
       h('p', { class: 'muted' }, 'Ask for a new personal link.'),
@@ -346,11 +538,15 @@ function stateNotice(p: Person): [string, string, string] {
     case 'no_server':
       return ['server', 'No server yet', 'Ask the admin to add you to a server.'];
     case 'quota':
-      return ['chart', 'You have used all your data', 'Your devices are paused until it resets.'];
+      return ['chart', 'You have used all your data', 'Your devices stay connected but nothing gets through until it resets.'];
     case 'expired':
       return ['calendar', 'Your access has ended', 'Ask the admin to extend it.'];
     case 'hours':
-      return ['clock', 'Outside your hours', `Access is available ${p.hours.replace('-', '–')} (router time).`];
+      return [
+        'clock',
+        'Outside your hours',
+        `Access is available ${p.hours.replace('-', '–')} (router time); until then nothing gets through.`,
+      ];
     default:
       return ['pause', 'Your access is paused by the admin', 'Your devices can’t connect until the admin resumes it.'];
   }
@@ -360,7 +556,7 @@ function stateNotice(p: Person): [string, string, string] {
 function alertRow(tone: string, icon: string, title: string, sub: string): HTMLElement {
   return h(
     'div',
-    { class: 'alert' },
+    { class: 'alert', 'data-key': 'notice' },
     h('span', { class: `alert-ic ${tone}` }, ic(icon)),
     h('div', { class: 'stack' }, h('span', { class: 'strong' }, title), h('span', { class: 'muted s' }, sub)),
   );
@@ -386,13 +582,15 @@ function accessCard(st: State): HTMLElement {
   const slots = h('div', { class: 'slots' });
   // Devices the admin added over the limit get their own orange slots after the allowed ones.
   for (let i = 0; i < Math.max(p.device_limit, p.devices.length); i++)
-    slots.appendChild(h('i', { class: i >= p.device_limit ? 'over' : i < p.devices.length ? 'used' : '' }));
+    slots
+      .appendChild(h('i', { class: i >= p.device_limit ? 'over' : i < p.devices.length ? 'used' : '' }))
+      .style.setProperty('--i', String(i));
   const used = p.quota_used || p.month[0] + p.month[1];
   const icon = p.access === 'internet' ? 'globe' : p.access === 'lan' ? 'home' : 'shield';
   // Heading outside the card, like "Your devices", so both columns line up.
   return h(
     'section',
-    { class: 'access', 'aria-label': 'Your access' },
+    { class: 'access', 'aria-label': 'Your access', 'data-key': 'access' },
     h(
       'div',
       { class: 'card-head' },
@@ -424,7 +622,7 @@ function accessCard(st: State): HTMLElement {
         ),
         h(
           'span',
-          { class: 'tile-value' },
+          { class: 'tile-value', 'data-v': 'used' },
           bytes(used),
           h('span', { class: 'faint' }, p.quota_limit ? ` of ${bytes(p.quota_limit)}` : ' · no limit'),
         ),
@@ -437,14 +635,19 @@ function accessCard(st: State): HTMLElement {
           'div',
           { class: 'tile' },
           h('div', { class: 'tile-label' }, 'Devices'),
-          h('span', { class: 'tile-value' }, String(p.devices.length), h('span', { class: 'faint' }, ` / ${p.device_limit}`)),
+          h(
+            'span',
+            { class: 'tile-value', 'data-v': 'count' },
+            String(p.devices.length),
+            h('span', { class: 'faint' }, ` / ${p.device_limit}`),
+          ),
           slots,
         ),
         h(
           'div',
           { class: 'tile' },
           h('div', { class: 'tile-label' }, 'Access until'),
-          h('span', { class: 'tile-value sm' }, p.expires ? date(p.expires) : 'No end date'),
+          h('span', { class: 'tile-value sm', 'data-v': 'until' }, p.expires ? date(p.expires) : 'No end date'),
           left != null
             ? h(
                 'span',
@@ -463,12 +666,18 @@ function accessCard(st: State): HTMLElement {
   );
 }
 
-function deviceStatus(d: Device): HTMLElement {
+function deviceStatus(d: Device, p: Person): HTMLElement {
   // Status as coloured text, no dots (only the avatar carries one).
   if (d.disabled) return h('span', { class: 'dstat' }, 'Disabled by the admin');
+  // Settings the device carries changed: it keeps working on the old ones only until they stop matching.
+  if (d.config_stale && d.handshake) return h('span', { class: 'dstat warn' }, 'Settings changed, update needed');
+  // Over the data limit or outside the hours the tunnel stays up but passes nothing: the app says
+  // "connected", so say here why nothing works.
+  if (d.online && p.state === 'quota') return h('span', { class: 'dstat warn' }, 'Connected, no data left');
+  if (d.online && p.state === 'hours') return h('span', { class: 'dstat warn' }, 'Connected, outside your hours');
   if (d.online) return h('span', { class: 'dstat ok' }, 'Connected');
   if (!d.handshake) return h('span', { class: 'dstat warn' }, 'Not set up yet');
-  return h('span', { class: 'dstat' }, `Last connected ${ago(d.handshake)}`);
+  return h('span', { class: 'dstat', title: new Date(d.handshake * 1000).toLocaleString() }, `Last connected ${ago(d.handshake, now())}`);
 }
 
 /**
@@ -519,7 +728,7 @@ function namesAtHome(p: Person, mesh: boolean): HTMLElement | null {
             class: 'name-chip',
             title: d.name,
             'aria-label': `Copy ${d.hostname}`,
-            onclick: () => copy(d.hostname, 'Address copied'),
+            onclick: (ev: Event) => copy(d.hostname, 'Address copied', ev.currentTarget),
           },
           h(
             'span',
@@ -534,7 +743,11 @@ function namesAtHome(p: Person, mesh: boolean): HTMLElement | null {
 }
 
 function deviceCard(d: Device, st: State): HTMLElement {
-  const more = h('button', { type: 'button', class: 'icon-btn soft', 'aria-label': `${d.name} options` }, ic('more'));
+  const more = h(
+    'button',
+    { type: 'button', class: 'icon-btn soft', 'aria-label': `${d.name} options`, 'aria-haspopup': 'menu', 'aria-expanded': 'false' },
+    ic('more'),
+  );
   more.addEventListener('click', (ev) => {
     ev.stopPropagation();
     menu(more, [
@@ -566,20 +779,18 @@ function deviceCard(d: Device, st: State): HTMLElement {
   const locked = !!st.locked;
   // The device this page was opened from (through the tunnel): blue, and says so.
   const here = st.here === d.id;
+  // Opened through the tunnel, so it is connected: say which one it is instead.
+  // The home name is in the access card; the tunnel address says nothing to them.
+  const status = here ? h('span', { class: 'dstat here' }, 'This device') : deviceStatus(d, st.person);
+  status.dataset.v = `stat:${d.id}`;
   return h(
     'article',
-    { class: `dcard${d.online ? ' online' : ''}${d.disabled ? ' off' : ''}${here ? ' here' : ''}` },
+    { class: `dcard${d.online ? ' online' : ''}${d.disabled ? ' off' : ''}${here ? ' here' : ''}`, 'data-key': d.id },
     h(
       'div',
       { class: 'dhead' },
       h('span', { class: 'dic' }, ic(d.kind)),
-      h(
-        'div',
-        { class: 'stack grow' },
-        h('span', { class: 'dname' }, d.name),
-        // Opened through the tunnel, so it is connected: say which one it is instead.
-        here ? h('span', { class: 'dstat here' }, 'This device') : deviceStatus(d),
-      ),
+      h('div', { class: 'stack grow' }, h('span', { class: 'dname', 'data-v': `name:${d.id}` }, d.name), status),
       locked ? null : more,
     ),
     setUp && locked
@@ -588,24 +799,29 @@ function deviceCard(d: Device, st: State): HTMLElement {
         ? [
             h(
               'button',
-              { type: 'button', class: 'btn primary block', onclick: () => connect(d) },
-              ic(isMobile() ? 'open' : 'qr'),
-              h('span', {}, isMobile() ? 'Open in AmneziaVPN' : 'Connect this device'),
+              { type: 'button', class: 'btn primary block', onclick: () => setup(d) },
+              ic('arrow'),
+              h('span', {}, `Set up ${d.name}`),
             ),
           ]
         : h(
             'div',
             { class: 'duse' },
-            h('div', { class: 'stack' }, h('span', { class: 'faint s' }, 'Last 7 days'), h('span', { class: 'mono' }, bytes(week))),
+            h(
+              'div',
+              { class: 'stack' },
+              h('span', { class: 'faint s' }, 'Last 7 days'),
+              h('span', { class: 'mono', 'data-v': `week:${d.id}` }, bytes(week)),
+            ),
             spark(d.spark),
           ),
+    // The admin changed something the configuration carries: the status line says so, one button fixes it.
     d.config_stale && !setUp && !locked
       ? h(
-          'div',
-          { class: 'notice' },
-          ic('alert'),
-          h('span', { class: 'grow' }, 'Connection settings changed. Update this device to keep everything working.'),
-          h('button', { type: 'button', class: 'btn small', onclick: () => connect(d) }, 'Update'),
+          'button',
+          { type: 'button', class: 'btn block', onclick: () => connect(d) },
+          ic('refresh'),
+          h('span', {}, 'Update the connection'),
         )
       : null,
   );
@@ -625,11 +841,31 @@ function main(st: State) {
   const order = byDeviceState(p.devices).sort((a, b) => Number(b.id === st.here) - Number(a.id === st.here));
   const cards: HTMLElement[] = order.map((d) => deviceCard(d, st));
   const free = st.locked ? 0 : Math.max(0, p.device_limit - p.devices.length);
-  if (free)
+  // Nothing yet: one card with the button; the set-up sheet behind it walks through the app and the connection.
+  if (!p.devices.length && free) {
+    cards.push(
+      h(
+        'div',
+        { class: 'card firststeps', 'data-key': 'first' },
+        h('h2', {}, 'Add your first device'),
+        h(
+          'p',
+          { class: 'muted' },
+          'Two steps, about a minute: get the app, then add the connection. The next screen shows both for the device you pick.',
+        ),
+        h(
+          'button',
+          { type: 'button', class: 'btn primary block big', onclick: addDevice },
+          ic('plus'),
+          h('span', {}, isMobile() ? 'Add this phone' : 'Add this device'),
+        ),
+      ),
+    );
+  } else if (free)
     cards.push(
       h(
         'button',
-        { type: 'button', class: 'slot add', onclick: addDevice },
+        { type: 'button', class: 'slot add', onclick: addDevice, 'data-key': 'add' },
         h('span', { class: 'slot-ic' }, ic('plus')),
         // How many are left is in "Your devices 3 of 10" and the Devices tile.
         h('span', { class: 'strong' }, 'Add device'),
@@ -641,7 +877,7 @@ function main(st: State) {
     { class: 'devices', 'aria-label': 'Your devices' },
     h(
       'div',
-      { class: 'card-head' },
+      { class: 'card-head', 'data-key': 'devices-head' },
       h(
         'div',
         { class: 'row-baseline' },
@@ -656,17 +892,10 @@ function main(st: State) {
           !st.can_add
             ? h(
                 'span',
-                { class: 'faint s' },
+                { class: 'faint s', 'data-key': 'limit' },
                 `You have reached your limit of ${p.device_limit} devices. Remove one or ask the admin for more.`,
               )
             : null,
-          h(
-            'span',
-            { class: 'faint s' },
-            'New device? Install ',
-            h('a', { href: 'https://amnezia.org/downloads', target: '_blank', rel: 'noopener noreferrer' }, 'AmneziaVPN'),
-            ' on it first.',
-          ),
         ],
   );
 
@@ -675,13 +904,93 @@ function main(st: State) {
     notice,
     h(
       'div',
-      { class: 'hello' },
+      { class: 'hello', 'data-key': 'hello' },
       h('span', { class: `avatar${p.online ? ' online' : ''}` }, initials(p.name)),
       // What is wrong is in the notice above, not a pill here.
       h('h1', {}, `Hi, ${p.name}`),
     ),
     h('div', { class: 'layout' }, accessCard(st), devices),
   );
+}
+
+/** Where to get the app on this platform: the store on phones, the downloads page elsewhere. */
+function appLink(): { href: string; label: string } {
+  const pf = platform();
+  const st = storeFor('vpn', pf);
+  return {
+    href: st?.href ?? 'https://github.com/amnezia-vpn/amnezia-client/releases/latest',
+    label: `Get AmneziaVPN${pf === 'ios' ? ' for iPhone' : pf === 'android' ? ' for Android' : ''}`,
+  };
+}
+
+/** The platform this page is open on (iPad on Safari says Mac; touch points tell). */
+const platform = (): Platform => platformOf(navigator.userAgent, navigator.maxTouchPoints);
+/** The server's disguise generation, for which apps and versions connect. */
+const preset = (): Preset => state?.server.preset ?? (plainWg() ? 'off' : 'max');
+
+/** The server's disguise is off: plain WireGuard, so any WireGuard app connects. */
+const plainWg = () => state?.server.awg_disguise === false;
+
+/* ---------- QR codes ---------- */
+
+// The portal draws its codes in the night look (light dots on a black card).
+// Some in-app scanners read only dark on light: one line under every code
+// switches all of them to the plain look, and the choice is remembered here.
+const QR_LIGHT = 'dl.qr.light';
+let lightQr = (() => {
+  try {
+    return localStorage.getItem(QR_LIGHT) === '1';
+  } catch {
+    return false;
+  }
+})();
+/** What each drawn code encodes, to draw it again in the other look. */
+const qrText = new WeakMap<HTMLElement, string>();
+
+function paintQr(q: HTMLElement, text: string) {
+  qrText.set(q, text);
+  // A dense code is drawn as large as the sheet allows: a phone camera needs the modules.
+  q.className = `qr${denseQr(text) ? ' big' : ''}${lightQr ? ' light' : ''}`;
+  q.innerHTML = qrSvg(text, 3, true, lightQr ? 'plain' : 'night');
+}
+
+/** "Not scanning? Show a light code", or the way back. */
+function paintFlip(line: HTMLElement) {
+  line.replaceChildren(
+    lightQr ? '' : 'Not scanning? ',
+    h(
+      'a',
+      {
+        href: '#',
+        onclick: (ev: Event) => {
+          ev.preventDefault();
+          flipQr();
+        },
+      },
+      lightQr ? 'Show the dark code' : 'Show a light code',
+    ),
+  );
+}
+function qrFlip(): HTMLElement {
+  const line = h('span', { class: 'faint s qr-flip' });
+  paintFlip(line);
+  return line;
+}
+
+function flipQr() {
+  lightQr = !lightQr;
+  try {
+    localStorage.setItem(QR_LIGHT, lightQr ? '1' : '0');
+  } catch {
+    /* private mode: for this page only */
+  }
+  document.querySelectorAll<HTMLElement>('.qr').forEach((q) => {
+    const text = qrText.get(q);
+    if (!text) return;
+    paintQr(q, text);
+    replay(q, 'swap');
+  });
+  document.querySelectorAll<HTMLElement>('.qr-flip').forEach(paintFlip);
 }
 
 /* ---------- device flows ---------- */
@@ -750,7 +1059,7 @@ function confLine(line: string, reveal: boolean): Node {
     {},
     h('span', { class: 'conf-k' }, m[1]),
     ' ',
-    secret && !reveal ? h('span', { class: 'conf-mask' }, '••••••••••••••••') : m[2],
+    secret ? (reveal ? h('span', { class: 'conf-v' }, m[2]) : h('span', { class: 'conf-mask' }, '••••••••••••••••')) : m[2],
   );
 }
 
@@ -758,8 +1067,11 @@ function confLine(line: string, reveal: boolean): Node {
 function filePane(cfg: ClientConfig): HTMLElement {
   let reveal = false;
   const pre = h('pre', { class: 'conf' });
-  const paint = () =>
+  // A key shown comes into focus out of a blur; hidden again, the mask fades back.
+  const paint = (toggled = false) => {
     pre.replaceChildren(...cfg.conf.split('\n').flatMap((l, i) => (i ? ['\n', confLine(l, reveal)] : [confLine(l, reveal)])));
+    if (toggled) pre.querySelectorAll('.conf-v, .conf-mask').forEach((el) => el.classList.add('unmask'));
+  };
   const eye = h(
     'button',
     {
@@ -768,7 +1080,8 @@ function filePane(cfg: ClientConfig): HTMLElement {
         ev.preventDefault();
         reveal = !reveal;
         eye.replaceChildren(ic(reveal ? 'x' : 'key'), h('span', {}, reveal ? 'Hide key' : 'Show key'));
-        paint();
+        replay(eye, 'swap');
+        paint(true);
       },
     },
     ic('key'),
@@ -786,9 +1099,17 @@ function filePane(cfg: ClientConfig): HTMLElement {
         'span',
         { class: 'stack' },
         h('span', { class: 'mono ellipsis' }, cfg.filename),
-        h('span', { class: 'faint s' }, 'For computers and routers: import it in AmneziaWG or AmneziaVPN'),
+        h(
+          'span',
+          { class: 'faint s' },
+          plainWg()
+            ? 'For computers and routers: import it in any WireGuard app'
+            : 'For computers and routers: import it in AmneziaWG or AmneziaVPN',
+        ),
       ),
-      h('button', { class: 'btn primary', onclick: () => download(cfg.filename, cfg.conf) }, ic('download'), h('span', {}, 'Download')),
+      shareFile(cfg)
+        ? h('button', { class: 'btn primary', onclick: () => shareFile(cfg)!() }, ic('open'), h('span', {}, 'Share file'))
+        : h('button', { class: 'btn primary', onclick: () => download(cfg.filename, cfg.conf) }, ic('download'), h('span', {}, 'Download')),
     ),
     h(
       'details',
@@ -806,7 +1127,7 @@ function filePane(cfg: ClientConfig): HTMLElement {
             class: 'btn small',
             onclick: (ev: Event) => {
               ev.preventDefault();
-              copy(cfg.conf, 'Configuration copied');
+              copy(cfg.conf, 'Configuration copied', ev.currentTarget);
             },
           },
           ic('copy'),
@@ -823,12 +1144,16 @@ async function connect(d: Device, initial?: 'app' | 'qr' | 'key' | 'file', cfgIn
   if (!cfg) return;
   const key = await vpnKey(cfg, `${cfg.server} · ${cfg.name}`);
   const mobile = isMobile();
+  // What is being set up decides what comes first: a phone from a phone opens
+  // the app, a phone seen from a computer shows the code, a computer or
+  // router takes the file.
+  const handheld = d.kind === 'phone' || d.kind === 'tablet';
   const panes: Record<string, () => HTMLElement> = {
     app: () =>
       h(
         'div',
         { class: 'pane' },
-        h('a', { class: 'btn primary block big', href: key }, ic('open'), h('span', {}, 'Open in AmneziaVPN')),
+        h('a', { class: 'btn primary block big', href: key }, ic('amnezia'), h('span', {}, 'Open in AmneziaVPN')),
         h(
           'ol',
           { class: 'steps' },
@@ -836,7 +1161,7 @@ async function connect(d: Device, initial?: 'app' | 'qr' | 'key' | 'file', cfgIn
             'li',
             {},
             'No AmneziaVPN yet? ',
-            h('a', { href: 'https://amnezia.org/downloads', target: '_blank', rel: 'noopener noreferrer' }, 'Get it here'),
+            h('a', { href: appLink().href, target: '_blank', rel: 'noopener noreferrer' }, appLink().label),
             '.',
           ),
           h('li', {}, 'Tap ', h('b', {}, 'Open in AmneziaVPN'), ' and confirm the import.'),
@@ -844,9 +1169,53 @@ async function connect(d: Device, initial?: 'app' | 'qr' | 'key' | 'file', cfgIn
         ),
       ),
     qr: () => {
+      // Two codes: AmneziaVPN reads its own key (the phone's camera opens it in
+      // the app); the AmneziaWG and WireGuard apps read the configuration text.
       const q = h('div', { class: 'qr' });
-      q.innerHTML = qrSvg(cfg.conf);
-      return h('div', { class: 'pane center' }, q, h('p', { class: 'muted s' }, 'Scan with the phone’s camera or AmneziaVPN / AmneziaWG.'));
+      const cap = h('p', { class: 'muted s' });
+      const seg = h('div', { class: 'seg' });
+      let mode: 'vpn' | 'conf' = plainWg() ? 'conf' : 'vpn';
+      let glide = () => {};
+      // The other code comes into focus where the last one was.
+      const paint = (switched = false) => {
+        const text = mode === 'vpn' ? key : cfg.conf;
+        // A dense code is drawn as large as the sheet allows: a phone camera needs the modules.
+        paintQr(q, text);
+        cap.textContent =
+          mode === 'vpn'
+            ? 'Scan with the phone’s camera or inside AmneziaVPN.'
+            : plainWg()
+              ? 'Scan inside the AmneziaWG, WireGuard or AmneziaVPN app.'
+              : 'Scan inside the AmneziaWG app (or AmneziaVPN).';
+        seg.querySelectorAll<HTMLElement>(':scope > button').forEach((b) => b.classList.toggle('on', b.dataset.m === mode));
+        glide();
+        if (switched) {
+          replay(q, 'swap');
+          replay(cap, 'swap');
+        }
+      };
+      for (const [m, label] of [
+        ['vpn', 'AmneziaVPN'],
+        ['conf', plainWg() ? 'WireGuard app' : 'AmneziaWG app'],
+      ] as const)
+        seg.appendChild(
+          h(
+            'button',
+            {
+              type: 'button',
+              'data-m': m,
+              onclick: () => {
+                if (mode === m) return;
+                mode = m;
+                paint(true);
+              },
+            },
+            label,
+          ),
+        );
+      paint();
+      glide = slider(seg);
+      return h('div', { class: 'pane center' }, seg, q, cap, qrFlip());
     },
     key: () =>
       h(
@@ -857,41 +1226,126 @@ async function connect(d: Device, initial?: 'app' | 'qr' | 'key' | 'file', cfgIn
           'div',
           { class: 'keybox' },
           h('span', { class: 'mono' }, key),
-          h('button', { class: 'btn small', onclick: () => copy(key, 'Key copied') }, 'Copy'),
+          h('button', { class: 'btn small', onclick: (ev: Event) => copy(key, 'Key copied', ev.currentTarget) }, 'Copy'),
         ),
         h('p', { class: 'faint s' }, 'Keep it private: anyone with the key can use your connection.'),
       ),
     file: () => filePane(cfg),
   };
-  const order = mobile ? ['app', 'qr', 'key', 'file'] : ['qr', 'key', 'file'];
+  const order = mobile && handheld ? ['app', 'qr', 'key', 'file'] : handheld ? ['qr', 'key', 'file'] : ['file', 'key', 'qr'];
   const labels: Record<string, string> = { app: 'Open in app', qr: 'QR code', key: 'Key', file: 'File' };
   const body = h('div', { class: 'tab-body' });
   const tabs = h('div', { class: 'tabs', role: 'tablist' });
+  // The highlight slides to the tab; its pane comes in from that side.
+  let current = -1;
+  let glide = () => {};
   const show = (id: string) => {
-    tabs.querySelectorAll('button').forEach((b) => b.classList.toggle('on', (b as HTMLElement).dataset.id === id));
-    body.replaceChildren(panes[id]());
+    const i = order.indexOf(id);
+    tabs.querySelectorAll<HTMLElement>(':scope > button').forEach((b) => {
+      b.classList.toggle('on', b.dataset.id === id);
+      b.setAttribute('aria-selected', String(b.dataset.id === id));
+    });
+    glide();
+    if (current < 0) body.replaceChildren(panes[id]());
+    else if (i !== current) swap(body, [panes[id]()], Math.sign(i - current));
+    current = i;
   };
   for (const id of order) tabs.appendChild(h('button', { role: 'tab', 'data-id': id, onclick: () => show(id) }, labels[id]));
   show(initial && order.includes(initial) ? initial : order[0]);
+  glide = slider(tabs);
 
-  const live = h('div', { class: 'waiting' });
-  const paintLive = (dev: Device | undefined) => {
-    if (dev?.online) live.replaceChildren(h('span', { class: 'ok' }, `${d.name} is connected`));
-    else if (dev?.handshake) live.replaceChildren(h('span', { class: 'muted' }, `Last connected ${ago(dev.handshake)}`));
-    else live.replaceChildren(h('span', { class: 'warn' }, 'Waiting for the first connection…'));
+  // Never connected: the way to the router waits on top, and once it fills the
+  // code and the file have done their job and leave. Connected before: one line.
+  const way = d.handshake || d.disabled ? null : waitPath(d.kind);
+  const stop = way ? watchFirstConnection(d, () => void arrive(way, [tabs, body]), way.gaveUp) : () => undefined;
+  sheet(
+    d.handshake ? `Connect ${d.name}` : `${d.name} is ready`,
+    mobile && handheld
+      ? 'Add it to AmneziaVPN on this phone'
+      : handheld
+        ? 'Scan with the phone’s camera or AmneziaVPN'
+        : 'Import the file in AmneziaWG or AmneziaVPN',
+    way?.el,
+    tabs,
+    body,
+    d.handshake ? liveLine(d) : null,
+  );
+  sheetClosed = () => {
+    stop();
+    if (state) main(state);
   };
-  paintLive(d);
-  // Only while the first connection is awaited (every poll is a process on
-  // the router): 5 s at first, then slower, for ten minutes at most, not
-  // while the tab is hidden, and never again once the link stopped working
-  // (a replaced link would otherwise count as guesses from this network).
+}
+
+/** How a device that connected before is doing: one line under the sheet. */
+function liveLine(d: Device): HTMLElement {
+  return h(
+    'div',
+    { class: 'waiting' },
+    d.online ? h('span', { class: 'ok' }, 'Connected') : h('span', { class: 'muted' }, `Last connected ${ago(d.handshake, now())}`),
+  );
+}
+
+/**
+ * The first connection arrived. The way fills green (the sheet goes back up to
+ * it if it was scrolled) and says so; then everything under it, which did its
+ * job, folds shut like an accordion while the sheet's edge comes up with it.
+ * Two seconds to read the way, and the sheet closes by itself onto the page
+ * (repainted, see catchUp).
+ */
+async function arrive(way: Way, rest: HTMLElement[]) {
+  way.connected();
+  way.el.closest('.sheet-panel')?.scrollTo({ top: 0, behavior: calm() ? 'auto' : 'smooth' });
+  await beat(400);
+  await Promise.all(rest.map((el) => fold(el)));
+  // Reading time, not motion: the same with less motion.
+  await new Promise((r) => setTimeout(r, 2000));
+  // Only this sheet: not one the visitor went on to (a swap leaves the way in a ghost).
+  if (sheetEl?.contains(way.el) && !way.el.closest('.ghost')) closeSheet();
+}
+
+/**
+ * The first connection was seen (a fresh handshake) before the agent's watcher
+ * marked the device online, a second at most: ask again shortly, a few times,
+ * and repaint the page with the answer (unless a sheet or menu is open; closing
+ * it repaints), so the card goes on to "Connected" instead of staying on
+ * "Last connected just now".
+ */
+function catchUp(id: string, tries = 4) {
+  window.setTimeout(async () => {
+    try {
+      const st = await call<State>('state');
+      state = st;
+      if (!sheetEl && !menuEl) main(st);
+      if (!st.person.devices.find((x) => x.id === id)?.online && tries > 1) catchUp(id, tries - 1);
+    } catch {
+      /* a hiccup: the page keeps the last answer, as on load */
+    }
+  }, 1500);
+}
+
+/**
+ * Poll for the first connection of a device that never connected: 5 s at
+ * first, then slower, for ten minutes at most (then `gaveUp`), not while the
+ * tab is hidden (every poll is a process on the router), and never again once
+ * the link stopped working. `arrived` runs once. Returns the stop function.
+ */
+function watchFirstConnection(d: Device, arrived: () => void, gaveUp: () => void): () => void {
+  // The first connection is a handshake newer than this sheet (router clock), not `online`:
+  // that follows the agent's watcher, which can lag the handshake by a poll, and a device
+  // set up again with new keys still reports the last handshake of its old ones.
+  const opened = now();
   let timer = 0,
     polls = 0,
-    done = !!d.handshake || d.disabled;
+    done = false;
   const started = Date.now();
   const poll = async () => {
     timer = 0;
-    if (done || Date.now() - started > 600_000) return;
+    if (done) return;
+    if (Date.now() - started > 600_000) {
+      done = true;
+      gaveUp();
+      return;
+    }
     if (document.hidden) {
       schedule();
       return;
@@ -900,9 +1354,10 @@ async function connect(d: Device, initial?: 'app' | 'qr' | 'key' | 'file', cfgIn
       const st = await call<State>('state');
       state = st;
       const dev = st.person.devices.find((x) => x.id === d.id);
-      paintLive(dev);
-      if (dev?.online || dev?.handshake) {
+      if (dev && dev.handshake > opened) {
         done = true;
+        arrived();
+        if (!dev.online) catchUp(d.id);
         return;
       }
     } catch (e) {
@@ -922,17 +1377,476 @@ async function connect(d: Device, initial?: 'app' | 'qr' | 'key' | 'file', cfgIn
   };
   document.addEventListener('visibilitychange', onVisible);
   schedule();
-  sheet(
-    d.handshake ? `Connect ${d.name}` : `${d.name} is ready`,
-    mobile ? 'Add it to AmneziaVPN on this phone' : 'Scan with the phone’s camera or AmneziaVPN',
-    tabs,
-    body,
-    live,
-  );
-  sheetClosed = () => {
+  return () => {
     done = true;
     if (timer) clearTimeout(timer);
     document.removeEventListener('visibilitychange', onVisible);
+  };
+}
+
+/* ---------- setting up a device: get the app, add the connection ---------- */
+
+/** The app a device was set up with last time, so the sheet reopens on it. */
+const APP_MEMO = (d: Device) => `dl.app.${d.id}`;
+function recallApp(d: Device): AppId | null {
+  try {
+    const v = localStorage.getItem(APP_MEMO(d));
+    return v === 'vpn' || v === 'awg' || v === 'wg' ? v : null;
+  } catch {
+    return null;
+  }
+}
+function rememberApp(d: Device, app: AppId) {
+  try {
+    localStorage.setItem(APP_MEMO(d), app);
+  } catch {
+    /* private mode */
+  }
+}
+
+const APP_ICON: Record<AppId, string> = { vpn: 'amnezia', awg: 'amneziawg', wg: 'wireguard' };
+
+/**
+ * A store badge: the mark in a tile, two lines, a chevron. `primary` = the one thing to tap.
+ * `key` names it across repaints, so a badge that now says something else comes into focus.
+ */
+function badge(
+  st: { href?: string; top: string; main: string; mark: string; onclick?: (ev: Event) => void },
+  primary = false,
+  key?: string,
+): HTMLElement {
+  const inner = [
+    h('span', { class: 'badge-ic' }, ic(st.mark)),
+    h('span', { class: 'badge-txt' }, h('span', { class: 'badge-top' }, st.top), h('span', { class: 'badge-main' }, st.main)),
+    h('span', { class: 'badge-chev' }, ic('chevron')),
+  ];
+  const cls = `badge${primary ? ' primary' : ''}`;
+  return st.onclick
+    ? h('button', { type: 'button', class: cls, onclick: st.onclick, 'data-m': key }, inner)
+    : h(
+        'a',
+        { class: cls, href: st.href, target: st.href?.startsWith('vpn:') ? null : '_blank', rel: 'noopener noreferrer', 'data-m': key },
+        inner,
+      );
+}
+
+/** Choice pills: an icon and a label each, one on. `group` keys them across repaints. */
+function pills(group: string, items: { id: string; label: string; icon?: string; on: boolean; pick: () => void }[]): HTMLElement {
+  return h(
+    'div',
+    { class: 'pills' },
+    items.map((it) =>
+      h(
+        'button',
+        { type: 'button', class: `pill${it.on ? ' on' : ''}`, onclick: it.pick, 'data-m': `${group}:${it.id}` },
+        it.icon ? ic(it.icon) : null,
+        h('span', {}, it.label),
+      ),
+    ),
+  );
+}
+
+/** The step card: a numbered head and its content. */
+const step = (n: string, title: Kid, ...content: Kid[]) =>
+  h(
+    'div',
+    { class: 'step' },
+    h('div', { class: 'step-head' }, h('span', { class: 'step-n' }, n), h('span', { class: 'step-title' }, title)),
+    ...content,
+  );
+
+/** A link as text with Copy and, where the browser has one, the share sheet. */
+function linkRow(url: string): HTMLElement {
+  const share = typeof navigator.share === 'function';
+  return h(
+    'div',
+    { class: 'linkrow' },
+    h('span', { class: 'mono ellipsis' }, url.replace(/^https?:\/\//, '')),
+    h('button', { type: 'button', class: 'btn small', onclick: (ev: Event) => copy(url, 'Link copied', ev.currentTarget) }, 'Copy'),
+    share
+      ? h(
+          'button',
+          {
+            type: 'button',
+            class: 'icon-btn soft',
+            'aria-label': 'Share the link',
+            onclick: () => navigator.share({ url, title: state?.title ?? 'Dawnline' }).catch(() => undefined),
+          },
+          ic('share'),
+        )
+      : null,
+  );
+}
+
+/**
+ * Set up a device: one sheet, two numbered steps. Which app and where it comes
+ * from follow the server's disguise and the platform the page is open on; a
+ * device set up from another device gets its link (and code) to take there.
+ */
+async function setup(d: Device, cfgIn?: ClientConfig) {
+  const cfg = cfgIn ?? (await getConfig(d));
+  if (!cfg) return;
+  const key = await vpnKey(cfg, `${cfg.server} · ${cfg.name}`);
+  const apps = appsFor(preset());
+  const pf = platform();
+  const same = sameDevice(d.kind, pf);
+  const handheld = d.kind === 'phone' || d.kind === 'tablet';
+  const router = d.kind === 'router';
+  const hereHandheld = pf === 'ios' || pf === 'android';
+  const osChoices = osGroup(d.kind);
+  let app: AppId = recallApp(d) ?? (router ? 'awg' : 'vpn');
+  if (!apps.some((a) => a.id === app)) app = router ? 'awg' : 'vpn';
+  // Which system a computer runs is the person's call; the browser's guess comes first.
+  let os: Platform = osChoices.length ? (osChoices.includes(pf) ? pf : 'windows') : pf;
+  let picker = false,
+    away = false,
+    open: 'link' | 'app' = 'app',
+    entered: string | null = null;
+  const body = h('div', { class: 'setup' });
+  const way = waitPath(d.kind);
+  // The title names the device; the lines under it say "the phone".
+  const there = deviceNoun(d.kind);
+  // The device connected: the instructions are leaving, no repaint brings them back.
+  let finished = false;
+
+  const appOf = (id: AppId) => apps.find((a) => a.id === id) ?? apps[0];
+  const appPills = () =>
+    pills(
+      'app',
+      apps
+        .filter((a) => !router || a.id !== 'vpn')
+        .map((a) => ({
+          id: a.id,
+          label: a.name,
+          icon: APP_ICON[a.id],
+          on: a.id === app,
+          pick: () => {
+            app = a.id;
+            rememberApp(d, app);
+            paint();
+          },
+        })),
+    );
+  const osPills = () =>
+    pills(
+      'os',
+      osChoices.map((o) => ({
+        id: o,
+        label: o === pf ? hereLabel(o) : PLATFORM_LABEL[o],
+        icon: o === 'windows' ? 'windows' : o === 'mac' ? 'apple' : 'linux',
+        on: o === os,
+        pick: () => {
+          os = o;
+          paint();
+        },
+      })),
+    );
+  const storeBlock = (): Kid[] => {
+    const st: Store | null = router ? routerStore(app) : storeFor(app, os);
+    if (!st) return [h('span', { class: 'muted s' }, `Get ${APP_NAME[app]} on the ${PLATFORM_LABEL[os]} and come back here.`)];
+    return [
+      st.alt
+        ? [
+            h('div', { class: 'badges2' }, badge(st, false, 'store'), badge(st.alt, false, 'store-alt')),
+            h('span', { class: 'faint s' }, st.alt.why),
+          ]
+        : badge(st, false, 'store'),
+      updateLine(appOf(app)) ? h('span', { class: 'faint s', 'data-m': 'update' }, updateLine(appOf(app))) : null,
+    ];
+  };
+  const getStep = () =>
+    step(
+      '1',
+      [
+        h('span', { class: 'grow', 'data-m': 'get' }, `Get ${APP_NAME[app]}`),
+        apps.length > 1 && !picker
+          ? h(
+              'button',
+              {
+                type: 'button',
+                class: 'pill-link',
+                onclick: () => {
+                  picker = true;
+                  entered = 'picker';
+                  paint();
+                },
+              },
+              h('span', {}, 'Another app'),
+              ic('chevron'),
+            )
+          : null,
+      ],
+      picker
+        ? h(
+            'div',
+            { class: `stack gap${entered === 'picker' ? ' enter' : ''}` },
+            appPills(),
+            h('span', { class: 'faint s', 'data-m': 'app-sub' }, appOf(app).sub),
+          )
+        : null,
+      osChoices.length ? osPills() : null,
+      ...storeBlock(),
+    );
+
+  // Step 2 follows the app and the device: a link for AmneziaVPN, the file for the others.
+  const connectStep = () => {
+    const name = APP_NAME[app];
+    if (app === 'vpn' && hereHandheld)
+      return step(
+        '2',
+        'Add the connection',
+        badge({ href: key, top: 'Then come back here and tap', main: 'Open in AmneziaVPN', mark: 'amnezia' }, true, 'connect'),
+        h(
+          'span',
+          { class: 'faint s' },
+          'Nothing opened? ',
+          h('a', { href: '#', onclick: (ev: Event) => (ev.preventDefault(), copy(key, 'Key copied', ev.currentTarget)) }, 'Copy the key'),
+          ' and add it in the app.',
+        ),
+      );
+    if (app === 'vpn')
+      return step(
+        '2',
+        'Add the connection',
+        badge(
+          {
+            top: 'The connection as one key',
+            main: 'Copy the key',
+            mark: 'copy',
+            onclick: (ev) => copy(key, 'Key copied', ev.currentTarget),
+          },
+          true,
+          'connect',
+        ),
+        h(
+          'ol',
+          { class: 'howto', 'data-m': 'howto' },
+          h('li', {}, 'Open AmneziaVPN'),
+          h('li', {}, 'Add server → ', h('b', {}, 'Insert key')),
+          h('li', {}, 'Paste the key and connect'),
+        ),
+        h('span', { class: 'faint s' }, 'Have the app open? ', h('a', { href: key }, 'Open in AmneziaVPN')),
+      );
+    const share = hereHandheld ? shareFile(cfg) : null;
+    return step(
+      '2',
+      'Add the connection',
+      share
+        ? badge({ top: `Straight into ${name}`, main: 'Share the file', mark: 'share', onclick: () => share() }, true, 'connect')
+        : badge(
+            {
+              top: 'Then import it in the app',
+              main: 'Download the file',
+              mark: 'download',
+              onclick: () => download(cfg.filename, cfg.conf),
+            },
+            true,
+            'connect',
+          ),
+      h(
+        'ol',
+        { class: 'howto', 'data-m': 'howto' },
+        h('li', {}, `Open ${name}`),
+        h('li', {}, importPath(app).replace(/ → .*$/, ' → '), h('b', {}, importPath(app).replace(/^.* → /, ''))),
+        h('li', {}, share ? 'Confirm the import and connect' : 'Pick the file and connect'),
+      ),
+    );
+  };
+
+  /**
+   * Two cards that hold codes, one open at a time: a folded card's head is the
+   * button that opens it (and folds the other); the open card's head is just a head.
+   */
+  const foldHead = (id: 'link' | 'app', ...title: Kid[]) =>
+    open === id
+      ? h('div', { class: 'step-head open', 'data-m': `fold:${id}` }, ...title)
+      : h(
+          'button',
+          {
+            type: 'button',
+            class: 'step-head fold',
+            'aria-expanded': 'false',
+            'data-m': `fold:${id}`,
+            onclick: () => {
+              open = id;
+              entered = id;
+              paint();
+            },
+          },
+          ...title,
+          h('span', { class: 'fold-chev' }, ic('chevron')),
+        );
+  // A code keyed by what it encodes: one that now holds something else comes into focus.
+  const qrOf = (mark: string, text: string) => {
+    const q = h('div', { 'data-m': mark, 'data-sig': `${text.length}:${text.slice(-24)}` });
+    paintQr(q, text);
+    return q;
+  };
+
+  /** What a card just unfolded comes in one piece after the other. */
+  const unfolded = (now: boolean, kids: (HTMLElement | null)[]) => {
+    if (now)
+      kids
+        .filter((k): k is HTMLElement => !!k)
+        .forEach((k, i) => {
+          k.classList.add('unfold');
+          k.style.setProperty('--i', String(i));
+        });
+    return kids;
+  };
+
+  // Not on the device: the link goes there (as a code for a phone's camera), the rest happens there.
+  // It names the device, so the page there opens straight on its set-up.
+  const linkThere = setupLink(location.origin + location.pathname, d.id);
+  const awayCard = (easiest = false, fold = false) =>
+    h(
+      'div',
+      { class: `step${fold && open !== 'link' ? ' folded' : ''}` },
+      fold
+        ? foldHead(
+            'link',
+            h('span', { class: 'step-title grow' }, `Open your link on the ${there}`),
+            easiest ? h('span', { class: 'chip', 'data-glide': 'easiest' }, 'Easiest') : null,
+          )
+        : h(
+            'div',
+            { class: 'step-head' },
+            h('span', { class: 'step-title grow' }, `Open your link on the ${there}`),
+            easiest ? h('span', { class: 'chip' }, 'Easiest') : null,
+          ),
+      ...(fold && open !== 'link'
+        ? []
+        : unfolded(entered === 'link', [
+            h('span', { class: 'muted s step-sub' }, 'The same page there does both steps for that device.'),
+            handheld
+              ? h(
+                  'div',
+                  { class: 'code-row' },
+                  qrOf('link-qr', linkThere),
+                  h(
+                    'span',
+                    { class: 'stack gap' },
+                    h('span', { class: 'muted s' }, 'Point its camera at the code: the link opens there.'),
+                    qrFlip(),
+                  ),
+                )
+              : null,
+            linkRow(linkThere),
+          ])),
+    );
+  const awayFold = () =>
+    away
+      ? (() => {
+          const c = awayCard();
+          if (entered === 'away') c.classList.add('enter');
+          return c;
+        })()
+      : h(
+          'div',
+          { class: 'center' },
+          h(
+            'button',
+            {
+              type: 'button',
+              class: 'fold-link',
+              onclick: () => {
+                away = true;
+                entered = 'away';
+                paint();
+              },
+            },
+            `Not on the ${there} right now?`,
+          ),
+        );
+
+  // A phone set up from a computer: the link as a code, or the connection as a code for a phone that has the app.
+  const appCodeCard = () =>
+    h(
+      'div',
+      { class: `step${open !== 'app' ? ' folded' : ''}` },
+      foldHead('app', h('span', { class: 'step-ic' }, ic(APP_ICON[app])), h('span', { class: 'step-title grow' }, 'Already has the app')),
+      ...(open !== 'app'
+        ? []
+        : unfolded(entered === 'app', [
+            apps.length > 1 ? h('div', {}, appPills()) : null,
+            h(
+              'div',
+              { class: 'code-row' },
+              qrOf('app-qr', app === 'vpn' ? key : cfg.conf),
+              h(
+                'span',
+                { class: 'stack' },
+                h('span', { class: 'muted s' }, `In ${APP_NAME[app]}: `, h('b', {}, scanPath(app)), '. The connection is added at once.'),
+                updateLine(appOf(app)) ? h('span', { class: 'faint s' }, updateLine(appOf(app))) : null,
+                qrFlip(),
+              ),
+            ),
+            h(
+              'span',
+              { class: 'faint s' },
+              'Prefer the file or the key? ',
+              h('a', { href: '#', onclick: (ev: Event) => (ev.preventDefault(), connect(d, 'file', cfg)) }, 'Connection details'),
+            ),
+          ])),
+    );
+
+  const paint = () => {
+    if (finished) return;
+    const parts: Kid[] = [];
+    if (inWebview(navigator.userAgent))
+      parts.push(
+        h(
+          'div',
+          { class: 'notice' },
+          ic('alert'),
+          h('span', { class: 'grow' }, 'Open this page in Safari or Chrome: the store opens from here, but the app handoff does not.'),
+        ),
+      );
+    if (same) parts.push(getStep(), connectStep(), awayFold());
+    else if (router)
+      parts.push(
+        step(
+          '1',
+          [h('span', { class: 'grow', 'data-m': 'get' }, `Get ${APP_NAME[app]} on the router`)],
+          apps.length > 2 ? appPills() : null,
+          badge(routerStore(app), false, 'store'),
+        ),
+        step('2', 'Import the configuration', filePane(cfg)),
+      );
+    else if (handheld) parts.push(awayCard(true, true), appCodeCard());
+    else
+      parts.push(
+        h('span', { class: 'muted s' }, `The app goes on the ${there}. Which one is it?`),
+        osPills(),
+        awayCard(true),
+        step(
+          '',
+          [h('span', { class: 'grow', 'data-m': 'get' }, `${APP_NAME[app]} for ${PLATFORM_LABEL[os]}`)],
+          h('span', { class: 'faint s' }, 'Or download the installer here and move it to the PC'),
+          ...storeBlock(),
+        ),
+        h(
+          'span',
+          { class: 'faint s center' },
+          `Already has ${APP_NAME[app]}? `,
+          h('a', { href: '#', onclick: (ev: Event) => (ev.preventDefault(), copy(key, 'Key copied', ev.currentTarget)) }, 'Copy the key'),
+        ),
+      );
+    restyle(body, () => body.replaceChildren(...parts.flat().filter((x): x is Node => x instanceof Node)));
+    entered = null;
+  };
+  paint();
+  const stop = watchFirstConnection(
+    d,
+    () => {
+      finished = true;
+      void arrive(way, [body]);
+    },
+    way.gaveUp,
+  );
+  sheet(`Set up ${d.name}`, same ? 'Two steps, about a minute' : router ? 'The packages and the file for OpenWrt' : null, way.el, body);
+  sheetClosed = () => {
+    stop();
     if (state) main(state);
   };
 }
@@ -971,73 +1885,51 @@ function rename(d: Device) {
 
 /** New keys for a device: the old configuration stops working, the new one is shown right away. */
 function rotateKeys(d: Device, st: State) {
-  const here = st.here === d.id;
-  sheet(
-    `New keys for ${d.name}?`,
-    null,
-    h(
-      'p',
-      { class: 'muted' },
-      here
-        ? 'This device is connected through the configuration it has now: it disconnects a few seconds after you confirm. Import the new configuration that opens next.'
-        : 'Its current configuration stops working. Set the device up again with the new one that opens next.',
-    ),
-    h(
-      'div',
-      { class: 'row gap' },
-      h('button', { class: 'btn block', onclick: () => closeSheet() }, 'Cancel'),
-      h(
-        'button',
-        {
-          class: 'btn primary block',
-          onclick: (ev: Event) =>
-            once(ev.currentTarget as HTMLButtonElement, async () => {
-              try {
-                const r = await call<{ config: ClientConfig; state: State }>(`devices/${d.id}`, { action: 'rotate' });
-                state = r.state;
-                main(state);
-                await connect(d, undefined, r.config);
-              } catch (er) {
-                toast((er as Error).message, true);
-              }
-            }),
-        },
-        'New keys',
-      ),
-    ),
-  );
+  ask({
+    icon: 'key',
+    tone: 'warn',
+    title: `New keys for ${d.name}?`,
+    text:
+      st.here === d.id
+        ? 'This device is connected through its current settings: it disconnects a few seconds after you confirm. Import the new ones that open next.'
+        : 'Its current settings stop working. Set it up again with the new ones that open next.',
+    action: 'New keys',
+    actionClass: 'primary',
+    run: async () => {
+      try {
+        const r = await call<{ config: ClientConfig; state: State }>(`devices/${d.id}`, { action: 'rotate' });
+        state = r.state;
+        main(state);
+        await setup({ ...d, handshake: 0 }, r.config);
+      } catch (er) {
+        toast((er as Error).message, true);
+      }
+    },
+  });
 }
 
 function removeDevice(d: Device) {
-  sheet(
-    `Remove ${d.name}?`,
-    null,
-    h('p', { class: 'muted' }, 'Its connection stops working immediately. You can add it again later.'),
-    h(
-      'div',
-      { class: 'row gap' },
-      h('button', { class: 'btn block', onclick: () => closeSheet() }, 'Cancel'),
-      h(
-        'button',
-        {
-          class: 'btn danger-solid block',
-          onclick: (ev: Event) =>
-            once(ev.currentTarget as HTMLButtonElement, async () => {
-              try {
-                const r = await call<{ state: State }>(`devices/${d.id}`, { action: 'delete' });
-                state = r.state;
-                closeSheet();
-                main(state);
-                toast('Device removed');
-              } catch (er) {
-                toast((er as Error).message, true);
-              }
-            }),
-        },
-        'Remove',
-      ),
-    ),
-  );
+  ask({
+    icon: 'trash',
+    tone: 'bad',
+    title: `Remove ${d.name}?`,
+    text: 'Its connection stops working at once. You can add it again later.',
+    action: 'Remove',
+    actionClass: 'danger-solid',
+    run: async () => {
+      try {
+        const r = await call<{ state: State }>(`devices/${d.id}`, { action: 'delete' });
+        state = r.state;
+        closeSheet();
+        // The card goes first; the rest then glide into its place.
+        await leave(app.querySelector(`[data-key="${CSS.escape(d.id)}"]`));
+        main(state);
+        toast('Device removed');
+      } catch (er) {
+        toast((er as Error).message, true);
+      }
+    },
+  });
 }
 
 // Best guess at the device this page is open on (the browser never tells its real name).
@@ -1153,24 +2045,29 @@ function addDevice() {
         onsubmit: async (e: Event) => {
           e.preventDefault();
           submit.disabled = true;
+          const idle = busy(submit);
           err.textContent = '';
           try {
             const r = await call<{ id: string; config: ClientConfig; state: State }>('devices', { name: name.value.trim(), kind });
             state = r.state;
             const dev = r.state.person.devices.find((d) => d.id === r.id)!;
-            await connect(dev, undefined, r.config);
+            await setup(dev, r.config);
           } catch (er) {
             if ((er as ApiError).httpsUrl) {
               secureSheet((er as ApiError).httpsUrl as string);
               return;
             }
             err.textContent = (er as Error).message;
+            replay(err, 'enter');
             submit.disabled = false;
+          } finally {
+            idle();
           }
         },
       },
       h('label', { class: 'lbl' }, 'What is it?'),
       kinds,
+      h('p', { class: 'muted s' }, 'Phones and tablets get a smaller packet size that suits mobile networks.'),
       h('label', { class: 'lbl' }, 'Name'),
       name,
       err,
@@ -1181,11 +2078,27 @@ function addDevice() {
 
 /* ---------- boot ---------- */
 
+/**
+ * A link that names a device (`#setup=d_…`: the code and the link a set-up
+ * sheet hands to that device) opens its set-up at once, if it still waits for
+ * one: on load, or when the link is opened in a tab already on this page.
+ * Once: the fragment comes off the address (a reload shows the page).
+ */
+window.addEventListener('hashchange', () => openFromLink());
+function openFromLink() {
+  const id = setupFromHash(location.hash);
+  if (!id) return;
+  history.replaceState(null, '', location.pathname + location.search);
+  const d = state?.person.devices.find((x) => x.id === id);
+  if (d && !d.handshake && !d.disabled && !state?.locked) void setup(d);
+}
+
 async function refresh() {
   try {
     state = await call<State>('state');
     document.title = `${state.person.name} · ${state.title}`;
     if (!sheetEl && !menuEl) main(state);
+    openFromLink();
   } catch (e) {
     const er = e as ApiError;
     if (er.status === 404 || er.status === 401) {

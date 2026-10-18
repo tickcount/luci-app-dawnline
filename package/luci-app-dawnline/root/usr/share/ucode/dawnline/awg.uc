@@ -6,7 +6,7 @@
 
 import { readfile, stat, unlink } from 'fs';
 import {
-	q, sh, sh_out, rand_int, rand_bytes, valid_key, ip2int, ensure_dir, write_file, read_json, write_json, lock, unlock,
+	q, sh, sh_out, rand_int, rand_bytes, valid_key, ip2int, translit, ensure_dir, write_file, read_json, write_json, lock, unlock,
 	slog, iface_status, DATA_DIR, RUN_DIR
 } from 'dawnline.util';
 import * as core from 'dawnline.core';
@@ -226,11 +226,14 @@ function dns_answer() {
 /**
  * Generate obfuscation parameters for a method:
  *   off      plain WireGuard-compatible packets
- *   standard junk packets and random headers (any AmneziaWG client)
- *   strong   more and larger junk (any AmneziaWG client)
+ *   balanced AmneziaWG 2.0: junk packets, random headers, padded cookie and
+ *            data packets, DNS-shaped signature packets
  *   max      AmneziaWG 3.1: protected headers, random trailers, padding,
  *            jittered timers and a DNS-like first packet — the values
  *            AmneziaVPN itself uses for 3.1 servers
+ * Servers made before 0.8 may still carry the old "standard" or "strong"
+ * values (1.0-style junk only): they keep running as they are, the picker
+ * offers Balanced or Maximum instead.
  */
 export function obf_preset(name) {
 	if (name == 'max')
@@ -247,12 +250,11 @@ export function obf_preset(name) {
 		};
 	if (name == 'off')
 		return { jc: '0', jmin: '0', jmax: '0', s1: '0', s2: '0', h1: '1', h2: '2', h3: '3', h4: '4' };
-	let strong = name == 'strong', balanced = name == 'balanced';
 	let o = {};
-	o.jc = `${strong ? rand_int(6, 10) : balanced ? rand_int(4, 8) : rand_int(3, 6)}`;
-	let jmin = rand_int(64, strong || balanced ? 128 : 96);
+	o.jc = `${rand_int(4, 8)}`;
+	let jmin = rand_int(64, 128);
 	o.jmin = `${jmin}`;
-	o.jmax = `${jmin + rand_int(strong ? 200 : balanced ? 150 : 32, strong ? 600 : balanced ? 400 : 160)}`;
+	o.jmax = `${jmin + rand_int(150, 400)}`;
 	let s1 = rand_int(15, 64), s2 = rand_int(15, 64);
 	while (s1 + 56 == s2)
 		s2 = rand_int(15, 64);
@@ -261,15 +263,13 @@ export function obf_preset(name) {
 	let used = {};
 	for (let k in [ 'h1', 'h2', 'h3', 'h4' ])
 		o[k] = rand_h(used);
-	if (balanced) {
-		// AmneziaWG 2.0: padded cookie and data packets (S4 costs MTU, kept
-		// small: core.tunnel_mtu) and DNS-shaped signature packets before each
-		// handshake — what 1.0 traffic lacks and gets recognised by.
-		o.s3 = `${rand_int(8, 48)}`;
-		o.s4 = `${rand_int(4, 16)}`;
-		o.i1 = dns_query();
-		o.i2 = dns_answer();
-	}
+	// AmneziaWG 2.0: padded cookie and data packets (S4 costs MTU, kept
+	// small: core.tunnel_mtu) and DNS-shaped signature packets before each
+	// handshake — what 1.0 traffic lacks and gets recognised by.
+	o.s3 = `${rand_int(8, 48)}`;
+	o.s4 = `${rand_int(4, 16)}`;
+	o.i1 = dns_query();
+	o.i2 = dns_answer();
 	return o;
 };
 
@@ -342,7 +342,7 @@ export function obf_neutral(o) {
  * and a number when the cut would still make two of them alike.
  */
 function conf_filename(m, p, dev) {
-	let label = (d) => trim(substr(trim(replace(lc(d.name + '-' + p.id), /[^a-z0-9]+/g, '-'), '-'), 0, 15), '-');
+	let label = (d) => trim(substr(trim(replace(lc(translit(d.name + '-' + p.id)), /[^a-z0-9]+/g, '-'), '-'), 0, 15), '-');
 	let order = sort(map(p.devices, (id) => m.devices[id]),
 		(a, b) => (a.created - b.created) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 	let seen = {};
@@ -464,6 +464,9 @@ export function netifd_options(srv) {
 	return o;
 };
 
+/** Person states whose devices stay in the tunnel: active, and the limits the portal explains. */
+export const SOFT_STATES = [ 'active', 'quota', 'hours' ];
+
 /** Push the peer list of every server to the kernel without restarting it. */
 export function sync_peers(m, states) {
 	ensure_dir(RUN_DIR);
@@ -480,8 +483,11 @@ export function sync_peers(m, states) {
 		for (let did, d in m.devices) {
 			let p = m.people[d.person];
 			// One malformed line makes syncconf refuse the whole server: such a device
-			// stays out (Health's Data check names it).
-			if (!p || p.server != id || d.disabled || states[p.id] != 'active' || !valid_key(d.public_key) || ip2int(d.address) == null)
+			// stays out (Health's Data check names it). Over the data limit or
+			// outside the allowed hours the tunnel stays: the access table blocks
+			// everything but the portal, which says why (a silent handshake failure
+			// would look like a broken VPN).
+			if (!p || p.server != id || d.disabled || index(SOFT_STATES, states[p.id]) < 0 || !valid_key(d.public_key) || ip2int(d.address) == null)
 				continue;
 			push(lines, '[Peer]', `PublicKey = ${d.public_key}`);
 			if (d.preshared_key)

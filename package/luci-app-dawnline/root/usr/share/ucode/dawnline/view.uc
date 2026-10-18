@@ -29,6 +29,13 @@ export function device_view(m, d, usage, dmp) {
 	let ts = time();
 	let hs = peer?.handshake || u?.handshake || 0;
 	let p = m.people[d.person];
+	// The same label /tmp/hosts carries (core.device_labels), so what is shown resolves.
+	let label = '';
+	if (m.settings.hostnames && p) {
+		m._labels ??= {};
+		m._labels[p.id] ??= core.device_labels(m, p);
+		label = m._labels[p.id][d.id] ?? 'device';
+	}
 	let v = {
 		id: d.id,
 		name: d.name,
@@ -44,7 +51,7 @@ export function device_view(m, d, usage, dmp) {
 		month: live.month(u),
 		total: u?.total ?? [ 0, 0 ],
 		spark: spark(u, 7),
-		hostname: m.settings.hostnames && p ? `${replace(replace(lc(d.name), /[^a-z0-9]+/g, '-'), /^-+|-+$/g, '') || 'device'}.${p.id}.${m.settings.domain}` : '',
+		hostname: label ? `${label}.${p.id}.${m.settings.domain}` : '',
 		browser_key: d.private_key == '',
 		// Its configuration changed since it was last shown or downloaded.
 		config_stale: config_stale(m, d),

@@ -6,8 +6,10 @@ import { E } from './e';
 import { api, type HomeHost } from './api';
 import { button } from './ui/button';
 import { cancelButton, closeModal, confirmDialog, modal } from './ui/modal';
-import { attempt } from './ui/toast';
+import { attempt, notify } from './ui/toast';
 import { chipToggle, input } from './ui/controls';
+import { firstBad, liveField } from './ui/layout';
+import { circleNameHelp, ipv4Help, nameHelp, portsHelp } from './netcheck';
 import { icon } from '../shared/icons';
 
 type Service = Status['services'][number];
@@ -30,17 +32,23 @@ export function serviceDialog(sv: Service | null, prefill: Partial<Service>, onS
     placeholder: 'All ports, or e.g. 445, 5000',
     class: 'cbi-input-text dl-mono',
   });
-  const field = (label: string, el: Node) =>
-    E('div', { class: 'cbi-value' }, [E('label', { class: 'cbi-value-title' }, label), E('div', { class: 'cbi-value-field' }, el)]);
+  const nameRow = liveField('Name', name, () => nameHelp(name.value, [], 'Shown to people who may reach it.'));
+  const addrRow = liveField('Address', addr, () => ipv4Help(addr.value));
+  const portsRow = liveField('Ports', ports, () => portsHelp(ports.value));
   modal(
     sv ? `Edit ${sv.name}` : 'Add service',
-    [field('Name', name), field('Address', addr), field('Ports', ports)],
+    [nameRow, addrRow, portsRow],
     [
       cancelButton(),
       ' ',
       button(
         'Save',
         async () => {
+          const bad = firstBad([nameRow, addrRow, portsRow]);
+          if (bad) {
+            notify(bad, 'warning');
+            return;
+          }
           const list = ports.value.split(/[ ,]+/).filter(Boolean);
           if (await attempt(() => api.serviceSet(sv?.id ?? '', name.value, addr.value, list), 'Saved')) {
             closeModal();
@@ -316,11 +324,13 @@ export function circleDialog(st: Status, serverId: string, ci: Circle | null, on
   );
   const field = (label: string, el: Node) =>
     E('div', { class: 'cbi-value' }, [E('label', { class: 'cbi-value-title' }, label), E('div', { class: 'cbi-value-field' }, el)]);
+  const others = st.circles.filter((c) => c.server === serverId && c.id !== ci?.id).map((c) => c.name);
+  const nameRow = liveField('Name', name, () => circleNameHelp(name.value, others));
 
   modal(
     ci ? `Edit ${ci.name}` : 'New circle',
     [
-      field('Name', name),
+      nameRow,
       field('Colour', swatches),
       field('People', chips),
       E('p', { class: 'dl-sub' }, 'Devices of people in one circle reach each other. A person is in one circle at a time.'),
@@ -344,6 +354,11 @@ export function circleDialog(st: Status, serverId: string, ci: Circle | null, on
       button(
         'Save',
         async () => {
+          const h = nameRow.help();
+          if (h.bad) {
+            notify(h.text, 'warning');
+            return;
+          }
           if (await attempt(() => api.circleSet(ci?.id ?? '', serverId, name.value, color, [...members]), 'Saved')) {
             closeModal();
             onDone();

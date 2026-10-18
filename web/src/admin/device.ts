@@ -11,7 +11,8 @@ import { copyText, downloadFile } from './ui/files';
 import { dropdown, type MenuItem } from './ui/menu';
 import { drawer } from './ui/drawer';
 import { attempt, notify } from './ui/toast';
-import { svg } from './ui/layout';
+import { liveField, svg } from './ui/layout';
+import { nameHelp } from './netcheck';
 import { deviceStatus } from './ui/badges';
 import { qrSvg } from '../shared/qr';
 import { ago, bytes, isoDay, KIND_LABEL, KINDS, todayOf } from '../shared/format';
@@ -20,6 +21,7 @@ import { eventBy } from './events/model';
 import { spark } from './widgets/spark';
 import { clearLogDialog, exportEvents, resetUsageDialog } from './logs';
 import { coreFor, coreOf, type Core } from './cores';
+import { plainWg } from './cores/awg';
 import { onLiveChange } from './state/live';
 import { ConnectionMap, devicePlaces, rangeControl, type MapData, type Range } from './map';
 import { personUrl } from './urls';
@@ -123,7 +125,8 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
   let geo = o.geo;
   let now = o.now;
   let today = o.today ?? isoDay(new Date());
-  const connect = await core.connectBlock(cfg);
+  // Phones and tablets are set up by scanning; computers and routers by a file.
+  const connect = await core.connectBlock(cfg, dev.kind === 'phone' || dev.kind === 'tablet' ? 'qr' : 'file');
   const titleEl = E('div', { class: 'dl-drawer-title' });
   const stats = E('div', {});
   const details = E('div', {});
@@ -183,7 +186,7 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
       E('div', { class: 'dl-dstats' }, [
         E('div', { class: 'dl-dstats-cell wide' }, [
           E('span', { class: 'dl-metric-label' }, 'Status'),
-          deviceStatus(d, now, 'Waiting for the first connection'),
+          deviceStatus(d, now, 'Waiting for the first connection', p),
         ]),
         E('div', { class: 'dl-dstats-cell' }, [
           E('span', { class: 'dl-metric-label' }, 'This month'),
@@ -221,10 +224,8 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
           ]),
         ),
         row('Added', `${when(d.created)} · ${d.created_by === 'portal' ? 'from the portal' : 'by you'}`),
-        row(
-          'Public key',
-          E('span', { class: 'dl-mono dl-faint' }, cfg.amnezia.client_pub_key ? `${cfg.amnezia.client_pub_key.slice(0, 16)}…` : '—'),
-        ),
+        // The whole key, copyable: it is what another WireGuard server needs to add this device by hand.
+        cfg.amnezia.client_pub_key ? copyRow('Public key', cfg.amnezia.client_pub_key) : row('Public key', '—'),
       ]),
     );
     dom.content(foot, [
@@ -300,15 +301,22 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
 
   const rename = () => {
     const input = E('input', { type: 'text', class: 'cbi-input-text', value: d.name, maxlength: 48 }) as HTMLInputElement;
+    const taken = p.devices.filter((x) => x.id !== d.id).map((x) => x.name);
+    const nameRow = liveField('Name', input, () => nameHelp(input.value, taken, 'Shown in the portal and in the app.'));
     modal(
       `Rename ${d.name}`,
-      [E('div', { class: 'cbi-value' }, [E('label', { class: 'cbi-value-title' }, 'Name'), E('div', { class: 'cbi-value-field' }, input)])],
+      [nameRow],
       [
         cancelButton(),
         ' ',
         button(
           'Save',
           async () => {
+            const h = nameRow.help();
+            if (h.bad) {
+              notify(h.text, 'warning');
+              return;
+            }
             if (await attempt(() => api.deviceUpdate(d.id, input.value, undefined), 'Renamed')) {
               closeModal();
               await changed();
@@ -426,7 +434,11 @@ export function quickMenu(anchor: HTMLElement, p: Person, d: Device, o: DeviceOp
           `${d.name} · QR code`,
           E('div', { class: 'dl-qr-pane' }, [
             svg(qrSvg(core.qrText(c)), 'dl-qr'),
-            E('span', { class: 'dl-sub' }, 'Scan with AmneziaVPN or AmneziaWG on the device.'),
+            E(
+              'span',
+              { class: 'dl-sub' },
+              plainWg(c) ? 'Scan with AmneziaVPN or any WireGuard app on the device.' : 'Scan with AmneziaVPN or AmneziaWG on the device.',
+            ),
           ]),
           cancelButton('Close'),
         );
@@ -500,8 +512,22 @@ export function quickMenu(anchor: HTMLElement, p: Person, d: Device, o: DeviceOp
 
 /** Admin "Add device" dialog for a person; opens the new device's drawer. */
 export function addDevice(person: Person, o: DeviceOpts) {
-  const nameInput = E('input', { type: 'text', class: 'cbi-input-text', placeholder: KIND_LABEL.phone, maxlength: 48 }) as HTMLInputElement;
+  const taken = person.devices.map((x) => x.name);
+  // The name a type gives when none is typed: "Phone", then "Phone 2" (as the portal does).
+  const suggest = (k: Kind) => {
+    const base = KIND_LABEL[k];
+    let n = 1;
+    let name = base;
+    while (taken.some((t) => t.toLowerCase() === name.toLowerCase())) name = `${base} ${++n}`;
+    return name;
+  };
   let kind: Kind = 'phone';
+  const nameInput = E('input', { type: 'text', class: 'cbi-input-text', placeholder: suggest(kind), maxlength: 48 }) as HTMLInputElement;
+  const nameRow = liveField('Name', nameInput, () =>
+    nameInput.value.trim()
+      ? nameHelp(nameInput.value, taken, 'Shown in the portal and in the app.')
+      : { text: `Named after its type: ${suggest(kind)}.`, bad: false },
+  );
   const kinds = E(
     'div',
     { class: 'dl-kinds', role: 'radiogroup', 'aria-label': 'Type' },
@@ -521,7 +547,8 @@ export function addDevice(person: Person, o: DeviceOpts) {
               c.classList.toggle('on', on);
               c.setAttribute('aria-checked', on ? 'true' : 'false');
             });
-            nameInput.placeholder = KIND_LABEL[k];
+            nameInput.placeholder = suggest(k);
+            nameRow.refresh();
           },
         },
         [icon(k), E('span', {}, KIND_LABEL[k])],
@@ -540,7 +567,7 @@ export function addDevice(person: Person, o: DeviceOpts) {
           )
         : '',
       E('div', { class: 'dl-fld' }, [E('span', { class: 'dl-fld-label' }, 'Type'), kinds]),
-      E('label', { class: 'dl-fld' }, [E('span', { class: 'dl-fld-label' }, 'Name'), nameInput]),
+      nameRow,
     ],
     [
       cancelButton(),
@@ -548,7 +575,12 @@ export function addDevice(person: Person, o: DeviceOpts) {
       button(
         'Add device',
         async () => {
-          const name = nameInput.value.trim() || nameInput.placeholder.replace(/^e\.g\. /, '');
+          const h = nameRow.help();
+          if (h.bad) {
+            notify(h.text, 'warning');
+            return;
+          }
+          const name = nameInput.value.trim() || suggest(kind);
           const r = await attempt(() => api.deviceCreate(person.id, name, kind));
           if (!r) return;
           closeModal();

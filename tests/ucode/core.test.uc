@@ -136,3 +136,31 @@ test('names and codes', () => {
 	for (let i = 0; i < 20; i++)
 		ok(match(core.new_code(), core.WORD_CODE), 'new_code is a word code');
 });
+
+test('renumber_server', () => {
+	let srv = { id: 'main', name: 'Main', subnet: '10.9.0.0/29' };
+	let mm = {
+		servers: { main: srv, other: { id: 'other', subnet: '10.9.1.0/29' } },
+		people: { a: { server: 'main', devices: [ 'a1', 'a2' ] }, o: { server: 'other', devices: [ 'o1' ] } },
+		devices: { a1: { person: 'a', address: '10.9.0.5' }, a2: { person: 'a', address: '10.9.0.3' }, o1: { person: 'o', address: '10.9.1.2' } },
+	};
+	let set = {};
+	let c = { set: (cfg, s, k, v) => { set[`${s}.${k}`] = v; }, delete: () => {} };
+	core.renumber_server(c, mm, srv, '10.77.0.0/24');
+	eq(srv.subnet, '10.77.0.0/24', 'the server moves');
+	eq([ mm.devices.a1.address, mm.devices.a2.address ], [ '10.77.0.2', '10.77.0.3' ], 'devices renumbered lowest first');
+	eq(mm.devices.o1.address, '10.9.1.2', 'another server untouched');
+	eq(set, { 'a1.address': '10.77.0.2', 'a2.address': '10.77.0.3', 'main.subnet': '10.77.0.0/24' }, 'written to uci');
+	let err = null;
+	try { core.renumber_server(c, mm, srv, '10.9.2.0/30'); } catch (e) { err = e; }
+	ok(err != null, 'refuses a subnet too small for the devices');
+});
+
+test('device_labels', () => {
+	let mm = { devices: {
+		a: { id: 'a', name: 'iPhone', created: 1 }, b: { id: 'b', name: 'iPhone!', created: 2 },
+		c: { id: 'c', name: 'Телефон', created: 3 }, d: { id: 'd', name: 'телефон', created: 4 },
+	} };
+	let p = { id: 'p', devices: [ 'd', 'c', 'b', 'a' ] };
+	eq(core.device_labels(mm, p), { a: 'iphone', b: 'iphone-2', c: 'telefon', d: 'telefon-2' }, 'unique by age');
+});

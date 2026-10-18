@@ -12,11 +12,31 @@ import * as pc from 'dawnline.portalcert';
 import * as watchdog from 'dawnline.watchdog';
 import * as awg from 'dawnline.awg';
 import * as store from 'dawnline.store';
+import * as devices from 'dawnline.devices';
 import {
-	VERSION, slog, sh_out, q, take_iface_intent, read_json, write_json, ensure_dir, with_lock, RUN_DIR
+	VERSION, slog, slog_read, sh_out, q, take_iface_intent, read_json, write_json, ensure_dir, with_lock, RUN_DIR
 } from 'dawnline.util';
 
-const args = ARGV;
+/** Options that take no value. */
+const FLAGS = [ 'json', 'yes', 'conf' ];
+
+// Options (--name value, or a bare --flag) can go anywhere; what is left are the words.
+const opts = {};
+const args = [];
+for (let i = 0; i < length(ARGV); i++) {
+	let a = ARGV[i];
+	if (a == '-n')
+		a = '--n';
+	if (substr(a, 0, 2) == '--') {
+		let name = substr(a, 2);
+		if (index(FLAGS, name) >= 0)
+			opts[name] = true;
+		else
+			opts[name] = ARGV[++i] ?? '';
+	}
+	else
+		push(args, a);
+}
 const cmd = args[0] ?? 'help';
 
 function out(v) {
@@ -24,10 +44,41 @@ function out(v) {
 }
 
 function opt(name, dflt) {
-	for (let i = 1; i < length(args); i++)
-		if (args[i] == `--${name}`)
-			return args[i + 1];
-	return dflt;
+	return opts[name] ?? dflt;
+}
+
+/** Fixed-width columns: a header, then one line per row. */
+function table(cols, rows) {
+	let w = map(cols, (c) => length(c));
+	for (let r in rows)
+		for (let i, v in r)
+			w[i] = max(w[i], length(`${v}`));
+	let line = (r) => rtrim(join('  ', map(r, (v, i) => sprintf(`%-${w[i]}s`, `${v}`))));
+	out(line(cols));
+	for (let r in rows)
+		out(line(r));
+}
+
+/** `--since 30m|2h|3d|YYYY-MM-DD` as a time, or null. */
+function since_time(s) {
+	if (!s)
+		return null;
+	let m = match(s, /^([0-9]+)([mhd])$/);
+	if (m)
+		return time() - +m[1] * { m: 60, h: 3600, d: 86400 }[m[2]];
+	m = match(s, /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/);
+	if (m)
+		return timelocal({ year: +m[1], mon: +m[2], mday: +m[3], hour: 0, min: 0, sec: 0 });
+	die('--since takes 30m, 2h, 3d or a date like 2026-10-18.');
+}
+
+/** "5m", "3h", "2d": how long ago, for the lists. */
+function ago(secs) {
+	return secs < 3600 ? `${int(secs / 60)}m` : secs < 86400 ? `${int(secs / 3600)}h` : `${int(secs / 86400)}d`;
+}
+
+function the_person(m, slug) {
+	return m.people[slug ?? ''] ?? die(slug ? `Unknown person: ${slug}.` : 'Which person? Give their id (dawnline person ls).');
 }
 
 function help() {
@@ -39,19 +90,24 @@ Usage: dawnline <command>
   sync                      Push devices and access rules to the tunnels
   status                    People and devices with live state (JSON)
   health                    Run health checks (JSON)
+  person ls [--json]        Everyone: id, name, access, state, devices, last seen
   person add <name> [--slug s] [--access lan|internet|both] [--devices n]
-                            [--expires YYYY-MM-DD] [--quota GB]
-  person link <slug>        Print the personal portal link
-  person rm <slug>          Remove a person and their devices
-  device add <slug> <name> [--kind phone|computer|tablet|router]
+                            [--expires YYYY-MM-DD] [--quota GB] [--server id]
+  person link <id>          Print the personal portal link
+  person rm <id> [--yes]    Remove a person and their devices (--yes when they have any)
+  device ls [person] [--json]
+  device add <person> <name> [--kind phone|computer|tablet|router] [--conf]
   device conf <id>          Print a device configuration (.conf)
   device rm <id>            Remove a device
   backup                    Create a backup in /etc/dawnline/backups
   portal-cert               Print the certificate and key the portal uses
   portal-http-port          Print the plain-HTTP port when an IP is among the portal addresses
-  log                       Service log: tunnel and service starts, stops, repairs (newest first)
+  log [-n N] [--since 2h|3d|date] [--level error|down|repair|up|info] [--src awg|dawnline|portal] [--json]
+                            Service log: tunnel and service starts, stops, repairs (newest first)
   teardown                  Remove everything Dawnline created on the router
-  version`);
+  version
+
+Exit codes: 0 done, 1 refused or failed, 2 unknown command. health exits 1 when a check fails.`);
 }
 
 /*
@@ -106,40 +162,100 @@ try {
 		let m = core.load(), u = core.load_usage(), d = live.dump(m), st = view.states(m, u);
 		out(map(values(m.people), (p) => view.person_view(m, p, u, d, st, { admin: true })));
 	}
-	else if (cmd == 'health')
-		out(health.health());
+	else if (cmd == 'health') {
+		let checks = health.health();
+		out(checks);
+		if (length(filter(checks, (c) => c.status == 'error')))
+			exit(1);
+	}
+	else if (cmd == 'person' && args[1] == 'ls') {
+		let m = core.load(), u = core.load_usage(), d = live.dump(m), st = view.states(m, u);
+		let people = sort(map(values(m.people), (p) => view.person_view(m, p, u, d, st, { admin: true })), (a, b) => a.name < b.name ? -1 : 1);
+		if (opts.json)
+			out(people);
+		else
+			table([ 'ID', 'NAME', 'SERVER', 'ACCESS', 'STATE', 'DEVICES', 'LAST SEEN' ], map(people, (p) => [
+				p.id, p.name, p.server, p.access, p.state, `${length(p.devices)}${p.online ? ` (${p.online} online)` : ''}`,
+				p.online ? 'now' : p.last_seen ? ago(time() - p.last_seen) + ' ago' : 'never',
+			]));
+	}
 	else if (cmd == 'person' && args[1] == 'add') {
 		let id = store.transact((c, m) => core.create_person(c, m, {
-			name: args[2], slug: opt('slug'), access: opt('access', 'internet'),
+			name: args[2], slug: opt('slug'), access: opt('access', 'internet'), server: opt('server'),
 			device_limit: opt('devices'), expires: opt('expires'), quota_gb: opt('quota'),
 		}));
 		let m2 = core.load();
-		out(core.portal_url(m2, m2.people[id]) ?? id);
+		live.add_event({ type: 'person_added', person: id, detail: m2.people[id].name, by: 'admin' });
+		out(`Added ${m2.people[id].name} (${id})`);
+		out(core.portal_url(m2, m2.people[id]) ?? 'No personal link: the portal is off.');
 	}
 	else if (cmd == 'person' && args[1] == 'link') {
 		let m = core.load();
-		let p = m.people[args[2]] ?? die('Unknown person.');
-		out(core.portal_url(m, p) ?? 'Set settings.portal_host first.');
+		let p = the_person(m, args[2]);
+		out(core.portal_url(m, p) ?? 'No personal link: the portal is off.');
 	}
 	else if (cmd == 'person' && args[1] == 'rm') {
-		store.transact((c, m) => core.delete_person(c, m, args[2]));
-		apply.sync();
+		let m = core.load();
+		let p = the_person(m, args[2]);
+		let n = length(p.devices);
+		if (n && !opts.yes)
+			die(`${p.name} has ${n} device${n == 1 ? '' : 's'}: add --yes to remove them too.`);
+		store.transact((c, m) => core.delete_person(c, m, p.id));
+		live.add_event({ type: 'person_removed', person: p.id, detail: p.name, pname: p.name, by: 'admin' });
+		let s = apply.sync();
+		out(`Removed ${p.name}${n ? ` and ${n} device${n == 1 ? '' : 's'}` : ''}.`);
+		if (s.warning)
+			warn(`dawnline: ${s.warning}\n`);
+	}
+	else if (cmd == 'device' && args[1] == 'ls') {
+		let m = core.load(), d = live.dump(m);
+		let who = args[2] ? the_person(m, args[2]) : null;
+		let rows = [];
+		for (let id, dev in m.devices) {
+			let p = m.people[dev.person];
+			if (!p || (who && p.id != who.id))
+				continue;
+			let peer = d.peers[dev.public_key];
+			let online = live.online(d, id, peer);
+			push(rows, { id, person: p.id, name: dev.name, kind: dev.kind, address: dev.address, disabled: dev.disabled,
+				online, handshake: +(peer?.handshake ?? 0) });
+		}
+		rows = sort(rows, (a, b) => (a.person < b.person ? -1 : a.person > b.person ? 1 : 0) || (a.name < b.name ? -1 : 1));
+		if (opts.json)
+			out(rows);
+		else
+			table([ 'ID', 'PERSON', 'NAME', 'KIND', 'ADDRESS', 'STATE' ], map(rows, (r) => [
+				r.id, r.person, r.name, r.kind, r.address,
+				r.disabled ? 'off' : r.online ? 'online' : r.handshake ? `seen ${ago(time() - r.handshake)} ago` : 'never connected',
+			]));
 	}
 	else if (cmd == 'device' && args[1] == 'add') {
-		// Keys first: generating them runs the awg tool, not worth holding the config lock for.
-		let keys = awg.new_keys();
-		let id = store.transact((c, m) => core.create_device(c, m, args[2], args[3], opt('kind', 'phone'), { by: 'admin', keys }));
-		apply.sync();
-		out(id);
+		// Through the same door as LuCI and the portal: event, "issued" marker, capability check.
+		let m = core.load();
+		let p = the_person(m, args[2]);
+		if (!args[3])
+			die('Which name? dawnline device add <person> <name>.');
+		let r = devices.add(p.id, args[3], opt('kind', 'phone'), { by: 'admin' });
+		if (opts.conf)
+			print(r.config.conf);
+		else
+			out(`${r.id}  (dawnline device conf ${r.id} prints its configuration)`);
+		if (r.warning)
+			warn(`dawnline: ${r.warning}\n`);
 	}
 	else if (cmd == 'device' && args[1] == 'conf') {
 		let m = core.load();
-		let d = m.devices[args[2]] ?? die('Unknown device.');
+		let d = m.devices[args[2] ?? ''] ?? die('Unknown device.');
+		awg.mark_issued(m, d.id);
 		print(awg.client_config(m, d).conf);
 	}
 	else if (cmd == 'device' && args[1] == 'rm') {
-		store.transact((c, m) => core.delete_device(c, m, args[2]));
-		apply.sync();
+		let m = core.load();
+		let d = m.devices[args[2] ?? ''] ?? die('Unknown device.');
+		let r = devices.remove(d.id, { by: 'admin' });
+		out(`Removed ${d.name} (${m.people[d.person]?.name ?? d.person}).`);
+		if (r.warning)
+			warn(`dawnline: ${r.warning}\n`);
 	}
 	else if (cmd == 'backup')
 		out(backup.backup_create(opt('reason')));
@@ -153,7 +269,22 @@ try {
 			out(`${core.portal_http_port(m)}`);
 	}
 	else if (cmd == 'log') {
-		for (let e in watchdog.view(core.load()).log) {
+		let n = +opt('n', 0) || 0;
+		let since = since_time(opt('since'));
+		let level = opt('level'), src = opt('src');
+		if (level && index([ 'info', 'up', 'down', 'repair', 'error' ], level) < 0)
+			die('--level takes error, down, repair, up or info.');
+		if (src && index([ 'awg', 'dawnline', 'portal' ], src) < 0)
+			die('--src takes awg, dawnline or portal.');
+		let log = filter(slog_read(n && !since && !level && !src ? n : null),
+			(e) => (!since || e.ts >= since) && (!level || e.level == level) && (!src || e.src == src));
+		if (n && length(log) > n)
+			log = slice(log, 0, n);
+		if (opts.json) {
+			out(log);
+			exit(0);
+		}
+		for (let e in log) {
 			let t = localtime(e.ts);
 			let text = e.by == 'admin'
 				? join(' ', filter([ 'You', e.msg, e.kind, e.who, e.note ? '· ' + e.note : null ], (x) => x))
@@ -197,8 +328,12 @@ try {
 		apply.teardown();
 	else if (cmd == 'version')
 		out(VERSION);
-	else
+	else if (cmd == 'help' || cmd == '--help' || cmd == '-h')
 		help();
+	else {
+		warn(`dawnline: unknown command "${join(' ', slice(args, 0, 2))}" (dawnline help)\n`);
+		exit(2);
+	}
 }
 catch (e) {
 	warn(`dawnline: ${e.message}\n`);

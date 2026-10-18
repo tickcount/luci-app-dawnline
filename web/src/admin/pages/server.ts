@@ -12,13 +12,13 @@ import { cancelButton, closeModal, confirmDialog, modal } from '../ui/modal';
 import { copyText } from '../ui/files';
 import { attempt, errorText, notify } from '../ui/toast';
 import { input, seg, sw } from '../ui/controls';
-import { card, group, liveRow, needRow, row } from '../ui/layout';
-import { portalPortHelp, portHelp, rangeHelp, rangeOf, subnetOf } from '../netcheck';
+import { card, firstBad, group, liveRow, needRow, row } from '../ui/layout';
+import { dnsHelp, endpointProbe, hostHelp, nameHelp, portalPortHelp, portHelp, rangeHelp, rangeOf, subnetOf } from '../netcheck';
 import { icon } from '../../shared/icons';
-import { duration } from '../../shared/format';
+import { ago, duration } from '../../shared/format';
 import { accessCards } from '../interfaces';
 import { checkAccess, whoReaches } from '../access';
-import { methodPicker, type Method } from '../disguise';
+import { defaultMethod, methodPicker } from '../disguise';
 import { coreOf } from '../cores';
 import { installAwg } from '../pkgs';
 import { createPoller, focusInside, repaint, type Poller } from '../state/poller';
@@ -299,7 +299,7 @@ export class ServerPage {
           { type: 'button', class: 'dl-addrbar-seg main', title: 'Copy address', click: () => copyText(addr, 'Address copied') },
           [icon('globe'), E('span', { class: 'dl-mono' }, addr), icon('copy')],
         ),
-        part('tunnel', [E('span', { class: 'dl-mono' }, `${coreOf(srv).label} :${srv.port}`)]),
+        part(coreOf(srv).id === 'awg' ? 'amneziawg' : 'tunnel', [E('span', { class: 'dl-mono' }, `${coreOf(srv).label} :${srv.port}`)]),
         srv.up ? part('clock', [`up ${duration(srv.uptime)}`]) : '',
       ]),
       // The reason the tunnel can't run at all ("can't use the network interface awg0: it exists and isn't Dawnline's").
@@ -318,7 +318,7 @@ export class ServerPage {
     const dns = input(srv.dns.join(', '), { placeholder: 'This router (recommended)', class: 'cbi-input-text dl-mono' });
     const people = this.st.people.filter((p) => p.server === srv.id).length;
     const toggle = button(
-      srv.enabled ? 'Turn off' : 'Turn on',
+      [icon(srv.enabled ? 'pause' : 'play'), srv.enabled ? ' Turn off' : ' Turn on'],
       async () => {
         if (
           srv.enabled &&
@@ -334,24 +334,51 @@ export class ServerPage {
       },
       srv.enabled ? 'negative' : 'positive',
     );
+    const portalHost = this.st.settings.portal_host;
+    const nameRow = liveRow('Name', name, () => nameHelp(name.value, [], 'Shown to people in their portal and apps.'));
+    // Where the address points is checked on the router as it is typed (debounced).
+    const ep = endpointProbe(
+      () => ({ host: endpoint.value, port: srv.port, id: srv.id }),
+      (h, id, port) => api.endpointProbe(h, id, port),
+      () => epRow.refresh(),
+      { empty: portalHost ? `Empty = the portal’s address (${portalHost}).` : 'Empty = the portal’s address.' },
+    );
+    const epRow = liveRow('Public address', endpoint, ep.help);
+    endpoint.addEventListener('input', ep.schedule);
+    ep.schedule();
+    const reached = srv.reached
+      ? `Reached from the internet ${ago(srv.reached, this.st.now)}.`
+      : 'Never reached from the internet yet — test with a phone on mobile data.';
+    const dnsRow = liveRow('DNS for devices', dns, () => dnsHelp(dns.value, srv.address));
     return E('div', { class: 'dl-stack gap16' }, [
       card(
         'Connection',
         [
           E('p', { class: 'dl-muted' }, 'The name people see, where devices find the router, and DNS. The port is on AmneziaWG.'),
-          group('router', 'Server', 'What people see', [row('Name', name, 'Shown to people in their portal and apps.')]),
-          group('globe', 'Devices connect to', 'Where the router answers from the internet', [
-            row(
-              'Public address',
-              endpoint,
-              'Hostname or IP of the router on the internet. A DDNS name keeps links working when your IP changes. It must not go through Cloudflare: use a DNS-only name or an IP.',
-            ),
-          ]),
-          group('file', 'For every device', 'Changing it marks devices “Update config” until they import again', [
-            row('DNS for devices', dns, 'Empty = this router, which sends each query where your home network would.'),
-          ]),
+          group('router', 'Server', 'What people see', [nameRow]),
+          group(
+            'globe',
+            'Devices connect to',
+            'A DDNS name keeps links working when your IP changes; not through Cloudflare (use a DNS-only name or an IP)',
+            [epRow, E('div', { class: `dl-sub ${srv.reached ? 'ok' : 'warn'}` }, reached)],
+          ),
+          group('file', 'For every device', 'Changing it marks devices “Update config” until they import again', [dnsRow]),
         ],
-        [E('span'), button('Save', () => this.save(srv, { name: name.value, endpoint: endpoint.value, dns: dns.value }), 'positive')],
+        [
+          E('span'),
+          button(
+            'Save',
+            () => {
+              const bad = firstBad([nameRow, epRow, dnsRow]);
+              if (bad) {
+                notify(bad, 'warning');
+                return;
+              }
+              return this.save(srv, { name: name.value, endpoint: endpoint.value, dns: dns.value });
+            },
+            'positive',
+          ),
+        ],
       ),
       card(
         'Danger zone',
@@ -368,6 +395,21 @@ export class ServerPage {
               ),
             ]),
             E('div', { class: 'dl-setrow-ctl' }, toggle),
+          ]),
+          E('div', { class: 'dl-setrow' }, [
+            E('div', { class: 'dl-stack' }, [
+              E('span', { class: 'dl-setrow-label' }, 'Change the tunnel network'),
+              E(
+                'span',
+                { class: 'dl-sub' },
+                `Devices have ${rangeOf(srv.subnet)}.x addresses now. A new range when it clashes with a network you connect to; every device then needs its configuration again.`,
+              ),
+            ]),
+            E(
+              'div',
+              { class: 'dl-setrow-ctl' },
+              button([icon('edit'), ' Change'], () => this.changeSubnet(srv), 'negative'),
+            ),
           ]),
           E('div', { class: 'dl-setrow' }, [
             E('div', { class: 'dl-stack' }, [
@@ -434,6 +476,55 @@ export class ServerPage {
     );
   }
 
+  /** A new tunnel network: checked as you type against the router's networks, then every device renumbered. */
+  async changeSubnet(srv: Server) {
+    const taken = await attempt(() => api.serverPorts(srv.id));
+    if (!taken) return;
+    const nets = taken.networks ?? [];
+    const devices = this.st.people.filter((p) => p.server === srv.id).reduce((n, p) => n + p.devices.length, 0);
+    const range = input(rangeOf(srv.subnet), { class: 'cbi-input-text dl-mono dl-w-range' });
+    const rangeRow = liveRow('Address range', range, () => rangeHelp(range.value, nets, ''));
+    modal(
+      'Change the tunnel network',
+      [
+        rangeRow,
+        E(
+          'p',
+          { class: 'dl-muted' },
+          devices
+            ? `${devices} device${devices === 1 ? ' gets a new address and stops' : 's get new addresses and stop'} connecting until ${devices === 1 ? 'it imports its' : 'they import their'} configuration again (from their personal link or from you).`
+            : 'No devices on this server yet: nothing else changes.',
+        ),
+      ],
+      [
+        cancelButton(),
+        ' ',
+        button(
+          'Change',
+          async () => {
+            const h = rangeRow.help();
+            if (h.bad) {
+              notify(h.text, 'warning');
+              return;
+            }
+            const subnet = subnetOf(range.value);
+            if (subnet === srv.subnet) {
+              closeModal();
+              return;
+            }
+            if (await attempt(() => api.serverUpdate(srv.id, { subnet }), 'Tunnel network changed')) {
+              closeModal();
+              if (devices) notify('Devices are marked “Update config” until they import again.', 'info', 6000);
+              await this.refresh();
+            }
+          },
+          'negative',
+        ),
+      ],
+    );
+    setTimeout(() => range.select(), 50);
+  }
+
   async remove(srv: Server) {
     const people = this.st.people.filter((p) => p.server === srv.id);
     modal(
@@ -477,7 +568,7 @@ export class ServerPage {
       port: d.port,
       // The tunnel's first three numbers ("10.77.0"): it is that /24.
       range: rangeOf(d.subnet),
-      preset: 'standard' as Method,
+      preset: defaultMethod(d.awg),
       // Off by default: the portal opens a port on WAN, so it is a choice.
       portal: false,
       portal_port: d.portal_port || 8443,
@@ -489,7 +580,45 @@ export class ServerPage {
     // The portal takes the server's port number (TCP beside UDP) until it is changed by hand.
     let portalSame = !extra && state.portal_port === state.port;
     const ipLinks = () => /^\d{1,3}(\.\d{1,3}){3}$/.test(state.endpoint);
-    const portHelpNow = () => portHelp(state.port, d.udp_taken ?? [], 'Opened on the WAN firewall automatically.');
+    const portHelpNow = () =>
+      portHelp(
+        state.port,
+        d.udp_taken ?? [],
+        `Opened on the WAN firewall automatically.${state.port === 4500 ? ' 4500 is IPsec’s port: most networks let it through.' : ''}`,
+      );
+    const FROM: Record<string, string> = {
+      ddns: 'From your DDNS name.',
+      cert: 'From your Let’s Encrypt certificate.',
+      wan: 'Your WAN address now — it may change; a DDNS name is better.',
+      portal: 'The portal’s address.',
+    };
+    const ep = endpointProbe(
+      () => ({ host: state.endpoint, port: state.port }),
+      (h, _id, port) => api.endpointProbe(h, '', port),
+      () => epRow?.refresh(),
+      { idle: () => (state.endpoint === d.endpoint && d.endpoint_from ? (FROM[d.endpoint_from] ?? '') : '') },
+    );
+    let epRow: ReturnType<typeof liveRow> | null = null;
+    // Nobody on the internet reaches a private or CGNAT address: say it before the first step.
+    const wanNote =
+      d.wan_kind === 'cgnat' || d.wan_kind === 'private'
+        ? needRow(
+            'alert',
+            'warn',
+            d.wan_kind === 'cgnat' ? 'Your router has no public address (CGNAT)' : `Your router is behind another router (WAN ${d.wan_ip})`,
+            d.wan_kind === 'cgnat'
+              ? 'The ISP shares one address: devices can only connect if the ISP gives you a public address or IPv6. Ask them, or use a DDNS name that points at an IPv6 address.'
+              : 'Forward the UDP port on the upstream router to this one and use a DDNS name or that router’s public address here.',
+            '',
+          )
+        : '';
+    const restartNote =
+      d.awg_state?.tools && d.awg_state.handler === false
+        ? E('div', { class: 'dl-note warn' }, [
+            icon('alert'),
+            E('span', {}, 'Creating the server restarts the network for a few seconds: AmneziaWG was installed after the network started.'),
+          ])
+        : '';
     const rangeHelpNow = () => rangeHelp(state.range, d.networks ?? [], rangeOf(d.subnet));
     const portalHelpNow = () => portalPortHelp(state.portal_port, d.tcp_taken ?? [], ipLinks());
     const root = E('div', { class: 'dl-wizard' });
@@ -513,18 +642,36 @@ export class ServerPage {
           E(
             'p',
             { class: 'dl-muted' },
-            'Where devices connect to. A hostname that always points at your router (DDNS) keeps links working when your IP changes.',
+            extra
+              ? 'One more server: another port or disguise for networks where the first does not get through, or its own home access rules. People are moved between servers from their page.'
+              : 'Where devices connect to. A hostname that always points at your router (DDNS) keeps links working when your IP changes.',
           ),
-          group('router', 'Server', 'What people see', [row('Name', field('name'), 'Shown to people in their portal and apps.')]),
-          group('globe', 'Devices connect to', 'Where the router answers from the internet', [
-            row(
-              'Public address',
-              field('endpoint', { placeholder: 'vpn.example.com', class: 'cbi-input-text dl-mono' }),
-              'Hostname or IP address of your router on the internet. Not through Cloudflare: use a DNS-only name or an IP.',
-            ),
+          group('router', 'Server', 'What people see', [
+            liveRow('Name', field('name'), () => nameHelp(state.name, [], 'Shown to people in their portal and apps.')),
           ]),
+          group(
+            'globe',
+            'Devices connect to',
+            'A hostname or IP address of your router on the internet; not through Cloudflare (use a DNS-only name or an IP). IPv6 works too, and is the way out of CGNAT',
+            [
+              (() => {
+                const el = field('endpoint', { placeholder: 'vpn.example.com', class: 'cbi-input-text dl-mono' });
+                epRow = liveRow('Public address', el, ep.help);
+                el.addEventListener('input', ep.schedule);
+                ep.schedule();
+                return epRow;
+              })(),
+            ],
+          ),
+          wanNote,
+          restartNote,
         ]),
-      check: () => (!state.endpoint ? 'Fill in the public address.' : null),
+      check: () => {
+        const n = nameHelp(state.name);
+        if (n.bad) return `Name: ${n.text}`;
+        const h = hostHelp(state.endpoint, state.port);
+        return h.bad ? `Public address: ${h.text}` : null;
+      },
     };
     const awgPage: Page = {
       id: 'awg',

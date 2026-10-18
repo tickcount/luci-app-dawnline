@@ -11,7 +11,28 @@ import * as net from 'dawnline.net';
 import * as loop from 'dawnline.loop';
 import * as awg from 'dawnline.awg';
 import * as lookup from 'dawnline.lookup';
+import * as health from 'dawnline.health';
 import { wrap, str, clamp_days } from 'dawnline.rpc.common';
+
+/** The router's public IPv4 (null when none or private). */
+function wan_public(m) {
+	let w = lookup.router_wan(m);
+	return w && health.wan_kind(w) == 'public' ? w : null;
+}
+
+/** The router's own public addresses: a device at home that reaches the server through the WAN address (NAT loopback) is not "outside". */
+function own_addresses(m) {
+	let own = {};
+	for (let id, srv in m.servers) {
+		let a = net.wan_address(srv) ?? lookup.wan_ipv4(srv.wan_zone);
+		if (a)
+			own[a] = true;
+	}
+	let wan = lookup.wan_ipv4('wan');
+	if (wan)
+		own[wan] = true;
+	return own;
+}
 
 /** Router location plus one point per (device, recent client address). */
 function geo_view(m, usage, dmp) {
@@ -84,8 +105,17 @@ function server_view(m, srv, usage, dmp, rates, days) {
 				online++;
 		}
 	let st = srv.private_key ? awg.server_state(srv) : { up: false, uptime: 0 };
+	// The newest handshake from a public address that is not the router's own:
+	// proof that the port is reachable from the internet.
+	let own = own_addresses(m);
+	let reached = 0;
+	for (let id, d in m.devices)
+		if (m.people[d.person]?.server == srv.id)
+			for (let ip, ts in usage.devices?.[id]?.ips ?? {})
+				if (geo.is_public(ip) && !own[ip] && ts > reached)
+					reached = ts;
 	return {
-		id: srv.id, name: srv.name, ifname: srv.ifname, port: srv.port, subnet: srv.subnet,
+		id: srv.id, name: srv.name, ifname: srv.ifname, port: srv.port, subnet: srv.subnet, reached,
 		endpoint: core.endpoint_host(m, srv), public_key: srv.public_key, enabled: srv.enabled,
 		lan_like: srv.lan_like, device_mesh: srv.device_mesh, mesh: srv.mesh, preset: srv.preset, mtu: srv.mtu, keepalive: srv.keepalive, dns: srv.dns,
 		// What devices get now, by kind (mtu 0 = automatic).
@@ -169,8 +199,11 @@ function status(a) {
 		like_home: loop.status(),
 		awg: awg.caps(),
 		awg_state: awg.state(),
+		// The router's public IPv4 (null when none or private): a server whose public address is an old one is told so.
+		wan: wan_public(m),
 	};
 }
+
 
 /** The newest `limit` events; `person` keeps one person's only, `since` only those after a time. */
 function events_list(a) {

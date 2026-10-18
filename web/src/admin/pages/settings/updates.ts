@@ -6,6 +6,8 @@ import { E } from '../../e';
 import { button } from '../../ui/button';
 import { chipToggle, input, isOn, seg, setChip, sw } from '../../ui/controls';
 import { row } from '../../ui/layout';
+import { notify } from '../../ui/toast';
+import { timeHelp } from '../../netcheck';
 import { section, type SettingsHost } from './common';
 
 const TARGET: [string, string][] = [
@@ -99,8 +101,15 @@ export function updatesCard(host: SettingsHost): HTMLElement {
       E('span', { class: 'dl-sub' }, 'Run a check or an update by hand in Components.'),
       button(
         'Save',
-        () =>
-          host.save(
+        () => {
+          if (mode.dataset.value === 'scheduled') {
+            const h = timeHelp(at.value);
+            if (h.bad) {
+              notify(`Time: ${h.text}`, 'warning');
+              return;
+            }
+          }
+          return host.save(
             {
               update_check: isOn(check) ? '1' : '0',
               update_interval: every.dataset.value!,
@@ -113,7 +122,8 @@ export function updatesCard(host: SettingsHost): HTMLElement {
             },
             'Saved',
             'updates',
-          ),
+          );
+        },
         'positive',
       ),
     ],

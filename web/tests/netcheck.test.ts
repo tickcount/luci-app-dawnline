@@ -62,3 +62,82 @@ describe('netcheck', () => {
     expect(portalPortHelp(8444, taken, false).bad).toBe(true);
   });
 });
+
+import {
+  chars,
+  circleNameHelp,
+  dnsHelp,
+  domainHelp,
+  expiresHelp,
+  fallbackDnsHelp,
+  hostHelp,
+  ipv4Help,
+  keepaliveHelp,
+  limitHelp,
+  mtuHelp,
+  nameHelp,
+  portsHelp,
+  quotaHelp,
+  timeHelp,
+  titleHelp,
+  urlHelp,
+} from '../src/admin/netcheck';
+import { date, daysLeft } from '../src/shared/format';
+
+describe('field helps', () => {
+  it('counts characters like the router', () => {
+    expect(chars('Мама')).toBe(4);
+    expect(nameHelp('ЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭЯЧ').bad).toBe(false);
+    expect(nameHelp('a'.repeat(49)).bad).toBe(true);
+    expect(nameHelp('Bob "B"').bad).toBe(true);
+    expect(nameHelp('  ').bad).toBe(true);
+    expect(nameHelp('Phone', ['phone']).text).toContain('already exists');
+    expect(circleNameHelp('x'.repeat(33)).bad).toBe(true);
+  });
+  it('explains the public address', () => {
+    expect(hostHelp('https://vpn.example.com').text).toContain('Leave out https://');
+    expect(hostHelp('vpn.example.com:4500').text).toContain('without a port');
+    expect(hostHelp('vpn.example.com', 4500)).toEqual({ text: 'Devices connect to vpn.example.com:4500.', bad: false });
+    expect(hostHelp('2001:db8::1', 4500).text).toBe('Devices connect to [2001:db8::1]:4500.');
+    expect(hostHelp('', 4500).bad).toBe(true);
+    expect(hostHelp('', 4500, 'Empty = the portal address.').bad).toBe(false);
+    expect(hostHelp('bad_host!').bad).toBe(true);
+  });
+  it('checks DNS, MTU, keep-alive', () => {
+    expect(dnsHelp('', '10.77.0.1').bad).toBe(false);
+    expect(dnsHelp('1.1.1.1, foo', '10.77.0.1').text).toContain('“foo” is not an IP address');
+    expect(dnsHelp('1.1.1.1 8.8.8.8', '10.77.0.1').text).toContain('1.1.1.1 and 8.8.8.8');
+    expect(mtuHelp('', { computer: 1368, phone: 1280 }).text).toContain('1368');
+    expect(mtuHelp('1200', { computer: 1368, phone: 1280 }).bad).toBe(true);
+    expect(mtuHelp('1400', { computer: 1368, phone: 1280 }).text).toContain('phones and tablets 1280');
+    expect(keepaliveHelp('601').bad).toBe(true);
+    expect(keepaliveHelp('0').bad).toBe(false);
+  });
+  it('checks limits, quota and dates', () => {
+    expect(limitHelp('0').bad).toBe(true);
+    expect(limitHelp('33').bad).toBe(true);
+    expect(limitHelp('2', 4).text).toContain('Already has 4');
+    expect(quotaHelp('').bad).toBe(false);
+    expect(quotaHelp('100001').bad).toBe(true);
+    expect(quotaHelp('50').text).toContain('Paused after 50 GB');
+    expect(expiresHelp('2026-10-13', '2026-10-14', daysLeft, date).bad).toBe(true);
+    expect(expiresHelp('2026-10-14', '2026-10-14', daysLeft, date).text).toContain('ends today');
+    expect(expiresHelp('2026-10-20', '2026-10-14', daysLeft, date).text).toContain('ends in 7 days');
+  });
+  it('checks services, portal and settings fields', () => {
+    expect(ipv4Help('10.0.1.300').bad).toBe(true);
+    expect(ipv4Help('10.0.1.5', () => false).text).toContain('not in any home network');
+    expect(portsHelp('445, 5000').text).toBe('Ports 445, 5000.');
+    expect(portsHelp('70000').bad).toBe(true);
+    expect(urlHelp('vpn.example.com').bad).toBe(true);
+    expect(urlHelp('https://example.com/x').bad).toBe(false);
+    expect(titleHelp('x'.repeat(65)).bad).toBe(true);
+    expect(domainHelp('').bad).toBe(false);
+    expect(domainHelp('').text).toContain('phone.myata.lan');
+    expect(domainHelp('Home.LAN').text).toBe('Lowercase only.');
+    expect(domainHelp('home.lan').text).toContain('phone.myata.home.lan');
+    expect(fallbackDnsHelp('abc').bad).toBe(true);
+    expect(timeHelp('4:00').bad).toBe(false);
+    expect(timeHelp('24:00').bad).toBe(true);
+  });
+});

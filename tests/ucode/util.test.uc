@@ -8,8 +8,10 @@ test('valid_name', () => {
 	ok(!util.valid_name('   '), 'blank');
 	ok(!util.valid_name(null), 'null');
 	ok(!util.valid_name(42), 'number');
-	ok(util.valid_name('a' + replace(sprintf('%47s', ''), ' ', 'b')), '48 bytes');
-	ok(!util.valid_name('a' + replace(sprintf('%48s', ''), ' ', 'b')), '49 bytes');
+	ok(util.valid_name('a' + replace(sprintf('%47s', ''), ' ', 'b')), '48 characters');
+	ok(!util.valid_name('a' + replace(sprintf('%48s', ''), ' ', 'b')), '49 characters');
+	ok(util.valid_name('ЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭЯЧ'), '25 Cyrillic letters (50 bytes) are 25 characters');
+	ok(!util.valid_name('Bob "B"'), 'quotes');
 	ok(!util.valid_name('a<b'), 'angle bracket');
 	ok(!util.valid_name('a"b'), 'quote');
 	ok(!util.valid_name('a\\b'), 'backslash');
@@ -96,7 +98,9 @@ test('slugify', () => {
 	eq(util.slugify('  --Bob!!  '), 'bob', 'trimmed dashes');
 	eq(util.slugify(''), 'user', 'empty');
 	eq(util.slugify(null), 'user', 'null');
-	eq(util.slugify('Мама'), 'user', 'nothing left');
+	eq(util.slugify('Мама'), 'mama', 'Cyrillic written in Latin');
+	eq(util.slugify('Юля Щукина'), 'yulya-shchukina', 'Cyrillic words');
+	eq(util.slugify('日本'), 'user', 'nothing left');
 	eq(length(util.slugify(replace(sprintf('%40s', ''), ' ', 'x'))), 32, 'cut at 32');
 });
 
@@ -111,4 +115,18 @@ test('dates', () => {
 	eq(util.day_key_ago(1, noon), '2026-02-28', 'day_key_ago crosses the month');
 	eq(util.day_key_ago(0, noon), '2026-03-01', 'zero days');
 	eq(util.uniq([ 'a', 'b', 'a', 'c', 'b' ]), [ 'a', 'b', 'c' ], 'uniq');
+});
+
+test('text: ulength, ucut, translit, host_label', () => {
+	eq(util.ulength('Мама'), 4, 'characters, not bytes');
+	eq(util.ulength('abc'), 3, 'ascii');
+	eq(util.ucut('Привет', 3), 'При', 'cut by characters');
+	eq(util.ucut('ab', 5), 'ab', 'shorter than the cut');
+	eq(util.translit('Мама Таня'), 'mama tanya', 'Russian');
+	eq(util.translit('Їжак Ґава ёж'), 'yizhak gava yozh', 'Ukrainian letters and ё');
+	eq(util.translit('Mixed Текст 1'), 'Mixed tekst 1', 'Latin and digits pass');
+	eq(util.host_label('Galaxy S24'), 'galaxy-s24', 'label');
+	eq(util.host_label('Телефон Ёжика'), 'telefon-yozhika', 'Cyrillic label');
+	eq(util.host_label('!!!'), 'device', 'nothing left');
+	eq(length(util.host_label(replace(sprintf('%50s', ''), ' ', 'x'))), 40, 'cut at 40');
 });

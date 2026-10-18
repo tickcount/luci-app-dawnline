@@ -2,7 +2,7 @@
 // Interfaces settings, its disguise, and removing it.
 
 import { cursor } from 'uci';
-import { sh_out, sh_bg, parse_cidr, cidr_str, cidr_overlaps, valid_host, rand_int, uniq, admin_log } from 'dawnline.util';
+import { sh_out, sh_bg, parse_cidr, cidr_str, cidr_overlaps, valid_host, valid_name, NAME_RULE, rand_int, uniq, admin_log } from 'dawnline.util';
 import * as core from 'dawnline.core';
 import * as live from 'dawnline.live';
 import * as apply from 'dawnline.apply';
@@ -14,7 +14,7 @@ import * as schema from 'dawnline.schema';
 import * as health from 'dawnline.health';
 import * as backup from 'dawnline.backup';
 import * as devices from 'dawnline.devices';
-import { wrap, str, check_method, check_portal, tcp_taken } from 'dawnline.rpc.common';
+import { wrap, str, check_method, default_method, check_portal, tcp_taken } from 'dawnline.rpc.common';
 
 /** Server ids that would shadow a portal path. */
 const PORTAL_PATHS = [ 'api', 'assets', 'cgi-bin' ];
@@ -77,8 +77,9 @@ function free_port(taken) {
 }
 
 function free_subnet(taken) {
-	for (let i = 0; i < 200; i++) {
-		let cand = parse_cidr(sprintf('10.%d.%d.0/24', rand_int(60, 250), rand_int(0, 250)));
+	for (let i = 0; i < 300; i++) {
+		// 10.x first; past 200 tries (a 10/8 LAN) the 172.16-31 range.
+		let cand = parse_cidr(i < 200 ? sprintf('10.%d.%d.0/24', rand_int(60, 250), rand_int(0, 250)) : sprintf('172.%d.%d.0/24', rand_int(16, 31), rand_int(0, 250)));
 		let bad = false;
 		for (let t in taken) {
 			let tc = parse_cidr(t);
@@ -164,21 +165,33 @@ function setup_defaults(a) {
 	let fc = cursor();
 	fc.load('firewall');
 	fc.foreach('firewall', 'zone', (z) => push(zones, z.name));
-	let host = m.settings.portal_host;
+	let snap = net.snapshot(true);
+	let wan_ip = snap.wan ? split(snap.devices[snap.wan]?.addrs?.[0] ?? '', '/')[0] : '';
+	let kind = health.wan_kind(wan_ip || null);
+	let host = m.settings.portal_host, from = host ? 'portal' : '';
 	if (!host) {
-		// Prefer a DDNS name, then an ACME certificate's, then the WAN address.
+		// Prefer a DDNS name, then an ACME certificate's, then the WAN address —
+		// but never a private or CGNAT one: nobody on the internet reaches it.
 		let dc = cursor();
 		if (dc.load('ddns'))
 			dc.foreach('ddns', 'service', (s) => {
-				if (!host && s.lookup_host && s.enabled == '1')
+				if (!host && s.lookup_host && s.enabled == '1') {
 					host = s.lookup_host;
+					from = 'ddns';
+				}
 			});
-		if (!host)
+		if (!host) {
 			host = sh_out("ls /etc/ssl/acme/ 2>/dev/null | sed -n 's/\\.fullchain\\.crt$//p' | head -n1") || '';
-		if (!host)
-			host = live.iface_status('wan')?.['ipv4-address']?.[0]?.address ?? '';
+			from = host ? 'cert' : '';
+		}
+		if (!host && kind == 'public') {
+			host = wan_ip;
+			from = 'wan';
+		}
 	}
-	let wan_zone = index(zones, 'wan') >= 0 ? 'wan' : zones[1];
+	// The zones the WAN and LAN devices are in, whatever they are called.
+	let wan_zone = snap.devices[snap.wan]?.zone ?? (index(zones, 'wan') >= 0 ? 'wan' : zones[1]);
+	let lan_zone = snap.devices[snap.lan]?.zone ?? (index(zones, 'lan') >= 0 ? 'lan' : zones[0]);
 	let udp = udp_taken(m, null, wan_zone);
 	let tcp = tcp_taken(m);
 	let port = free_port(udp);
@@ -189,10 +202,14 @@ function setup_defaults(a) {
 		port,
 		subnet: free_subnet(map(networks, (n) => n.cidr)),
 		endpoint: host,
+		// Where the address came from (ddns, cert, wan, portal) and what the WAN is (public, private, cgnat, none).
+		endpoint_from: from,
+		wan_kind: kind,
+		wan_ip: wan_ip || null,
 		// Automatic.
 		mtu: 0,
 		zones,
-		lan_zone: index(zones, 'lan') >= 0 ? 'lan' : zones[0],
+		lan_zone,
 		wan_zone,
 		// A portal already on keeps its port; a new one takes the server's number when it can.
 		portal_port: m.settings.portal_enabled ? m.settings.portal_port : free_portal_port(port, m.settings.portal_port, tcp),
@@ -202,6 +219,22 @@ function setup_defaults(a) {
 		udp_taken: udp,
 		tcp_taken: tcp,
 	};
+}
+
+/**
+ * Where a public address points, as the admin types it (debounced in the
+ * UI): the same facts Health uses, in words. `id` names the server whose WAN
+ * to compare with (a new one: the default WAN).
+ */
+function endpoint_probe(a) {
+	let host = str(a.host);
+	if (host != '' && !valid_host(host))
+		die('Public address must be a hostname or IP address.');
+	let m = core.load();
+	let srv = m.servers[str(a.id)] ?? null;
+	let f = health.endpoint_facts(srv, host);
+	let w = health.endpoint_words(f, `UDP ${srv?.port ?? +a.port || 4500}`);
+	return { ...f, status: w.status, text: w.text };
 }
 
 /** AmneziaWG can run a server: installed, and its kernel module loads. */
@@ -244,7 +277,7 @@ function server_create(a) {
 		}
 		check_udp_port(port, udp);
 		let mtu = check_mtu(a.mtu == 0 ? '' : a.mtu);
-		let preset = str(a.preset) || 'standard';
+		let preset = str(a.preset) || default_method();
 		let srv = { id, ifname, port, subnet: str(a.subnet), endpoint: str(a.endpoint), obf: awg.obf_preset(check_method(preset)) };
 		let pc = parse_cidr(srv.subnet);
 		if (pc)
@@ -264,6 +297,8 @@ function server_create(a) {
 		let set = (k, v) => c.set(core.CONFIG, id, k, v);
 		c.set(core.CONFIG, 'settings', 'settings');
 		c.set(core.CONFIG, id, 'server');
+		if (!valid_name(str(a.name) || 'Home'))
+			die(`Server: ${NAME_RULE}`);
 		set('name', str(a.name) || 'Home');
 		set('ifname', ifname);
 		set('port', `${port}`);
@@ -465,12 +500,13 @@ function server_update(a) {
 			die('Unknown server.');
 		let set = (k, val) => (val == null || val == '') ? c.delete(core.CONFIG, srv.id, k) : c.set(core.CONFIG, srv.id, k, val);
 		if (v.name != null) {
-			if (str(v.name) == '')
-				die('Name cannot be empty.');
+			if (!valid_name(str(v.name)))
+				die(`Server: ${NAME_RULE}`);
 			set('name', str(v.name));
 		}
+		// Empty = the portal's address (core.endpoint_host), as at creation.
 		if (v.endpoint != null) {
-			if (str(v.endpoint) == '' || !valid_host(str(v.endpoint)))
+			if (str(v.endpoint) != '' && !valid_host(str(v.endpoint)))
 				die('Public address must be a hostname or IP address.');
 			set('endpoint', str(v.endpoint));
 		}
@@ -504,10 +540,23 @@ function server_update(a) {
 			else
 				c.delete(core.CONFIG, srv.id, 'dns');
 		}
+		// A new tunnel network: private, free, and every device renumbered into it.
+		if (v.subnet != null && str(v.subnet) != '' && str(v.subnet) != srv.subnet) {
+			let pc = parse_cidr(str(v.subnet));
+			if (!pc)
+				die('Subnet must look like 10.77.0.0/24.');
+			if (!core.private_cidr(pc))
+				die('Use a private range: 10.x.x.x, 172.16–31.x.x or 192.168.x.x.');
+			let taken = map(filter(taken_networks(m), (n) => n.cidr != srv.subnet && n.name != srv.name), (n) => n.cidr);
+			for (let t in taken)
+				if (cidr_overlaps(pc, parse_cidr(t)))
+					die(`Subnet overlaps ${t}.`);
+			core.renumber_server(c, m, srv, cidr_str(pc));
+		}
 		return srv;
 	});
 	// For the log: what changed, in words. Turning on or off is its own line.
-	let labels = { name: 'name', endpoint: 'public address', port: 'AmneziaWG port', mtu: 'MTU', keepalive: 'keep-alive', dns: 'DNS' };
+	let labels = { name: 'name', endpoint: 'public address', port: 'AmneziaWG port', mtu: 'MTU', keepalive: 'keep-alive', dns: 'DNS', subnet: 'tunnel network' };
 	let what = [];
 	for (let k, label in labels) {
 		if (v[k] == null)
@@ -529,8 +578,19 @@ function server_update(a) {
 	return r;
 }
 
+/** What the ports of an existing server must avoid (the AmneziaWG card checks as you type). */
+function server_ports(a) {
+	let m = core.load();
+	let srv = m.servers[a.id];
+	if (!srv)
+		die('Unknown server.');
+	// `networks`: what a new tunnel network must not overlap (everything but this server's own).
+	return { udp_taken: udp_taken(m, srv, srv.wan_zone), tcp_taken: tcp_taken(m),
+		networks: filter(taken_networks(m), (n) => n.cidr != srv.subnet) };
+}
+
 function server_obfuscation(a) {
-	let preset = str(a.preset) || 'standard';
+	let preset = str(a.preset) || default_method();
 	let o = awg.obf_preset(check_method(preset));
 	let srv = store.transact((c, m) => {
 		let srv = m.servers[a.id];
@@ -581,6 +641,8 @@ export const methods = {
 			lan_like: true, portal_enabled: false, portal_port: 0 },
 		call: wrap(server_create),
 	},
+	server_ports: { args: { id: '' }, call: wrap(server_ports) },
+	endpoint_probe: { args: { host: '', id: '', port: 0 }, call: wrap(endpoint_probe) },
 	server_obfuscation: { args: { id: '', preset: '' }, call: wrap(server_obfuscation) },
 	server_update: { args: { id: '', values: {} }, call: wrap(server_update) },
 	interfaces: { args: { id: '' }, call: wrap(interfaces_get) },

@@ -5,6 +5,10 @@ import type { Person } from '../../../shared/types';
 import { E } from '../../e';
 import { notify } from '../../ui/toast';
 import { seg } from '../../ui/controls';
+import { button } from '../../ui/button';
+import { cancelButton, closeModal, modal } from '../../ui/modal';
+import { liveField } from '../../ui/layout';
+import { quotaHelp } from '../../netcheck';
 import { attachTip } from '../../ui/tooltip';
 import { icon } from '../../../shared/icons';
 import { ACCESS_LABEL, bytes, date, daysLeft, endsSoon, shiftDay } from '../../../shared/format';
@@ -163,8 +167,36 @@ function dataTile(page: PersonPage): HTMLElement {
         type: 'button',
         class: 'dl-chipbtn',
         click: () => {
-          const v = prompt('Data limit in GB', p.quota_gb ? String(p.quota_gb) : '');
-          if (v != null && v.trim() !== '' && Number(v) > 0) void page.patch({ quota_gb: v.trim() }, `Data limit ${v.trim()} GB`);
+          const inp = E('input', {
+            type: 'number',
+            class: 'cbi-input-text dl-w-port',
+            min: 0,
+            step: 'any',
+            value: p.quota_gb ? String(p.quota_gb) : '',
+          }) as HTMLInputElement;
+          const row = liveField('Data limit (GB)', inp, () => quotaHelp(inp.value, p.quota_period === 'month'));
+          modal(
+            'Data limit',
+            [row],
+            [
+              cancelButton(),
+              ' ',
+              button(
+                'Save',
+                async () => {
+                  const h = row.help();
+                  if (h.bad) {
+                    notify(h.text, 'warning');
+                    return;
+                  }
+                  const v = inp.value.trim();
+                  if (await page.patch({ quota_gb: v }, v && Number(v) > 0 ? `Data limit ${v} GB` : 'No data limit')) closeModal();
+                },
+                'positive',
+              ),
+            ],
+          );
+          setTimeout(() => inp.select(), 50);
         },
       },
       'Custom',
@@ -249,20 +281,27 @@ function hoursTile(page: PersonPage): HTMLElement {
       'aria-checked': hoursOn ? 'true' : 'false',
       class: `dl-switch${hoursOn ? ' on' : ''}`,
       'aria-label': 'Limit hours',
-      click: () => page.patch({ hours: hoursOn ? '' : '07:00-23:00' }, hoursOn ? 'Any time' : 'Allowed 07:00–23:00'),
+      // Turning on shows the times to set; nothing is enforced until they are saved.
+      click: () => {
+        if (hoursOn) return page.patch({ hours: '' }, 'Any time');
+        sw.classList.add('on');
+        sw.setAttribute('aria-checked', 'true');
+        label.textContent = 'Set the hours, then press Enter';
+        tile.appendChild(times);
+        from.focus();
+      },
     },
     E('i'),
   );
-  return E('div', { class: 'dl-tile2' }, [
+  const label = E('span', {}, hoursOn ? `${h1} – ${h2} (router time)` : 'Any time');
+  const tile = E('div', { class: 'dl-tile2' }, [
     E('div', { class: 'dl-tile2-row' }, [
-      E('div', { class: 'dl-stack' }, [
-        E('span', { class: 'dl-tile2-label' }, 'Allowed hours'),
-        E('span', {}, hoursOn ? `${h1} – ${h2} (router time)` : 'Any time'),
-      ]),
+      E('div', { class: 'dl-stack' }, [E('span', { class: 'dl-tile2-label' }, 'Allowed hours'), label]),
       sw,
     ]),
     hoursOn ? times : '',
   ]);
+  return tile;
 }
 
 export function limitsPart(page: PersonPage): HTMLElement {

@@ -11,7 +11,7 @@ import * as devices from 'dawnline.devices';
 import { wrap, str, clamp_days } from 'dawnline.rpc.common';
 
 const PERSON_FIELDS = [ 'name', 'access', 'device_limit', 'expires', 'expire_action', 'expire_warn', 'quota_gb', 'quota_period',
-	'bonus_gb', 'hours', 'note', 'dns_mode' ];
+	'bonus_gb', 'hours', 'note', 'dns_mode', 'server' ];
 
 /* ---------- people ---------- */
 
@@ -39,12 +39,16 @@ function person_update(a) {
 		fields.circle = a.circle;
 	if (type(a.home_nets) == 'array')
 		fields.home_nets = a.home_nets;
+	let m0 = null;
 	let before = store.transact((c, m) => {
 		let p = m.people[a.id];
+		m0 = m;
 		core.update_person(c, m, a.id, fields);
 		return p;
 	});
-	let changes = join(', ', filter(keys(fields), (k) => k != 'note'));
+	// "moved to Test" says more than "server".
+	let changes = join(', ', map(filter(keys(fields), (k) => k != 'note'),
+		(k) => k == 'server' && m0?.servers[fields.server] ? `moved to ${m0.servers[fields.server].name}` : k));
 	if (changes)
 		live.add_event_merged({ type: 'person_changed', person: a.id, detail: changes, by: 'admin' }, 120);
 	// Access changes affect the nft sets and client AllowedIPs.
@@ -156,7 +160,7 @@ export const methods = {
 	},
 	person_update: {
 		args: { id: '', name: '', access: '', device_limit: '', expires: '', expire_action: '', expire_warn: '', quota_gb: '',
-			quota_period: '', bonus_gb: '', hours: '', note: '', dns_mode: '', paused: false, services: [], circle: '', home_nets: [] },
+			quota_period: '', bonus_gb: '', hours: '', note: '', dns_mode: '', paused: false, services: [], circle: '', home_nets: [], server: '' },
 		call: wrap(person_update),
 	},
 	person_pause: { args: { id: '', paused: false }, call: wrap(person_pause) },

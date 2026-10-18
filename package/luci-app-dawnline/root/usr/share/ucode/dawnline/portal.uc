@@ -358,6 +358,8 @@ function state(r) {
 			name: srv?.name, endpoint: srv ? core.endpoint_host(m, srv) : '', device_mesh: !!srv?.device_mesh,
 			// AmneziaWG with the disguise off is plain WireGuard (any WireGuard app).
 			awg_disguise: srv ? !awg.obf_neutral(srv.obf) : false,
+			// Which apps (and versions) connect: off, balanced (2.0), max (3.1); legacy = the old junk-only presets.
+			preset: !srv || awg.obf_neutral(srv.obf) ? 'off' : index([ 'balanced', 'max' ], srv.preset) >= 0 ? srv.preset : 'legacy',
 		},
 		can_add: length(person.devices) < person.device_limit,
 		locked: LOCKED[v.state] != null,
@@ -366,6 +368,8 @@ function state(r) {
 		kinds: core.KINDS,
 		// The router's day: access ends and usage days follow its clock, not the browser's.
 		today: today(),
+		// Its clock too: "last connected 3 min ago" is measured against it, not the phone's.
+		now: time(),
 		version: VERSION,
 	};
 }

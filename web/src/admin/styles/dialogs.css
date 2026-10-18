@@ -16,6 +16,9 @@
 
 /* dialogs */
 .dl-modal .cbi-tabmenu { margin-bottom: 16px; }
+/* A dialog field checked as you type: its help under the label, as on the cards. */
+.dl-modal .cbi-value.dl-live > .cbi-value-title { display: flex; flex-direction: column; gap: 2px; text-align: left; }
+.dl-modal .cbi-value.dl-live > .cbi-value-title > .dl-sub { white-space: normal; }
 /* A list of things to tick (devices to remove with an old link). */
 .dl-checklist { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 8px; }
 .dl-checklist label { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; }

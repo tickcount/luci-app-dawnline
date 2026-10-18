@@ -107,24 +107,30 @@ export async function inviteCard(p: Invitee, server: string, opts: { title?: str
   const file = new File([png], `${p.id}-invite.png`, { type: 'image/png' });
   const url = URL.createObjectURL(png);
   const nav = navigator as Navigator & { canShare?: (d: unknown) => boolean };
-  const canShare = !!nav.canShare?.({ files: [file] });
+  // Three tiers: the card as a file, the link through the share sheet (older
+  // Android, Firefox on phones), else a download of the card.
+  const canShareFile = !!nav.canShare?.({ files: [file] });
+  const canShareLink = !canShareFile && typeof nav.share === 'function' && (nav.canShare?.({ url: href }) ?? true);
   const close = () => {
     URL.revokeObjectURL(url);
     closeModal();
   };
-  const share = canShare
-    ? button(
-        [icon('link'), ' Share card'],
-        async () => {
-          try {
-            await nav.share({ files: [file], title: `Invite ${p.name}` });
-          } catch {
-            /* cancelled */
-          }
-        },
-        'positive',
-      )
-    : button([icon('download'), ' Download card'], () => downloadFile(file.name, png), 'positive');
+  const shareIt = async (data: ShareData) => {
+    try {
+      await nav.share(data);
+    } catch {
+      /* cancelled */
+    }
+  };
+  const share = canShareFile
+    ? button([icon('link'), ' Share card'], () => shareIt({ files: [file], title: `Invite ${p.name}` }), 'positive')
+    : canShareLink
+      ? button(
+          [icon('link'), ' Share link'],
+          () => shareIt({ url: href, title: `Invite ${p.name}`, text: `Your personal VPN link` }),
+          'positive',
+        )
+      : button([icon('download'), ' Download card'], () => downloadFile(file.name, png), 'positive');
   modal(
     opts.title ?? `Invite ${p.name}`,
     E('div', { class: 'dl-invite' }, [

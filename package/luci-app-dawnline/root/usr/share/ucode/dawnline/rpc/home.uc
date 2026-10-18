@@ -4,7 +4,7 @@
 
 import { readfile } from 'fs';
 import { cursor } from 'uci';
-import { sh_out, ip2int, rand_int, rand_hex, admin_log } from 'dawnline.util';
+import { sh_out, ip2int, rand_int, rand_hex, admin_log, valid_name, ulength, NAME_RULE } from 'dawnline.util';
 import * as core from 'dawnline.core';
 import * as apply from 'dawnline.apply';
 import * as net from 'dawnline.net';
@@ -27,8 +27,8 @@ function new_id(m, make) {
 
 function service_set(a) {
 	let name = str(a.name);
-	if (name == '' || length(name) > 48)
-		die('Enter a service name.');
+	if (!valid_name(name))
+		die(`Service: ${NAME_RULE}`);
 	let address = str(a.address);
 	if (!schema.ipv4(address))
 		die('Address must be an IPv4 address.');
@@ -81,8 +81,8 @@ function service_delete(a) {
 /** Create or edit a circle; `members` (person ids) replaces who is in it. */
 function circle_set(a) {
 	let name = str(a.name);
-	if (name == '' || length(name) > 32)
-		die('Enter a circle name (up to 32 characters).');
+	if (!valid_name(name) || ulength(name) > 32)
+		die('Enter a circle name: up to 32 characters, without < > " or \\.');
 	let res = store.transact((c, m) => {
 		let ci = a.id ? m.circles[a.id] : null;
 		if (a.id && !ci)

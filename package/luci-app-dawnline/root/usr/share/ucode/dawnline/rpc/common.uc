@@ -34,7 +34,13 @@ export function clamp_days(v) {
 	return n >= 1 ? (n > 400 ? 400 : int(n)) : 30;
 };
 
-export const METHODS = [ 'off', 'standard', 'strong', 'balanced', 'max' ];
+export const METHODS = [ 'off', 'balanced', 'max' ];
+
+/** The disguise a new server gets: the strongest this router can run. */
+export function default_method() {
+	let c = awg.caps();
+	return c.v3 ? 'max' : c.v2 ? 'balanced' : 'off';
+};
 
 /** A disguise method the installed AmneziaWG can run. */
 export function check_method(name) {

@@ -13,7 +13,7 @@
 import * as uloop from 'uloop';
 import { open, readfile, writefile, stat, unlink } from 'fs';
 import {
-	read_json, write_json, ensure_dir, sh_out, q, uniq, slog, slog_trim, slog_restore, DATA_DIR, RUN_DIR, VERSION
+	read_json, write_json, ensure_dir, sh_out, q, uniq, slog, slog_trim, slog_restore, date_end, DATA_DIR, RUN_DIR, VERSION
 } from 'dawnline.util';
 import * as core from 'dawnline.core';
 import * as live from 'dawnline.live';
@@ -306,6 +306,33 @@ function note(k, v) {
 	write_json(NOTES, notes, 0o600);
 }
 
+/*
+ * End dates in the activity log: a heads-up once per end date when its
+ * warning window opens, and "keep access" passing it (which changes no
+ * state, so nothing else would say it). Not on a clock that is not set.
+ */
+function check_expiry(m, events) {
+	let ts = time();
+	if (localtime(ts).year < 2025)
+		return;
+	for (let id, p in m.people) {
+		if (!p.expires)
+			continue;
+		let end = date_end(p.expires);
+		if (end == null)
+			continue;
+		let left = end > ts ? int((end - ts) / 86400) + 1 : 0;
+		if (left > 0 && p.expire_warn > 0 && left <= p.expire_warn && notes[`warned:${id}`] != p.expires) {
+			note(`warned:${id}`, p.expires);
+			push(events, { type: 'expiring', person: id, detail: `${left} day${left == 1 ? '' : 's'}` });
+		}
+		if (left == 0 && p.expire_action == 'notify' && notes[`kept:${id}`] != p.expires) {
+			note(`kept:${id}`, p.expires);
+			push(events, { type: 'expired_kept', person: id, detail: p.expires });
+		}
+	}
+}
+
 /** "Jan 1 2027" from the certificate, or null. */
 function cert_end(path) {
 	let m = match(sh_out(`openssl x509 -enddate -noout -in ${q(path)} 2>/dev/null`) ?? '', /notAfter=([A-Za-z]+) +([0-9]+) [0-9:]+ ([0-9]+)/);
@@ -464,6 +491,7 @@ const STEPS = [
 	{ who: 'People', run: (t) => {
 		t.states = apply.states_for(t.m, usage);
 		check_people(t.m, t.states, t.events);
+		check_expiry(t.m, t.events);
 	} },
 	{ who: 'Access rules', run: (t) => {
 		if (t.states)

@@ -8,7 +8,7 @@ import { icon } from '../../../shared/icons';
 import { ago, bytes, date, initials, isoDay } from '../../../shared/format';
 import { copyPersonLink } from '../../invite';
 import { daysTile, speedTile } from '../../widgets/tiles';
-import { editNote, invite, newLink, remove, rename } from './dialogs';
+import { editNote, invite, moveToServer, newLink, remove, rename } from './dialogs';
 import type { PersonPage } from './index';
 
 export function headPart(page: PersonPage): HTMLElement {
@@ -21,6 +21,8 @@ export function headPart(page: PersonPage): HTMLElement {
   const menu: (MenuItem | null)[] = [
     { label: 'Rename', icon: icon('edit'), run: () => rename(page) },
     { label: p.note ? 'Edit note' : 'Add note', icon: icon('file'), run: () => editNote(page) },
+    // With one server there is nowhere to move to.
+    ...(st.servers.length > 1 ? [{ label: 'Move to server…', icon: icon('server'), run: () => moveToServer(page) }] : []),
     ...(portal
       ? [
           null,

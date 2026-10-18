@@ -4,7 +4,7 @@
 
 import { open, readfile, writefile, rename, mkdir, stat, unlink, popen, lsdir } from 'fs';
 
-export const VERSION = '0.7.0';
+export const VERSION = '0.8.0';
 /** GitHub repository with Dawnline releases (updates and the installer). */
 export const REPO = 'tickcount/luci-app-dawnline';
 export const RUN_DIR = '/var/run/dawnline';
@@ -455,36 +455,137 @@ export function in_cidr(ip, c) {
 	return n != null && n >= c.net && n < c.net + c.size;
 };
 
+/* ---------- text ---------- */
+
+/** Characters in a UTF-8 string (length() counts bytes: "Мама" is 8 of them). */
+export function ulength(s) {
+	let n = 0;
+	for (let i = 0; i < length(s); i++)
+		if ((ord(s, i) & 0xc0) != 0x80)
+			n++;
+	return n;
+};
+
+/** The first `n` characters of a UTF-8 string, never cut inside one. */
+export function ucut(s, n) {
+	let i = 0, c = 0;
+	while (i < length(s)) {
+		if ((ord(s, i) & 0xc0) != 0x80) {
+			if (c == n)
+				break;
+			c++;
+		}
+		i++;
+	}
+	return substr(s, 0, i);
+};
+
+// Cyrillic (Russian, Ukrainian) to Latin: а-я by code point from U+0430, then
+// ё, і, ї, є, ґ; the rest of a string passes as it is.
+const CYR_A = 0x430;
+const CYRILLIC = [ 'a', 'b', 'v', 'g', 'd', 'e', 'zh', 'z', 'i', 'y', 'k', 'l', 'm', 'n', 'o', 'p', 'r', 's', 't', 'u',
+	'f', 'kh', 'ts', 'ch', 'sh', 'shch', '', 'y', '', 'e', 'yu', 'ya' ];
+const CYRILLIC_MORE = { '1105': 'yo', '1110': 'i', '1111': 'yi', '1108': 'ye', '1169': 'g' };
+
+/**
+ * Cyrillic letters written in Latin ("Мама" → "mama", "Юля" → "yulya"):
+ * ids, hostnames and file names are ASCII, and a person should recognise
+ * their own in them. Other characters are left alone.
+ */
+export function translit(s) {
+	let out = '', i = 0, n = length(s);
+	while (i < n) {
+		let b = ord(s, i);
+		if (b < 0x80) {
+			out += substr(s, i, 1);
+			i++;
+			continue;
+		}
+		let cp = 0, len = 1;
+		if ((b & 0xe0) == 0xc0 && i + 1 < n) {
+			cp = ((b & 0x1f) << 6) | (ord(s, i + 1) & 0x3f);
+			len = 2;
+		}
+		else if ((b & 0xf0) == 0xe0 && i + 2 < n) {
+			cp = ((b & 0x0f) << 12) | ((ord(s, i + 1) & 0x3f) << 6) | (ord(s, i + 2) & 0x3f);
+			len = 3;
+		}
+		else if ((b & 0xf8) == 0xf0 && i + 3 < n)
+			len = 4;
+		// Upper case to lower: А-Я, Ё, І, Ї, Є, Ґ.
+		if (cp >= 0x410 && cp <= 0x42f)
+			cp += 0x20;
+		else if (cp == 0x401)
+			cp = 0x451;
+		else if (cp == 0x406)
+			cp = 0x456;
+		else if (cp == 0x407)
+			cp = 0x457;
+		else if (cp == 0x404)
+			cp = 0x454;
+		else if (cp == 0x490)
+			cp = 0x491;
+		let t = cp >= CYR_A && cp < CYR_A + length(CYRILLIC) ? CYRILLIC[cp - CYR_A] : CYRILLIC_MORE[`${cp}`];
+		out += t != null ? t : substr(s, i, len);
+		i += len;
+	}
+	return out;
+};
+
 /* ---------- validation ---------- */
 
 export function valid_slug(s) {
 	return type(s) == 'string' && match(s, /^[a-z0-9][a-z0-9-]{0,30}[a-z0-9]$|^[a-z0-9]$/) != null;
 };
 
+/** A name people see: 1-48 characters (not bytes), none of < > " \ or control characters. */
 export function valid_name(s) {
-	return type(s) == 'string' && length(trim(s)) > 0 && length(s) <= 48 && match(s, /[<>"\\[:cntrl:]]/) == null;
+	return type(s) == 'string' && ulength(trim(s)) > 0 && ulength(s) <= 48 && match(s, /[<>"\\[:cntrl:]]/) == null;
 };
+
+/** What valid_name wants, for the admin. */
+export const NAME_RULE = 'Enter a name: up to 48 characters, without < > " or \\.';
 
 export function valid_key(s) {
 	return type(s) == 'string' && match(s, /^[A-Za-z0-9+\/]{42}[AEIMQUYcgkosw048]=$/) != null;
 };
 
+/** An IPv6 address in its usual spelling (no zone, no brackets). */
+export function is_ip6(s) {
+	return type(s) == 'string' && match(s, /^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}$/) != null && match(s, /:::/) == null;
+};
+
 export function valid_host(s) {
 	return type(s) == 'string' && length(s) <= 253 &&
 		(match(s, /^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$/) != null ||
-		 ip2int(s) != null || match(s, /^[0-9a-fA-F:]+$/) != null);
+		 ip2int(s) != null || is_ip6(s));
 };
 
+/** YYYY-MM-DD, and a day that exists (2026-02-30 does not). */
 export function valid_date(s) {
-	return type(s) == 'string' && match(s, /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/) != null;
+	let m = type(s) == 'string' ? match(s, /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/) : null;
+	if (!m)
+		return false;
+	let l = localtime(timelocal({ year: +m[1], mon: +m[2], mday: +m[3], hour: 12, min: 0, sec: 0 }));
+	return l.year == +m[1] && l.mon == +m[2] && l.mday == +m[3];
 };
 
-/** Turn a display name into a portal slug candidate. */
+/** Turn a display name into a portal slug candidate ("Мама Таня" → "mama-tanya"). */
 export function slugify(s) {
-	let out = lc(trim(`${s ?? ''}`));
+	let out = lc(translit(trim(`${s ?? ''}`)));
 	out = replace(out, /[^a-z0-9]+/g, '-');
 	out = replace(out, /^-+|-+$/g, '');
 	return substr(out, 0, 32) || 'user';
+};
+
+/**
+ * A device's name as a DNS label ("Galaxy S24" → "galaxy-s24", "Телефон" →
+ * "telefon"): at most 40 characters, "device" when nothing is left.
+ */
+export function host_label(s) {
+	let l = replace(lc(translit(`${s ?? ''}`)), /[^a-z0-9]+/g, '-');
+	l = replace(substr(replace(l, /^-+|-+$/g, ''), 0, 40), /-+$/g, '');
+	return l || 'device';
 };
 
 /* ---------- time ---------- */

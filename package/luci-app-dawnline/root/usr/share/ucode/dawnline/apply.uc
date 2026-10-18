@@ -35,19 +35,17 @@ function log(who, msg, level, detail) {
 
 /* ---------- hostnames ---------- */
 
-function host_label(s) {
-	let l = replace(lc(s), /[^a-z0-9]+/g, '-');
-	l = replace(l, /^-+|-+$/g, '');
-	return substr(l, 0, 40) || 'device';
-}
-
 export function sync_hosts(m) {
 	let lines = [];
 	if (m.settings.hostnames)
-		for (let id, d in m.devices) {
-			let p = m.people[d.person];
-			if (p && ip2int(d.address) != null)
-				push(lines, `${d.address} ${host_label(d.name)}.${p.id}.${m.settings.domain}`);
+		for (let pid, p in m.people) {
+			// One label per device, unique within the person (the UI shows the same).
+			let labels = core.device_labels(m, p);
+			for (let id in p.devices) {
+				let d = m.devices[id];
+				if (ip2int(d.address) != null)
+					push(lines, `${d.address} ${labels[id]}.${p.id}.${m.settings.domain}`);
+			}
 		}
 	let ls = loop.status();
 	if (ls.active)
