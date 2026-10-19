@@ -1,0 +1,151 @@
+/* The portal demo's stylesheet: the portal's own, then the demo's pieces in its tokens — the "Demo"
+   chip after the breadcrumb's path, the GitHub pill beside the page's QR knob, and the scenario
+   rows in the drawer. */
+@import '../styles/index.css';
+
+/* The path keeps its width so the chip sits right after it; the page's QR stays at the end. */
+.cr-path {
+  flex: 0 1 auto;
+}
+.dm-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 8px 0 10px;
+  margin-right: auto;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  flex: none;
+  transition:
+    transform 150ms var(--ease-out),
+    background-color 150ms;
+}
+.dm-chip:hover {
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+.dm-chip:active {
+  transform: scale(0.94);
+}
+.dm-chip .i {
+  width: 14px;
+  height: 14px;
+  transform: rotate(90deg);
+}
+/* A card alone (paused): the breadcrumb is centred, the chip with it. */
+.page.single .dm-chip {
+  margin-right: 0;
+}
+
+/* GitHub: a pill of the QR knob's height and fill, just before it. On a phone it would crowd out the
+   names (the server's and the person's): there it is a button in the drawer instead. */
+.dm-gh {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px 0 10px;
+  border-radius: 999px;
+  background: var(--knob);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  flex: none;
+  transition:
+    transform 150ms var(--ease-out),
+    background-color 150ms;
+}
+.dm-gh:hover {
+  background: color-mix(in srgb, var(--knob), var(--text) 6%);
+}
+.dm-gh:active {
+  transform: scale(0.94);
+}
+.dm-gh .i {
+  width: 16px;
+  height: 16px;
+}
+@media (max-width: 479px) {
+  .dm-gh {
+    display: none;
+  }
+}
+
+/* The drawer: groups of rows that touch, one step lighter than the sheet, the current one in the accent. */
+.dm-group {
+  margin: 0 0 18px;
+}
+.dm-group .lbl-s {
+  margin: 0 4px 8px;
+}
+.dm-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-radius: var(--r-row);
+  overflow: hidden;
+}
+.dm-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 60px;
+  padding: 10px 14px 10px 12px;
+  background: var(--field);
+  text-align: left;
+  transition: background-color 150ms;
+}
+.dm-row:hover {
+  background: color-mix(in srgb, var(--field), var(--text) 4%);
+}
+.dm-row .gi {
+  width: 30px;
+  height: 30px;
+  flex: none;
+}
+.dm-row .t {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.dm-row b {
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 20px;
+  letter-spacing: -0.02em;
+}
+.dm-row .t span {
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 18px;
+}
+.dm-row.on b {
+  color: var(--accent);
+}
+.dm-tick {
+  width: 18px;
+  height: 18px;
+  color: var(--accent);
+  flex: none;
+}
+
+/* The drawer's foot: Start over, and on a phone GitHub beside it. */
+.dm-foot {
+  display: flex;
+  gap: 8px;
+}
+.dm-foot .btn {
+  flex: 1;
+}
+@media (min-width: 480px) {
+  .dm-gh-alt {
+    display: none;
+  }
+}

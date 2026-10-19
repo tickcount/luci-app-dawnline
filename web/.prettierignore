@@ -3,3 +3,4 @@ coverage/
 package-lock.json
 src/portal/fonts/
 src/admin/styles/*.css
+dist/

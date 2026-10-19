@@ -18,7 +18,7 @@
 <a href="https://openwrt.org/"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/badge/OpenWrt-25.12%20%C2%B7%20apk.svg?variant=secondary&font=geist&logo=openwrt&mode=dark"><img alt="OpenWrt 25.12" src="https://shieldcn.dev/badge/OpenWrt-25.12%20%C2%B7%20apk.svg?variant=secondary&font=geist&logo=openwrt&mode=light"></picture></a>
 <a href="https://docs.amnezia.org/"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/badge/AmneziaWG-2.0%20%C2%B7%203.1.svg?variant=secondary&font=geist&logo=wireguard&mode=dark"><img alt="AmneziaWG 2.0 and 3.1" src="https://shieldcn.dev/badge/AmneziaWG-2.0%20%C2%B7%203.1.svg?variant=secondary&font=geist&logo=wireguard&mode=light"></picture></a>
 
-[**Quick start**](#-quick-start) &nbsp;·&nbsp; [Features](#-features) &nbsp;·&nbsp; [How it works](#-how-it-works) &nbsp;·&nbsp; [Screenshots](#-a-closer-look) &nbsp;·&nbsp; [FAQ](#-faq) &nbsp;·&nbsp; [Development](#-development)
+[**Quick start**](#-quick-start) &nbsp;·&nbsp; [**Live demo**](https://dawnline-demo.vercel.app) &nbsp;·&nbsp; [Features](#-features) &nbsp;·&nbsp; [How it works](#-how-it-works) &nbsp;·&nbsp; [Screenshots](#-a-closer-look) &nbsp;·&nbsp; [FAQ](#-faq) &nbsp;·&nbsp; [Development](#-development)
 
 </div>
 
@@ -31,9 +31,10 @@ computers** and connect with AmneziaVPN, AmneziaWG or WireGuard. You decide
 **for how long, how much and when**.
 
 <p align="center">
-  <img src="docs/screenshots/portal.png" alt="The personal portal: devices and access, and adding a phone in three steps" width="860">
+  <a href="https://dawnline-demo.vercel.app"><img src="docs/screenshots/portal.png" alt="The personal portal: devices and access, and adding a phone in three steps" width="860"></a>
   <br>
-  <sub>A person's own page: their devices and access. Adding a phone takes three steps, and the page sees it connect.</sub>
+  <sub>A person's own page: their devices and access. Adding a phone takes three steps, and the page sees it connect.
+  <a href="https://dawnline-demo.vercel.app"><b>Try it in the live demo</b></a>: nothing installs and nothing connects.</sub>
 </p>
 
 ## 💡 Why Dawnline?
