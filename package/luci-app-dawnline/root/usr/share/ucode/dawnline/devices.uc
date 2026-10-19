@@ -104,6 +104,21 @@ export function rotate(id, opts) {
 	return cfg;
 };
 
+/**
+ * Set a device up from scratch (a new phone, the app reinstalled, settings
+ * the admin changed): new keys, so the configuration it holds stops working
+ * with the sync, and it counts as not set up until it connects with the new
+ * one. The usage keeps the old keys' last handshake: awg.handshake_since hides
+ * it. Returns the new configuration, as rotate.
+ */
+export function reconnect(id, opts) {
+	opts ??= {};
+	let cfg = rotate(id, opts);
+	// A deferred sync (the page came through this device) lets the old keys live a few seconds more.
+	awg.mark_reconnect(core.load(), id, time() + (opts.defer ? 5 : 0));
+	return cfg;
+};
+
 /** Remove a device. Returns the runtime sync. */
 export function remove(id, opts) {
 	opts ??= {};

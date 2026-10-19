@@ -135,6 +135,14 @@ export async function vpnKey(cfg: ClientConfig, description: string, compress = 
   return `vpn://${base64Url(packed ?? json)}`;
 }
 
+/**
+ * The key as AmneziaVPN's scanner reads it: the payload without "vpn://". Its
+ * QR import decodes the scanned text as base64 as it is (only the paste and
+ * file imports drop the prefix), and v, p and n are base64 too: with the
+ * prefix the payload shifts and the import fails.
+ */
+export const vpnQrText = (key: string): string => key.replace(/^vpn:\/\//, '');
+
 /** The .conf with a browser-held private key substituted in. */
 export function withPrivateKey(cfg: ClientConfig, priv: string): ClientConfig {
   return {

@@ -660,3 +660,33 @@ export function mark_issued(m, id) {
 	unlock(l);
 };
 
+/* ---------- set up again (Reconnect) ---------- */
+
+const RECONNECT = `${DATA_DIR}/reconnect.json`;
+
+/** Device id → when the person asked to set it up again (router clock). */
+export function reconnects() {
+	return read_json(RECONNECT, {});
+};
+
+/**
+ * The handshake a device counts with: none from before it was set up again,
+ * so it shows "Not set up yet" until it connects after that.
+ */
+export function handshake_since(hs, since) {
+	return since && hs <= since ? 0 : hs;
+};
+
+/** A device is set up again: handshakes up to `at` (router clock) are its old configuration's. */
+export function mark_reconnect(m, id, at) {
+	let l = lock('reconnect');
+	let all = reconnects();
+	all[id] = at ?? time();
+	for (let k in keys(all))
+		if (!m.devices[k])
+			delete all[k];
+	ensure_dir(DATA_DIR, 0o700);
+	write_json(RECONNECT, all, 0o600);
+	unlock(l);
+};
+

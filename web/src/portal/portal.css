@@ -132,7 +132,6 @@ body {
 }
 input,
 textarea,
-.keybox .mono,
 .linkrow .mono,
 .conf {
   cursor: text;
@@ -982,6 +981,11 @@ input[type='text']:focus {
 .menu-item.danger .ic {
   color: var(--bad);
 }
+/* Undoable but not harmless (Reconnect: new keys), as the admin's Pause. */
+.menu-item.warn,
+.menu-item.warn .ic {
+  color: var(--warn);
+}
 .menu-sep {
   height: 1px;
   background: var(--line);
@@ -1111,37 +1115,10 @@ input[type='text']:focus {
     padding-top: 0;
   }
 }
-.tabs {
-  display: flex;
-  gap: 4px;
-  padding: 4px;
-  background: var(--soft);
-  border-radius: 999px;
-}
-.tabs button {
-  all: unset;
-  cursor: pointer;
-  flex: 1 1 auto;
-  white-space: nowrap;
-  text-align: center;
-  padding: 7px 10px;
-  border-radius: 999px;
-  font-weight: 500;
-  font-size: 13px;
-  color: var(--muted);
-}
-.tabs button.on {
-  background: var(--soft-hover);
-  color: var(--text);
-}
 .pane {
   display: flex;
   flex-direction: column;
   gap: 10px;
-}
-.pane.center {
-  align-items: center;
-  text-align: center;
 }
 /* The code, night look (shared/qr): light dots on a black card with a fine outline.
    `.light`: the plain look, for scanners that read only dark on light. */
@@ -1163,34 +1140,6 @@ input[type='text']:focus {
   display: block;
   width: 100%;
   height: 100%;
-}
-.steps {
-  margin: 4px 0 0;
-  padding: 14px 16px 14px 34px;
-  border-radius: 14px;
-  border: 1px solid var(--line);
-  background: var(--card);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  font-size: 14px;
-}
-.keybox {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 44px;
-  padding: 0 6px 0 12px;
-  border: 1px solid var(--input);
-  border-radius: 10px;
-}
-.keybox .mono {
-  flex: 1;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: var(--muted);
 }
 .filecard {
   display: flex;
@@ -1290,15 +1239,6 @@ details > summary {
   font-size: 13px;
   font-weight: 500;
 }
-.waiting {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: var(--soft);
-  font-size: 14px;
-}
 
 /* tooltip & toast */
 .tip {
@@ -1351,44 +1291,12 @@ details > summary {
   margin: 0;
   font-size: 17px;
 }
-.firststeps .steps {
-  margin: 0;
-}
-
-/* Which app the code is for. */
-.pane .seg {
-  display: inline-flex;
-  gap: 2px;
-  padding: 3px;
-  border-radius: 999px;
-  background: var(--soft, rgba(127, 127, 127, 0.12));
-  margin-bottom: 10px;
-}
-.pane .seg button {
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  font-size: 13px;
-  padding: 5px 12px;
-  border-radius: 999px;
-  cursor: pointer;
-}
-.pane .seg button.on {
-  background: var(--card, #fff);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
-}
 
 /* ---------- setting up a device: two numbered steps ---------- */
 .setup {
   display: flex;
   flex-direction: column;
   gap: 12px;
-}
-.setup .center {
-  display: flex;
-  justify-content: center;
-  text-align: center;
 }
 .step {
   border: 1px solid var(--line);
@@ -1763,8 +1671,6 @@ details > summary {
 .name-chip,
 .fold-link,
 .pill-link,
-.tabs > button,
-.seg > button,
 .menu-item {
   transition:
     transform var(--dur-press) var(--ease-out),
@@ -1779,9 +1685,7 @@ details > summary {
 .kind:active,
 .icon-btn:active,
 .fold-link:active,
-.pill-link:active,
-.tabs > button:active,
-.seg > button:active {
+.pill-link:active {
   transform: scale(0.97);
 }
 /* Wide surfaces give less: the same press reads larger on them. */
@@ -2018,7 +1922,6 @@ textarea {
 }
 /* What a swap lifts out of the flow while it fades (motion.ts swap): under the new content, not over it. */
 .sheet-inner,
-.tab-body,
 .setup {
   position: relative;
   isolation: isolate;
@@ -2027,38 +1930,6 @@ textarea {
   position: absolute;
   z-index: -1;
   pointer-events: none;
-}
-
-/* Tabs and segments: a copy of the row in the picked look, clipped to the pick, slides (motion.ts slider). */
-.slides {
-  position: relative;
-}
-.slide-hl {
-  position: absolute;
-  inset: 0;
-  margin: 0 !important;
-  pointer-events: none;
-}
-.slide-hl.placed {
-  transition: clip-path 300ms var(--ease-out);
-}
-.tabs.slide-hl {
-  background: var(--soft-hover);
-}
-.pane .seg.slide-hl {
-  background: var(--card);
-}
-.slide-hl > button,
-.slide-hl > button.on {
-  background: none;
-  box-shadow: none;
-  color: var(--text);
-  transition: none;
-}
-.tabs.slides > button.on,
-.pane .seg.slides > button.on {
-  background: none;
-  box-shadow: none;
 }
 
 /* Setup repaints (motion.ts restyle): what flipped starts from its other look; a card that
@@ -2313,7 +2184,6 @@ textarea {
   .sheet.open .sheet-panel {
     opacity: 1;
   }
-  .slide-hl.placed,
   .confbox > summary > .ic:first-child {
     transition: none;
   }
@@ -2325,9 +2195,7 @@ textarea {
   .slot.add:active,
   .name-chip:active,
   .fold-link:active,
-  .pill-link:active,
-  .tabs > button:active,
-  .seg > button:active {
+  .pill-link:active {
     transform: none;
   }
 }

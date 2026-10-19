@@ -366,41 +366,6 @@ export function restyle(root: ParentNode, paint: () => void) {
   });
 }
 
-/**
- * A row of choices whose highlight slides to the one picked: a copy of the row
- * drawn in the picked look on top, clipped to the picked button, so the colour
- * changes exactly where the highlight is (clip-path tabs). The real buttons keep
- * `.on`; call the returned function after changing it.
- */
-export function slider(row: HTMLElement): () => void {
-  const hl = row.cloneNode(true) as HTMLElement;
-  hl.classList.add('slide-hl');
-  hl.setAttribute('aria-hidden', 'true');
-  hl.inert = true;
-  hl.removeAttribute('role');
-  hl.querySelectorAll('[role]').forEach((b) => b.removeAttribute('role'));
-  row.classList.add('slides');
-  row.appendChild(hl);
-  let placed = false;
-  const move = () => {
-    const on = row.querySelector<HTMLElement>(':scope > .on');
-    if (!on || !row.isConnected) return;
-    const w = row.clientWidth,
-      h = row.clientHeight;
-    const l = on.offsetLeft,
-      t = on.offsetTop;
-    hl.classList.toggle('placed', placed);
-    hl.style.clipPath = `inset(${t}px ${w - l - on.offsetWidth}px ${h - t - on.offsetHeight}px ${l}px round 999px)`;
-    placed = true;
-  };
-  // Fonts and the sheet's own layout settle after the first call: place it again, without a glide.
-  new ResizeObserver(() => {
-    placed = false;
-    move();
-  }).observe(row);
-  return move;
-}
-
 /** A copy button in its "Copied" moment: what to put back, and when. */
 const COPIED = new WeakMap<HTMLElement, { timer: number; icon: string | null; label: string | null }>();
 

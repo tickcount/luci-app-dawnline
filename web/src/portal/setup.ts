@@ -33,8 +33,13 @@ export function sameDevice(kind: Kind, platform: Platform): boolean {
   return true;
 }
 
-/** The systems a kind may run: a computer's is the person's call, the rest are read from the browser. */
-export const osGroup = (kind: Kind): Platform[] => (kind === 'computer' || kind === 'other' ? ['windows', 'mac', 'linux'] : []);
+/**
+ * The systems a kind may run, when that is the person's call: a computer's
+ * desktop systems, any system for an "other" device (a TV box runs Android, a
+ * NAS Linux). A phone's or a tablet's is read from the browser.
+ */
+export const osGroup = (kind: Kind): Platform[] =>
+  kind === 'computer' ? ['windows', 'mac', 'linux'] : kind === 'other' ? ['ios', 'android', 'windows', 'mac', 'linux'] : [];
 
 export interface AppChoice {
   id: AppId;
@@ -154,10 +159,59 @@ export const routerStore = (app: AppId): Store =>
       }
     : { href: 'https://openwrt.org/packages/start', top: 'OpenWrt packages', main: 'amneziawg-tools + kmod', mark: 'openwrt' };
 
-/** Inside the app: where the scanner and the importer are. */
-export const scanPath = (app: AppId): string =>
-  app === 'vpn' ? 'Add server → Scan QR' : app === 'awg' ? 'Add tunnel → Scan QR code' : 'Add tunnel → Create from QR code';
-export const importPath = (app: AppId): string => (app === 'vpn' ? 'Add server → Insert key' : 'Add tunnel → Import from file');
+/**
+ * Does AmneziaVPN here open a `vpn://` link? Only the Android app registers the
+ * scheme: on iOS, macOS and Windows the link opens nothing ("the address is
+ * invalid"), or another app that claims vpn:// gets the key.
+ */
+export const opensKeyLinks = (platform: Platform): boolean => platform === 'android';
+
+/** The key as a file for the share sheet: AmneziaVPN on iOS imports `.vpn` files (the key as text). */
+export const keyFileName = (confName: string): string => `${confName.replace(/\.conf$/i, '')}.vpn`;
+
+/*
+ * Inside the app: where the scanner and the importer are, as each platform's
+ * app words it. The WireGuard apps are the same apps as AmneziaWG (it is
+ * their fork), menus included.
+ */
+const TUNNEL_MENU: Partial<Record<Platform, { file: string; qr?: string }>> = {
+  ios: { file: '+ → Create from file or archive', qr: '+ → Create from QR code' },
+  android: { file: '+ → Import from file or archive', qr: '+ → Scan from QR code' },
+  mac: { file: '+ → Import tunnel(s) from file' },
+  windows: { file: 'Add Tunnel → Import tunnel(s) from file' },
+};
+
+/** Where the app scans a code; a phone of either kind gets both wordings. */
+export function scanPath(app: AppId, platform: Platform = 'unknown'): string {
+  if (app === 'vpn') return 'Add server → Scan QR';
+  const qr = TUNNEL_MENU[platform]?.qr;
+  return qr ?? `${TUNNEL_MENU.ios!.qr} (Android: ${TUNNEL_MENU.android!.qr!.replace(/^.* → /, '')})`;
+}
+
+/** Where the app takes a file (AmneziaVPN: the key). */
+export function importPath(app: AppId, platform: Platform = 'unknown'): string {
+  if (app === 'vpn') return 'Add server → Insert key';
+  return TUNNEL_MENU[platform]?.file ?? 'Add tunnel → Import from file';
+}
+
+/**
+ * The file into the app, step by step: [text, the part in bold]. Linux has no
+ * app, only the tools: the file goes up straight from where it was saved
+ * (its name is a valid interface name, see tunnel_name on the router).
+ */
+export function importSteps(app: AppId, platform: Platform, file: string, shared: boolean): [string, string][] {
+  if (platform === 'linux')
+    return [
+      ['Open a terminal in the folder with the file', ''],
+      ['Run ', `sudo ${app === 'wg' ? 'wg-quick' : 'awg-quick'} up ./${file}`],
+    ];
+  const path = importPath(app, platform);
+  return [
+    [`Open ${APP_NAME[app]}`, ''],
+    [path.replace(/ → [^→]*$/, ' → '), path.replace(/^.* → /, '')],
+    [shared ? 'Confirm the import and connect' : 'Pick the file and connect', ''],
+  ];
+}
 
 export const PLATFORM_LABEL: Record<Platform, string> = {
   ios: 'iPhone / iPad',

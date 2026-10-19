@@ -1,6 +1,6 @@
-// dawnline.awg: disguise presets against their own validation, and the parser
+// dawnline.awg: disguise presets against their own validation, the parser
 // of `awg show all dump` on the output formats of AmneziaWG 1.0, 2.0 and 3.1
-// (the stand-in awg in fixtures/bin prints the fixture put at AWG_DUMP).
+// (the stand-in awg in fixtures/bin prints the fixture put at AWG_DUMP), and Reconnect.
 import { readfile, writefile, unlink } from 'fs';
 import * as awg from 'dawnline.awg';
 
@@ -93,4 +93,13 @@ test('dump: the tool fails', () => {
 	unlink(AWG_DUMP);
 	let d = awg.dump();
 	eq(d, { ok: false, ifaces: {}, peers: {} }, 'nothing known');
+});
+
+test('handshake_since: Reconnect hides older handshakes', () => {
+	eq(awg.handshake_since(1000, null), 1000, 'never set up again');
+	eq(awg.handshake_since(1000, 0), 1000, 'no time');
+	eq(awg.handshake_since(1000, 1500), 0, 'connected before: not set up yet');
+	eq(awg.handshake_since(1500, 1500), 0, 'the same second does not count');
+	eq(awg.handshake_since(1600, 1500), 1600, 'connected after');
+	eq(awg.handshake_since(0, 1500), 0, 'never connected');
 });

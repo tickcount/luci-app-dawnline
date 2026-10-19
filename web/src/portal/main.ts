@@ -22,32 +22,18 @@ import {
 } from '../shared/format';
 import { iconSvg } from '../shared/icons';
 import { denseQr, qrSvg } from '../shared/qr';
-import { vpnKey } from '../shared/vpnkey';
+import { vpnKey, vpnQrText } from '../shared/vpnkey';
 import { h, ic, type Kid } from './dom';
 import { waitPath, type Way } from './waitpath';
-import {
-  beat,
-  busy,
-  calm,
-  copied,
-  fold,
-  followHeight,
-  intro,
-  leave,
-  pullToClose,
-  replay,
-  restyle,
-  settle,
-  slider,
-  snap,
-  swap,
-} from './motion';
+import { beat, busy, calm, copied, fold, followHeight, intro, leave, pullToClose, replay, restyle, settle, snap, swap } from './motion';
 import {
   APP_NAME,
   appsFor,
   hereLabel,
   deviceNoun,
-  importPath,
+  importSteps,
+  keyFileName,
+  opensKeyLinks,
   setupFromHash,
   setupLink,
   inWebview,
@@ -172,20 +158,23 @@ async function copy(text: string, what = 'Copied', from?: EventTarget | null) {
  * download would land in Files. Returns the action, or null where files
  * cannot be shared.
  */
-function shareFile(cfg: ClientConfig): (() => Promise<void>) | null {
+function shareFile(name: string, text: string): (() => Promise<void>) | null {
   const nav = navigator as Navigator & { canShare?: (d: unknown) => boolean };
-  // Desktop browsers claim they can share files and then do nothing, or open a
-  // sheet with nowhere useful: there a download is the right thing anyway.
-  if (!/Android|iPhone|iPad/.test(navigator.userAgent)) return null;
+  // Only iOS: there AmneziaWG, WireGuard and AmneziaVPN take a file from the
+  // share sheet. On Android neither app is a share target (and Chrome does not
+  // share .conf files), so a download goes into the app's own file picker;
+  // desktop browsers claim they can share files and then do nothing.
+  if (platform() !== 'ios') return null;
   if (typeof nav.share !== 'function' || typeof File === 'undefined') return null;
-  const file = new File([cfg.conf], cfg.filename, { type: 'application/octet-stream' });
+  const file = new File([text], name, { type: 'application/octet-stream' });
   if (!nav.canShare?.({ files: [file] })) return null;
   return async () => {
     try {
-      await nav.share({ files: [file], title: cfg.filename });
+      // The file alone: with a title, "Save to Files" also writes the title as a .txt.
+      await nav.share({ files: [file] });
     } catch (e) {
       // Cancelled: nothing to do. Refused by the browser: the file still has to get out.
-      if ((e as Error)?.name !== 'AbortError') download(cfg.filename, cfg.conf);
+      if ((e as Error)?.name !== 'AbortError') download(name, text);
     }
   };
 }
@@ -356,7 +345,7 @@ function sheet(title: string, sub: string | null, ...content: Kid[]) {
 }
 
 /**
- * A question before something that cannot be undone (Remove, New keys): narrow
+ * A question before something that cannot be undone (Remove, Reconnect): narrow
  * and centred, the action's icon in its colour, one line of what happens, Cancel
  * and the action (no ×: Cancel says it). `run` holds the action's button busy.
  */
@@ -430,7 +419,7 @@ document.addEventListener('click', (e) => {
   if (menuEl && !menuEl.contains(e.target as Node)) closeMenu();
 });
 
-function menu(anchor: HTMLElement, all: ({ label: string; icon: string; danger?: boolean; run: () => unknown } | null)[]) {
+function menu(anchor: HTMLElement, all: ({ label: string; icon: string; danger?: boolean; warn?: boolean; run: () => unknown } | null)[]) {
   if (menuFor === anchor) return closeMenu();
   closeMenu();
   // Separators only between items.
@@ -445,7 +434,7 @@ function menu(anchor: HTMLElement, all: ({ label: string; icon: string; danger?:
             {
               type: 'button',
               role: 'menuitem',
-              class: `menu-item${it.danger ? ' danger' : ''}`,
+              class: `menu-item${it.danger ? ' danger' : it.warn ? ' warn' : ''}`,
               onclick: () => {
                 closeMenu();
                 it.run();
@@ -748,30 +737,28 @@ function deviceCard(d: Device, st: State): HTMLElement {
     { type: 'button', class: 'icon-btn soft', 'aria-label': `${d.name} options`, 'aria-haspopup': 'menu', 'aria-expanded': 'false' },
     ic('more'),
   );
+  // The connection itself comes from the set-up sheet (Reconnect), not from here.
+  const items = [
+    // How devices at home reach it: only where the router actually lets them through.
+    ...(reachableFromHome(st.person, d)
+      ? [
+          { label: 'Copy IP address', icon: 'copy', run: () => copy(d.address, 'IP address copied') },
+          ...(d.hostname ? [{ label: 'Copy local address', icon: 'home', run: () => copy(d.hostname, 'Address copied') }] : []),
+          null,
+        ]
+      : []),
+    // A device the admin turned off can't be renamed, set up again or removed here (the router refuses).
+    ...(d.disabled
+      ? []
+      : [
+          { label: 'Rename', icon: 'edit', run: () => rename(d) },
+          { label: 'Reconnect', icon: 'refresh', warn: true, run: () => reconnect(d, st) },
+          { label: 'Remove', icon: 'trash', danger: true, run: () => removeDevice(d) },
+        ]),
+  ];
   more.addEventListener('click', (ev) => {
     ev.stopPropagation();
-    menu(more, [
-      { label: 'Show QR code', icon: 'qr', run: () => connect(d, 'qr') },
-      { label: 'Copy AmneziaVPN key', icon: 'key', run: () => copyKey(d) },
-      { label: 'Download .conf', icon: 'download', run: () => downloadConf(d) },
-      null,
-      // How devices at home reach it: only where the router actually lets them through.
-      ...(reachableFromHome(st.person, d)
-        ? [
-            { label: 'Copy IP address', icon: 'copy', run: () => copy(d.address, 'IP address copied') },
-            ...(d.hostname ? [{ label: 'Copy local address', icon: 'home', run: () => copy(d.hostname, 'Address copied') }] : []),
-            null,
-          ]
-        : []),
-      // A device the admin turned off can't be renamed, rekeyed or removed here (the router refuses).
-      ...(d.disabled
-        ? []
-        : [
-            { label: 'Rename', icon: 'edit', run: () => rename(d) },
-            { label: 'New keys', icon: 'reset', run: () => rotateKeys(d, st) },
-            { label: 'Remove', icon: 'trash', danger: true, run: () => removeDevice(d) },
-          ]),
-    ]);
+    menu(more, items);
   });
   const week = d.spark.reduce((a, b) => a + b, 0);
   const setUp = !d.handshake && !d.disabled;
@@ -791,7 +778,7 @@ function deviceCard(d: Device, st: State): HTMLElement {
       { class: 'dhead' },
       h('span', { class: 'dic' }, ic(d.kind)),
       h('div', { class: 'stack grow' }, h('span', { class: 'dname', 'data-v': `name:${d.id}` }, d.name), status),
-      locked ? null : more,
+      locked || !items.length ? null : more,
     ),
     setUp && locked
       ? null
@@ -819,7 +806,7 @@ function deviceCard(d: Device, st: State): HTMLElement {
     d.config_stale && !setUp && !locked
       ? h(
           'button',
-          { type: 'button', class: 'btn block', onclick: () => connect(d) },
+          { type: 'button', class: 'btn block', onclick: () => reconnect(d, st) },
           ic('refresh'),
           h('span', {}, 'Update the connection'),
         )
@@ -911,16 +898,6 @@ function main(st: State) {
     ),
     h('div', { class: 'layout' }, accessCard(st), devices),
   );
-}
-
-/** Where to get the app on this platform: the store on phones, the downloads page elsewhere. */
-function appLink(): { href: string; label: string } {
-  const pf = platform();
-  const st = storeFor('vpn', pf);
-  return {
-    href: st?.href ?? 'https://github.com/amnezia-vpn/amnezia-client/releases/latest',
-    label: `Get AmneziaVPN${pf === 'ios' ? ' for iPhone' : pf === 'android' ? ' for Android' : ''}`,
-  };
 }
 
 /** The platform this page is open on (iPad on Safari says Mac; touch points tell). */
@@ -1037,17 +1014,6 @@ async function getConfig(d: Device): Promise<ClientConfig | null> {
   }
 }
 
-async function copyKey(d: Device) {
-  const cfg = await getConfig(d);
-  if (cfg) copy(await vpnKey(cfg, `${cfg.server} · ${cfg.name}`), 'Key copied');
-}
-
-async function downloadConf(d: Device) {
-  const cfg = await getConfig(d);
-  if (cfg) download(cfg.filename, cfg.conf);
-}
-
-/** Connection sheet: open-in-app / QR / key / file, plus live status. */
 /** One configuration line, highlighted; private and preshared keys masked unless shown. */
 function confLine(line: string, reveal: boolean): Node {
   if (/^\s*\[.+\]\s*$/.test(line)) return h('span', { class: 'conf-sec' }, line);
@@ -1107,8 +1073,13 @@ function filePane(cfg: ClientConfig): HTMLElement {
             : 'For computers and routers: import it in AmneziaWG or AmneziaVPN',
         ),
       ),
-      shareFile(cfg)
-        ? h('button', { class: 'btn primary', onclick: () => shareFile(cfg)!() }, ic('open'), h('span', {}, 'Share file'))
+      shareFile(cfg.filename, cfg.conf)
+        ? h(
+            'button',
+            { class: 'btn primary', onclick: () => shareFile(cfg.filename, cfg.conf)!() },
+            ic('open'),
+            h('span', {}, 'Share file'),
+          )
         : h('button', { class: 'btn primary', onclick: () => download(cfg.filename, cfg.conf) }, ic('download'), h('span', {}, 'Download')),
     ),
     h(
@@ -1136,152 +1107,6 @@ function filePane(cfg: ClientConfig): HTMLElement {
       ),
       pre,
     ),
-  );
-}
-
-async function connect(d: Device, initial?: 'app' | 'qr' | 'key' | 'file', cfgIn?: ClientConfig) {
-  const cfg = cfgIn ?? (await getConfig(d));
-  if (!cfg) return;
-  const key = await vpnKey(cfg, `${cfg.server} · ${cfg.name}`);
-  const mobile = isMobile();
-  // What is being set up decides what comes first: a phone from a phone opens
-  // the app, a phone seen from a computer shows the code, a computer or
-  // router takes the file.
-  const handheld = d.kind === 'phone' || d.kind === 'tablet';
-  const panes: Record<string, () => HTMLElement> = {
-    app: () =>
-      h(
-        'div',
-        { class: 'pane' },
-        h('a', { class: 'btn primary block big', href: key }, ic('amnezia'), h('span', {}, 'Open in AmneziaVPN')),
-        h(
-          'ol',
-          { class: 'steps' },
-          h(
-            'li',
-            {},
-            'No AmneziaVPN yet? ',
-            h('a', { href: appLink().href, target: '_blank', rel: 'noopener noreferrer' }, appLink().label),
-            '.',
-          ),
-          h('li', {}, 'Tap ', h('b', {}, 'Open in AmneziaVPN'), ' and confirm the import.'),
-          h('li', {}, 'Turn the connection on — this page shows ', h('span', { class: 'ok' }, 'Connected'), ' within a minute.'),
-        ),
-      ),
-    qr: () => {
-      // Two codes: AmneziaVPN reads its own key (the phone's camera opens it in
-      // the app); the AmneziaWG and WireGuard apps read the configuration text.
-      const q = h('div', { class: 'qr' });
-      const cap = h('p', { class: 'muted s' });
-      const seg = h('div', { class: 'seg' });
-      let mode: 'vpn' | 'conf' = plainWg() ? 'conf' : 'vpn';
-      let glide = () => {};
-      // The other code comes into focus where the last one was.
-      const paint = (switched = false) => {
-        const text = mode === 'vpn' ? key : cfg.conf;
-        // A dense code is drawn as large as the sheet allows: a phone camera needs the modules.
-        paintQr(q, text);
-        cap.textContent =
-          mode === 'vpn'
-            ? 'Scan with the phone’s camera or inside AmneziaVPN.'
-            : plainWg()
-              ? 'Scan inside the AmneziaWG, WireGuard or AmneziaVPN app.'
-              : 'Scan inside the AmneziaWG app (or AmneziaVPN).';
-        seg.querySelectorAll<HTMLElement>(':scope > button').forEach((b) => b.classList.toggle('on', b.dataset.m === mode));
-        glide();
-        if (switched) {
-          replay(q, 'swap');
-          replay(cap, 'swap');
-        }
-      };
-      for (const [m, label] of [
-        ['vpn', 'AmneziaVPN'],
-        ['conf', plainWg() ? 'WireGuard app' : 'AmneziaWG app'],
-      ] as const)
-        seg.appendChild(
-          h(
-            'button',
-            {
-              type: 'button',
-              'data-m': m,
-              onclick: () => {
-                if (mode === m) return;
-                mode = m;
-                paint(true);
-              },
-            },
-            label,
-          ),
-        );
-      paint();
-      glide = slider(seg);
-      return h('div', { class: 'pane center' }, seg, q, cap, qrFlip());
-    },
-    key: () =>
-      h(
-        'div',
-        { class: 'pane' },
-        h('p', { class: 'muted s' }, 'In AmneziaVPN choose “Add server → Insert key”.'),
-        h(
-          'div',
-          { class: 'keybox' },
-          h('span', { class: 'mono' }, key),
-          h('button', { class: 'btn small', onclick: (ev: Event) => copy(key, 'Key copied', ev.currentTarget) }, 'Copy'),
-        ),
-        h('p', { class: 'faint s' }, 'Keep it private: anyone with the key can use your connection.'),
-      ),
-    file: () => filePane(cfg),
-  };
-  const order = mobile && handheld ? ['app', 'qr', 'key', 'file'] : handheld ? ['qr', 'key', 'file'] : ['file', 'key', 'qr'];
-  const labels: Record<string, string> = { app: 'Open in app', qr: 'QR code', key: 'Key', file: 'File' };
-  const body = h('div', { class: 'tab-body' });
-  const tabs = h('div', { class: 'tabs', role: 'tablist' });
-  // The highlight slides to the tab; its pane comes in from that side.
-  let current = -1;
-  let glide = () => {};
-  const show = (id: string) => {
-    const i = order.indexOf(id);
-    tabs.querySelectorAll<HTMLElement>(':scope > button').forEach((b) => {
-      b.classList.toggle('on', b.dataset.id === id);
-      b.setAttribute('aria-selected', String(b.dataset.id === id));
-    });
-    glide();
-    if (current < 0) body.replaceChildren(panes[id]());
-    else if (i !== current) swap(body, [panes[id]()], Math.sign(i - current));
-    current = i;
-  };
-  for (const id of order) tabs.appendChild(h('button', { role: 'tab', 'data-id': id, onclick: () => show(id) }, labels[id]));
-  show(initial && order.includes(initial) ? initial : order[0]);
-  glide = slider(tabs);
-
-  // Never connected: the way to the router waits on top, and once it fills the
-  // code and the file have done their job and leave. Connected before: one line.
-  const way = d.handshake || d.disabled ? null : waitPath(d.kind);
-  const stop = way ? watchFirstConnection(d, () => void arrive(way, [tabs, body]), way.gaveUp) : () => undefined;
-  sheet(
-    d.handshake ? `Connect ${d.name}` : `${d.name} is ready`,
-    mobile && handheld
-      ? 'Add it to AmneziaVPN on this phone'
-      : handheld
-        ? 'Scan with the phone’s camera or AmneziaVPN'
-        : 'Import the file in AmneziaWG or AmneziaVPN',
-    way?.el,
-    tabs,
-    body,
-    d.handshake ? liveLine(d) : null,
-  );
-  sheetClosed = () => {
-    stop();
-    if (state) main(state);
-  };
-}
-
-/** How a device that connected before is doing: one line under the sheet. */
-function liveLine(d: Device): HTMLElement {
-  return h(
-    'div',
-    { class: 'waiting' },
-    d.online ? h('span', { class: 'ok' }, 'Connected') : h('span', { class: 'muted' }, `Last connected ${ago(d.handshake, now())}`),
   );
 }
 
@@ -1405,6 +1230,14 @@ function rememberApp(d: Device, app: AppId) {
 }
 
 const APP_ICON: Record<AppId, string> = { vpn: 'amnezia', awg: 'amneziawg', wg: 'wireguard' };
+const OS_ICON: Record<Platform, string> = {
+  ios: 'apple',
+  android: 'googleplay',
+  windows: 'windows',
+  mac: 'apple',
+  linux: 'linux',
+  unknown: 'other',
+};
 
 /**
  * A store badge: the mark in a tile, two lines, a chevron. `primary` = the one thing to tap.
@@ -1486,18 +1319,22 @@ function linkRow(url: string): HTMLElement {
 async function setup(d: Device, cfgIn?: ClientConfig) {
   const cfg = cfgIn ?? (await getConfig(d));
   if (!cfg) return;
-  const key = await vpnKey(cfg, `${cfg.server} · ${cfg.name}`);
+  const key = await vpnKey(cfg, cfg.server);
   const apps = appsFor(preset());
   const pf = platform();
-  const same = sameDevice(d.kind, pf);
   const handheld = d.kind === 'phone' || d.kind === 'tablet';
   const router = d.kind === 'router';
   const hereHandheld = pf === 'ios' || pf === 'android';
   const osChoices = osGroup(d.kind);
   let app: AppId = recallApp(d) ?? (router ? 'awg' : 'vpn');
   if (!apps.some((a) => a.id === app)) app = router ? 'awg' : 'vpn';
-  // Which system a computer runs is the person's call; the browser's guess comes first.
+  // Which system a computer (or an "other" device) runs is the person's call; the browser's guess comes first.
   let os: Platform = osChoices.length ? (osChoices.includes(pf) ? pf : 'windows') : pf;
+  // With a system to pick, the page is on the device being set up when the pick is this browser's own.
+  const sameKind = sameDevice(d.kind, pf);
+  const same = () => (osChoices.length ? os === pf : sameKind);
+  // The device being set up is a phone or a tablet: its link goes there as a code for the camera.
+  const mobileTarget = () => handheld || os === 'ios' || os === 'android';
   let picker = false,
     away = false,
     open: 'link' | 'app' = 'app',
@@ -1533,7 +1370,7 @@ async function setup(d: Device, cfgIn?: ClientConfig) {
       osChoices.map((o) => ({
         id: o,
         label: o === pf ? hereLabel(o) : PLATFORM_LABEL[o],
-        icon: o === 'windows' ? 'windows' : o === 'mac' ? 'apple' : 'linux',
+        icon: OS_ICON[o],
         on: o === os,
         pick: () => {
           os = o;
@@ -1591,15 +1428,25 @@ async function setup(d: Device, cfgIn?: ClientConfig) {
   // Step 2 follows the app and the device: a link for AmneziaVPN, the file for the others.
   const connectStep = () => {
     const name = APP_NAME[app];
-    if (app === 'vpn' && hereHandheld)
+    // On the phone being set up, a link opens AmneziaVPN only on Android; an
+    // iPhone takes the key as a .vpn file from the share sheet.
+    const inHand = same() && hereHandheld;
+    const send = app === 'vpn' && inHand && !opensKeyLinks(pf) ? shareFile(keyFileName(cfg.filename), key) : null;
+    if (app === 'vpn' && inHand && (opensKeyLinks(pf) || send))
       return step(
         '2',
         'Add the connection',
-        badge({ href: key, top: 'Then come back here and tap', main: 'Open in AmneziaVPN', mark: 'amnezia' }, true, 'connect'),
+        send
+          ? badge(
+              { top: 'Then come back here and tap', main: 'Send to AmneziaVPN', mark: 'amnezia', onclick: () => void send() },
+              true,
+              'connect',
+            )
+          : badge({ href: key, top: 'Then come back here and tap', main: 'Open in AmneziaVPN', mark: 'amnezia' }, true, 'connect'),
         h(
           'span',
           { class: 'faint s' },
-          'Nothing opened? ',
+          send ? 'Pick AmneziaVPN in the share sheet. Not there? ' : 'Nothing opened? ',
           h('a', { href: '#', onclick: (ev: Event) => (ev.preventDefault(), copy(key, 'Key copied', ev.currentTarget)) }, 'Copy the key'),
           ' and add it in the app.',
         ),
@@ -1625,14 +1472,22 @@ async function setup(d: Device, cfgIn?: ClientConfig) {
           h('li', {}, 'Add server → ', h('b', {}, 'Insert key')),
           h('li', {}, 'Paste the key and connect'),
         ),
-        h('span', { class: 'faint s' }, 'Have the app open? ', h('a', { href: key }, 'Open in AmneziaVPN')),
       );
-    const share = hereHandheld ? shareFile(cfg) : null;
+    const share = hereHandheld ? shareFile(cfg.filename, cfg.conf) : null;
     return step(
       '2',
       'Add the connection',
       share
-        ? badge({ top: `Straight into ${name}`, main: 'Share the file', mark: 'share', onclick: () => share() }, true, 'connect')
+        ? badge(
+            {
+              top: same() ? `Straight into ${name}` : `Send it to the ${there}`,
+              main: 'Share the file',
+              mark: 'share',
+              onclick: () => share(),
+            },
+            true,
+            'connect',
+          )
         : badge(
             {
               top: 'Then import it in the app',
@@ -1646,9 +1501,8 @@ async function setup(d: Device, cfgIn?: ClientConfig) {
       h(
         'ol',
         { class: 'howto', 'data-m': 'howto' },
-        h('li', {}, `Open ${name}`),
-        h('li', {}, importPath(app).replace(/ → .*$/, ' → '), h('b', {}, importPath(app).replace(/^.* → /, ''))),
-        h('li', {}, share ? 'Confirm the import and connect' : 'Pick the file and connect'),
+        // In the words of the app where the file goes: the computer's system, or the phone in hand.
+        importSteps(app, os, cfg.filename, !!share && same()).map(([text, bold]) => h('li', {}, text, bold ? h('b', {}, bold) : null)),
       ),
     );
   };
@@ -1698,27 +1552,28 @@ async function setup(d: Device, cfgIn?: ClientConfig) {
   // Not on the device: the link goes there (as a code for a phone's camera), the rest happens there.
   // It names the device, so the page there opens straight on its set-up.
   const linkThere = setupLink(location.origin + location.pathname, d.id);
-  const awayCard = (easiest = false, fold = false) =>
-    h(
+  const awayCard = ({ easiest = false, fold = false, or = false } = {}) => {
+    const title = `${or ? 'Or open' : 'Open'} your link on the ${there}`;
+    return h(
       'div',
       { class: `step${fold && open !== 'link' ? ' folded' : ''}` },
       fold
         ? foldHead(
             'link',
-            h('span', { class: 'step-title grow' }, `Open your link on the ${there}`),
+            h('span', { class: 'step-title grow' }, title),
             easiest ? h('span', { class: 'chip', 'data-glide': 'easiest' }, 'Easiest') : null,
           )
         : h(
             'div',
             { class: 'step-head' },
-            h('span', { class: 'step-title grow' }, `Open your link on the ${there}`),
+            h('span', { class: 'step-title grow' }, title),
             easiest ? h('span', { class: 'chip' }, 'Easiest') : null,
           ),
       ...(fold && open !== 'link'
         ? []
         : unfolded(entered === 'link', [
             h('span', { class: 'muted s step-sub' }, 'The same page there does both steps for that device.'),
-            handheld
+            mobileTarget()
               ? h(
                   'div',
                   { class: 'code-row' },
@@ -1734,6 +1589,7 @@ async function setup(d: Device, cfgIn?: ClientConfig) {
             linkRow(linkThere),
           ])),
     );
+  };
   const awayFold = () =>
     away
       ? (() => {
@@ -1772,7 +1628,7 @@ async function setup(d: Device, cfgIn?: ClientConfig) {
             h(
               'div',
               { class: 'code-row' },
-              qrOf('app-qr', app === 'vpn' ? key : cfg.conf),
+              qrOf('app-qr', app === 'vpn' ? vpnQrText(key) : cfg.conf),
               h(
                 'span',
                 { class: 'stack' },
@@ -1780,12 +1636,6 @@ async function setup(d: Device, cfgIn?: ClientConfig) {
                 updateLine(appOf(app)) ? h('span', { class: 'faint s' }, updateLine(appOf(app))) : null,
                 qrFlip(),
               ),
-            ),
-            h(
-              'span',
-              { class: 'faint s' },
-              'Prefer the file or the key? ',
-              h('a', { href: '#', onclick: (ev: Event) => (ev.preventDefault(), connect(d, 'file', cfg)) }, 'Connection details'),
             ),
           ])),
     );
@@ -1802,7 +1652,7 @@ async function setup(d: Device, cfgIn?: ClientConfig) {
           h('span', { class: 'grow' }, 'Open this page in Safari or Chrome: the store opens from here, but the app handoff does not.'),
         ),
       );
-    if (same) parts.push(getStep(), connectStep(), awayFold());
+    if (same()) parts.push(getStep(), connectStep(), awayFold());
     else if (router)
       parts.push(
         step(
@@ -1813,24 +1663,14 @@ async function setup(d: Device, cfgIn?: ClientConfig) {
         ),
         step('2', 'Import the configuration', filePane(cfg)),
       );
-    else if (handheld) parts.push(awayCard(true, true), appCodeCard());
+    else if (handheld) parts.push(awayCard({ easiest: true, fold: true }), appCodeCard());
+    // A computer set up from a phone: the same two steps for the app on the computer, then the link that does both there.
     else
       parts.push(
-        h('span', { class: 'muted s' }, `The app goes on the ${there}. Which one is it?`),
-        osPills(),
-        awayCard(true),
-        step(
-          '',
-          [h('span', { class: 'grow', 'data-m': 'get' }, `${APP_NAME[app]} for ${PLATFORM_LABEL[os]}`)],
-          h('span', { class: 'faint s' }, 'Or download the installer here and move it to the PC'),
-          ...storeBlock(),
-        ),
-        h(
-          'span',
-          { class: 'faint s center' },
-          `Already has ${APP_NAME[app]}? `,
-          h('a', { href: '#', onclick: (ev: Event) => (ev.preventDefault(), copy(key, 'Key copied', ev.currentTarget)) }, 'Copy the key'),
-        ),
+        h('span', { class: 'muted s' }, `The app goes on the ${there}.`),
+        getStep(),
+        connectStep(),
+        awayCard({ easiest: true, or: true }),
       );
     restyle(body, () => body.replaceChildren(...parts.flat().filter((x): x is Node => x instanceof Node)));
     entered = null;
@@ -1844,7 +1684,7 @@ async function setup(d: Device, cfgIn?: ClientConfig) {
     },
     way.gaveUp,
   );
-  sheet(`Set up ${d.name}`, same ? 'Two steps, about a minute' : router ? 'The packages and the file for OpenWrt' : null, way.el, body);
+  sheet(`Set up ${d.name}`, same() ? 'Two steps, about a minute' : router ? 'The packages and the file for OpenWrt' : null, way.el, body);
   sheetClosed = () => {
     stop();
     if (state) main(state);
@@ -1883,24 +1723,31 @@ function rename(d: Device) {
   setTimeout(() => name.select(), 50);
 }
 
-/** New keys for a device: the old configuration stops working, the new one is shown right away. */
-function rotateKeys(d: Device, st: State) {
+/**
+ * Set a device up from scratch (a new phone, the app reinstalled, settings the
+ * admin changed): new keys, so what it holds stops working; it shows "Not set
+ * up yet" until it connects with the new configuration, which the set-up sheet
+ * opens on.
+ */
+function reconnect(d: Device, st: State) {
+  const twin = httpsTwin();
+  if (twin) return secureSheet(twin);
   ask({
-    icon: 'key',
+    icon: 'refresh',
     tone: 'warn',
-    title: `New keys for ${d.name}?`,
+    title: `Reconnect ${d.name}?`,
     text:
       st.here === d.id
-        ? 'This device is connected through its current settings: it disconnects a few seconds after you confirm. Import the new ones that open next.'
-        : 'Its current settings stop working. Set it up again with the new ones that open next.',
-    action: 'New keys',
+        ? 'It gets new keys. This device is connected through its current settings: it disconnects a few seconds after you confirm. Add the new ones that open next.'
+        : 'It gets new keys and its current settings stop working. Set it up again with the new ones that open next.',
+    action: 'Reconnect',
     actionClass: 'primary',
     run: async () => {
       try {
-        const r = await call<{ config: ClientConfig; state: State }>(`devices/${d.id}`, { action: 'rotate' });
+        const r = await call<{ config: ClientConfig; state: State }>(`devices/${d.id}`, { action: 'reconnect' });
         state = r.state;
         main(state);
-        await setup({ ...d, handshake: 0 }, r.config);
+        await setup(state.person.devices.find((x) => x.id === d.id) ?? { ...d, handshake: 0 }, r.config);
       } catch (er) {
         toast((er as Error).message, true);
       }

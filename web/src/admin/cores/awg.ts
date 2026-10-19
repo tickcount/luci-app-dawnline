@@ -214,7 +214,7 @@ export async function connectBlock(cfg: AwgConfig, initial: 'file' | 'key' | 'qr
       { class: 'dl-hint' },
       'This device generated its own keys in the browser, so its full configuration only exists on that device.',
     );
-  const key = await vpnKey(cfg, `${cfg.server} · ${cfg.person} · ${cfg.name}`);
+  const key = await vpnKey(cfg, cfg.server);
   const panes: Record<string, () => Node> = {
     qr: () =>
       E('div', { class: 'dl-qr-pane' }, [
@@ -437,6 +437,6 @@ export const awg: Core = {
   overviewTile,
   connectBlock,
   qrText: (cfg) => cfg.conf,
-  appKey: { label: 'Copy AmneziaVPN key', make: (cfg) => vpnKey(cfg, `${cfg.server} · ${cfg.person} · ${cfg.name}`) },
+  appKey: { label: 'Copy AmneziaVPN key', make: (cfg) => vpnKey(cfg, cfg.server) },
   file: { label: 'Download .conf', make: (cfg) => ({ name: cfg.filename, text: cfg.conf }) },
 };

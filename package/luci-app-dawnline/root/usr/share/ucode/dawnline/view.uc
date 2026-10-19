@@ -23,11 +23,35 @@ function config_stale(m, d) {
 	return was != null && was != awg.config_fingerprint(m, d);
 }
 
+/**
+ * The device a page request came from (`devs`: one person's device views):
+ * through the tunnel, by its tunnel address; outside it, the one online device
+ * whose tunnel comes from the request's address. The apps route the VPN's own
+ * address around their tunnel, and the portal shares it, so a device on the VPN
+ * opens the page from where its tunnel comes from. Two such devices behind one
+ * address (one NAT): neither.
+ */
+export function device_here(devs, peer) {
+	peer = replace(peer ?? '', /^::ffff:/, '');
+	if (!peer)
+		return null;
+	let near = [];
+	for (let d in devs) {
+		if (d.address == peer)
+			return d.id;
+		if (d.online && d.endpoint == peer)
+			push(near, d.id);
+	}
+	return length(near) == 1 ? near[0] : null;
+};
+
 export function device_view(m, d, usage, dmp) {
 	let u = usage.devices?.[d.id];
 	let peer = dmp.peers[d.public_key];
 	let ts = time();
-	let hs = peer?.handshake || u?.handshake || 0;
+	// Set up again (Reconnect): a handshake from before it does not count.
+	m._reconnect ??= awg.reconnects();
+	let hs = awg.handshake_since(peer?.handshake || u?.handshake || 0, m._reconnect[d.id]);
 	let p = m.people[d.person];
 	// The same label /tmp/hosts carries (core.device_labels), so what is shown resolves.
 	let label = '';
@@ -44,7 +68,7 @@ export function device_view(m, d, usage, dmp) {
 		disabled: d.disabled,
 		created: d.created,
 		created_by: d.created_by,
-		online: live.online(dmp, d.id, peer),
+		online: hs > 0 && live.online(dmp, d.id, peer),
 		handshake: hs,
 		endpoint: live.endpoint_ip(peer?.endpoint) || u?.endpoint || '',
 		active: !!peer,

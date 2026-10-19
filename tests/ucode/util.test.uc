@@ -117,7 +117,7 @@ test('dates', () => {
 	eq(util.uniq([ 'a', 'b', 'a', 'c', 'b' ]), [ 'a', 'b', 'c' ], 'uniq');
 });
 
-test('text: ulength, ucut, translit, host_label', () => {
+test('text: ulength, ucut, translit, host_label, tunnel_name', () => {
 	eq(util.ulength('Мама'), 4, 'characters, not bytes');
 	eq(util.ulength('abc'), 3, 'ascii');
 	eq(util.ucut('Привет', 3), 'При', 'cut by characters');
@@ -127,6 +127,16 @@ test('text: ulength, ucut, translit, host_label', () => {
 	eq(util.translit('Mixed Текст 1'), 'Mixed tekst 1', 'Latin and digits pass');
 	eq(util.host_label('Galaxy S24'), 'galaxy-s24', 'label');
 	eq(util.host_label('Телефон Ёжика'), 'telefon-yozhika', 'Cyrillic label');
+	eq(util.tunnel_name('Outline Home'), 'Outline-Home', 'tunnel name keeps the case');
+	eq(util.tunnel_name('Дом у моря'), 'dom-u-morya', 'Cyrillic tunnel name');
+	eq(util.tunnel_name('  My  VPN (home)! '), 'My-VPN-home', 'tunnel name: runs of other characters are one dash');
+	eq(util.tunnel_name('A very long server name'), 'A-very-long-ser', 'tunnel name: 15 characters at most');
+	eq(util.tunnel_name('Home server 12345'), 'Home-server-123', 'tunnel name: cut');
+	eq(util.tunnel_name('Lakeside house x'), 'Lakeside-house', 'tunnel name: no dash left at the cut');
+	eq(util.tunnel_name('nul'), 'dawnline', 'tunnel name: a Windows device name');
+	eq(util.tunnel_name('COM1'), 'dawnline', 'tunnel name: a Windows device name, any case');
+	eq(util.tunnel_name('???'), 'dawnline', 'tunnel name: nothing left');
+	eq(util.tunnel_name(null), 'dawnline', 'tunnel name: null');
 	eq(util.host_label('!!!'), 'device', 'nothing left');
 	eq(length(util.host_label(replace(sprintf('%50s', ''), ' ', 'x'))), 40, 'cut at 40');
 });

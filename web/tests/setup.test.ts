@@ -2,9 +2,15 @@ import { describe, expect, it } from 'vitest';
 import {
   appsFor,
   deviceNoun,
+  importPath,
+  importSteps,
   inWebview,
+  keyFileName,
+  opensKeyLinks,
+  osGroup,
   platformOf,
   sameDevice,
+  scanPath,
   setupFromHash,
   setupLink,
   storeFor,
@@ -54,6 +60,13 @@ describe('setup', () => {
     expect(sameDevice('phone', 'unknown')).toBe(false);
   });
 
+  it('lets the person pick the system of a computer or an "other" device', () => {
+    expect(osGroup('computer')).toEqual(['windows', 'mac', 'linux']);
+    expect(osGroup('other')).toEqual(['ios', 'android', 'windows', 'mac', 'linux']);
+    expect(osGroup('phone')).toEqual([]);
+    expect(osGroup('router')).toEqual([]);
+  });
+
   it('lists the apps a disguise allows, AmneziaVPN first', () => {
     expect(appsFor('max').map((a) => a.id)).toEqual(['vpn', 'awg']);
     expect(appsFor('off').map((a) => a.id)).toEqual(['vpn', 'awg', 'wg']);
@@ -70,6 +83,31 @@ describe('setup', () => {
     expect(storeFor('awg', 'mac')?.main).toBe('Mac App Store');
     expect(storeFor('wg', 'ios')?.alt).toBeUndefined();
     expect(storeFor('vpn', 'unknown')).toBeNull();
+  });
+
+  it('opens vpn:// links only where AmneziaVPN registers them, and names the key file for the rest', () => {
+    expect(opensKeyLinks('android')).toBe(true);
+    expect(opensKeyLinks('ios')).toBe(false);
+    expect(opensKeyLinks('windows')).toBe(false);
+    expect(opensKeyLinks('mac')).toBe(false);
+    expect(keyFileName('outline-iphone.conf')).toBe('outline-iphone.vpn');
+    expect(keyFileName('home')).toBe('home.vpn');
+  });
+
+  it('words the import as each platform’s app does', () => {
+    expect(importPath('awg', 'ios')).toBe('+ → Create from file or archive');
+    expect(importPath('awg', 'android')).toBe('+ → Import from file or archive');
+    expect(importPath('wg', 'windows')).toBe('Add Tunnel → Import tunnel(s) from file');
+    expect(importPath('vpn', 'ios')).toBe('Add server → Insert key');
+    expect(scanPath('awg', 'android')).toBe('+ → Scan from QR code');
+    expect(scanPath('awg')).toBe('+ → Create from QR code (Android: Scan from QR code)');
+    expect(importSteps('awg', 'mac', 'Outline-Home.conf', false)).toEqual([
+      ['Open AmneziaWG', ''],
+      ['+ → ', 'Import tunnel(s) from file'],
+      ['Pick the file and connect', ''],
+    ]);
+    expect(importSteps('awg', 'linux', 'Outline-Home.conf', false)[1]).toEqual(['Run ', 'sudo awg-quick up ./Outline-Home.conf']);
+    expect(importSteps('wg', 'linux', 'Outline-Home.conf', false)[1][1]).toContain('wg-quick up');
   });
 
   it('spots in-app browsers', () => {

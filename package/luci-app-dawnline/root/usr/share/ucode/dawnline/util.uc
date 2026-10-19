@@ -4,7 +4,7 @@
 
 import { open, readfile, writefile, rename, mkdir, stat, unlink, popen, lsdir } from 'fs';
 
-export const VERSION = '0.8.1';
+export const VERSION = '0.9.0';
 /** GitHub repository with Dawnline releases (updates and the installer). */
 export const REPO = 'tickcount/luci-app-dawnline';
 export const RUN_DIR = '/var/run/dawnline';
@@ -586,6 +586,18 @@ export function host_label(s) {
 	let l = replace(lc(translit(`${s ?? ''}`)), /[^a-z0-9]+/g, '-');
 	l = replace(substr(replace(l, /^-+|-+$/g, ''), 0, 40), /-+$/g, '');
 	return l || 'device';
+};
+
+/**
+ * A server's name as a tunnel name ("Outline Home" → "Outline-Home"): the
+ * AmneziaWG and WireGuard apps name the tunnel after the file, and Android and
+ * wg-quick refuse anything but [a-zA-Z0-9_=+.-] up to 15 characters; Windows
+ * refuses its device names (CON, NUL, COM1…). "dawnline" when nothing is left.
+ */
+export function tunnel_name(s) {
+	let l = replace(translit(`${s ?? ''}`), /[^A-Za-z0-9]+/g, '-');
+	l = replace(substr(replace(l, /^-+|-+$/g, ''), 0, 15), /-+$/g, '');
+	return l && !match(l, /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i) ? l : 'dawnline';
 };
 
 /* ---------- time ---------- */

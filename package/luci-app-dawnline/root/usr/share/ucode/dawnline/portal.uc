@@ -29,7 +29,7 @@
 // that answers anything not shaped like a link (its not_found() twin).
 
 import { stat, readfile } from 'fs';
-import { read_json, write_json, ensure_dir, lock, unlock, cloudflare_ip, ip2int, today, VERSION, RUN_DIR } from 'dawnline.util';
+import { read_json, write_json, ensure_dir, lock, unlock, cloudflare_ip, ip2int, today, tunnel_name, VERSION, RUN_DIR } from 'dawnline.util';
 import * as core from 'dawnline.core';
 import * as awg from 'dawnline.awg';
 import * as live from 'dawnline.live';
@@ -345,11 +345,8 @@ function state(r) {
 	let v = view.person_view(m, person, usage, live.dump(m), view.states(m, usage));
 	v.state = person_state(m, person, usage);
 	let srv = m.servers[person.server];
-	// The device this page was opened from, when it came through the tunnel.
-	let here = null;
-	for (let id, d in m.devices)
-		if (d.person == person.id && d.address == r.peer)
-			here = id;
+	// The device this page was opened from, through the tunnel or beside it.
+	let here = view.device_here(v.devices, r.peer);
 	return {
 		title: r.title,
 		person: v,
@@ -386,6 +383,15 @@ function api_state(r) {
 	send_json(r, '200 OK', state(r));
 }
 
+/**
+ * A configuration as the person gets it: the file, and so the tunnel the apps
+ * name after it, is the server's name. The admin's downloads keep the device
+ * in the name: one browser fetches many of them.
+ */
+function own_config(c) {
+	return c ? { ...c, filename: `${tunnel_name(c.server)}.conf` } : c;
+}
+
 function api_add(r) {
 	need_open(r);
 	need_https(r);
@@ -395,7 +401,7 @@ function api_add(r) {
 	rate_action(r);
 	let res = guard(r, () => devices.add(r.person.id, b.name, b.kind, { by: 'portal', public_key: b.public_key }));
 	reload(r);
-	send_json(r, '200 OK', { id: res.id, config: res.config, state: state(r) });
+	send_json(r, '200 OK', { id: res.id, config: own_config(res.config), state: state(r) });
 }
 
 function api_config(r, id) {
@@ -403,7 +409,7 @@ function api_config(r, id) {
 	need_open(r);
 	need_https(r);
 	awg.mark_issued(r.m, d.id);
-	send_json(r, '200 OK', awg.client_config(r.m, d));
+	send_json(r, '200 OK', own_config(awg.client_config(r.m, d)));
 }
 
 /** POST /devices/<id> { action }: what each action does; the answer carries the new state. */
@@ -412,12 +418,13 @@ const ACTIONS = {
 		guard(r, () => devices.update(d.id, { name: b.name }, { by: 'portal', person: r.person.id }));
 		return {};
 	},
-	rotate: (r, d, b) => {
+	// Set up from scratch: new keys and the new configuration, which the set-up sheet takes in.
+	reconnect: (r, d, b) => {
 		need_https(r);
 		if (!devices.ready())
 			fail(r, '503 Service Unavailable', NOT_READY);
-		let config = guard(r, () => devices.rotate(d.id, { by: 'portal', person: r.person.id, defer: d.address == r.peer }));
-		return { config };
+		let config = guard(r, () => devices.reconnect(d.id, { by: 'portal', person: r.person.id, defer: d.address == r.peer }));
+		return { config: own_config(config) };
 	},
 	'delete': (r, d, b) => {
 		guard(r, () => devices.remove(d.id, { by: 'portal', person: r.person.id }));

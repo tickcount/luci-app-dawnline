@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { inflateSync } from 'node:zlib';
 import { byDeviceState, bytes, daysLeft, initials, quotaText, slugify } from '../src/shared/format';
-import { amneziaJson, base64Url, fromBase64Url, vpnKey, withPrivateKey } from '../src/shared/vpnkey';
+import { amneziaJson, base64Url, fromBase64Url, vpnKey, vpnQrText, withPrivateKey } from '../src/shared/vpnkey';
 import type { ClientConfig } from '../src/shared/types';
 
 const cfg: ClientConfig = {
@@ -78,6 +78,14 @@ describe('vpn:// keys', () => {
     const json = inflateSync(Buffer.from(raw.slice(4))).toString('utf8');
     expect(json.length).toBe(len);
     expect(JSON.parse(json).hostName).toBe('vpn.example.com');
+  });
+
+  it('puts the bare payload in the QR code: AmneziaVPN’s scanner does not drop vpn://', async () => {
+    const key = await vpnKey(cfg, 'x');
+    const qr = vpnQrText(key);
+    expect(qr).toBe(key.slice(6));
+    expect(qr).toMatch(/^[A-Za-z0-9_-]+$/);
+    expect(vpnQrText(qr)).toBe(qr);
   });
 
   it('substitutes a browser-held private key', () => {
