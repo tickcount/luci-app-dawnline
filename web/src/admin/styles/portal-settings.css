@@ -47,7 +47,9 @@
 .dl-pgrid.flush { padding: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 @media (max-width: 640px) { .dl-pgrid.flush { grid-template-columns: minmax(0, 1fr); } }
 .dl-qr-pane { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
-.dl-qr { width: min(280px, 72vw); aspect-ratio: 1; background: #fff; padding: 8px; border-radius: 12px; box-shadow: inset 0 0 0 1px var(--dl-line); }
+.dl-qr { width: min(280px, 72vw); aspect-ratio: 1; background: #0a0a0a; border-radius: 18px; overflow: hidden; }
+/* The portal's round look: its own card colour (black at night, white by day), the light one ringed. */
+.dl-qr.light { background: #fff; box-shadow: inset 0 0 0 1px var(--dl-line); }
 .dl-qr svg { display: block; width: 100%; height: 100%; }
 .dl-filecard { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 14px; background: var(--dl-soft); min-width: 0; }
 .dl-filecard > .dl-stack { flex: 1; min-width: 0; }

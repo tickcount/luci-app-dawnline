@@ -1,0 +1,660 @@
+/* The controls every part uses: round knobs, buttons (and their busy orb), the field with its
+   go button, the icon picker, the kinds with their ring, badges, hints and menu paths, the link row,
+   QR codes and the row that puts a code beside its words. */
+
+.knob {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--knob);
+  color: var(--text);
+  display: grid;
+  place-items: center;
+  flex: none;
+  transition:
+    transform 150ms var(--ease-out),
+    background-color 150ms;
+}
+.knob:hover {
+  background: color-mix(in srgb, var(--knob), var(--text) 6%);
+}
+.knob:active {
+  transform: scale(0.8);
+}
+.knob .i {
+  width: 16px;
+  height: 16px;
+}
+.knob.back .i {
+  transform: rotate(180deg);
+}
+.knob[aria-expanded='true'] {
+  background: color-mix(in srgb, var(--knob), var(--text) 10%);
+}
+
+.btn {
+  height: 48px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 20px;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  user-select: none;
+  -webkit-user-select: none;
+  transition:
+    transform 200ms var(--ease-out),
+    background-color 200ms var(--ease-out),
+    color 200ms var(--ease-out);
+}
+.btn:active {
+  transform: scale(0.95);
+}
+.btn.block {
+  width: 100%;
+}
+.btn.sm {
+  height: 40px;
+  font-size: 15px;
+  padding: 0 16px;
+}
+.btn.accent {
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+.btn.accent:hover {
+  background: color-mix(in srgb, var(--accent) 82%, transparent);
+}
+/* The quiet accent: a card's Connect, tinted rather than filled. */
+.btn.tint {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+.btn.tint:hover {
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+.btn.tint:active {
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+}
+.btn.soft {
+  background: var(--knob);
+  color: var(--text);
+}
+.btn.soft:hover {
+  background: color-mix(in srgb, var(--knob), var(--text) 6%);
+}
+.btn.red {
+  background: var(--bad);
+  color: #fff;
+  font-weight: 600;
+}
+/* Waiting for the router: the button keeps its size, its content blurs away and an orb comes up in
+   its place (ui/busy.ts runs the change). The orb is B4 Converge from aicss.dev's Orbs, at its own
+   28px stage and twice its speed: one circle walks a triangle, sharp at each corner and smaller,
+   softer in between; a second breathes in the middle. */
+.busy {
+  position: relative;
+}
+.orb {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 28px;
+  height: 28px;
+  overflow: hidden;
+  contain: strict;
+  pointer-events: none;
+}
+.orb i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  margin: -3.5px 0 0 -3.5px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: orb-converge 1.8s linear infinite both;
+}
+.orb i:nth-child(2) {
+  animation: orb-breathe 1.8s ease-in-out infinite both;
+}
+/* Top, bottom right, bottom left: a beat at each corner, then away (ease-in) and in (ease-out). */
+@keyframes orb-converge {
+  0% {
+    transform: translate(0px, -5px) scale(1);
+    filter: blur(0);
+    animation-timing-function: linear;
+  }
+  10% {
+    transform: translate(0px, -5px) scale(1);
+    filter: blur(0);
+    animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45);
+  }
+  22% {
+    transform: translate(2.15px, -1.25px) scale(0.72);
+    filter: blur(0.8px);
+    animation-timing-function: cubic-bezier(0.33, 1, 0.68, 1);
+  }
+  33% {
+    transform: translate(4.3px, 2.5px) scale(1);
+    filter: blur(0);
+    animation-timing-function: linear;
+  }
+  43% {
+    transform: translate(4.3px, 2.5px) scale(1);
+    filter: blur(0);
+    animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45);
+  }
+  55% {
+    transform: translate(0px, 2.5px) scale(0.72);
+    filter: blur(0.8px);
+    animation-timing-function: cubic-bezier(0.33, 1, 0.68, 1);
+  }
+  66% {
+    transform: translate(-4.3px, 2.5px) scale(1);
+    filter: blur(0);
+    animation-timing-function: linear;
+  }
+  77% {
+    transform: translate(-4.3px, 2.5px) scale(1);
+    filter: blur(0);
+    animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45);
+  }
+  88% {
+    transform: translate(-2.15px, -1.25px) scale(0.72);
+    filter: blur(0.8px);
+    animation-timing-function: cubic-bezier(0.33, 1, 0.68, 1);
+  }
+  100% {
+    transform: translate(0px, -5px) scale(1);
+    filter: blur(0);
+  }
+}
+@keyframes orb-breathe {
+  0%,
+  100% {
+    opacity: 0.16;
+    filter: blur(2.4px);
+    transform: scale(1.2);
+  }
+  50% {
+    opacity: 0.32;
+    filter: blur(1.6px);
+    transform: scale(0.98);
+  }
+}
+
+.field {
+  height: 48px;
+  border-radius: var(--r-field);
+  background: var(--field);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 4px 0 16px;
+  overflow: hidden;
+  transition: box-shadow 200ms var(--ease-out);
+}
+.field:focus-within {
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--text) 16%, transparent);
+}
+.field input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  padding: 0;
+  font: 500 16px/24px var(--font);
+  color: var(--text);
+  letter-spacing: -0.012em;
+}
+.field input::placeholder {
+  color: var(--text-3);
+}
+.go {
+  width: 48px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--knob);
+  color: var(--text-3);
+  display: grid;
+  place-items: center;
+  flex: none;
+  transition:
+    background-color 200ms var(--ease-out),
+    color 200ms var(--ease-out),
+    transform 200ms var(--ease-out);
+}
+.go .i {
+  width: 20px;
+  height: 20px;
+}
+.go.ready {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.go.ready:active {
+  transform: scale(0.9);
+}
+.go:not(.ready) {
+  cursor: not-allowed;
+}
+
+/* The icon picker (skiper21's tabs): icons only, the picked one widens and shows its name. */
+.seg {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 48px;
+  padding: 0 4px;
+  border-radius: var(--r-field);
+  background: var(--field);
+}
+.seg-pill {
+  position: absolute;
+  left: 0;
+  top: 4px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--seg);
+  box-shadow: var(--seg-shadow);
+  pointer-events: none;
+}
+.seg-b {
+  position: relative;
+  z-index: 1;
+  height: 40px;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-3);
+  white-space: nowrap;
+  transition: color 200ms var(--ease-out);
+}
+.seg-b.on {
+  color: var(--text);
+}
+.seg-b:not(.on):hover {
+  color: var(--text-2);
+}
+.appseg .seg-b {
+  flex: 0 0 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  justify-content: safe center;
+  gap: 8px;
+  padding: 0 18px;
+  overflow: hidden;
+}
+.appseg .seg-b.on {
+  flex: 1 1 56px;
+}
+.appseg .seg-b .i {
+  width: 20px;
+  height: 20px;
+}
+.appseg .seg-l {
+  max-width: 0;
+  opacity: 0;
+  margin-left: -8px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.appseg .seg-b.on .seg-l {
+  max-width: 180px;
+  opacity: 1;
+  margin-left: 0;
+}
+/* Three apps on a phone: the icons take less room, so the picked one's name fits whole. */
+.appseg {
+  container-type: inline-size;
+}
+@container (max-width: 300px) {
+  .appseg .seg-b {
+    flex-basis: 44px;
+    padding: 0 12px;
+  }
+}
+
+/* What a new device is: four tiles, the picked one ringed in place; the label under its tile. */
+.kinds {
+  display: grid;
+  grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr));
+  gap: 8px;
+  position: relative;
+  container-type: inline-size;
+}
+.kind {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--text-3);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  transition: color 200ms var(--ease-out);
+}
+.kind-tile {
+  width: 100%;
+  height: 56px;
+  border-radius: 14px;
+  background: var(--field);
+  display: grid;
+  place-items: center;
+  transition:
+    background-color 200ms var(--ease-out),
+    transform 200ms var(--ease-out),
+    box-shadow 220ms var(--ease-out);
+}
+.kind.on .kind-tile {
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+.kind-lbl {
+  white-space: nowrap;
+}
+.kind:hover .kind-tile,
+.kind:focus-visible .kind-tile {
+  background: var(--knob);
+}
+.kind:active .kind-tile {
+  transform: scale(0.94);
+}
+.kind:focus-visible {
+  outline: none;
+}
+.kind:focus-visible .kind-lbl,
+.kind.on {
+  color: var(--text);
+}
+.kind .gi {
+  width: 26px;
+  height: 26px;
+  filter: grayscale(1);
+  opacity: 0.55;
+  transition:
+    filter 260ms var(--ease-out),
+    opacity 260ms var(--ease-out);
+}
+.kind.on .gi {
+  filter: none;
+  opacity: 1;
+}
+@container (max-width: 330px) {
+  .kind-tile {
+    height: 50px;
+  }
+  .kind {
+    font-size: 11.5px;
+  }
+}
+.or {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 22px 0;
+  color: var(--text-3);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+}
+.or::before,
+.or::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+/* A store (or an action) as a tile: its mark, two lines, a chevron or the open mark. */
+.badge {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 60px;
+  padding: 0 14px 0 12px;
+  border-radius: 18px;
+  background: var(--field);
+  transition:
+    background-color 200ms,
+    transform 200ms var(--ease-out);
+}
+.badge:hover {
+  background: var(--knob);
+}
+.badge:active {
+  transform: scale(0.98);
+}
+.badge .b-ic {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--text);
+  color: var(--raised);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.badge .b-ic .i {
+  width: 20px;
+  height: 20px;
+}
+.badge .b-t {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.badge .b-top {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-2);
+}
+.badge .b-main {
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 500;
+}
+.badge > .i {
+  color: var(--text-3);
+  width: 16px;
+  height: 16px;
+}
+/* Step 2 is neutral like the other tiles; only its mark keeps the accent. */
+.badge.primary .b-ic {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.badges2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.badges2 .badge {
+  padding: 0 10px;
+  gap: 10px;
+}
+.badges2 .badge > .i {
+  display: none;
+}
+.badges2 .b-ic {
+  width: 32px;
+  height: 32px;
+}
+.hint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+.hint a,
+.hint button {
+  color: var(--accent);
+  font-weight: 500;
+}
+.howto {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+.howto li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.howto li + li::before {
+  content: '›';
+  color: var(--text-3);
+}
+.howto b {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.linkrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 4px 0 14px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--knob) 72%, var(--field));
+}
+.view > .linkrow {
+  background: var(--field);
+}
+.linkrow .mono {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  user-select: all;
+}
+.linkrow .knob {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: transparent;
+}
+.linkrow .knob:hover {
+  background: var(--knob);
+}
+
+/* QR codes: the night look on a dark theme, dark on white on a light one; a dense code fills its row. */
+.qrbox {
+  position: relative;
+  width: 148px;
+  height: 148px;
+  flex: none;
+  border-radius: 18px;
+  overflow: hidden;
+  background: var(--qr-bg);
+}
+.qrbox.light {
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.qrbox.big {
+  width: 208px;
+  height: 208px;
+  border-radius: 24px;
+  align-self: center;
+}
+.qrbox.big + .linkrow {
+  margin-top: 16px;
+}
+.qrbox.dense {
+  width: 100%;
+  max-width: none;
+  height: auto;
+  aspect-ratio: 1;
+  align-self: stretch;
+  border-radius: 22px;
+}
+.qrbox svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+/* A code swapping for another: the old one lies over the new one while it fades. */
+.qrbox > svg.old {
+  position: absolute;
+  inset: 0;
+}
+.coderow {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.coderow.stacked {
+  flex-direction: column;
+  align-items: stretch;
+}
+.coderow .side {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--text-2);
+}
+.coderow .side b {
+  color: var(--text);
+  font-weight: 500;
+}
+.side .words {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.side .words.old {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  pointer-events: none;
+}
+.side .arr {
+  color: var(--text-2);
+  font-weight: 400;
+  margin: 0 6px;
+}
+@media (max-width: 380px) {
+  .coderow {
+    flex-direction: column;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The orb's own still frame: the front circle sharp, the other two a soft halo behind it. */
+  .orb i {
+    animation: none;
+    opacity: 0.3;
+    filter: blur(1.4px);
+  }
+  .orb i:first-child {
+    opacity: 1;
+    filter: none;
+  }
+}

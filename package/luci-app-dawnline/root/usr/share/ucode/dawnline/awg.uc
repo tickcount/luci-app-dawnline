@@ -6,7 +6,7 @@
 
 import { readfile, stat, unlink } from 'fs';
 import {
-	q, sh, sh_out, rand_int, rand_bytes, valid_key, ip2int, translit, ensure_dir, write_file, read_json, write_json, lock, unlock,
+	q, sh, sh_out, rand_int, rand_bytes, valid_key, ip2int, tunnel_name, ensure_dir, write_file, read_json, write_json, lock, unlock,
 	slog, iface_status, DATA_DIR, RUN_DIR
 } from 'dawnline.util';
 import * as core from 'dawnline.core';
@@ -336,25 +336,6 @@ export function obf_neutral(o) {
 	return true;
 };
 
-/*
- * The .conf file name doubles as the tunnel name in WireGuard apps (15
- * characters at most): the device first, so a person's devices stay apart,
- * and a number when the cut would still make two of them alike.
- */
-function conf_filename(m, p, dev) {
-	let label = (d) => trim(substr(trim(replace(lc(translit(d.name + '-' + p.id)), /[^a-z0-9]+/g, '-'), '-'), 0, 15), '-');
-	let order = sort(map(p.devices, (id) => m.devices[id]),
-		(a, b) => (a.created - b.created) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-	let seen = {};
-	for (let d in order) {
-		let l = label(d);
-		let n = seen[l] = (seen[l] ?? 0) + 1;
-		if (d.id == dev.id)
-			return (n > 1 ? trim(substr(l, 0, 15 - length(`-${n}`)), '-') + `-${n}` : l) + '.conf';
-	}
-	return label(dev) + '.conf';
-}
-
 /**
  * The junk a device sends is its own: within the preset's own ranges, the
  * count and sizes are shifted a little by the device (deterministic, so the
@@ -423,7 +404,8 @@ export function client_config(m, dev) {
 		name: dev.name,
 		person: p.name,
 		server: srv.name,
-		filename: conf_filename(m, p, dev),
+		// The file name is the tunnel's name in WireGuard apps: the server's, in the portal and the admin alike.
+		filename: `${tunnel_name(srv.name)}.conf`,
 		conf: join('\n', lines) + '\n',
 		has_private_key: dev.private_key != '',
 		amnezia: {

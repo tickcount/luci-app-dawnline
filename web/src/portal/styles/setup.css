@@ -1,0 +1,318 @@
+/* The set-up sheet: the numbered steps, the way from the device to the server while the page waits
+   (and its line morphing into "<device> connected"), the .conf for a router, and the scan line that
+   speaks for both phone systems. */
+
+.setup {
+  display: flex;
+  flex-direction: column;
+}
+.setup .notice {
+  margin: 0 0 16px;
+}
+/* The steps fold to nothing under the way round: their gap is a block inside them, not padding
+   (a border-box never folds below its padding). */
+.steps-gap {
+  height: 22px;
+}
+.step {
+  display: flex;
+  gap: 12px;
+}
+.step + .step {
+  margin-top: 20px;
+}
+.step-n {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--knob);
+  font-size: 13px;
+  font-weight: 600;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.step-b {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.step-t {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+.step-box {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* The way, as on the old portal: one dotted line, three layers through the same dots (the dots, the
+   light along them that runs and rests a beat, the green that fills them from the device); the
+   router's end lights up last, when the green gets there. */
+.way {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 14px;
+  border-radius: 20px;
+  background: var(--field);
+  margin-bottom: 18px;
+}
+.way-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.way-end {
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  background: var(--knob);
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--text-2);
+  transition:
+    background-color 400ms var(--ease-out),
+    color 400ms var(--ease-out);
+}
+.way-end .i {
+  width: 17px;
+  height: 17px;
+}
+.way-end.home {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.way-track {
+  position: relative;
+  flex: 1;
+  height: 8px;
+}
+.way-track::before,
+.way-glow,
+.way-fill {
+  content: '';
+  position: absolute;
+  inset: 0;
+  -webkit-mask: radial-gradient(circle, #000 1.4px, transparent 1.9px) 0 50% / 9px 8px repeat-x;
+  mask: radial-gradient(circle, #000 1.4px, transparent 1.9px) 0 50% / 9px 8px repeat-x;
+}
+.way-track::before {
+  background: var(--text-3);
+  opacity: 0.8;
+}
+.way-glow {
+  overflow: hidden;
+  transition: opacity 200ms var(--ease-out);
+}
+.way-glow i {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 32%, var(--accent) 50%, transparent 68%);
+  transform: translateX(-70%);
+  animation: way-run 2s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+@keyframes way-run {
+  0% {
+    transform: translateX(-70%);
+  }
+  72%,
+  100% {
+    transform: translateX(70%);
+  }
+}
+.way-fill {
+  background: var(--ok);
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path 700ms var(--ease-out) 80ms;
+}
+.way.done .way-fill {
+  clip-path: inset(0);
+}
+.way.done .way-glow,
+.way.stopped .way-glow {
+  opacity: 0;
+}
+.way.done .way-end {
+  color: var(--ok);
+  background: var(--ok-soft);
+}
+.way.done .way-end.home {
+  transition-delay: 600ms;
+}
+.way.done .way-end.home .i {
+  animation: way-pop 420ms var(--spring-bouncy, ease) 600ms backwards;
+}
+@keyframes way-pop {
+  from {
+    transform: scale(0.6);
+  }
+  to {
+    transform: none;
+  }
+}
+.way-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  margin-top: 10px;
+  text-align: center;
+}
+.way-text .t {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+/* The line morphs into "<device> connected" (ui/morph.ts) and turns green. */
+.way-text b {
+  position: relative;
+  display: inline-flex;
+  justify-content: center;
+  white-space: nowrap;
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 20px;
+  transition: color 300ms var(--ease-out);
+}
+.way-text .ws {
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 18px;
+}
+.way.done .way-text b {
+  color: var(--ok);
+}
+
+/* The .conf for a router: a file card, and the configuration folded with its keys masked. */
+.filecard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 18px;
+  background: var(--field);
+}
+.fc-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.filecard-ic {
+  width: 38px;
+  height: 46px;
+  border-radius: 9px;
+  background: var(--knob);
+  font: 600 10px/1 var(--mono);
+  display: grid;
+  place-items: center;
+  color: var(--text-2);
+  flex: none;
+}
+.filecard .t {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.filecard .t .mono {
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.filecard .t span:last-child {
+  font-size: 12px;
+  color: var(--text-2);
+  line-height: 16px;
+}
+.confbar {
+  display: flex;
+  gap: 8px;
+}
+.conf {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--field);
+  font: 12px/18px var(--mono);
+  max-height: 16rem;
+  overflow: auto;
+  white-space: pre;
+  color: var(--text-2);
+}
+.conf .k {
+  color: var(--text);
+}
+.conf .sec {
+  color: var(--accent);
+}
+.conf .mask {
+  color: var(--text-3);
+  letter-spacing: 1px;
+}
+
+/* Where the app scans, for both phone systems: the mark and the word that differs change in place. */
+.osm {
+  white-space: normal;
+}
+.osm-ic {
+  display: inline-grid;
+  width: 1.05em;
+  height: 1.05em;
+  margin-right: 0.25em;
+  vertical-align: -0.16em;
+}
+.osm-ic > svg {
+  grid-area: 1 / 1;
+  width: 100%;
+  height: 100%;
+}
+.osm-ic .eye {
+  fill: var(--field);
+}
+.osm-p {
+  display: inline-block;
+  white-space: pre;
+}
+/* "In AmneziaWG:" and the path on one line; where they don't fit, the path goes under it whole, and
+   stays there while it morphs (never split, never a part dropping on its own). */
+.scanline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.3em;
+}
+.scanline .osm {
+  white-space: nowrap;
+}
+/* A narrow screen: the path under the label for every app, so switching apps never moves it between lines. */
+@media (max-width: 440px) {
+  .scanline {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+.way-text b .mt-old {
+  color: var(--text-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .way-glow {
+    display: none;
+  }
+  .way-fill {
+    transition: none;
+  }
+  .way.done .way-end.home .i {
+    animation: none;
+  }
+}

@@ -1,11 +1,12 @@
 # Test fixture: a small installation (one server, two people, one device).
-# migrate.test.uc expects bob's random code, the server's stored MTU 1380 and
-# uhttpd's error_page: the one-time steps remove them.
+# migrate.test.uc expects bob's random code, the server's stored MTU 1380,
+# the old portal title and uhttpd's error_page: the one-time steps remove them.
 
 config settings 'settings'
 	option portal_enabled '1'
 	option portal_port '8443'
 	option portal_host 'vpn.example.com'
+	option portal_title 'My VPN'
 	option log_connections '0'
 	option update_interval '7d'
 	list update_targets 'app'

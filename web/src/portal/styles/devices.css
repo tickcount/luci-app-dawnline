@@ -1,0 +1,201 @@
+/* "Your devices": the grid, a card per device (its glass icon, name and one-line status, ⋯; the week
+   as a number and bars, the Update pill, or Connect), the card that adds one, the first device. */
+
+.dgrid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (min-width: 560px) {
+  .dgrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.dev {
+  background: var(--raised);
+  border-radius: var(--r-card);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.dev.is-here {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 32%, transparent);
+}
+.dev.off {
+  opacity: 0.5;
+}
+.dev-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 6px 6px 10px;
+}
+.dev-top .gi {
+  width: 32px;
+  height: 32px;
+}
+.dev-id {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.dev-name {
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Every card the same height: a one-line status. */
+.dev-stat {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dev-stat.ok-t {
+  color: var(--ok);
+}
+.dev-stat.warn-t {
+  color: var(--warn);
+}
+.dev-stat.here-t {
+  color: var(--accent);
+}
+.dev-use {
+  margin-top: auto;
+  background: var(--field);
+  border-radius: var(--r-row);
+  padding: 12px 14px 12px 16px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 66px;
+}
+.use-txt {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.use-lbl {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.use-val {
+  font-size: 17px;
+  line-height: 24px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+.spark {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 34px;
+}
+.spark i {
+  width: 6px;
+  border-radius: 3px;
+  background: var(--bar);
+  transition: background-color 150ms;
+}
+.spark i.today {
+  background: var(--accent);
+}
+.spark i:hover {
+  background: var(--text-2);
+}
+.spark i.today:hover {
+  background: color-mix(in srgb, var(--accent) 75%, var(--text));
+}
+.dev .setup-btn {
+  margin-top: auto;
+}
+.upd-pill {
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px 0 10px;
+  border-radius: 999px;
+  flex: none;
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+  color: var(--warn);
+  font-size: 13px;
+  font-weight: 600;
+  transition:
+    background-color 150ms,
+    transform 150ms var(--ease-out);
+}
+.upd-pill:hover {
+  background: color-mix(in srgb, var(--warn) 22%, transparent);
+}
+.upd-pill:active {
+  transform: scale(0.94);
+}
+.upd-pill .i {
+  width: 14px;
+  height: 14px;
+}
+.dev.add {
+  align-items: center;
+  justify-content: center;
+  min-height: 144px;
+  gap: 10px;
+  color: var(--text-2);
+  font-weight: 500;
+  transition:
+    background-color 200ms var(--ease-out),
+    transform 200ms var(--ease-out);
+}
+.dev.add:hover {
+  background: color-mix(in srgb, var(--raised), var(--knob) 45%);
+}
+.dev.add:active {
+  transform: scale(0.98);
+}
+.dev.add .gi {
+  width: 36px;
+  height: 36px;
+}
+/* Nothing yet: one card across the grid, what comes and the button. */
+.dev.first {
+  grid-column: 1 / -1;
+  align-items: center;
+  text-align: center;
+  padding: 28px 24px 24px;
+  gap: 6px;
+}
+.dev.first .gi {
+  width: 44px;
+  height: 44px;
+  margin-bottom: 8px;
+}
+.dev.first b {
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+.dev.first p {
+  margin: 0 0 14px;
+  color: var(--text-2);
+  font-size: 14px;
+  line-height: 20px;
+  max-width: 34ch;
+  text-wrap: balance;
+}
+.dev.first .btn {
+  max-width: 320px;
+}

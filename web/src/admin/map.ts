@@ -10,6 +10,7 @@ import { E } from './e';
 import { ago, initials } from '../shared/format';
 import { icon, iconSvg } from '../shared/icons';
 import { onNavigate } from './ui/nav';
+import { isDark } from './ui/theme';
 import { placeKey, shimmerOpacity } from './places/model';
 
 // mapcn requires maplibre-gl ^6 (the globe projection came with 5): an ES module, its worker beside it.
@@ -69,12 +70,6 @@ function loadMapLibre(host: HTMLElement): Promise<any> {
       },
     );
   return loading;
-}
-
-function isDark(): boolean {
-  const attr = document.documentElement.getAttribute('data-darkmode');
-  if (attr != null) return attr === 'true';
-  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
 }
 
 /** A click on a marker brings the map at least this close (a city). */

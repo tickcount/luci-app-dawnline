@@ -1,0 +1,281 @@
+/* The sheet: a drawer floating at the bottom on every width, × and a view's own buttons pinned in its
+   corner, the views inside (head, line under it), and the question look (Remove, Reconnect). */
+
+/* Closed, the sheet is out of the page (display, not visibility): each open computes its styles
+   afresh. Hidden by visibility, Chromium could keep the inherited "hidden" on the views' box after a
+   quick close and reopen (a double tap on Reconnect), and the sheet opened empty but for its buttons. */
+.sheet-root {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: none;
+}
+.sheet-root.open {
+  display: block;
+}
+.scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--scrim);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+.sheet {
+  position: absolute;
+  left: var(--gutter-l);
+  right: var(--gutter-r);
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  margin: 0 auto;
+  max-width: 400px;
+  max-height: calc(100% - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  background: var(--raised);
+  border-radius: var(--r-sheet);
+  box-shadow: var(--sheet-shadow);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+/* On a computer (and a tablet held wide): a dialog in the middle of the screen, which comes up from
+   its centre (ui/sheet.ts); a phone keeps the drawer at the bottom. The breakpoint is the one the
+   sheet widens at for a dense code. Centred by the layout, not a transform, so its text stays on the
+   pixel grid and its own transform stays free for the motion. */
+@media (min-width: 760px) {
+  .sheet-root.open {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .sheet {
+    position: relative;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    margin: 0;
+    width: calc(100% - var(--gutter-l) - var(--gutter-r));
+  }
+}
+.sheet .x {
+  position: absolute;
+  z-index: 3;
+  right: 22px;
+  top: 22px;
+}
+.vp {
+  position: relative;
+  overflow: hidden;
+  flex: none;
+}
+.sheet-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.view {
+  padding: 0 24px 24px;
+  display: flex;
+  flex-direction: column;
+}
+/* Pulled down by its head to close: the head takes the touch, the rest scrolls. */
+.vhead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 76px;
+  padding-right: 44px;
+  flex: none;
+  cursor: grab;
+  touch-action: none;
+}
+.vhead h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 500;
+  letter-spacing: -0.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vhead.center h2 {
+  text-align: center;
+}
+.vhead.with-acts {
+  padding-right: 126px;
+}
+.vsub {
+  margin: -16px 0 18px;
+  color: var(--text-2);
+  font-size: 14px;
+  line-height: 20px;
+}
+.vhead.center + .vsub {
+  text-align: center;
+  margin: -6px auto 24px;
+  max-width: 32ch;
+  text-wrap: balance;
+}
+.kinds-note {
+  margin: 14px 2px 16px;
+}
+.view > .hint.bad-t {
+  margin-top: 8px;
+}
+.secure-note {
+  margin-top: 12px;
+  text-align: center;
+}
+
+/* A view's own buttons beside × and pinned like it: icons only, each the size and colour of ×; the
+   two join with tighter inner corners. */
+.sheet-acts {
+  position: absolute;
+  z-index: 3;
+  top: 22px;
+  right: 58px;
+}
+.hpill {
+  position: relative;
+  display: flex;
+  gap: 2px;
+}
+.hp-b {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 32px;
+  background: var(--knob);
+  color: var(--text);
+  transition:
+    background-color 150ms,
+    transform 150ms var(--ease-out);
+}
+.hp-b:first-of-type {
+  border-radius: 16px 6px 6px 16px;
+}
+.hp-b:last-of-type {
+  border-radius: 6px 16px 16px 6px;
+}
+.hp-b .i {
+  width: 16px;
+  height: 16px;
+}
+.hp-b:hover {
+  background: color-mix(in srgb, var(--knob), var(--text) 6%);
+}
+.hp-b:active {
+  transform: scale(0.94);
+}
+.hp-b.done {
+  color: var(--ok);
+}
+/* Their tooltip: a small toast-coloured pill under the keys, one for both. */
+.hp-tip {
+  position: absolute;
+  z-index: 4;
+  left: 0;
+  top: calc(100% + 8px);
+  height: 26px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  border-radius: 999px;
+  background: var(--toast);
+  color: var(--toast-fg);
+  font: 500 12px/1 var(--font);
+  letter-spacing: -0.1px;
+  white-space: nowrap;
+  box-shadow:
+    0 0 0 1px var(--line-glass),
+    var(--pop-shadow);
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+  transform-origin: 50% 0;
+}
+.hp-tip.on {
+  opacity: 1;
+}
+.hp-tip .tt {
+  position: relative;
+  display: inline-flex;
+  justify-content: center;
+  white-space: nowrap;
+}
+.hp-tip .tt-m {
+  position: absolute;
+  left: 0;
+  top: 0;
+  visibility: hidden;
+  white-space: nowrap;
+}
+/* Connected: nothing is left to do here, so × and the view's buttons step away; the sheet then closes by itself. */
+.sheet .x,
+.sheet-acts {
+  transition:
+    transform 150ms var(--ease-out),
+    background-color 150ms,
+    opacity 240ms var(--ease-out),
+    filter 240ms var(--ease-out),
+    scale 240ms var(--ease-out);
+}
+.sheet.arrived .x,
+.sheet.arrived .sheet-acts {
+  opacity: 0;
+  filter: blur(3px);
+  scale: 0.9;
+  pointer-events: none;
+}
+
+/* A question before something that cannot be undone. */
+.center-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.center-col.ask {
+  padding-top: 28px;
+}
+.center-col.secure {
+  padding-top: 4px;
+}
+.center-col .gi.xl {
+  width: 64px;
+  height: 64px;
+  margin: 8px 0 16px;
+}
+.center-col h3 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 500;
+  letter-spacing: -0.5px;
+}
+.center-col p {
+  margin: 6px 0 22px;
+  color: var(--text-2);
+  font-size: 15px;
+  line-height: 21px;
+  max-width: 30ch;
+  text-wrap: balance;
+}
+.center-col.secure p {
+  margin-top: 0;
+}
+.btnrow {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+.btnrow .btn {
+  flex: 1;
+}
+.btnrow2 {
+  display: grid;
+  gap: 8px;
+}
+.btnrow2 .btn {
+  width: 100%;
+}

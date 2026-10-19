@@ -29,7 +29,7 @@
 // that answers anything not shaped like a link (its not_found() twin).
 
 import { stat, readfile } from 'fs';
-import { read_json, write_json, ensure_dir, lock, unlock, cloudflare_ip, ip2int, today, tunnel_name, VERSION, RUN_DIR } from 'dawnline.util';
+import { read_json, write_json, ensure_dir, lock, unlock, cloudflare_ip, ip2int, today, VERSION, RUN_DIR } from 'dawnline.util';
 import * as core from 'dawnline.core';
 import * as awg from 'dawnline.awg';
 import * as live from 'dawnline.live';
@@ -64,8 +64,8 @@ const NOT_READY = "Adding devices isn't available right now: the VPN server isn'
 
 // States the admin stopped the person in: the portal only shows, it changes nothing.
 const LOCKED = {
-	paused: 'Your access is paused by the admin.',
-	expired: 'Your access has ended. Ask the admin to extend it.',
+	paused: 'Your access is paused.',
+	expired: 'Your access has ended.',
 };
 
 function html_escape(s) {
@@ -241,11 +241,16 @@ function rate_action(r) {
 
 /* ---------- pages ---------- */
 
+/** What the page is called (the tab, the first crumb): the person's server, or Dawnline. */
+function place(r) {
+	return r.person ? r.m.servers[r.person.server]?.name || 'Dawnline' : 'Dawnline';
+}
+
 /** The app shell; it reads the code from its own URL and sends it along. */
 function shell(r) {
 	// The build's time joins the version so every update busts the hour-long asset cache.
 	let v = `?v=${VERSION}.${stat(`${ASSETS}/portal.js`)?.mtime ?? 0}`;
-	let base = r.base, title = r.title;
+	let base = r.base, title = place(r);
 	headers(r, '200 OK', {
 		'Content-Type': 'text/html; charset=utf-8',
 		'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; " +
@@ -338,17 +343,24 @@ function need_https(r) {
 		send_json(r, '403 Forbidden', { error: 'Open this link over HTTPS to get the connection settings.', https_url: u });
 }
 
+/** The router's offset from UTC in minutes: the admin sets hours in its time, the page shows the visitor's. */
+function tz_offset() {
+	let t = time();
+	return int((timegm(localtime(t)) - t) / 60);
+}
+
 /** Everything the page shows. */
 function state(r) {
 	let m = r.m, person = r.person;
 	let usage = core.load_usage();
 	let v = view.person_view(m, person, usage, live.dump(m), view.states(m, usage));
 	v.state = person_state(m, person, usage);
+	// Day by day this month, for the page's chart (the admin's views have no use for it).
+	v.month_days = view.month_days(usage.people?.[person.id]);
 	let srv = m.servers[person.server];
 	// The device this page was opened from, through the tunnel or beside it.
 	let here = view.device_here(v.devices, r.peer);
 	return {
-		title: r.title,
 		person: v,
 		here,
 		server: {
@@ -367,6 +379,8 @@ function state(r) {
 		today: today(),
 		// Its clock too: "last connected 3 min ago" is measured against it, not the phone's.
 		now: time(),
+		// And its time zone: hours are set in the router's time, shown in the visitor's.
+		tz_offset: tz_offset(),
 		version: VERSION,
 	};
 }
@@ -383,15 +397,6 @@ function api_state(r) {
 	send_json(r, '200 OK', state(r));
 }
 
-/**
- * A configuration as the person gets it: the file, and so the tunnel the apps
- * name after it, is the server's name. The admin's downloads keep the device
- * in the name: one browser fetches many of them.
- */
-function own_config(c) {
-	return c ? { ...c, filename: `${tunnel_name(c.server)}.conf` } : c;
-}
-
 function api_add(r) {
 	need_open(r);
 	need_https(r);
@@ -401,7 +406,7 @@ function api_add(r) {
 	rate_action(r);
 	let res = guard(r, () => devices.add(r.person.id, b.name, b.kind, { by: 'portal', public_key: b.public_key }));
 	reload(r);
-	send_json(r, '200 OK', { id: res.id, config: own_config(res.config), state: state(r) });
+	send_json(r, '200 OK', { id: res.id, config: res.config, state: state(r) });
 }
 
 function api_config(r, id) {
@@ -409,7 +414,7 @@ function api_config(r, id) {
 	need_open(r);
 	need_https(r);
 	awg.mark_issued(r.m, d.id);
-	send_json(r, '200 OK', own_config(awg.client_config(r.m, d)));
+	send_json(r, '200 OK', awg.client_config(r.m, d));
 }
 
 /** POST /devices/<id> { action }: what each action does; the answer carries the new state. */
@@ -424,7 +429,7 @@ const ACTIONS = {
 		if (!devices.ready())
 			fail(r, '503 Service Unavailable', NOT_READY);
 		let config = guard(r, () => devices.reconnect(d.id, { by: 'portal', person: r.person.id, defer: d.address == r.peer }));
-		return { config: own_config(config) };
+		return { config };
 	},
 	'delete': (r, d, b) => {
 		guard(r, () => devices.remove(d.id, { by: 'portal', person: r.person.id }));
@@ -490,7 +495,6 @@ export function handle(io) {
 		method: env.REQUEST_METHOD ?? 'GET',
 		peer: env.REMOTE_ADDR ?? '',
 		buckets: buckets(env),
-		title: m.settings.portal_title || 'Dawnline',
 		// The port in the visitor's address bar ([v6]:port, name:port, or the default).
 		hsts: https && (match(host, /:([0-9]+)$/)?.[1] ?? '443') == '443',
 		person: null,

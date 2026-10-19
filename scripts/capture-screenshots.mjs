@@ -10,11 +10,13 @@
 //
 //   scripts/capture-screenshots.mjs [--router https://router.lan] [--person id]
 //                                   [--mask real=shown ...] [--name real=shown ...]
-//                                   [--only overview,people]
+//                                   [--only overview,people] [--demo]
 //
 // --mask replaces text on every page before the capture (a domain, a name);
 // --name does the same for a person's name in any case, and for their initials.
 // Public IPv4 addresses are always swapped for documentation ones (203.0.113.x).
+// --demo shows a made-up cast instead of the router's people (scripts/screenshot-demo.mjs):
+// the router's answers are rewritten in the headless browser on their way to the page.
 
 import { execFileSync, spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -22,12 +24,20 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createInterface } from 'node:readline';
+import { demoRpc } from './screenshot-demo.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const RAW = join(ROOT, 'docs', 'screenshots', 'raw');
 const SCALE = 2;
 
-const args = { router: 'https://outline.lan', person: '', mask: [], names: [], only: [] };
+const args = {
+  router: 'https://outline.lan',
+  person: '',
+  mask: [],
+  names: [],
+  only: [],
+  demo: false,
+};
 for (let i = 2; i < process.argv.length; i++) {
   const a = process.argv[i];
   const v = () => process.argv[++i] ?? die(`${a} needs a value`);
@@ -36,6 +46,7 @@ for (let i = 2; i < process.argv.length; i++) {
   else if (a === '--mask') args.mask.push(v().split('=', 2));
   else if (a === '--name') args.names.push(v().split('=', 2));
   else if (a === '--only') args.only = v().split(',');
+  else if (a === '--demo') args.demo = true;
   else die(`unknown argument ${a}`);
 }
 if ([...args.mask, ...args.names].some((m) => m.length !== 2 || !m[0])) die('--mask and --name take real=shown');
@@ -100,29 +111,24 @@ const SHOTS = [
     url: (s) => `${LUCI}/person?id=${encodeURIComponent(s.person)}`,
     width: 1400,
     ready: '.dl-grid-person .dl-row',
-    // Down to the end of Access & limits; activity rows that would be cut are hidden.
+    // Where they connected from, on the map.
+    prep: `(() => {
+      const b = [...document.querySelectorAll('.dl-grid-person button')].find((x) => x.textContent.trim() === 'Show map');
+      b?.click();
+    })()`,
+    settle: 6000,
+    // Down to the end of Access & limits or of the map, whichever is lower; activity rows that would be cut are hidden.
     clip: `(() => {
-      const c = ${column}, cut = document.querySelector('.dl-grid-person > .dl-col:last-child').getBoundingClientRect().bottom + 40;
+      const c = ${column}, cols = document.querySelectorAll('.dl-grid-person > .dl-col');
+      const places = cols[0].children[2];
+      const cut = Math.max(cols[1].getBoundingClientRect().bottom, places ? places.getBoundingClientRect().bottom : 0) + 40;
       document.querySelectorAll('.dl-grid-person .dl-row').forEach((r) => {
         if (r.getBoundingClientRect().bottom > cut - 8) r.style.visibility = 'hidden';
       });
+      // Activity that would start right at the cut goes too, its heading with it.
+      const act = cols[0].children[3];
+      if (act && act.getBoundingClientRect().top > cut - 120) act.style.visibility = 'hidden';
       return { x: c.x, y: 0, width: c.w, height: cut };
-    })()`,
-  },
-  {
-    name: 'access',
-    url: () => `${LUCI}/server?section=access`,
-    width: 1400,
-    ready: 'section.dl-ifcard details',
-    // The home network card alone, its folded lists closed.
-    prep: `(() => {
-      const card = [...document.querySelectorAll('section.dl-ifcard')].find((s) => s.querySelector('details'));
-      card.querySelectorAll('details[open]').forEach((d) => (d.open = false));
-      card.setAttribute('data-shot', '');
-    })()`,
-    clip: `(() => {
-      const r = document.querySelector('[data-shot]').getBoundingClientRect();
-      return { x: r.left - 12, y: r.top - 12, width: r.width + 24, height: r.height + 24 };
     })()`,
   },
   {
@@ -156,7 +162,17 @@ const MASK = `((pairs, inits) => {
     if (!doc.has(m)) doc.set(m, '203.0.113.' + (24 + doc.size));
     return doc.get(m);
   };
-  const swap = (s) => pairs.reduce((t, [a, b]) => t.split(a).join(b), s).replace(/\\b\\d{1,3}(?:\\.\\d{1,3}){3}\\b/g, ip);
+  // IPv6 too, unless link-local or private (fe80::, fc00::/7).
+  const ip6 = (m) => {
+    if (/^(fe8|fe9|fea|feb|fc|fd)/i.test(m)) return m;
+    if (!doc.has(m)) doc.set(m, '2001:db8::' + (24 + doc.size));
+    return doc.get(m);
+  };
+  const swap = (s) =>
+    pairs
+      .reduce((t, [a, b]) => t.split(a).join(b), s)
+      .replace(/\\b\\d{1,3}(?:\\.\\d{1,3}){3}\\b/g, ip)
+      .replace(/\\b(?:[0-9a-f]{1,4}:){3,7}[0-9a-f]{1,4}\\b/gi, ip6);
   const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
   for (let n; (n = w.nextNode()); ) {
     const ini = inits.find(([a]) => n.nodeValue.trim() === a);
@@ -203,6 +219,7 @@ async function connect(wsUrl) {
   let id = 0;
   const pending = new Map();
   const waiters = [];
+  const listeners = [];
   ws.onmessage = (m) => {
     const msg = JSON.parse(m.data);
     if (msg.id && pending.has(msg.id)) {
@@ -210,6 +227,7 @@ async function connect(wsUrl) {
       pending.delete(msg.id);
       msg.error ? fail(new Error(msg.error.message)) : ok(msg.result);
     } else if (msg.method) {
+      for (const l of listeners.filter((x) => x.method === msg.method)) l.fn(msg.params);
       for (const w of waiters.filter((x) => x.method === msg.method)) {
         waiters.splice(waiters.indexOf(w), 1);
         w.ok(msg.params);
@@ -222,7 +240,8 @@ async function connect(wsUrl) {
       ws.send(JSON.stringify({ id, method, params }));
     });
   const waitFor = (method) => new Promise((ok) => waiters.push({ method, ok }));
-  return { send, waitFor, close: () => ws.close() };
+  const on = (method, fn) => listeners.push({ method, fn });
+  return { send, waitFor, on, close: () => ws.close() };
 }
 
 const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms));
@@ -255,10 +274,40 @@ async function main() {
     const pages = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
     const page = await connect(pages.find((p) => p.type === 'page').webSocketDebuggerUrl);
     await page.send('Page.enable');
-    await page.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'dark' }] });
+    await page.send('Emulation.setEmulatedMedia', {
+      features: [{ name: 'prefers-color-scheme', value: 'dark' }],
+    });
+    // The person shown on the Person page; known once People has loaded (or from --person).
+    const s = { person: args.person, portal: '' };
+    if (args.demo) {
+      page.on('Fetch.requestPaused', async (e) => {
+        try {
+          const r = await page.send('Fetch.getResponseBody', {
+            requestId: e.requestId,
+          });
+          const body = r.base64Encoded ? Buffer.from(r.body, 'base64').toString('utf8') : r.body;
+          const out = demoRpc(e.request.postData ?? '', body, s.person);
+          await page.send('Fetch.fulfillRequest', {
+            requestId: e.requestId,
+            responseCode: e.responseStatusCode ?? 200,
+            responseHeaders: e.responseHeaders ?? [],
+            body: Buffer.from(out, 'utf8').toString('base64'),
+          });
+        } catch {
+          await page.send('Fetch.continueRequest', { requestId: e.requestId }).catch(() => {});
+        }
+      });
+      await page.send('Fetch.enable', {
+        patterns: [{ urlPattern: '*ubus*', requestStage: 'Response' }],
+      });
+    }
 
     const evaluate = async (expression) => {
-      const r = await page.send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true });
+      const r = await page.send('Runtime.evaluate', {
+        expression,
+        awaitPromise: true,
+        returnByValue: true,
+      });
       if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description ?? r.exceptionDetails.text);
       return r.result.value;
     };
@@ -276,7 +325,12 @@ async function main() {
     };
     // A tall window: Outline scrolls #maincontent, not the page, so it must hold everything.
     const viewport = (width, height = 2600) =>
-      page.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: SCALE, mobile: false });
+      page.send('Emulation.setDeviceMetricsOverride', {
+        width,
+        height,
+        deviceScaleFactor: SCALE,
+        mobile: false,
+      });
 
     await viewport(1400);
     await go(`${args.router}/cgi-bin/luci/`);
@@ -297,13 +351,10 @@ async function main() {
     }
 
     // The person to show (the first one on People unless --person) and their personal link.
-    const s = { person: args.person, portal: '' };
     await go(`${LUCI}/server?section=people`);
     await waitSel('.dl-srvbody a[href*="dawnline/person"]');
     if (!s.person)
-      s.person = await evaluate(
-        `new URL(document.querySelector('.dl-srvbody a[href*="dawnline/person"]').href).searchParams.get('id')`,
-      );
+      s.person = await evaluate(`new URL(document.querySelector('.dl-srvbody a[href*="dawnline/person"]').href).searchParams.get('id')`);
     s.portal = await evaluate(`L.require('rpc').then((rpc) =>
       rpc.declare({ object: 'luci.dawnline', method: 'person_links', params: ['id'] })(${JSON.stringify(s.person)}))
       .then((r) => r.link ?? r.links?.[0] ?? '')`);

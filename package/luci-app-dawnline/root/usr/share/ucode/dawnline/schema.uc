@@ -107,9 +107,9 @@ export function to_int(v, dflt, lo, hi) {
 /* ---------- the settings section ---------- */
 
 /*
- * type: bool | int | enum | host | hosts | url | file | domain | ipv4 | time | text | targets
+ * type: bool | int | enum | host | hosts | url | file | domain | ipv4 | time | targets
  * dflt: the parsed default; restart: the portal (uhttpd) must restart when it changes;
- * min/max: ints and text length; values: enums; msg: the error for a bad value.
+ * min/max: ints; values: enums; msg: the error for a bad value.
  */
 export const SETTINGS = {
 	portal_enabled: { type: 'bool', dflt: false, restart: true },
@@ -117,7 +117,6 @@ export const SETTINGS = {
 	portal_alt: { type: 'hosts', dflt: [], restart: true, msg: 'Other addresses must be hostnames or IP addresses.' },
 	portal_port: { type: 'int', dflt: 8443, min: 1, max: 65535, restart: true,
 		msg: 'Choose a free port between 1 and 65535 (not 22, 53, 80 or 443).' },
-	portal_title: { type: 'text', dflt: 'Dawnline', max: 64, msg: 'Portal title: up to 64 characters on one line.' },
 	portal_redirect: { type: 'url', dflt: '', msg: 'Redirect must be a full http:// or https:// address.' },
 	portal_cert: { type: 'file', dflt: '', restart: true },
 	portal_key: { type: 'file', dflt: '', restart: true },
@@ -224,10 +223,6 @@ export function validate(key, val) {
 	}
 	else if (t == 'time') {
 		if (!match(val, /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/))
-			bad(spec, key);
-	}
-	else if (t == 'text') {
-		if (ulength(val) > spec.max || match(val, /[[:cntrl:]]/))
 			bad(spec, key);
 	}
 	return val;

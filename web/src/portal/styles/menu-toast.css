@@ -1,0 +1,109 @@
+/* The ⋯ menu (a highlight that glides after the pointer, tinted for Reconnect and Remove) and the
+   toast slot at the bottom. */
+
+.menu {
+  position: fixed;
+  z-index: 60;
+  min-width: 224px;
+  padding: 6px;
+  border-radius: 20px;
+  background: var(--field);
+  box-shadow:
+    var(--pop-shadow),
+    inset 0 0 0 1px var(--line);
+}
+.menu-hl {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  top: 6px;
+  height: 40px;
+  border-radius: 14px;
+  background: var(--knob);
+  opacity: 0;
+  transition: opacity 150ms var(--ease-out);
+  pointer-events: none;
+}
+.menu-hl.moving {
+  transition:
+    opacity 150ms var(--ease-out),
+    transform var(--spring-quick-dur, 300ms) var(--spring-quick, ease-out),
+    background-color 150ms;
+}
+.menu-hl.bad {
+  background: var(--bad-soft);
+}
+.menu-hl.warn {
+  background: color-mix(in srgb, var(--warn) 13%, transparent);
+}
+.mi {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+}
+.mi .i {
+  width: 16px;
+  height: 16px;
+  color: var(--text-2);
+}
+.mi.warn,
+.mi.warn .i {
+  color: var(--warn);
+}
+.mi.bad,
+.mi.bad .i {
+  color: var(--bad);
+}
+.menu-sep {
+  height: 1px;
+  margin: 6px 12px;
+  background: var(--line);
+}
+
+/* One toast at a time; a new one comes in over the leaving one. */
+.toasts {
+  position: fixed;
+  left: 0;
+  right: 0;
+  height: 42px;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  z-index: 70;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  pointer-events: none;
+  padding-left: var(--gutter-l);
+  padding-right: var(--gutter-r);
+}
+.toast {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 42px;
+  padding: 0 18px 0 13px;
+  border-radius: 999px;
+  background: var(--toast);
+  color: var(--toast-fg);
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: var(--pop-shadow);
+  white-space: nowrap;
+}
+.toast .i {
+  width: 18px;
+  height: 18px;
+  color: var(--ok);
+}
+.toast.bad .i {
+  color: var(--bad);
+}

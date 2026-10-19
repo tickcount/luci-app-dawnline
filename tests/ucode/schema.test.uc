@@ -77,13 +77,6 @@ test('validate: time', () => {
 	throws(() => schema.validate('update_time', '23:60'), /HH:MM/, 'minute 60');
 });
 
-test('validate: text', () => {
-	eq(schema.validate('portal_title', 'My VPN'), 'My VPN', 'plain');
-	eq(schema.validate('portal_title', replace(sprintf('%64s', ''), ' ', 'a')), replace(sprintf('%64s', ''), ' ', 'a'), '64 characters');
-	throws(() => schema.validate('portal_title', replace(sprintf('%65s', ''), ' ', 'a')), /64 characters/, '65 characters');
-	throws(() => schema.validate('portal_title', 'a\nb'), /64 characters/, 'control character');
-});
-
 test('validate: targets', () => {
 	eq(schema.validate('update_targets', [ 'app', 'bogus', 'app', 'amneziawg' ]), [ 'app', 'amneziawg' ], 'known ones, once');
 	eq(schema.validate('update_targets', []), [ 'none' ], 'empty is a choice');
@@ -110,8 +103,6 @@ test('get', () => {
 	eq(schema.get({ home_dns_fallback: 'none' }, 'home_dns_fallback'), '', 'none reads as empty');
 	eq(schema.get({}, 'home_dns_fallback'), '1.1.1.1', 'missing ipv4');
 	eq(schema.get({ home_dns_fallback: '300.1.1.1' }, 'home_dns_fallback'), '1.1.1.1', 'bad ipv4');
-	eq(schema.get({}, 'portal_title'), 'Dawnline', 'missing text');
-	eq(schema.get({ portal_title: '' }, 'portal_title'), 'Dawnline', 'empty text');
 	eq(schema.get({ portal_host: 'vpn.example.com' }, 'portal_host'), 'vpn.example.com', 'host passes through');
 	eq(schema.get({ other: 'raw' }, 'other'), 'raw', 'unknown key is the raw value');
 	eq(schema.get(null, 'portal_port'), 8443, 'no section');

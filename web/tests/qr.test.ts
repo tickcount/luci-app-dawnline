@@ -23,6 +23,16 @@ describe('qr', () => {
     expect(qrSvg(KEY, 3, true, 'night')).not.toContain('<g transform');
   });
 
+  it('draws the day look with the night shapes, dark on white', () => {
+    const night = qrSvg(LINK, 3, true, 'night');
+    const day = qrSvg(LINK, 3, true, 'day');
+    expect(day).toMatch(/<rect width="(\d+)" height="\1" fill="#ffffff"\/>/);
+    expect(day).toContain('fill-rule="evenodd"');
+    expect(day).not.toContain('crispEdges');
+    // The same dots and eyes as at night, in the other colours; the mark's tile turns dark.
+    expect(day.replace(/#ffffff/g, 'BG').replace(/#0a0a0a/g, 'FG')).toBe(night.replace(/#0a0a0a/g, 'BG').replace(/#f2f2f2/g, 'FG'));
+  });
+
   it('gives a dense night code fuller dots', () => {
     expect(qrSvg(LINK, 3, true, 'night')).toContain('a0.42 0.42');
     expect(qrSvg(KEY, 3, true, 'night')).toContain('a0.48 0.48');

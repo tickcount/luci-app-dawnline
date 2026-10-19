@@ -52,6 +52,8 @@ export interface Person {
   online: number;
   last_seen: number;
   devices: Device[];
+  /** Daily totals (rx+tx) from the 1st of this month to today, oldest first; portal only. */
+  month_days?: number[];
   /** Throughput, one point a minute (last 15): [ts, rx, tx] in bytes/s (rx = from devices); admin only. */
   rate?: [number, number, number][];
   // admin only (the personal link itself comes from person_links, not the status)

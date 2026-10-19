@@ -1,0 +1,345 @@
+/* "Your access": what it reaches as two tiles and the names at home; the data as a ring in the head
+   and the month day by day inside; until when as the days left over a calendar of the weeks, and
+   the hours as a bar of the day. */
+
+.reach2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.reach-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 12px 12px 12px 14px;
+  border-radius: 16px;
+  background: var(--field);
+  min-width: 0;
+}
+.reach-tile .rt-ic {
+  width: 28px;
+  height: 28px;
+  margin-bottom: 10px;
+}
+.reach-tile b {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+}
+.reach-tile .rt-sub {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-2);
+}
+.reach-tile .rt-mark {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+.reach-tile .rt-mark .i {
+  width: 12px;
+  height: 12px;
+  stroke-width: 2.4;
+}
+.reach-tile.off b {
+  color: var(--text-2);
+}
+.reach-tile.off .rt-sub {
+  color: var(--text-3);
+}
+.reach-tile.off .rt-ic {
+  opacity: 0.45;
+}
+.reach-tile.off .rt-mark {
+  background: var(--knob);
+  color: var(--text-3);
+}
+.lbl-s {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-2);
+}
+.names {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.namechip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 10px 0 12px;
+  border-radius: 10px;
+  background: var(--field);
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: 0;
+  transition:
+    background-color 150ms,
+    transform 150ms var(--ease-out);
+}
+.namechip:hover {
+  background: var(--knob);
+}
+.namechip:active {
+  transform: scale(0.96);
+}
+.namechip .faint {
+  color: var(--text-3);
+}
+.namechip .i {
+  width: 14px;
+  height: 14px;
+  color: var(--text-2);
+}
+
+.ring {
+  width: 16px;
+  height: 16px;
+  transform: rotate(-90deg);
+}
+.ring .trk {
+  stroke: var(--bar);
+}
+.ring .arc {
+  stroke: var(--accent);
+}
+.ring .arc.warn {
+  stroke: var(--warn);
+}
+.ring .arc.bad {
+  stroke: var(--bad);
+}
+.month {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mbars {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 64px;
+}
+.mbars i {
+  flex: 1;
+  border-radius: 2.5px;
+  background: var(--bar);
+  min-height: 3px;
+  transition: background-color 120ms;
+}
+.mbars i.future {
+  background: color-mix(in srgb, var(--bar) 45%, transparent);
+}
+.mbars i.today {
+  background: var(--accent);
+}
+.mbars i:not(.future):hover {
+  background: var(--text-2);
+}
+.month-axis {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-3);
+  font-weight: 500;
+}
+.month-axis .td {
+  position: absolute;
+  transform: translateX(-50%);
+  color: var(--accent);
+}
+.month-axis .hide {
+  visibility: hidden;
+}
+.month-read {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+.month-read b {
+  color: var(--text);
+  font-weight: 500;
+  font-size: 15px;
+  letter-spacing: -0.02em;
+}
+.meter {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bar);
+  overflow: hidden;
+}
+.meter > i {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent);
+}
+.meter > i.warn {
+  background: var(--warn);
+}
+.meter > i.bad {
+  background: var(--bad);
+}
+
+.until {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--field);
+}
+.until-num {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.until-num b {
+  font-size: 36px;
+  line-height: 40px;
+  font-weight: 600;
+  letter-spacing: -0.045em;
+}
+.until-num span {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+.until-num .until-sub {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-3);
+}
+.until.soon .until-num b {
+  color: var(--warn);
+}
+.cal {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: none;
+}
+.cal-h,
+.cal-g {
+  display: grid;
+  grid-template-columns: repeat(7, 10px);
+  gap: 5px;
+}
+.cal-h span {
+  font-size: 9px;
+  line-height: 10px;
+  font-weight: 600;
+  color: var(--text-3);
+  text-align: center;
+}
+.cal-g i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--text) 16%, transparent);
+}
+.cal-g i.past {
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+}
+.cal-g i.today {
+  background: var(--accent);
+}
+.cal-g i.end {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+.cal-g i.after {
+  background: transparent;
+}
+.until.soon .cal-g i.today {
+  background: var(--warn);
+}
+.until.soon .cal-g i.end {
+  box-shadow: inset 0 0 0 1.5px var(--warn);
+}
+.acc-row.open .cal-g i {
+  animation: cal-in 360ms var(--ease-out) backwards;
+  animation-delay: calc(var(--i) * 7ms);
+}
+@keyframes cal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+}
+.hours {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--field);
+}
+.hours-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 13px;
+  color: var(--text-2);
+}
+.hours-top b {
+  color: var(--text);
+  font-weight: 500;
+  font-size: 15px;
+  letter-spacing: -0.02em;
+}
+.hours-bar {
+  position: relative;
+  height: 8px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+}
+.hours-bar i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--ok) 70%, transparent);
+}
+.hours-now {
+  position: absolute;
+  top: -4px;
+  width: 2px;
+  height: 16px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--text);
+  box-shadow: 0 0 0 2px var(--field);
+}
+.hours-now.out {
+  background: var(--warn);
+}
+.hours-axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--text-3);
+  font-weight: 500;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .acc-row.open .cal-g i {
+    animation: none;
+  }
+}

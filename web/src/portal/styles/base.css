@@ -1,0 +1,151 @@
+/* The ground every part stands on: the reset, the type, focus and selection, the small utilities,
+   the icons (line icons and the glass ones). */
+
+* {
+  box-sizing: border-box;
+}
+html {
+  -webkit-text-size-adjust: 100%;
+  /* The page keeps its width when a sheet locks the scroll: no sideways jump behind the scrim. */
+  scrollbar-gutter: stable;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 400 15px/22px var(--font);
+  letter-spacing: -0.011em;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  min-height: 100dvh;
+  /* An app, not a document: the arrow over text. Controls set the hand; what is typed or copied by
+     hand (fields, the link, the configuration) keeps the I-beam. */
+  cursor: default;
+}
+body.locked {
+  overflow: hidden;
+}
+input,
+textarea,
+.linkrow .mono,
+.conf {
+  cursor: text;
+}
+::selection {
+  background: var(--sel-bg);
+  color: var(--sel-fg);
+}
+button {
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+button:disabled {
+  cursor: default;
+}
+a {
+  color: inherit;
+  text-decoration: none;
+}
+:focus {
+  outline: none;
+}
+:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 65%, transparent);
+  outline-offset: 2px;
+}
+[hidden] {
+  display: none !important;
+}
+.offscreen {
+  position: fixed;
+  left: -9999px;
+  top: 0;
+  opacity: 0;
+}
+.mono {
+  font-family: var(--mono);
+  letter-spacing: 0;
+}
+.num {
+  font-variant-numeric: tabular-nums;
+}
+.ok-t {
+  color: var(--ok);
+}
+.warn-t {
+  color: var(--warn);
+}
+.bad-t {
+  color: var(--bad);
+}
+.here-t {
+  color: var(--accent);
+}
+
+/* line icons */
+.i {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+
+/* glass icons: the colours come from here (the CSP drops style attributes) */
+.gi {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  overflow: visible;
+  --ta: var(--t-grey-a);
+  --tb: var(--t-grey-b);
+}
+.gi.t-blue {
+  --ta: var(--t-blue-a);
+  --tb: var(--t-blue-b);
+}
+.gi.t-green {
+  --ta: var(--t-green-a);
+  --tb: var(--t-green-b);
+}
+.gi.t-red {
+  --ta: var(--t-red-a);
+  --tb: var(--t-red-b);
+}
+.gi.t-orange {
+  --ta: var(--t-orange-a);
+  --tb: var(--t-orange-b);
+}
+.gi .ta {
+  stop-color: var(--ta);
+}
+.gi .tb {
+  stop-color: var(--tb);
+}
+.gi .fa {
+  stop-color: var(--gi-a);
+}
+.gi .fb {
+  stop-color: var(--gi-b);
+}
+.gi .fc {
+  stop-color: var(--ta);
+  stop-opacity: 0.28;
+}
+.gi .ge {
+  stroke: var(--gi-edge);
+}
+.gi .gr {
+  stroke: var(--gi-rim);
+}
+.gi .gd {
+  stroke: var(--gi-detail);
+}
+.gi .gdf {
+  color: var(--gi-detail);
+}

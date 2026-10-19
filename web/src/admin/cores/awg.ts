@@ -10,9 +10,9 @@ import { confirmDialog } from '../ui/modal';
 import { copyText, downloadFile } from '../ui/files';
 import { attempt, notify } from '../ui/toast';
 import { input } from '../ui/controls';
-import { callout, card, firstBad, group, liveRow, row, svg } from '../ui/layout';
+import { callout, card, firstBad, group, liveRow, row } from '../ui/layout';
+import { qrCode } from '../ui/qr';
 import { keepaliveHelp, mtuHelp, portHelp, type PortHold } from '../netcheck';
-import { qrSvg } from '../../shared/qr';
 import { vpnKey } from '../../shared/vpnkey';
 import { icon } from '../../shared/icons';
 import { methodInfo, methodPicker, type Method, defaultMethod, legacyTitle } from '../disguise';
@@ -171,7 +171,7 @@ function fileCard(cfg: AwgConfig): HTMLElement {
       E('span', { class: 'dl-filecard-ic' }, '.conf'),
       E('span', { class: 'dl-stack' }, [
         E('span', { class: 'dl-mono dl-ellipsis' }, cfg.filename),
-        E('span', { class: 'dl-sub' }, `AmneziaWG · ${size} bytes · import it in the app`),
+        E('span', { class: 'dl-sub' }, `AmneziaWG · ${size} bytes`),
       ]),
       button([icon('download'), ' Download'], () => downloadFile(cfg.filename, cfg.conf, 'application/octet-stream'), 'positive'),
     ]),
@@ -218,7 +218,7 @@ export async function connectBlock(cfg: AwgConfig, initial: 'file' | 'key' | 'qr
   const panes: Record<string, () => Node> = {
     qr: () =>
       E('div', { class: 'dl-qr-pane' }, [
-        svg(qrSvg(cfg.conf), 'dl-qr'),
+        qrCode(cfg.conf),
         E(
           'span',
           { class: 'dl-sub' },
@@ -437,6 +437,6 @@ export const awg: Core = {
   overviewTile,
   connectBlock,
   qrText: (cfg) => cfg.conf,
-  appKey: { label: 'Copy AmneziaVPN key', make: (cfg) => vpnKey(cfg, cfg.server) },
-  file: { label: 'Download .conf', make: (cfg) => ({ name: cfg.filename, text: cfg.conf }) },
+  appKey: { label: 'Copy AmneziaVPN config', make: (cfg) => vpnKey(cfg, cfg.server) },
+  file: { label: 'Download AmneziaWG config', make: (cfg) => ({ name: cfg.filename, text: cfg.conf }) },
 };

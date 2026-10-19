@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dismisses, morphMs, rubber } from '../src/portal/motion';
+import { BOUNCY, SMOOTH, dismisses, rubber, spring } from '../src/portal/motion';
 
 describe('motion', () => {
   it('pulls past an edge with growing resistance, never further than the box', () => {
@@ -21,9 +21,21 @@ describe('motion', () => {
     expect(dismisses(-40, 1, 500)).toBe(false);
   });
 
-  it('times a height change by its distance, inside 220–380 ms', () => {
-    expect(morphMs(0)).toBe(220);
-    expect(morphMs(200)).toBe(270);
-    expect(morphMs(2000)).toBe(380);
+  it('samples springs into linear() that starts at 0 and ends at 1', () => {
+    for (const s of [BOUNCY, SMOOTH, spring(520, 24)]) {
+      expect(s.easing.startsWith('linear(0, ')).toBe(true);
+      expect(s.easing.endsWith(', 1)')).toBe(true);
+      expect(s.at(0)).toBe(0);
+      expect(s.at(s.duration)).toBe(1);
+    }
+  });
+
+  it('gives the bouncy spring its overshoot and the smooth one none', () => {
+    const peak = (s: typeof BOUNCY) => Math.max(...Array.from({ length: 200 }, (_, i) => s.at((s.duration * i) / 200)));
+    // skiper103: about 11% past the end, settled well inside a second.
+    expect(peak(BOUNCY)).toBeGreaterThan(1.08);
+    expect(peak(BOUNCY)).toBeLessThan(1.15);
+    expect(BOUNCY.duration).toBeLessThan(900);
+    expect(peak(SMOOTH)).toBeLessThanOrEqual(1);
   });
 });

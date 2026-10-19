@@ -79,7 +79,6 @@ import {
   portsHelp,
   quotaHelp,
   timeHelp,
-  titleHelp,
   urlHelp,
 } from '../src/admin/netcheck';
 import { date, daysLeft } from '../src/shared/format';
@@ -131,7 +130,6 @@ describe('field helps', () => {
     expect(portsHelp('70000').bad).toBe(true);
     expect(urlHelp('vpn.example.com').bad).toBe(true);
     expect(urlHelp('https://example.com/x').bad).toBe(false);
-    expect(titleHelp('x'.repeat(65)).bad).toBe(true);
     expect(domainHelp('').bad).toBe(false);
     expect(domainHelp('').text).toContain('phone.myata.lan');
     expect(domainHelp('Home.LAN').text).toBe('Lowercase only.');

@@ -16,6 +16,11 @@ export function spark(rec, n) {
 	return out;
 };
 
+/** Daily totals (rx+tx) from the 1st of this month to today, oldest first (the portal's month chart). */
+export function month_days(rec) {
+	return spark(rec, +substr(day_key_ago(0), 8, 2));
+};
+
 /** The device holds an older configuration than the one it would get now. */
 function config_stale(m, d) {
 	m._issued ??= awg.issued();

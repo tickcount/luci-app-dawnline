@@ -1,5 +1,5 @@
 // Setting up a device: which app, where it comes from, and whether the page
-// is open on the device being set up. Pure: the sheet in main.ts draws it.
+// is open on the device being set up. Pure: the set-up sheet (flows/) draws it.
 
 import type { Kind } from '../shared/types';
 
@@ -33,43 +33,19 @@ export function sameDevice(kind: Kind, platform: Platform): boolean {
   return true;
 }
 
-/**
- * The systems a kind may run, when that is the person's call: a computer's
- * desktop systems, any system for an "other" device (a TV box runs Android, a
- * NAS Linux). A phone's or a tablet's is read from the browser.
- */
-export const osGroup = (kind: Kind): Platform[] =>
-  kind === 'computer' ? ['windows', 'mac', 'linux'] : kind === 'other' ? ['ios', 'android', 'windows', 'mac', 'linux'] : [];
-
 export interface AppChoice {
   id: AppId;
   name: string;
-  /** The version this server needs, as "4.8.12" or ""; "current" when only the newest will do. */
-  need: string;
-  sub: string;
 }
 
-/** The apps that connect to a server with this disguise, the recommended one first. */
+/** The apps that connect to a server with this disguise, the recommended one first; any WireGuard app without one. */
 export function appsFor(preset: Preset): AppChoice[] {
-  const need = {
-    off: { vpn: '', awg: '' },
-    balanced: { vpn: '4.8.12', awg: '2.0' },
-    max: { vpn: 'current', awg: '3.1' },
-    legacy: { vpn: '', awg: '' },
-  }[preset];
   const out: AppChoice[] = [
-    { id: 'vpn', name: APP_NAME.vpn, need: need.vpn, sub: 'Connects from a link, no files' },
-    { id: 'awg', name: APP_NAME.awg, need: need.awg, sub: 'The light client: a file or a QR code' },
+    { id: 'vpn', name: APP_NAME.vpn },
+    { id: 'awg', name: APP_NAME.awg },
   ];
-  if (preset === 'off') out.push({ id: 'wg', name: APP_NAME.wg, need: '', sub: 'Any WireGuard app: this server has no disguise' });
+  if (preset === 'off') out.push({ id: 'wg', name: APP_NAME.wg });
   return out;
-}
-
-/** "This server needs AmneziaVPN 4.8.12 or newer. …", or "" when any version will do. */
-export function updateLine(app: AppChoice): string {
-  if (!app.need) return '';
-  const what = app.need === 'current' ? `the current version of ${app.name}` : `${app.name} ${app.need} or newer`;
-  return `This server needs ${what}. Installed a while ago? Update it in the store.`;
 }
 
 export type Mark = 'appstore' | 'googleplay' | 'windows' | 'apple' | 'linux' | 'openwrt' | 'github' | 'site';
@@ -157,7 +133,8 @@ export const routerStore = (app: AppId): Store =>
         main: 'wireguard-tools',
         mark: 'openwrt',
       }
-    : { href: 'https://openwrt.org/packages/start', top: 'OpenWrt packages', main: 'amneziawg-tools + kmod', mark: 'openwrt' };
+    : // One line on a phone: the kernel module goes on top.
+      { href: 'https://openwrt.org/packages/start', top: 'OpenWrt packages + kmod', main: 'amneziawg-tools', mark: 'openwrt' };
 
 /**
  * Does AmneziaVPN here open a `vpn://` link? Only the Android app registers the
@@ -234,13 +211,15 @@ export function setupFromHash(hash: string): string | null {
   return /^#setup=(d_[0-9a-f]{8})$/.exec(hash)?.[1] ?? null;
 }
 
+/** The personal link that opens straight on "Add a device": for the device itself to add, from its own browser. */
+export const addLink = (page: string): string => `${page}#add`;
+
+/** Does the link ask to add a device (`#add`)? */
+export const wantsAdd = (hash: string): boolean => hash === '#add';
+
 /**
  * "the phone", "the computer": the device being set up, in a sentence. The
  * sheet's title already names it; the lines under it do not repeat the name.
  */
 export const deviceNoun = (kind: Kind): string =>
   ({ phone: 'phone', tablet: 'tablet', computer: 'computer', router: 'router', other: 'device' })[kind];
-
-/** "This iPhone", "This Mac": the pill for the device in hand. */
-export const hereLabel = (platform: Platform): string =>
-  ({ ios: 'This iPhone', android: 'This phone', windows: 'This PC', mac: 'This Mac', linux: 'This PC', unknown: 'This device' })[platform];

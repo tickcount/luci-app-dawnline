@@ -1,0 +1,27 @@
+/* A text morphing in place (ui/morph.ts): the new letters in the flow, the old ones laid over them
+   against the edge that stays put while they go; done, it is plain text again. */
+.mt {
+  position: relative;
+}
+.mt-ib {
+  display: inline-block;
+  white-space: nowrap;
+}
+.mt-new {
+  white-space: nowrap;
+}
+.mt-old {
+  position: absolute;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.mt-new.w,
+.mt-old.w {
+  white-space: inherit;
+}
+.mt-new i,
+.mt-old i {
+  font-style: normal;
+  display: inline-block;
+  white-space: pre;
+}

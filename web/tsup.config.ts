@@ -1,5 +1,5 @@
 import { defineConfig } from 'tsup';
-import { transform, type Plugin } from 'esbuild';
+import { build, transform, type Plugin } from 'esbuild';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -31,6 +31,21 @@ function patchForLuci(file: string) {
 /** Minify CSS with esbuild (the same engine that bundles the scripts). */
 async function minifyCss(css: string): Promise<string> {
   return (await transform(css, { loader: 'css', minify: true, legalComments: 'none' })).code.trim();
+}
+
+/** The portal's stylesheet: its parts (src/portal/styles, joined by @import) as one minified file. */
+async function portalCss(): Promise<string> {
+  const r = await build({
+    entryPoints: ['src/portal/styles/index.css'],
+    bundle: true,
+    minify: true,
+    write: false,
+    legalComments: 'none',
+    // The fonts sit next to the stylesheet on the router: their URLs stay as written.
+    external: ['*.woff2'],
+    logLevel: 'silent',
+  });
+  return r.outputFiles[0].text.trim();
 }
 
 // The admin styles are plain .css files under src/admin/styles, imported as
@@ -97,7 +112,7 @@ export default defineConfig([
       o.charset = 'utf8';
     },
     onSuccess: async () => {
-      fs.writeFileSync(path.join(PORTAL_OUT, 'portal.css'), (await minifyCss(fs.readFileSync('src/portal/portal.css', 'utf8'))) + '\n');
+      fs.writeFileSync(path.join(PORTAL_OUT, 'portal.css'), (await portalCss()) + '\n');
       fs.copyFileSync('src/portal/icon.svg', path.join(PORTAL_OUT, 'icon.svg'));
       for (const f of fs.readdirSync('src/portal/fonts')) fs.copyFileSync(path.join('src/portal/fonts', f), path.join(PORTAL_OUT, f));
     },

@@ -57,6 +57,14 @@ export function uhttpd() {
 		store.transact((w, m) => w.delete('dawnline', 'settings', 'portal_443'));
 };
 
+/** The portal names itself after the server now (the breadcrumb, the tab): its own title setting is gone. */
+function portal_title() {
+	let c = cursor();
+	c.load('dawnline');
+	if (c.get('dawnline', 'settings', 'portal_title') != null)
+		store.transact((w, m) => w.delete('dawnline', 'settings', 'portal_title'));
+}
+
 /*
  * Steps that cannot tell from the config whether they ran are recorded in
  * `settings.migrated` (a list), so they run exactly once.
@@ -101,4 +109,5 @@ export function run() {
 	word_codes();
 	uhttpd();
 	auto_mtu();
+	portal_title();
 };

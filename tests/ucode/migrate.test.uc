@@ -16,6 +16,7 @@ test('before: the fixture holds the old state', () => {
 	let c = conf('dawnline');
 	eq(c.get('dawnline', 'bob', 'code'), 'XyZ12345', 'random code');
 	eq(c.get('dawnline', 'main', 'mtu'), '1380', 'stored MTU');
+	eq(c.get('dawnline', 'settings', 'portal_title'), 'My VPN', 'a portal title');
 	eq(conf('uhttpd').get('uhttpd', 'main', 'error_page'), '/cgi-bin/dawnline-portal', 'portal as error page');
 });
 
@@ -27,6 +28,7 @@ test('run: the steps change what they must', () => {
 	eq(c.get('dawnline', 'main', 'mtu'), null, 'MTU is automatic');
 	eq(c.get('dawnline', 'main', 'subnet'), '10.9.0.0/29', 'the rest of the server stays');
 	eq(c.get('dawnline', 'settings', 'portal_443'), null, 'no portal_443');
+	eq(c.get('dawnline', 'settings', 'portal_title'), null, 'no portal title');
 	eq(conf('uhttpd').get('uhttpd', 'main', 'error_page'), null, 'error page gone');
 	eq(conf('uhttpd').get('uhttpd', 'main', 'home'), '/www', 'the rest of uhttpd stays');
 	eq(stat('/etc/config/dawnline').perm, { setuid: false, setgid: false, sticky: false,

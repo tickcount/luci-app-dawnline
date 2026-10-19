@@ -81,7 +81,6 @@ export function load(c) {
 			portal_alt: g('portal_alt'),
 			portal_cert: g('portal_cert'),
 			portal_key: g('portal_key'),
-			portal_title: g('portal_title'),
 			// Where unknown portal links go instead of a bare 404 (empty = 404).
 			portal_redirect: g('portal_redirect'),
 			default_device_limit: g('default_device_limit'),

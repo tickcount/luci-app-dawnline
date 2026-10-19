@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
-"""Put the README screenshots into a browser window on a dawn gradient.
+"""Frame the README screenshots the way the portal draws its own surfaces.
 
 Raw captures live in docs/screenshots/raw/<name>.png at SCALE device pixels
 per CSS pixel (scripts/capture-screenshots.mjs takes them); the framed images
-are written to docs/screenshots/<name>.png at the same scale. Needs a
+are written to docs/screenshots/<name>.png at the same scale. Each page sits on
+a panel like the portal's sheets (#121212, radius 36, 16px around it, the page
+inside at radius 20) on the portal's own black. A shot in FLOWS gets its steps
+in a row in front of the page's lower edge, numbered: sheets captured alone on
+a transparent page (raw/<step>.png, FLOW_MARGIN around each). Needs a
 Chromium-based browser for the headless render (BROWSER=/path/to/chrome,
 default: Brave or Chrome on macOS).
-Run: scripts/frame-screenshots.py
+Run: scripts/frame-screenshots.py [name ...]   (all of them when no name is given)
 """
 import os
 import shutil
@@ -18,16 +22,18 @@ import tempfile
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 RAW = os.path.join(ROOT, 'docs', 'screenshots', 'raw')
 OUT = os.path.join(ROOT, 'docs', 'screenshots')
+FONT = os.path.join(ROOT, 'package', 'luci-app-dawnline', 'root', 'usr', 'share', 'dawnline', 'portal', 'assets',
+                    'geist-latin-wght-normal.woff2')
 
-# name -> what the address bar shows
-SHOTS = {
-    'overview': 'router.lan · Dawnline',
-    'people': 'router.lan · Dawnline · People',
-    'person': 'router.lan · Dawnline · Myata',
-    'portal': 'vpn.example.com/kamiro-telosu-bavine',
-    'access': 'router.lan · Dawnline · Home · Access',
+SHOTS = ['overview', 'people', 'person', 'portal']
+# name -> the steps in front of its page, in order (raw captures). Taken with demo data, not on a router:
+# adding a device there would add one.
+FLOWS = {
+    'portal': ['portal-add-1', 'portal-add-2', 'portal-add-3'],
 }
-PAD_X, PAD_Y, BAR = 120, 96, 40
+PAD_X, PAD_Y, INSET = 96, 80, 16  # canvas around the panel; panel around the page
+FLOW_MARGIN = (56, 40, 56, 72)  # around a step's sheet in its capture: left, top, right, bottom
+STEP_GAP, STEP_OVER, STEP_PAD = 28, 150, 120  # between steps; how far they reach over the page; canvas beside them
 SCALE = 2
 
 CANDIDATES = [
@@ -39,26 +45,18 @@ CANDIDATES = [
 ]
 
 TEMPLATE = """<!doctype html><html><head><meta charset="utf-8"><style>
+@font-face{{font-family:Geist;src:url('file://{font}') format('woff2');font-weight:100 900}}
 html,body{{margin:0;width:{w}px;height:{h}px;overflow:hidden}}
-body{{display:flex;align-items:center;justify-content:center;
- font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
- background:
-  radial-gradient({gw}px {gh}px at 50% 118%, rgba(255,140,70,.55), rgba(255,140,70,0) 70%),
-  radial-gradient({gw2}px {gh2}px at 50% 100%, rgba(250,90,120,.30), rgba(250,90,120,0) 70%),
-  linear-gradient(180deg,#070a14 0%,#0c1226 55%,#1a1430 100%)}}
-.win{{width:{iw}px;border-radius:14px;overflow:hidden;background:#000;
- box-shadow:0 0 0 1px rgba(255,255,255,.08),0 40px 120px rgba(0,0,0,.65),0 10px 30px rgba(0,0,0,.4)}}
-.bar{{height:{bar}px;background:#15171c;display:flex;align-items:center;gap:8px;padding:0 16px;
- border-bottom:1px solid rgba(255,255,255,.06);position:relative}}
-.dot{{width:12px;height:12px;border-radius:50%}}
-.url{{position:absolute;left:50%;transform:translateX(-50%);height:24px;padding:0 14px;border-radius:7px;
- background:#0d0f13;color:#8b8f98;font-size:13px;display:flex;align-items:center;gap:6px;white-space:nowrap}}
-.url svg{{width:11px;height:11px;fill:none;stroke:#8b8f98;stroke-width:2}}
-img{{display:block;width:{iw}px;height:{ih}px}}
-</style></head><body><div class="win"><div class="bar">
-<span class="dot" style="background:#ff5f57"></span><span class="dot" style="background:#febc2e"></span><span class="dot" style="background:#28c840"></span>
-<span class="url"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>{url}</span>
-</div><img src="file://{src}"></div></body></html>"""
+body{{position:relative;background:#080808}}
+.panel{{position:absolute;left:{px}px;top:{py}px;width:{pw}px;height:{ph}px;
+ border-radius:36px;background:#121212;box-shadow:inset 0 0 0 1px rgba(255,255,255,.05),0 30px 80px rgba(0,0,0,.5)}}
+.page{{position:absolute;left:{x}px;top:{y}px;width:{iw}px;height:{ih}px;display:block;border-radius:20px;
+ box-shadow:0 0 0 1px rgba(255,255,255,.04)}}
+.sheet{{position:absolute;display:block;filter:drop-shadow(0 24px 48px rgba(0,0,0,.6))}}
+.n{{position:absolute;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;
+ font:600 16px Geist,sans-serif;color:#ededed;background:#232323;
+ box-shadow:0 0 0 1px rgba(255,255,255,.12),0 6px 16px rgba(0,0,0,.5)}}
+</style></head><body><div class="panel"></div><img class="page" src="file://{src}">{steps}</body></html>"""
 
 
 def png_size(path):
@@ -67,22 +65,53 @@ def png_size(path):
     return struct.unpack('>II', head[16:24])
 
 
+def layout(iw, ih, flow):
+    """Where the page goes and its steps in a row in front of its lower edge: (width, height, page x, page y, steps)."""
+    w, h = iw + 2 * (INSET + PAD_X), ih + 2 * (INSET + PAD_Y)
+    x, y = PAD_X + INSET, PAD_Y + INSET
+    if not flow:
+        return w, h, x, y, ''
+    ml, mt, mr, mb = FLOW_MARGIN
+    sizes = [tuple(v // SCALE for v in png_size(src)) for src in flow]
+    row = sum(pw - ml - mr for pw, _ in sizes) + STEP_GAP * (len(sizes) - 1)
+    w = max(w, row + 2 * STEP_PAD)
+    x = (w - iw) // 2
+    top = y + ih - STEP_OVER
+    h = top + max(ph - mt - mb for _, ph in sizes) + PAD_Y
+    out, sx = [], (w - row) // 2
+    for i, (src, (pw, ph)) in enumerate(zip(flow, sizes)):
+        out.append(f'<img class="sheet" src="file://{src}" style="left:{sx - ml}px;top:{top - mt}px;width:{pw}px;height:{ph}px">')
+        out.append(f'<span class="n" style="left:{sx - 14}px;top:{top - 14}px">{i + 1}</span>')
+        sx += pw - ml - mr + STEP_GAP
+    return w, h, x, y, ''.join(out)
+
+
 def main():
     browser = next((b for b in CANDIDATES if b and os.path.exists(b)), None)
     if not browser:
         sys.exit('No Chromium-based browser found; set BROWSER=/path/to/chrome')
+    only = sys.argv[1:]
+    unknown = [n for n in only if n not in SHOTS]
+    if unknown:
+        sys.exit(f'unknown screenshot {", ".join(unknown)} (one of {", ".join(SHOTS)})')
     tmp = tempfile.mkdtemp()
-    for name, url in SHOTS.items():
+    for name in SHOTS:
+        if only and name not in only:
+            continue
         src = os.path.join(RAW, f'{name}.png')
         if not os.path.exists(src):
             print(f'skip {name}: no raw capture')
             continue
         iw, ih = (v // SCALE for v in png_size(src))
-        w, h = iw + 2 * PAD_X, ih + BAR + 2 * PAD_Y
+        flow = [os.path.join(RAW, f'{step}.png') for step in FLOWS.get(name, [])]
+        if not all(os.path.exists(p) for p in flow):
+            print(f'{name}: a step is missing, the page alone')
+            flow = []
+        w, h, x, y, steps = layout(iw, ih, flow)
         html = os.path.join(tmp, f'{name}.html')
         with open(html, 'w', encoding='utf-8') as f:
-            f.write(TEMPLATE.format(w=w, h=h, iw=iw, ih=ih, bar=BAR, url=url, src=src,
-                                    gw=int(w * .8), gh=int(h * .5), gw2=int(w * .6), gh2=int(h * .45)))
+            f.write(TEMPLATE.format(w=w, h=h, x=x, y=y, iw=iw, ih=ih, px=x - INSET, py=y - INSET, pw=iw + 2 * INSET,
+                                    ph=ih + 2 * INSET, src=src, font=FONT, steps=steps))
         out = os.path.join(OUT, f'{name}.png')
         subprocess.run([browser, '--headless=new', '--disable-gpu', '--hide-scrollbars', '--allow-file-access-from-files',
                         f'--force-device-scale-factor={SCALE}', f'--window-size={w},{h}', f'--screenshot={out}', f'file://{html}'],

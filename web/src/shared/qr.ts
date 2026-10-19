@@ -4,15 +4,16 @@
 // no mark and level L: every step up in correction adds modules, and a dense
 // code fails on the camera before it fails on damage.
 //
-// Two looks. `plain`: black squares on white in one path (the admin's cards and
+// Three looks. `plain`: black squares on white in one path (the admin's cards and
 // the invite image). `night`: light dots on black with rounded finder eyes (the
-// portal). Light dots on dark lose a dense code to blur sooner, so a dense night
-// code gets fuller dots: checked with a QR reader, r 0.42 lost a 1.5 KB key at
-// 1.2 px of blur where r 0.48 read as well as the plain code.
+// portal on a dark theme). `day`: the same dots and eyes, dark on white (the
+// portal on a light theme). Light dots on dark lose a dense code to blur sooner,
+// so a dense round code gets fuller dots: checked with a QR reader, r 0.42 lost
+// a 1.5 KB key at 1.2 px of blur where r 0.48 read as well as the plain code.
 
 import qrcode from 'qrcode-generator';
 
-export type QrLook = 'plain' | 'night';
+export type QrLook = 'plain' | 'night' | 'day';
 
 /** The icon's dome and bar (64×64 viewBox, see portal/icon.svg), in a colour. */
 const mark = (fill: string) =>
@@ -20,6 +21,8 @@ const mark = (fill: string) =>
 
 const NIGHT_BG = '#0a0a0a';
 const NIGHT_FG = '#f2f2f2';
+/** The round looks' card and dots: light on black at night, dark on white by day. */
+const ROUND: Record<'night' | 'day', [bg: string, fg: string]> = { night: [NIGHT_BG, NIGHT_FG], day: ['#ffffff', NIGHT_BG] };
 
 /** Long content: fewer modules matter more than the mark. */
 export const denseQr = (text: string): boolean => text.length > 300;
@@ -35,7 +38,9 @@ function rrect(x: number, y: number, w: number, h: number, r: number): string {
 
 export function qrSvg(text: string, margin = 3, logo = true, look: QrLook = 'plain'): string {
   const dense = denseQr(text);
-  const night = look === 'night';
+  // The night and day looks draw the same round dots and eyes; only their colours differ.
+  const round = look !== 'plain';
+  const [bg, fg] = round ? ROUND[look] : ['#fff', '#000'];
   const qr = qrcode(0, dense ? 'L' : 'H');
   qr.addData(text, 'Byte');
   qr.make();
@@ -47,10 +52,10 @@ export function qrSvg(text: string, margin = 3, logo = true, look: QrLook = 'pla
   const h0 = (n - hole) / 2,
     h1 = h0 + hole;
   const inHole = (x: number, y: number) => hole > 0 && x >= h0 && x < h1 && y >= h0 && y < h1;
-  // The three finder patterns, drawn whole as eyes in the night look.
-  const inEye = (x: number, y: number) => night && ((y < 7 && x < 7) || (y < 7 && x >= n - 7) || (y >= n - 7 && x < 7));
+  // The three finder patterns, drawn whole as eyes in the round looks.
+  const inEye = (x: number, y: number) => round && ((y < 7 && x < 7) || (y < 7 && x >= n - 7) || (y >= n - 7 && x < 7));
   let d = '';
-  if (night) {
+  if (round) {
     const r = dense ? 0.48 : 0.42;
     for (let y = 0; y < n; y++)
       for (let x = 0; x < n; x++)
@@ -72,7 +77,7 @@ export function qrSvg(text: string, margin = 3, logo = true, look: QrLook = 'pla
     }
   // Each eye: a 7×7 ring around a gap and a 3×3 pupil, one even-odd path.
   let eyes = '';
-  if (night)
+  if (round)
     for (const [x, y] of [
       [margin, margin],
       [margin + n - 7, margin],
@@ -85,12 +90,12 @@ export function qrSvg(text: string, margin = 3, logo = true, look: QrLook = 'pla
       s = hole - pad * 2,
       o = h0 + margin + pad;
     logoTile =
-      `<rect x="${o}" y="${o}" width="${s}" height="${s}" rx="${s * (night ? 0.28 : 0.25)}" fill="${night ? NIGHT_FG : '#0a0a0a'}"/>` +
-      `<g transform="translate(${o} ${o}) scale(${s / 64})">${mark(night ? NIGHT_BG : '#fff')}</g>`;
+      `<rect x="${o}" y="${o}" width="${s}" height="${s}" rx="${s * (round ? 0.28 : 0.25)}" fill="${round ? fg : '#0a0a0a'}"/>` +
+      `<g transform="translate(${o} ${o}) scale(${s / 64})">${mark(round ? bg : '#fff')}</g>`;
   }
   const open = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" role="img" aria-label="QR code">`;
-  return night
-    ? `${open}<rect width="${size}" height="${size}" fill="${NIGHT_BG}"/><path d="${d}" fill="${NIGHT_FG}"/>` +
-        `<path d="${eyes}" fill="${NIGHT_FG}" fill-rule="evenodd"/>${logoTile}</svg>`
-    : `${open}<rect width="${size}" height="${size}" fill="#fff"/><path d="${d}" fill="#000" shape-rendering="crispEdges"/>${logoTile}</svg>`;
+  return round
+    ? `${open}<rect width="${size}" height="${size}" fill="${bg}"/><path d="${d}" fill="${fg}"/>` +
+        `<path d="${eyes}" fill="${fg}" fill-rule="evenodd"/>${logoTile}</svg>`
+    : `${open}<rect width="${size}" height="${size}" fill="${bg}"/><path d="${d}" fill="${fg}" shape-rendering="crispEdges"/>${logoTile}</svg>`;
 }

@@ -244,13 +244,6 @@ export function urlHelp(s: string): Help {
   return { text: 'Wrong links are sent there instead of a “Not found”.', bad: false };
 }
 
-/** The portal's title: up to 64 characters on one line. */
-export function titleHelp(s: string): Help {
-  if (chars(s) > 64) return { text: `Up to 64 characters (${chars(s)} now).`, bad: true };
-  if (/[\u0000-\u001f\u007f]/.test(s)) return { text: 'One line, please.', bad: true };
-  return { text: 'Shown in the browser tab and at the top of the portal.', bad: false };
-}
-
 /** The home domain for device hostnames (schema domain): lowercase letters, digits, dashes, dots. */
 export function domainHelp(s: string, example = 'phone.myata'): Help {
   const t = s.trim();

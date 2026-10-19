@@ -7,7 +7,7 @@ import { button } from '../../ui/button';
 import { cancelButton, closeModal, modal } from '../../ui/modal';
 import { input, isOn, sw } from '../../ui/controls';
 import { firstBad, group, liveRow, needRow, row } from '../../ui/layout';
-import { hostHelp, portalPortHelp, titleHelp, urlHelp } from '../../netcheck';
+import { hostHelp, portalPortHelp, urlHelp } from '../../netcheck';
 import { icon } from '../../../shared/icons';
 import { fmtDay } from '../../../shared/format';
 import { installMissing } from '../../pkgs';
@@ -29,7 +29,6 @@ export function portalCard(host: SettingsHost): HTMLElement {
   const c = host.d.cert;
   const pOn = sw(eff.portal_enabled, 'Enable portal');
   const port = input(s.portal_port, { placeholder: '8443', inputmode: 'numeric', class: 'cbi-input-text dl-w-port' });
-  const title = input(s.portal_title, { placeholder: 'Dawnline' });
   const redirect = input(s.portal_redirect, { placeholder: 'Show “Not found”', class: 'cbi-input-text dl-mono' });
   const other = input('', { placeholder: 'vpn.example.com or an IP', 'aria-label': 'Other address' });
   const isIp = (h: string) => /^\d{1,3}(\.\d{1,3}){3}$/.test(h);
@@ -279,7 +278,6 @@ export function portalCard(host: SettingsHost): HTMLElement {
     portalPortHelp(port.value.trim() === '' ? eff.portal_port : Number(port.value), host.d.tcp_taken ?? [], picked.some(isIp)),
   );
   refreshPort = listenRow.refresh;
-  const titleRow = liveRow('Title', title, () => titleHelp(title.value));
   const redirectRow = liveRow('Unknown links', redirect, () => urlHelp(redirect.value));
   const custom = !!(s.portal_cert && s.portal_key);
   const kind = !c ? 'Portal is off' : custom ? 'Your files' : c.self_signed ? 'Self-signed' : 'Let’s Encrypt';
@@ -371,7 +369,7 @@ export function portalCard(host: SettingsHost): HTMLElement {
       E('span', { class: 'dl-muted' }, 'A page where each person adds and manages their devices with their personal link.'),
       httpsRow ? E('div', { class: 'dl-list' }, [httpsRow]) : '',
       group('network', 'Port', 'How the portal listens (80 and 443 stay free)', [listenRow]),
-      group('edit', 'Appearance', 'What people see', [titleRow, redirectRow]),
+      group('edit', 'Appearance', 'What people see', [redirectRow]),
       group('link', 'Addresses', 'Pick one or more; the first is the main link', [
         opts,
         E('div', { class: 'dl-stack gap8' }, [
@@ -388,7 +386,7 @@ export function portalCard(host: SettingsHost): HTMLElement {
         'Save',
         () => {
           // The help lines already say what is wrong: do not send it anyway.
-          const bad = firstBad([listenRow, titleRow, redirectRow]);
+          const bad = firstBad([listenRow, redirectRow]);
           if (bad) {
             notify(bad, 'warning');
             return;
@@ -399,7 +397,6 @@ export function portalCard(host: SettingsHost): HTMLElement {
               portal_host: picked[0] ?? '',
               portal_alt: picked.slice(1),
               portal_port: port.value,
-              portal_title: title.value,
               portal_redirect: redirect.value.trim(),
             },
             'Saved',

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  addLink,
   appsFor,
   deviceNoun,
   importPath,
@@ -7,14 +8,13 @@ import {
   inWebview,
   keyFileName,
   opensKeyLinks,
-  osGroup,
   platformOf,
   sameDevice,
   scanPath,
   setupFromHash,
   setupLink,
   storeFor,
-  updateLine,
+  wantsAdd,
 } from '../src/portal/setup';
 
 const IPHONE =
@@ -45,6 +45,14 @@ describe('setup', () => {
     expect(setupFromHash('#setup=../../api')).toBeNull();
   });
 
+  it('links to "Add a device" for the device itself, and reads only that back', () => {
+    const page = 'https://engage.example.eu:4500/abcdef-ghijkl-mnopqr';
+    expect(addLink(page)).toBe(`${page}#add`);
+    expect(wantsAdd('#add')).toBe(true);
+    expect(wantsAdd('#add=1')).toBe(false);
+    expect(wantsAdd('')).toBe(false);
+  });
+
   it('names the device being set up by its kind, not its name', () => {
     expect(deviceNoun('phone')).toBe('phone');
     expect(deviceNoun('computer')).toBe('computer');
@@ -60,20 +68,9 @@ describe('setup', () => {
     expect(sameDevice('phone', 'unknown')).toBe(false);
   });
 
-  it('lets the person pick the system of a computer or an "other" device', () => {
-    expect(osGroup('computer')).toEqual(['windows', 'mac', 'linux']);
-    expect(osGroup('other')).toEqual(['ios', 'android', 'windows', 'mac', 'linux']);
-    expect(osGroup('phone')).toEqual([]);
-    expect(osGroup('router')).toEqual([]);
-  });
-
   it('lists the apps a disguise allows, AmneziaVPN first', () => {
     expect(appsFor('max').map((a) => a.id)).toEqual(['vpn', 'awg']);
     expect(appsFor('off').map((a) => a.id)).toEqual(['vpn', 'awg', 'wg']);
-    expect(appsFor('balanced')[0].need).toBe('4.8.12');
-    expect(updateLine(appsFor('balanced')[0])).toContain('4.8.12 or newer');
-    expect(updateLine(appsFor('max')[0])).toContain('the current version');
-    expect(updateLine(appsFor('off')[0])).toBe('');
   });
 
   it('sends people to the store first and to GitHub where no store has the app', () => {

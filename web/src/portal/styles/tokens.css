@@ -1,0 +1,130 @@
+/* The portal's fonts and tokens. Dark first (the skiper21 palette, measured), light by the system's
+   choice. Surfaces step up in brightness (ground → raised → field → knob) instead of borders; the
+   accent is the one sky blue, colour otherwise only means state (ok green, warn orange, bad red). */
+
+@font-face {
+  font-family: Geist;
+  src: url(geist-latin-wght-normal.woff2) format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2190-21FF, U+2212, U+2215;
+}
+@font-face {
+  font-family: Geist;
+  src: url(geist-cyrillic-wght-normal.woff2) format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: 'Geist Mono';
+  src: url(geist-mono-latin-wght-normal.woff2) format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: dark;
+  --bg: #080808;
+  --raised: #121212;
+  --field: #161616;
+  --knob: #232323;
+  --seg: rgba(237, 237, 237, 0.05);
+  --seg-shadow: none;
+  --line: rgba(255, 255, 255, 0.06);
+  --text: #ededed;
+  --text-2: #8c8c8a;
+  --text-3: #4f4f4e;
+  --accent: #4eafff;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(78, 175, 255, 0.13);
+  --ok: #57d64b;
+  --ok-soft: rgba(87, 214, 75, 0.14);
+  --warn: #ff8a3d;
+  --bad: #ff5c5c;
+  --bad-soft: rgba(255, 92, 92, 0.13);
+  --sel-bg: rgba(131, 209, 255, 0.25);
+  --sel-fg: #64c6ff;
+  --scrim: rgba(8, 8, 8, 0.8);
+  --line-glass: rgba(255, 255, 255, 0.07);
+  --pop-shadow: 0 18px 48px -14px rgba(0, 0, 0, 0.75);
+  --sheet-shadow: 0 24px 64px -16px rgba(0, 0, 0, 0.6);
+  --bar: rgba(237, 237, 237, 0.13);
+  --toast: #232323;
+  --toast-fg: #ededed;
+  --qr-bg: #0a0a0a;
+  /* glass icons: the frosted pane, its rim and edge, the detail strokes; the tones' two stops */
+  --gi-a: rgba(255, 255, 255, 0.58);
+  --gi-b: rgba(255, 255, 255, 0.14);
+  --gi-rim: rgba(255, 255, 255, 0.5);
+  --gi-edge: rgba(0, 0, 0, 0);
+  --gi-detail: #ffffff;
+  --t-grey-a: #cfcfcd;
+  --t-grey-b: #5a5a59;
+  --t-blue-a: #a6d9ff;
+  --t-blue-b: #1d84e6;
+  --t-green-a: #a8f29c;
+  --t-green-b: #3aa32c;
+  --t-red-a: #ffadad;
+  --t-red-b: #dc3a3a;
+  --t-orange-a: #ffc08f;
+  --t-orange-b: #ec6a12;
+
+  --font: Geist, -apple-system, system-ui, 'Segoe UI', sans-serif;
+  --mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --r-sheet: 36px;
+  --r-card: 28px;
+  --r-row: 20px;
+  --r-field: 16px;
+  --r-tile: 12px;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --gutter-l: max(16px, env(safe-area-inset-left, 0px));
+  --gutter-r: max(16px, env(safe-area-inset-right, 0px));
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+    --bg: #f2f2f1;
+    --raised: #ffffff;
+    --field: #f3f3f2;
+    --knob: #e8e8e7;
+    --seg: #ffffff;
+    --seg-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 0 0 0.5px rgba(0, 0, 0, 0.05);
+    --line: rgba(0, 0, 0, 0.07);
+    --text: #0b0b0b;
+    --text-2: #6d6d6b;
+    --text-3: #a6a6a4;
+    --accent: #2b9dff;
+    --accent-soft: rgba(43, 157, 255, 0.12);
+    --ok: #33a328;
+    --ok-soft: rgba(51, 163, 40, 0.12);
+    --warn: #ee6a12;
+    --bad: #e5484d;
+    --bad-soft: rgba(229, 72, 77, 0.1);
+    --sel-bg: rgba(78, 175, 255, 0.22);
+    --sel-fg: #0a76cf;
+    --scrim: rgba(236, 236, 235, 0.62);
+    --line-glass: rgba(0, 0, 0, 0.07);
+    --pop-shadow: 0 18px 44px -14px rgba(0, 0, 0, 0.2);
+    --sheet-shadow: 0 24px 64px -18px rgba(0, 0, 0, 0.22);
+    --bar: rgba(11, 11, 11, 0.11);
+    --toast: #0b0b0b;
+    --toast-fg: #f2f2f1;
+    --qr-bg: #ffffff;
+    --gi-a: rgba(250, 250, 249, 0.72);
+    --gi-b: rgba(206, 206, 204, 0.5);
+    --gi-rim: rgba(255, 255, 255, 0.9);
+    --gi-edge: rgba(0, 0, 0, 0.11);
+    --gi-detail: rgba(28, 28, 28, 0.72);
+    --t-grey-a: #a9a9a7;
+    --t-grey-b: #3d3d3c;
+    --t-blue-a: #7cc4ff;
+    --t-blue-b: #0a6fd6;
+    --t-green-a: #82e070;
+    --t-green-b: #2e8a22;
+    --t-red-a: #ff9090;
+    --t-red-b: #c92a2a;
+  }
+}

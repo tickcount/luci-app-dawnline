@@ -1,0 +1,238 @@
+/* The page's frame: the edge fades, the breadcrumb, the two columns and their heads, the notice that
+   says what stops the devices, and the card that stands alone when the link stopped working. */
+
+/* The page fades out under the edges (iconiqui's dia-text, measured): on top a blur that thins out
+   over a darkening ramp, once the page scrolls; at the bottom only the ramp. Above the page, under
+   sheets, menus and toasts. */
+.edge-fade {
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  pointer-events: none;
+}
+.edge-fade.top {
+  top: 0;
+  height: calc(80px + env(safe-area-inset-top, 0px));
+  opacity: 0;
+  transition: opacity 200ms;
+  background: linear-gradient(var(--bg) 0%, color-mix(in srgb, var(--bg) 75%, transparent) 50%, transparent 100%);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  -webkit-mask-image: linear-gradient(#000 0%, rgba(0, 0, 0, 0.88) 44%, transparent 100%);
+  mask-image: linear-gradient(#000 0%, rgba(0, 0, 0, 0.88) 44%, transparent 100%);
+}
+body.scrolled .edge-fade.top {
+  opacity: 1;
+}
+.edge-fade.bot {
+  bottom: 0;
+  height: calc(96px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(to top in oklab, var(--bg) 0%, transparent 100%);
+}
+
+/* The breadcrumb (iconiqui, measured): 32px high, the mark in a 32px box, 15px crumbs 6px apart
+   with a 14px chevron, the current one brighter. The mark is one colour: the text's. */
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 32px;
+  margin: 0 0 32px;
+}
+.cr-mark {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.logo {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  overflow: hidden;
+}
+.logo .sun,
+.logo .bar {
+  fill: var(--text);
+}
+.cr-path {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+  line-height: 22px;
+  letter-spacing: -0.15px;
+  color: var(--text-2);
+}
+.cr-path span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cr-path .cur {
+  color: var(--text);
+  font-weight: 500;
+}
+.cr-path .i {
+  width: 14px;
+  height: 14px;
+}
+
+/* Phones: one column, access first. From 960px: devices left, access right and sticky. The foot
+   clears the bottom fade at the end of the scroll. */
+.page {
+  max-width: 1072px;
+  margin: 0 auto;
+  padding-left: var(--gutter-l);
+  padding-right: var(--gutter-r);
+  padding-block: calc(40px + env(safe-area-inset-top, 0px)) 112px;
+}
+.cols {
+  display: grid;
+  gap: 40px;
+}
+.cols > .access {
+  order: -1;
+}
+@media (min-width: 960px) {
+  .cols {
+    grid-template-columns: minmax(0, 1fr) 384px;
+    gap: 36px;
+    align-items: start;
+  }
+  .cols > .access {
+    order: 0;
+    position: sticky;
+    top: calc(84px + env(safe-area-inset-top, 0px));
+  }
+}
+.sec-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 0 4px 12px;
+}
+.sec-head h2 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+}
+.sec-head .aside {
+  color: var(--text-3);
+  font-size: 14px;
+  font-weight: 500;
+}
+.sec-head .aside.warn-t {
+  color: var(--warn);
+}
+.note-s {
+  margin: 12px 4px 0;
+  color: var(--text-3);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+/* A notice wears its tone: the fill tinted, the rim a little stronger. */
+.notice {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px 14px 14px;
+  border-radius: 24px;
+  background: var(--raised);
+  margin: 0 0 22px;
+}
+.notice .gi {
+  width: 36px;
+  height: 36px;
+}
+.notice .t {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.notice b {
+  font-weight: 500;
+  font-size: 15px;
+  line-height: 22px;
+  letter-spacing: -0.02em;
+}
+.notice span {
+  color: var(--text-2);
+  font-size: 14px;
+  line-height: 20px;
+}
+.notice.warn {
+  background: color-mix(in srgb, var(--warn) 10%, var(--raised));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warn) 22%, transparent);
+}
+.notice.bad {
+  background: color-mix(in srgb, var(--bad) 10%, var(--raised));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bad) 22%, transparent);
+}
+
+/* The page when there is nothing else: the link stopped working, or nothing could load. */
+/* One card in place of the page: the breadcrumb over it, the two together in the middle of the screen. */
+.page.single {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-block: calc(24px + env(safe-area-inset-top, 0px)) calc(24px + env(safe-area-inset-bottom, 0px));
+}
+/* Centred on its words, the mark hanging to their left, then nudged right by about half the mark's width:
+   to the eye the mark and words together sit in the middle. The row keeps room for the mark on both sides. */
+.page.single .crumbs {
+  position: relative;
+  left: 12px;
+  max-width: calc(100% - 84px);
+  margin: 0 0 16px;
+}
+.page.single .cr-mark {
+  position: absolute;
+  right: calc(100% + 10px);
+  top: 0;
+}
+.page.single .page-body {
+  width: 100%;
+  max-width: 400px;
+}
+.page.single .gone {
+  margin: 0;
+}
+.gone {
+  max-width: 400px;
+  margin: 12vh auto 0;
+  padding: 32px 24px 28px;
+  border-radius: var(--r-sheet);
+  background: var(--raised);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.gone .gi {
+  width: 56px;
+  height: 56px;
+  margin-bottom: 16px;
+}
+.gone h1 {
+  margin: 0;
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+}
+.gone p {
+  margin: 6px 0 0;
+  color: var(--text-2);
+  text-wrap: balance;
+}

@@ -1,0 +1,136 @@
+/* The bouncy accordion: rows touch while closed and share their rounded ends; an open row lifts
+   out with 10px gaps and its own corners (ui/accordion.ts animates between the two shapes). Inside
+   the sheet ("inset") the rows sit one step lighter than the sheet. */
+
+.acc {
+  display: flex;
+  flex-direction: column;
+}
+.acc-row {
+  background: var(--raised);
+  overflow: hidden;
+  border-radius: 0;
+  padding: 0 8px;
+  transition: background-color 150ms;
+}
+.acc-row.rt {
+  border-top-left-radius: var(--r-row);
+  border-top-right-radius: var(--r-row);
+}
+.acc-row.rb {
+  border-bottom-left-radius: var(--r-row);
+  border-bottom-right-radius: var(--r-row);
+}
+.acc-row.open {
+  margin-block: 10px;
+}
+.acc-row.open:first-child {
+  margin-top: 0;
+}
+.acc-row.open:last-child {
+  margin-bottom: 0;
+}
+.acc-row:not(.open):not(.still):hover {
+  background: color-mix(in srgb, var(--raised), var(--knob) 40%);
+}
+.acc-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 52px;
+  padding: 0 6px 0 8px;
+  text-align: left;
+}
+.acc-row.still .acc-head {
+  cursor: default;
+  padding-right: 10px;
+}
+.acc-head .gi {
+  width: 22px;
+  height: 22px;
+}
+.acc-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.acc-title .t {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* A row whose body shows its numbers drops them from its head while open. */
+.acc-val {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-2);
+  font-size: 14px;
+  white-space: nowrap;
+  transition:
+    opacity 200ms var(--ease-out),
+    filter 200ms var(--ease-out),
+    transform 260ms var(--ease-out);
+}
+.acc-val > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.acc-row.open .acc-val.hide-open {
+  opacity: 0;
+  filter: blur(4px);
+  transform: translateX(8px);
+  pointer-events: none;
+}
+.acc-chev {
+  width: 16px;
+  height: 16px;
+  color: var(--text-2);
+  transform: rotate(90deg);
+  transition: transform var(--spring-soft-dur, 470ms) var(--spring-soft, ease);
+}
+.acc-row.open .acc-chev {
+  transform: rotate(-90deg);
+}
+.acc-body {
+  display: none;
+  padding: 0 8px 16px 40px;
+}
+.acc-row.open .acc-body,
+.acc-row.closing .acc-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.acc .desc {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  opacity: 0.6;
+}
+.acc.inset .acc-row {
+  background: var(--field);
+}
+.acc.inset .acc-row:not(.open):not(.still):hover {
+  background: color-mix(in srgb, var(--field), var(--knob) 50%);
+}
+.acc.inset .acc-body {
+  padding-left: 8px;
+}
+.acc.inset .seg {
+  background: color-mix(in srgb, var(--knob) 65%, var(--field));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .acc-chev {
+    transition: none;
+  }
+}

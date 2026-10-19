@@ -11,10 +11,10 @@ import { copyText, downloadFile } from './ui/files';
 import { dropdown, type MenuItem } from './ui/menu';
 import { drawer } from './ui/drawer';
 import { attempt, notify } from './ui/toast';
-import { liveField, svg } from './ui/layout';
+import { liveField } from './ui/layout';
+import { qrCode } from './ui/qr';
 import { nameHelp } from './netcheck';
 import { deviceStatus } from './ui/badges';
-import { qrSvg } from '../shared/qr';
 import { ago, bytes, isoDay, KIND_LABEL, KINDS, todayOf } from '../shared/format';
 import { icon } from '../shared/icons';
 import { eventBy } from './events/model';
@@ -420,7 +420,7 @@ export function quickMenu(anchor: HTMLElement, p: Person, d: Device, o: DeviceOp
         modal(
           `${d.name} · QR code`,
           E('div', { class: 'dl-qr-pane' }, [
-            svg(qrSvg(core.qrText(c)), 'dl-qr'),
+            qrCode(core.qrText(c)),
             E(
               'span',
               { class: 'dl-sub' },
