@@ -362,7 +362,7 @@ are kept in `/var/run/dawnline` and flushed to flash at most hourly. Access
 changes reach the tunnel with `awg syncconf`, without restarting the interface;
 `dawnline log` on the router shows the service log.
 
-## 🛠️ Development
+## 🧰 Development
 
 ```
 package/luci-app-dawnline/
