@@ -4,6 +4,7 @@
 
 import { access, popen, stat } from 'fs';
 import { q } from 'dawnline.util';
+import { _ } from 'dawnline.i18n';
 
 function run(cmd) {
 	let p = popen(cmd + ' 2>&1', 'r');
@@ -99,8 +100,9 @@ function preflight(files, need_kb, log) {
 	for (let f in files ?? [])
 		need += int(((stat(f)?.size ?? 0) * 3) / 1024);
 	if (free < need)
-		die(`Not enough free space on the router: ${int(free / 1024)} MB free, about ${int(need / 1024) + 1} MB needed. Remove old backups or packages first`);
-	log?.(`  ${int(free / 1024)} MB free on the overlay`);
+		die(sprintf(_('Not enough free space on the router: %d MB free, about %d MB needed. Remove old backups or packages first'),
+			int(free / 1024), int(need / 1024) + 1));
+	log?.('  ' + sprintf(_('%d MB free on the overlay'), int(free / 1024)));
 }
 
 /** Package files (from a release): force also reinstalls the same version or goes back to an older one. */
@@ -115,8 +117,8 @@ export function install_files(files, force, log) {
 	let before = force ? stat(marker)?.mtime : null;
 	let ok = logged(`apk add --allow-untrusted ${args}`, log).code == 0;
 	if (ok && force && before != null && stat(marker)?.mtime == before) {
-		log?.('  apk did not reinstall the version that is already installed');
-		die("apk doesn't reinstall an installed version. Install a different release, or run install.sh on the router");
+		log?.('  ' + _('apk did not reinstall the version that is already installed'));
+		die(_("apk doesn't reinstall an installed version. Install a different release, or run install.sh on the router"));
 	}
 	return ok;
 };

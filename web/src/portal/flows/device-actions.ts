@@ -3,6 +3,7 @@
 // be undone; the action's button stays busy until the router answers.
 
 import type { ClientConfig, Device } from '../../shared/types';
+import { fmt } from '../../shared/i18n';
 import { call } from '../api';
 import { h, ic } from '../dom';
 import { EASE_IN, play } from '../motion';
@@ -13,7 +14,7 @@ import { closeSheet, head, onClosed, openSheet, type View } from '../ui/sheet';
 import { secureFirst } from './secure';
 import { continueSetup } from './setup-view';
 
-/** A question before something that cannot be undone: the action's icon in its colour, what happens, Cancel and the action. */
+/** A question before something that cannot be undone: the action's icon in its colour, what happens (on the left edge), Cancel and the action. */
 function ask(o: { icon: string; tone: Tone; title: string; text: string; action: string; cls: string; run: () => Promise<void> }): View {
   const ok = h(
     'button',
@@ -26,11 +27,11 @@ function ask(o: { icon: string; tone: Tone; title: string; text: string; action:
     { class: 'view' },
     h(
       'div',
-      { class: 'center-col ask' },
+      { class: 'ask' },
       glass(o.icon, o.tone, 'gi xl'),
       h('h3', {}, o.title),
       h('p', {}, o.text),
-      h('div', { class: 'btnrow' }, h('button', { type: 'button', class: 'btn soft', onclick: () => closeSheet() }, 'Cancel'), ok),
+      h('div', { class: 'btnrow' }, h('button', { type: 'button', class: 'btn soft', onclick: () => closeSheet() }, _('Cancel')), ok),
     ),
   );
   return { el, label: o.title, asks: true };
@@ -38,9 +39,9 @@ function ask(o: { icon: string; tone: Tone; title: string; text: string; action:
 
 export function rename(d: Device) {
   openSheet(() => {
-    const input = h('input', { type: 'text', maxlength: 48, 'aria-label': 'Device name', autocomplete: 'off' }) as HTMLInputElement;
+    const input = h('input', { type: 'text', maxlength: 48, 'aria-label': _('Device name'), autocomplete: 'off' }) as HTMLInputElement;
     input.value = d.name;
-    const save = h('button', { class: 'go', type: 'submit', 'aria-label': 'Save' }, ic('check')) as HTMLButtonElement;
+    const save = h('button', { class: 'go', type: 'submit', 'aria-label': _('Save') }, ic('check')) as HTMLButtonElement;
     input.addEventListener('input', () => save.classList.toggle('ready', !!input.value.trim() && input.value.trim() !== d.name));
     const form = h('form', { class: 'field', autocomplete: 'off' }, input, save);
     form.addEventListener('submit', (e) => {
@@ -53,7 +54,7 @@ export function rename(d: Device) {
           setState(r.state);
           onClosed(() => {
             repaint();
-            toast('Renamed');
+            toast(_('Renamed'));
           });
           closeSheet();
         } catch (er) {
@@ -62,7 +63,8 @@ export function rename(d: Device) {
       });
     });
     setTimeout(() => input.select(), 60);
-    return { el: h('div', { class: 'view' }, head(`Rename ${d.name}`), form), label: `Rename ${d.name}` };
+    const title = fmt(_('Rename %s'), d.name);
+    return { el: h('div', { class: 'view' }, head(title), form), label: title };
   });
 }
 
@@ -78,11 +80,13 @@ export function reconnect(d: Device) {
     ask({
       icon: 'refresh',
       tone: 'orange',
-      title: `Reconnect ${d.name}?`,
+      title: fmt(_('Reconnect %s?'), d.name),
       text: here
-        ? 'It gets new keys. This device is connected through its current settings: it disconnects a few seconds after you confirm. Add the new ones that open next.'
-        : 'It gets new keys and its current settings stop working. Set it up again with the new ones that open next.',
-      action: 'Reconnect',
+        ? _(
+            'It gets new keys. This device is connected through its current settings: it disconnects a few seconds after you confirm. Add the new ones that open next.',
+          )
+        : _('It gets new keys and its current settings stop working. Set it up again with the new ones that open next.'),
+      action: _('Reconnect'),
       cls: 'accent',
       run: async () => {
         try {
@@ -103,9 +107,9 @@ export function removeDevice(d: Device) {
     ask({
       icon: 'trash',
       tone: 'red',
-      title: `Remove ${d.name}?`,
-      text: 'Its connection stops working at once. You can add it again later.',
-      action: 'Remove',
+      title: fmt(_('Remove %s?'), d.name),
+      text: _('Its connection stops working at once. You can add it again later.'),
+      action: _('Remove'),
       cls: 'red',
       run: async () => {
         try {
@@ -116,7 +120,7 @@ export function removeDevice(d: Device) {
             const card = document.querySelector(`.dev[data-id="${CSS.escape(d.id)}"]`);
             const done = () => {
               repaint();
-              toast('Device removed');
+              toast(_('Device removed'));
             };
             if (!card) return done();
             play(

@@ -1,0 +1,129 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Dawnline\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: ru\n"
+"Language-Team: Russian\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+#: web/src/portal/demo/data.ts
+msgid "A fresh link with no devices yet."
+msgstr "Новая ссылка, устройств пока нет."
+
+#: web/src/portal/demo/data.ts
+msgid "Access ended"
+msgstr "Доступ закончился"
+
+#: web/src/portal/demo/data.ts
+msgid "Access only at certain hours of the day."
+msgstr "Доступ только в определённые часы."
+
+#: web/src/portal/demo/crumbs.ts
+msgid "Dawnline on GitHub"
+msgstr "Dawnline на GitHub"
+
+#: web/src/portal/demo/picker.ts
+msgid "Demo"
+msgstr "Демо"
+
+#: web/src/portal/demo/main.ts
+msgid "Demo keys connect nowhere"
+msgstr "Демо-ключи никуда не подключаются"
+
+#: web/src/portal/demo/data.ts
+msgid "Disguise off: any WireGuard app connects."
+msgstr "Маскировка выключена: подойдёт любое приложение WireGuard."
+
+#: web/src/portal/demo/data.ts
+msgid "Every device slot is taken."
+msgstr "Все места для устройств заняты."
+
+#: web/src/portal/demo/data.ts
+msgid "Everything works"
+msgstr "Всё работает"
+
+#: web/src/portal/demo/data.ts
+msgid "First visit"
+msgstr "Первый визит"
+
+#: web/src/portal/demo/picker.ts
+msgid "How the page looks in each case. Nothing here connects."
+msgstr "Как выглядит страница в каждом случае. Ничего не подключается по-настоящему."
+
+#: web/src/portal/demo/data.ts
+msgid "No free slots"
+msgstr "Нет свободных мест"
+
+#: web/src/portal/demo/data.ts
+msgid "Opened over plain HTTP"
+msgstr "Открыто по обычному HTTP"
+
+#: web/src/portal/demo/data.ts
+msgid "Other cases"
+msgstr "Другие случаи"
+
+#: web/src/portal/demo/data.ts
+msgid "Out of data"
+msgstr "Трафик закончился"
+
+#: web/src/portal/demo/data.ts
+msgid "Outside allowed hours"
+msgstr "Вне часов доступа"
+
+#: web/src/portal/demo/data.ts
+msgid "Paused by the admin"
+msgstr "Доступ на паузе"
+
+#: web/src/portal/demo/data.ts
+msgid "Plain WireGuard"
+msgstr "Обычный WireGuard"
+
+#: web/src/portal/demo/data.ts
+msgid "Settings changed"
+msgstr "Настройки изменились"
+
+#: web/src/portal/demo/data.ts
+msgid "Settings only travel over HTTPS."
+msgstr "Настройки передаются только по HTTPS."
+
+#: web/src/portal/demo/picker.ts
+msgid "Start over"
+msgstr "Начать заново"
+
+#: web/src/portal/demo/data.ts
+msgid "Stopped by the admin"
+msgstr "Ограничения администратора"
+
+#: web/src/portal/demo/data.ts
+msgid "The admin changed something: a device needs an update."
+msgstr "Администратор что-то поменял: устройство нужно обновить."
+
+#: web/src/portal/demo/picker.ts
+msgid "The demo started over"
+msgstr "Демо началось заново"
+
+#: web/src/portal/demo/data.ts
+msgid "The end date has passed."
+msgstr "Дата окончания прошла."
+
+#: web/src/portal/demo/data.ts
+msgid "The month’s limit is used up."
+msgstr "Месячный лимит исчерпан."
+
+#: web/src/portal/demo/data.ts
+msgid "The page turns into one card."
+msgstr "Страница сворачивается в одну карточку."
+
+#: web/src/portal/demo/data.ts
+msgid "Three devices: one online, one waiting to be set up."
+msgstr "Три устройства: одно в сети, одно ждёт настройки."
+
+#: web/src/portal/demo/picker.ts
+msgid "Try a scenario"
+msgstr "Выберите сценарий"
+
+#: web/src/portal/demo/data.ts
+msgid "Your page"
+msgstr "Ваша страница"

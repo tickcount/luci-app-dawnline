@@ -13,6 +13,7 @@ import * as awg from 'dawnline.awg';
 import * as apply from 'dawnline.apply';
 import * as live from 'dawnline.live';
 import * as store from 'dawnline.store';
+import { _ } from 'dawnline.i18n';
 
 /** AmneziaWG is on the router, so device keys can be made and loaded. */
 export function ready() {
@@ -23,7 +24,8 @@ export function ready() {
 export function need_awg() {
 	if (!awg.installed()) {
 		let miss = awg.state().missing ?? [];
-		die(`AmneziaWG is not installed${length(miss) ? ` (${join(', ', miss)})` : ''}: install it in Dawnline → Components.`);
+		die(length(miss) ? sprintf(_('AmneziaWG is not installed (%s): install it in Dawnline → Components.'), join(', ', miss))
+			: _('AmneziaWG is not installed: install it in Dawnline → Components.'));
 	}
 };
 
@@ -31,9 +33,9 @@ export function need_awg() {
 function own(m, id, opts) {
 	let d = m.devices[id];
 	if (!d || (opts.person != null && d.person != opts.person))
-		die(opts.person != null ? 'Device not found.' : 'Unknown device.');
+		die(opts.person != null ? _('Device not found.') : _('Unknown device.'));
 	if (opts.by == 'portal' && d.disabled)
-		die('The admin has turned this device off.');
+		die(_('The admin has turned this device off.'));
 	return d;
 }
 
@@ -57,7 +59,7 @@ export function update(id, ch, opts) {
 	opts ??= {};
 	let by = opts.by ?? 'admin';
 	if (ch.disabled != null && by != 'admin')
-		die('Only the admin can turn devices off.');
+		die(_('Only the admin can turn devices off.'));
 	let d0 = store.transact((c, m) => {
 		let d = own(m, id, opts);
 		let was = { ...d };

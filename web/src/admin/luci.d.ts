@@ -113,8 +113,6 @@ declare global {
   }
 
   const E: (tag: string, attrs?: ElementAttrs | Child, children?: Child) => HTMLElement;
-  const _: (msg: string, ctx?: string) => string;
-  const N_: (n: number, singular: string, plural: string, ctx?: string) => string;
   const L: LuciL;
   const ui: LuciUI;
   const rpc: LuciRpc;

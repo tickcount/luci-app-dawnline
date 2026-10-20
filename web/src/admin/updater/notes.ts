@@ -11,13 +11,13 @@ import { errorText } from '../ui/toast';
 import { forRouter, markdown, safeHref } from './markdown';
 
 export async function whatsNew(component: 'app' | 'amneziawg', tag: string, title: string, build?: string) {
-  const body = E('div', { class: 'dl-notes' }, E('p', { class: 'dl-muted dl-loading' }, 'Loading release notes…'));
+  const body = E('div', { class: 'dl-notes' }, E('p', { class: 'dl-muted dl-loading' }, _('Loading release notes…')));
   const meta = E('div', { class: 'dl-op-head' });
   let text = '';
   modal(
     title,
     [meta, body],
-    [button([icon('copy'), ' Copy'], () => copyText(text, 'Release notes copied')), ' ', cancelButton('Close')],
+    [button([icon('copy'), ' ', _('Copy')], () => copyText(text, _('Release notes copied'))), ' ', cancelButton(_('Close'))],
     'wide',
   );
   try {
@@ -26,11 +26,11 @@ export async function whatsNew(component: 'app' | 'amneziawg', tag: string, titl
     const href = safeHref(r.url);
     dom.content(meta, [
       r.published ? E('span', { class: 'dl-pill' }, fmtDay(r.published)) : '',
-      r.prerelease ? E('span', { class: 'dl-pill warn' }, 'Pre-release') : '',
+      r.prerelease ? E('span', { class: 'dl-pill warn' }, _('Pre-release')) : '',
       E('span', { class: 'dl-spacer' }),
-      href ? E('a', { href, target: '_blank', rel: 'noopener', class: 'dl-linkbtn' }, ['On GitHub ', icon('open')]) : '',
+      href ? E('a', { href, target: '_blank', rel: 'noopener', class: 'dl-linkbtn' }, [_('On GitHub'), ' ', icon('open')]) : '',
     ]);
-    dom.content(body, text.trim() ? markdown(text) : E('p', { class: 'dl-muted' }, 'This release has no notes.'));
+    dom.content(body, text.trim() ? markdown(text) : E('p', { class: 'dl-muted' }, _('This release has no notes.')));
   } catch (e) {
     dom.content(body, E('p', { class: 'dl-muted' }, errorText(e)));
   }

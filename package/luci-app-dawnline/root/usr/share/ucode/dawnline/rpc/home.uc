@@ -4,7 +4,7 @@
 
 import { readfile } from 'fs';
 import { cursor } from 'uci';
-import { sh_out, ip2int, rand_int, rand_hex, admin_log, valid_name, ulength, NAME_RULE } from 'dawnline.util';
+import { sh_out, ip2int, rand_int, rand_hex, admin_log, valid_name, ulength } from 'dawnline.util';
 import * as core from 'dawnline.core';
 import * as apply from 'dawnline.apply';
 import * as net from 'dawnline.net';
@@ -12,6 +12,7 @@ import * as access from 'dawnline.access';
 import * as store from 'dawnline.store';
 import * as schema from 'dawnline.schema';
 import { wrap, str } from 'dawnline.rpc.common';
+import { _ } from 'dawnline.i18n';
 
 /* ---------- services ---------- */
 
@@ -22,29 +23,29 @@ function new_id(m, make) {
 		if (!store.id_taken(m, id))
 			return id;
 	}
-	die('Could not find a free id, try again.');
+	die(_('Could not find a free id, try again.'));
 }
 
 function service_set(a) {
 	let name = str(a.name);
 	if (!valid_name(name))
-		die(`Service: ${NAME_RULE}`);
+		die(_('Service: Enter a name: up to 48 characters, without < > " or \\.'));
 	let address = str(a.address);
 	if (!schema.ipv4(address))
-		die('Address must be an IPv4 address.');
+		die(_('Address must be an IPv4 address.'));
 	let ports = filter(map(type(a.ports) == 'array' ? a.ports : split(str(a.ports), /[ ,]+/), str), (x) => x != '');
 	for (let pt in ports)
 		if (!schema.valid_port(pt))
-			die(`Invalid port ${pt}.`);
+			die(sprintf(_('Invalid port %s.'), pt));
 	let id = store.transact((c, m) => {
 		let id = str(a.id);
 		if (id == '')
 			id = new_id(m, () => `svc_${rand_int(100000, 999999)}`);
 		else if (!match(id, /^[A-Za-z0-9_]{1,32}$/))
-			die('Invalid service id.');
+			die(_('Invalid service id.'));
 		// Never turn a person, device, server, circle or the settings into a service.
 		else if (!m.services[id] && store.id_taken(m, id))
-			die('That id is taken.');
+			die(_('That id is taken.'));
 		c.set(core.CONFIG, id, 'service');
 		c.set(core.CONFIG, id, 'name', name);
 		c.set(core.CONFIG, id, 'address', address);
@@ -61,7 +62,7 @@ function service_set(a) {
 function service_delete(a) {
 	store.transact((c, m) => {
 		if (!m.services[a.id])
-			die('Unknown service.');
+			die(_('Unknown service.'));
 		c.delete(core.CONFIG, a.id);
 		for (let pid, p in m.people)
 			if (index(p.services, a.id) >= 0) {
@@ -82,17 +83,17 @@ function service_delete(a) {
 function circle_set(a) {
 	let name = str(a.name);
 	if (!valid_name(name) || ulength(name) > 32)
-		die('Enter a circle name: up to 32 characters, without < > " or \\.');
+		die(_('Enter a circle name: up to 32 characters, without < > " or \\.'));
 	let res = store.transact((c, m) => {
 		let ci = a.id ? m.circles[a.id] : null;
 		if (a.id && !ci)
-			die('Unknown circle.');
+			die(_('Unknown circle.'));
 		let server = ci?.server ?? a.server;
 		if (!m.servers[server])
-			die('Unknown server.');
+			die(_('Unknown server.'));
 		for (let id, o in m.circles)
 			if (id != a.id && o.server == server && lc(o.name) == lc(name))
-				die(`${name} already exists.`);
+				die(sprintf(_('%s already exists.'), name));
 		let id = ci?.id ?? new_id(m, () => `c_${rand_hex(4)}`);
 		let n = core.CIRCLE_COLORS;
 		c.set(core.CONFIG, id, 'circle');
@@ -121,7 +122,7 @@ function circle_delete(a) {
 	let res = store.transact((c, m) => {
 		let ci = m.circles[a.id];
 		if (!ci)
-			die('Unknown circle.');
+			die(_('Unknown circle.'));
 		c.delete(core.CONFIG, a.id);
 		for (let pid, p in m.people)
 			if (p.circle == a.id)
@@ -173,7 +174,7 @@ function home_hosts(a) {
 	let m = core.load();
 	let srv = m.servers[a.id] ?? values(m.servers)[0];
 	if (!srv)
-		die('No server yet.');
+		die(_('No server yet.'));
 	let nets = [];
 	for (let cidr in net.server_net(srv).nets) {
 		let x = match(cidr, /^([0-9.]+)\/([0-9]+)$/);

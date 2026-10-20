@@ -8,6 +8,7 @@
 import { stat } from 'fs';
 import { ip2int, valid_host, ulength } from 'dawnline.util';
 import { INTERVALS, TARGETS } from 'dawnline.updates';
+import { _ } from 'dawnline.i18n';
 
 /* ---------- addresses ---------- */
 
@@ -109,37 +110,36 @@ export function to_int(v, dflt, lo, hi) {
 /*
  * type: bool | int | enum | host | hosts | url | file | domain | ipv4 | time | targets
  * dflt: the parsed default; restart: the portal (uhttpd) must restart when it changes;
- * min/max: ints; values: enums; msg: the error for a bad value.
+ * min/max: ints; values: enums. The error for a bad value is in messages().
  */
 export const SETTINGS = {
 	portal_enabled: { type: 'bool', dflt: false, restart: true },
-	portal_host: { type: 'host', dflt: '', restart: true, msg: 'Public address must be a hostname or IP address.' },
-	portal_alt: { type: 'hosts', dflt: [], restart: true, msg: 'Other addresses must be hostnames or IP addresses.' },
-	portal_port: { type: 'int', dflt: 8443, min: 1, max: 65535, restart: true,
-		msg: 'Choose a free port between 1 and 65535 (not 22, 53, 80 or 443).' },
-	portal_redirect: { type: 'url', dflt: '', msg: 'Redirect must be a full http:// or https:// address.' },
+	portal_host: { type: 'host', dflt: '', restart: true },
+	portal_alt: { type: 'hosts', dflt: [], restart: true },
+	portal_port: { type: 'int', dflt: 8443, min: 1, max: 65535, restart: true },
+	portal_redirect: { type: 'url', dflt: '' },
 	portal_cert: { type: 'file', dflt: '', restart: true },
 	portal_key: { type: 'file', dflt: '', restart: true },
-	default_device_limit: { type: 'int', dflt: 3, min: 1, max: 32, msg: 'Default device limit must be 1-32.' },
+	default_device_limit: { type: 'int', dflt: 3, min: 1, max: 32 },
 	hostnames: { type: 'bool', dflt: true },
-	domain: { type: 'domain', dflt: 'lan', msg: 'Domain may use lowercase letters, digits, dashes and dots.' },
+	domain: { type: 'domain', dflt: 'lan' },
 	// Off until the admin turns it on: lookups send people's addresses to a third party.
 	geo_enabled: { type: 'bool', dflt: false },
-	geo_provider: { type: 'enum', dflt: 'ipwho.is', values: [ 'ipwho.is', 'ipapi.co' ], msg: 'Unknown location service.' },
+	geo_provider: { type: 'enum', dflt: 'ipwho.is', values: [ 'ipwho.is', 'ipapi.co' ] },
 	log_connections: { type: 'bool', dflt: true },
 	watchdog: { type: 'bool', dflt: true },
-	log_keep_days: { type: 'int', dflt: 30, min: 0, max: 9999, msg: 'Keep activity for 0 (no age limit) to 9999 days.' },
-	log_max: { type: 'int', dflt: 2000, min: 100, max: 20000, msg: 'Log size must be 100-20000 events.' },
-	log_persist: { type: 'enum', dflt: 'hourly', values: [ '10min', 'hourly', 'off' ], msg: 'Save the log every 10min, hourly or off.' },
-	usage_keep_days: { type: 'int', dflt: 62, min: 7, max: 1830, msg: 'Daily traffic history must be 7-1830 days.' },
-	usage_keep_months: { type: 'int', dflt: 24, min: 1, max: 120, msg: 'Monthly traffic history must be 1-120 months.' },
+	log_keep_days: { type: 'int', dflt: 30, min: 0, max: 9999 },
+	log_max: { type: 'int', dflt: 2000, min: 100, max: 20000 },
+	log_persist: { type: 'enum', dflt: 'hourly', values: [ '10min', 'hourly', 'off' ] },
+	usage_keep_days: { type: 'int', dflt: 62, min: 7, max: 1830 },
+	usage_keep_months: { type: 'int', dflt: 24, min: 1, max: 120 },
 	// Empty means "no fallback" (stored as 'none'); unset means the default.
-	home_dns_fallback: { type: 'ipv4', dflt: '1.1.1.1', msg: 'Fallback DNS must be an IPv4 address (or empty for none).' },
+	home_dns_fallback: { type: 'ipv4', dflt: '1.1.1.1' },
 	update_check: { type: 'bool', dflt: true },
-	update_interval: { type: 'enum', dflt: '1d', values: keys(INTERVALS), msg: 'Check every 6h, 12h, 1d or 7d.' },
+	update_interval: { type: 'enum', dflt: '1d', values: keys(INTERVALS) },
 	update_auto: { type: 'bool', dflt: true },
-	update_mode: { type: 'enum', dflt: 'scheduled', values: [ 'immediate', 'scheduled' ], msg: 'Install updates immediately or scheduled.' },
-	update_time: { type: 'time', dflt: '04:00', msg: 'Enter a time as HH:MM, 00:00 to 23:59.' },
+	update_mode: { type: 'enum', dflt: 'scheduled', values: [ 'immediate', 'scheduled' ] },
+	update_time: { type: 'time', dflt: '04:00' },
 	update_targets: { type: 'targets', dflt: [ 'app', 'packages' ] },
 	update_keep: { type: 'bool', dflt: false },
 	update_mirrors: { type: 'bool', dflt: true },
@@ -148,8 +148,30 @@ export const SETTINGS = {
 /** Ports the portal never takes: SSH, DNS and the LuCI web server. */
 export const RESERVED_PORTS = [ 22, 53, 80, 443 ];
 
-function bad(spec, key) {
-	die(spec.msg ?? `Invalid value for ${key}.`);
+/** What the admin is told about a bad value, by setting (made per call: the language changes between calls). */
+function messages() {
+	return {
+		portal_host: _('Public address must be a hostname or IP address.'),
+		portal_alt: _('Other addresses must be hostnames or IP addresses.'),
+		portal_port: _('Choose a free port between 1 and 65535 (not 22, 53, 80 or 443).'),
+		portal_redirect: _('Redirect must be a full http:// or https:// address.'),
+		default_device_limit: _('Default device limit must be 1-32.'),
+		domain: _('Domain may use lowercase letters, digits, dashes and dots.'),
+		geo_provider: _('Unknown location service.'),
+		log_keep_days: _('Keep activity for 0 (no age limit) to 9999 days.'),
+		log_max: _('Log size must be 100-20000 events.'),
+		log_persist: _('Save the log every 10min, hourly or off.'),
+		usage_keep_days: _('Daily traffic history must be 7-1830 days.'),
+		usage_keep_months: _('Monthly traffic history must be 1-120 months.'),
+		home_dns_fallback: _('Fallback DNS must be an IPv4 address (or empty for none).'),
+		update_interval: _('Check every 6h, 12h, 1d or 7d.'),
+		update_mode: _('Install updates immediately or scheduled.'),
+		update_time: _('Enter a time as HH:MM, 00:00 to 23:59.'),
+	};
+}
+
+function bad(key) {
+	die(messages()[key] ?? sprintf(_('Invalid value for %s.'), key));
 }
 
 /**
@@ -160,14 +182,14 @@ function bad(spec, key) {
 export function validate(key, val) {
 	let spec = SETTINGS[key];
 	if (!spec)
-		die(`Unknown setting ${key}.`);
+		die(sprintf(_('Unknown setting %s.'), key));
 	let t = spec.type;
 	if (t == 'hosts') {
 		let lst = [];
 		for (let x in (type(val) == 'array' ? val : [])) {
 			// A typo must not vanish on Save: refused, like the main address.
 			if (type(x) != 'string' || (trim(x) != '' && !valid_host(trim(x))))
-				bad(spec, key);
+				bad(key);
 			if (trim(x) != '' && index(lst, trim(x)) < 0)
 				push(lst, trim(x));
 		}
@@ -190,40 +212,40 @@ export function validate(key, val) {
 		return null;
 	if (t == 'bool') {
 		if (val != '0' && val != '1')
-			die(`${key} is 0 or 1.`);
+			die(sprintf(_('%s is 0 or 1.'), key));
 	}
 	else if (t == 'int') {
 		if (!match(val, /^[0-9]{1,9}$/) || +val < spec.min || +val > spec.max)
-			bad(spec, key);
+			bad(key);
 		val = `${+val}`;
 	}
 	else if (t == 'enum') {
 		if (index(spec.values, val) < 0)
-			bad(spec, key);
+			bad(key);
 	}
 	else if (t == 'host') {
 		if (!valid_host(val))
-			bad(spec, key);
+			bad(key);
 	}
 	else if (t == 'url') {
 		if (length(val) > 300 || !match(val, /^https?:\/\/[A-Za-z0-9.-]+(:[0-9]+)?(\/[^[:space:]"'<>]*)?$/))
-			bad(spec, key);
+			bad(key);
 	}
 	else if (t == 'file') {
 		if (substr(val, 0, 1) != '/' || !stat(val))
-			die(`${val} does not exist.`);
+			die(sprintf(_('File %s does not exist.'), val));
 	}
 	else if (t == 'domain') {
 		if (!match(val, /^[a-z0-9-]{1,32}(\.[a-z0-9-]{1,32})*$/))
-			bad(spec, key);
+			bad(key);
 	}
 	else if (t == 'ipv4') {
 		if (!ipv4(val))
-			bad(spec, key);
+			bad(key);
 	}
 	else if (t == 'time') {
 		if (!match(val, /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/))
-			bad(spec, key);
+			bad(key);
 	}
 	return val;
 };

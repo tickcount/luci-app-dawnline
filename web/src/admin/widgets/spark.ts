@@ -3,6 +3,7 @@
 import { E } from '../e';
 import { addDays, bytes, isoDay, parseDay } from '../../shared/format';
 import { attachTip } from '../ui/tooltip';
+import { locale } from '../../shared/i18n';
 
 /** `today` is the router's day (YYYY-MM-DD), so the labels follow its calendar. */
 export function spark(values: number[], width = 120, height = 26, today = isoDay(new Date())): HTMLElement {
@@ -20,10 +21,10 @@ export function spark(values: number[], width = 120, height = 26, today = isoDay
         'div',
         { class: 'dl-tip-title' },
         back === 0
-          ? 'Today'
+          ? _('Today')
           : back === 1
-            ? 'Yesterday'
-            : parseDay(addDays(today, -back)).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }),
+            ? _('Yesterday')
+            : parseDay(addDays(today, -back)).toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short' }),
       ),
       E('div', { class: 'dl-muted' }, bytes(v)),
     ]);

@@ -5,7 +5,8 @@
 // calendar of the weeks, with the admin's hours as a bar of the day.
 
 import type { Person } from '../../shared/types';
-import { ACCESS_LABEL, byDeviceState, bytes, date, daysLeft, endsSoon, parseDay } from '../../shared/format';
+import { accessLabel, byDeviceState, bytes, date, daysLeft, endsSoon, parseDay } from '../../shared/format';
+import { fill, fmt, locale, num, plural } from '../../shared/i18n';
 import { h, ic, markup } from '../dom';
 import { calendar, clockOf, hoursFor, minuteAt, monthOf, stretches } from '../days';
 import { now, today, type State } from '../state';
@@ -18,6 +19,8 @@ import { reachableFromHome } from './devices';
 const desc = (text: string) => h('p', { class: 'desc' }, text);
 /** A share of a length, as a CSS percentage. */
 const pc = (part: number, whole: number) => `${((part / whole) * 100).toFixed(2)}%`;
+/** A router day (YYYY-MM-DD) as "13 Oct", without the year. */
+const dayMonth = (d: string) => parseDay(d).toLocaleDateString(locale(), { day: 'numeric', month: 'short' });
 
 /** What the access reaches, as two tiles: the home network and the internet, each in or out. */
 function reachTiles(access: Person['access']): HTMLElement {
@@ -27,14 +30,14 @@ function reachTiles(access: Person['access']): HTMLElement {
       { class: `reach-tile${on ? '' : ' off'}` },
       glass(icon, on ? 'blue' : 'grey', 'gi rt-ic'),
       h('b', {}, name),
-      h('span', { class: 'rt-sub' }, on ? sub : 'Not included'),
-      h('span', { class: 'rt-mark', 'aria-label': on ? 'Included' : 'Not included' }, ic(on ? 'check' : 'minus')),
+      h('span', { class: 'rt-sub' }, on ? sub : _('Not included')),
+      h('span', { class: 'rt-mark', 'aria-label': on ? _('Included') : _('Not included') }, ic(on ? 'check' : 'minus')),
     );
   return h(
     'div',
     { class: 'reach2' },
-    tile(access !== 'internet', 'home', 'Home network', 'Devices at home'),
-    tile(access !== 'lan', 'globe', 'Internet', 'Through the router'),
+    tile(access !== 'internet', 'home', _('Home network'), _('Devices at home')),
+    tile(access !== 'lan', 'globe', _('Internet'), _('Through the router')),
   );
 }
 
@@ -45,12 +48,12 @@ function namesAtHome(p: Person, mesh: boolean): Node[] {
   const first = named[0].hostname;
   const dot0 = first.indexOf('.');
   const domain = dot0 > 0 ? first.slice(dot0) : '';
+  const pattern = h('span', { class: 'mono' }, `${_('name')}${domain}`);
   return [
     h(
       'span',
       { class: 'lbl-s' },
-      mesh ? 'Devices at home and on this VPN reach yours as ' : 'Other devices at home reach yours as ',
-      h('span', { class: 'mono' }, `name${domain}`),
+      ...fill(mesh ? _('Devices at home and on this VPN reach yours as %s') : _('Other devices at home reach yours as %s'), pattern),
     ),
     h(
       'div',
@@ -63,8 +66,8 @@ function namesAtHome(p: Person, mesh: boolean): Node[] {
             type: 'button',
             class: 'namechip',
             title: d.name,
-            'aria-label': `Copy ${d.hostname}`,
-            onclick: (ev: Event) => copy(d.hostname, 'Address copied', ev.currentTarget),
+            'aria-label': fmt(_('Copy %s'), d.hostname),
+            onclick: (ev: Event) => copy(d.hostname, _('Address copied'), ev.currentTarget),
           },
           h('span', {}, dot > 0 ? [d.hostname.slice(0, dot), h('span', { class: 'faint' }, d.hostname.slice(dot))] : d.hostname),
           ic('copy'),
@@ -95,12 +98,16 @@ function month(p: Person, used: number, pct: number): HTMLElement {
   const { days, day } = monthOf(today());
   const series = p.month_days ?? [];
   const max = Math.max(1, ...series);
-  const short = (d: number) =>
-    parseDay(`${today().slice(0, 8)}${String(d).padStart(2, '0')}`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  const short = (d: number) => dayMonth(`${today().slice(0, 8)}${String(d).padStart(2, '0')}`);
   // The total, and a bar under the pointer in its place, at once: no morph while the pointer moves.
   const total = h('b', { class: 'num', 'data-t': 'm-used' }, bytes(used));
-  const tail = h('span', {}, ' used');
-  const read = h('span', { class: 'mread' }, total, tail);
+  const read = h('span', { class: 'mread' });
+  /** The month's total, or (`d`) one day's: the number in its sentence. */
+  const say = (v: number, d?: number) => {
+    setText(total, bytes(v));
+    read.replaceChildren(...(d ? fill<Node | string>(_('%s on %s'), total, short(d)) : fill(_('%s used'), total)));
+  };
+  say(used);
   const bars = h('div', { class: 'mbars' });
   for (let i = 0; i < days; i++) {
     if (i >= day) {
@@ -110,18 +117,12 @@ function month(p: Person, used: number, pct: number): HTMLElement {
     const v = series[i] ?? 0;
     const b = h('i', { class: i === day - 1 ? 'today' : '' });
     b.style.height = `${Math.max(3, Math.round((v / max) * 64))}px`;
-    b.addEventListener('pointerenter', () => {
-      setText(total, bytes(v));
-      setText(tail, ` on ${short(i + 1)}`);
-    });
-    b.addEventListener('pointerleave', () => {
-      setText(total, bytes(used));
-      setText(tail, ' used');
-    });
+    b.addEventListener('pointerenter', () => say(v, i + 1));
+    b.addEventListener('pointerleave', () => say(used));
     bars.appendChild(b);
   }
   // "Today" under its bar; the month's ends step aside when it comes close.
-  const td = h('span', { class: 'td' }, 'Today');
+  const td = h('span', { class: 'td' }, _('Today'));
   td.style.left = pc(day - 0.5, days);
   const axis = h(
     'div',
@@ -142,7 +143,7 @@ function month(p: Person, used: number, pct: number): HTMLElement {
       h(
         'span',
         { class: `num${p.state === 'quota' ? ' bad-t' : ''}`, 'data-t': 'm-left' },
-        p.quota_limit ? `${bytes(Math.max(0, p.quota_limit - used))} left` : 'No limit',
+        p.quota_limit ? fmt(_('%s left'), bytes(Math.max(0, p.quota_limit - used))) : _('No limit'),
       ),
     ),
     p.quota_limit ? meter(pct) : null,
@@ -151,7 +152,9 @@ function month(p: Person, used: number, pct: number): HTMLElement {
 
 /** The days left as a number over a calendar of the weeks to the end (the last day ringed). */
 function untilCal(p: Person, left: number): HTMLElement {
-  const day = (d: string) => parseDay(d).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  const day = (d: string) => parseDay(d).toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short' });
+  // The weekdays' initials, Monday first (1 Jan 2024 was a Monday).
+  const weekdays = Array.from({ length: 7 }, (_x, i) => new Date(2024, 0, 1 + i, 12).toLocaleDateString(locale(), { weekday: 'narrow' }));
   const cells = calendar(today(), p.expires);
   const cal = cells
     ? h(
@@ -160,7 +163,7 @@ function untilCal(p: Person, left: number): HTMLElement {
         h(
           'div',
           { class: 'cal-h' },
-          ['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((x) => h('span', {}, x)),
+          weekdays.map((x) => h('span', {}, x)),
         ),
         h(
           'div',
@@ -179,9 +182,9 @@ function untilCal(p: Person, left: number): HTMLElement {
     h(
       'div',
       { class: 'until-num' },
-      h('b', { class: 'num' }, String(left)),
-      h('span', {}, `${left === 1 ? 'day' : 'days'} left`),
-      h('span', { class: 'until-sub' }, `Ends ${day(p.expires)}`),
+      h('b', { class: 'num' }, num(left)),
+      h('span', {}, N_(left, 'day left', 'days left')),
+      h('span', { class: 'until-sub' }, fmt(_('Ends %s'), day(p.expires))),
     ),
     cal,
   );
@@ -203,7 +206,7 @@ function hoursBar(hours: string, tzOffset: number | undefined): HTMLElement | nu
     i.style.width = pc(b - a, 1440);
     bar.appendChild(i);
   }
-  const mark = h('span', { class: `hours-now${inside ? '' : ' out'}`, title: `Now, ${clockOf(at)}` });
+  const mark = h('span', { class: `hours-now${inside ? '' : ' out'}`, title: fmt(_('Now, %s'), clockOf(at)) });
   mark.style.left = pc(at, 1440);
   bar.appendChild(mark);
   return h(
@@ -212,7 +215,7 @@ function hoursBar(hours: string, tzOffset: number | undefined): HTMLElement | nu
     h(
       'div',
       { class: 'hours-top' },
-      h('span', {}, hw.yours ? 'Hours, your time' : 'Hours, router time'),
+      h('span', {}, hw.yours ? _('Hours, your time') : _('Hours, router time')),
       h('b', { class: 'num' }, `${clockOf(hw.from)}–${clockOf(hw.to)}`),
     ),
     bar,
@@ -236,30 +239,30 @@ export function accessAccordion(st: State, open = 1): Accordion {
     ? h(
         'span',
         { class: 'until-val' },
-        h('span', { class: 'num', 'data-t': 'until-date' }, date(p.expires).replace(/ \d{4}$/, '')),
+        h('span', { class: 'num', 'data-t': 'until-date' }, dayMonth(p.expires)),
         left != null
           ? h(
               'span',
               { class: `num ${left < 0 ? 'bad-t' : endsSoon(p, left) ? 'warn-t' : 'ok-t'}`, 'data-t': 'until-left' },
-              left >= 0 ? `${left} day${left === 1 ? '' : 's'}` : 'ended',
+              left >= 0 ? plural(left, '%s day', '%s days') : _('ended'),
             )
           : null,
       )
-    : h('span', {}, 'No end date');
+    : h('span', {}, _('No end date'));
   const untilBody = [
-    !p.expires ? null : left != null && left < 0 ? desc(`It ended on ${date(p.expires)}.`) : untilCal(p, left ?? 0),
+    !p.expires ? null : left != null && left < 0 ? desc(fmt(_('It ended on %s.'), date(p.expires))) : untilCal(p, left ?? 0),
     p.hours ? hoursBar(p.hours, st.tz_offset) : null,
   ];
   return accordion(
     [
       {
         icon: glass(p.access === 'internet' ? 'globe' : p.access === 'lan' ? 'home' : 'shield'),
-        title: ACCESS_LABEL[p.access],
+        title: accessLabel(p.access),
         body: [reachTiles(p.access), ...namesAtHome(p, !!st.server.device_mesh)],
       },
       {
         icon: glass('chart'),
-        title: total ? 'Data used' : 'Data this month',
+        title: total ? _('Data used') : _('Data this month'),
         val: h(
           'span',
           { class: 'data-val' },
@@ -267,23 +270,23 @@ export function accessAccordion(st: State, open = 1): Accordion {
           h(
             'span',
             { class: 'num', 'data-t': 'data-val' },
-            `${bytes(used)}${p.quota_limit ? ` / ${bytes(p.quota_limit)}` : ' · no limit'}`,
+            `${bytes(used)} ${p.quota_limit ? `/ ${bytes(p.quota_limit)}` : `· ${_('no limit')}`}`,
           ),
         ),
         valHide: true,
         body: [
-          total ? desc(`${bytes(used)} of ${bytes(p.quota_limit)} in total.`) : month(p, used, pct),
+          total ? desc(fmt(_('%s of %s in total.'), bytes(used), bytes(p.quota_limit))) : month(p, used, pct),
           desc(
             !p.quota_limit
-              ? 'No data limit. The count starts again on the 1st.'
+              ? _('No data limit. The count starts again on the 1st.')
               : total
-                ? 'A total for your whole access, it does not reset.'
-                : 'Resets on the 1st.',
+                ? _('A total for your whole access, it does not reset.')
+                : _('Resets on the 1st.'),
           ),
         ],
       },
       // No end date and no hours: nothing to open, the row just says so.
-      { icon: glass('calendar'), title: 'Access until', val: untilVal, valHide: !!p.expires && (left ?? 0) >= 0, body: untilBody },
+      { icon: glass('calendar'), title: _('Access until'), val: untilVal, valHide: !!p.expires && (left ?? 0) >= 0, body: untilBody },
     ],
     { open },
   );
@@ -293,8 +296,8 @@ export function accessAccordion(st: State, open = 1): Accordion {
 export function accessSection(): HTMLElement {
   return h(
     'section',
-    { class: 'access', id: 'access', 'aria-label': 'Your access' },
-    h('div', { class: 'sec-head' }, h('h2', {}, 'Your access')),
+    { class: 'access', id: 'access', 'aria-label': _('Your access') },
+    h('div', { class: 'sec-head' }, h('h2', {}, _('Your access'))),
     h('div', { class: 'acc-slot' }),
   );
 }

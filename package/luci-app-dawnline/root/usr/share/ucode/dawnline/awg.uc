@@ -1,8 +1,8 @@
 // Dawnline — the AmneziaWG core: keys, disguise (obfuscation), client
 // configurations (.conf, AmneziaVPN key), the netifd options of a server's
-// tunnel, its peers (`awg syncconf`, no restart), live counters and what the
-// watchdog and Health check about it. Plain WireGuard is AmneziaWG with the
-// disguise off.
+// tunnel, its peers (`awg syncconf`, no restart), live counters, the words for
+// why a tunnel is kept down (blocked_text) and what the watchdog and Health
+// check about it. Plain WireGuard is AmneziaWG with the disguise off.
 
 import { readfile, stat, unlink } from 'fs';
 import {
@@ -13,6 +13,7 @@ import * as core from 'dawnline.core';
 import * as net from 'dawnline.net';
 import * as pkg from 'dawnline.pkg';
 import * as builds from 'dawnline.awg_builds';
+import { _, L_ } from 'dawnline.i18n';
 
 /** Names in .conf files (and AmneziaVPN keys); netifd uses `awg_<key>`. */
 export const OBF_CONF = {
@@ -98,15 +99,15 @@ export function genpsk() {
 export function new_keys(public_key) {
 	let psk = genpsk();
 	if (!valid_key(psk))
-		die('Key generation failed (no random data).');
+		die(_('Key generation failed (no random data).'));
 	if (public_key) {
 		if (!valid_key(public_key))
-			die('Invalid public key.');
+			die(_('Invalid public key.'));
 		return { public_key, preshared_key: psk };
 	}
 	let priv = genkey(), pub = pubkey(priv);
 	if (!pub)
-		die('Key generation failed (is amneziawg-tools installed?).');
+		die(_('Key generation failed (is amneziawg-tools installed?).'));
 	return { private_key: priv, public_key: pub, preshared_key: psk };
 };
 
@@ -114,7 +115,7 @@ export function new_keys(public_key) {
 export function server_keys() {
 	let priv = genkey(), pub = pubkey(priv);
 	if (!pub)
-		die('Key generation failed (is amneziawg-tools installed?).');
+		die(_('Key generation failed (is amneziawg-tools installed?).'));
 	return { private_key: priv, public_key: pub };
 };
 
@@ -172,10 +173,11 @@ export function caps() {
 };
 
 /**
- * Why this AmneziaWG cannot run a server's disguise values, or null: a 3.1
- * preset after a rollback to a 2.0 build would come up without the header
- * protection every device expects, so such a server is kept down instead
- * (dawnline.netifd).
+ * Why this AmneziaWG cannot run a server's disguise values, as a reason to
+ * keep the server down (blocked_text): { code: 'disguise', need, installed }
+ * (installed null: none), or null when it can. A 3.1 preset after a rollback
+ * to a 2.0 build would come up without the header protection every device
+ * expects, so such a server is kept down instead (dawnline.netifd).
  */
 export function obf_unsupported(o) {
 	let c = caps();
@@ -185,9 +187,9 @@ export function obf_unsupported(o) {
 	let v2 = [ 's3', 's4', 'i1', 'i2', 'i3', 'i4', 'i5' ];
 	let ranged = length(filter([ 'h1', 'h2', 'h3', 'h4' ], (k) => match(`${o?.[k] ?? ''}`, /-/))) > 0;
 	if (has(v3) && !c.v3)
-		return `its disguise needs AmneziaWG 3.1 (installed: ${c.kmod ?? c.tools ?? 'none'})`;
+		return { code: 'disguise', need: '3.1', installed: c.kmod ?? c.tools };
 	if ((has(v2) || ranged) && !c.v2)
-		return `its disguise needs AmneziaWG 2.0 (installed: ${c.kmod ?? c.tools ?? 'none'})`;
+		return { code: 'disguise', need: '2.0', installed: c.kmod ?? c.tools };
 	return null;
 };
 
@@ -293,9 +295,9 @@ export function obf_errors(o) {
 		if (v == null || v == '')
 			continue;
 		if (!match(v, /^[0-9]+(-[0-9]+)?$/))
-			push(errs, `${k} must be a number or range`);
+			push(errs, sprintf(_('%s must be a number or range'), k));
 		else if (hs[v])
-			push(errs, 'h1-h4 must be distinct');
+			push(errs, _('h1-h4 must be distinct'));
 		hs[v] = true;
 	}
 	return errs;
@@ -482,7 +484,7 @@ export function sync_peers(m, states) {
 		unlink(f);
 		res[id] = r.code == 0 ? 'ok' : trim(r.out);
 		if (r.code != 0)
-			slog('awg', 'error', "couldn't load devices into the tunnel", trim(r.out), srv.name);
+			slog('awg', 'error', L_("couldn't load devices into the tunnel"), trim(r.out), srv.name);
 	}
 	return res;
 };
@@ -528,6 +530,56 @@ export function server_state(srv) {
 	return { up: !!st?.up, uptime: st?.uptime ?? 0 };
 };
 
+/* ---------- why a tunnel is kept down ---------- */
+
+/*
+ * dawnline.netifd keeps a server's tunnel down for a reason, kept per server
+ * in core.BLOCKED and loaded as `srv.blocked`. apply writes it, at boot and
+ * from the agent with no language, so it holds a code and its values, made
+ * into text when read:
+ *   { code: 'ifname', ifname }             the interface name is invalid
+ *   { code: 'taken', ifname }              network.<ifname> exists and isn't Dawnline's
+ *   { code: 'disguise', need, installed }  obf_unsupported()
+ * Files written by older versions hold the English fragment ("has an invalid
+ * interface name …"), shown as it is.
+ */
+
+/** A reason as the service log says it after the server's name: English, like every log line. */
+export function blocked_note(r) {
+	if (type(r) != 'object')
+		return `${r}`;
+	if (r.code == 'ifname')
+		return sprintf(L_('has an invalid interface name "%s"'), r.ifname);
+	if (r.code == 'taken')
+		return sprintf(L_("can't use the network interface %s: it exists and isn't Dawnline's"), r.ifname);
+	if (r.code == 'disguise')
+		return r.installed ? sprintf(L_('is kept down: its disguise needs AmneziaWG %s (installed: %s)'), r.need, r.installed)
+			: sprintf(L_('is kept down: its disguise needs AmneziaWG %s (installed: none)'), r.need);
+	return L_('is kept down');
+};
+
+/**
+ * Why the server's tunnel is kept down (`srv.blocked`), as a sentence with
+ * its name in the reader's language: what the admin UI shows. Null when it
+ * is not kept down.
+ */
+export function blocked_text(srv) {
+	let r = srv?.blocked;
+	if (!r)
+		return null;
+	if (type(r) != 'object')
+		return `${srv.name} ${r}.`;
+	if (r.code == 'ifname')
+		return sprintf(_('%s has an invalid interface name "%s".'), srv.name, r.ifname);
+	if (r.code == 'taken')
+		return sprintf(_("%s can't use the network interface %s: it exists and isn't Dawnline's."), srv.name, r.ifname);
+	if (r.code == 'disguise')
+		return r.installed
+			? sprintf(_('%s is kept down: its disguise needs AmneziaWG %s (installed: %s).'), srv.name, r.need, r.installed)
+			: sprintf(_('%s is kept down: its disguise needs AmneziaWG %s (installed: none).'), srv.name, r.need);
+	return sprintf(_('%s is kept down.'), srv.name);
+};
+
 /* ---------- watchdog ---------- */
 
 /** Why a tunnel is down, from netifd and the last related syslog lines. */
@@ -553,19 +605,20 @@ export function probes(m, ctx) {
 	// AmneziaWG itself first: without it no tunnel can run (they come back on the next pass).
 	// Missing packages and an unknown protocol are reported once; only the module can be loaded here.
 	let st = state();
-	let base = { id: 'awg', src: 'awg', name: 'AmneziaWG', who: 'AmneziaWG', back: 'is ready again' };
+	let base = { id: 'awg', src: 'awg', name: 'AmneziaWG', who: 'AmneziaWG', back: L_('is ready again') };
 	if (!st.tools || !st.kmod) {
 		push(out, { ...base, ok: false, repair: null,
-			problem: `${st.tools ? "kernel module isn't" : "isn't"} installed: no tunnel can run — install it in Dawnline → Components`,
-			detail: () => `Missing: ${join(', ', st.missing)}.` });
+			problem: st.tools ? L_("kernel module isn't installed: no tunnel can run - install it in Dawnline → Components")
+				: L_("isn't installed: no tunnel can run - install it in Dawnline → Components"),
+			detail: () => sprintf(L_('Missing: %s.'), join(', ', st.missing)) });
 		return out;
 	}
 	push(out, { ...base, ok: st.loaded && st.handler,
-		problem: !st.loaded ? "kernel module isn't loaded" : "isn't known to the network service — restart the network or reboot",
+		problem: !st.loaded ? L_("kernel module isn't loaded") : L_("isn't known to the network service - restart the network or reboot"),
 		detail: !st.loaded
 			? () => sh_out("modprobe amneziawg 2>&1; dmesg 2>/dev/null | grep -i amneziawg | grep -iE 'error|fail|invalid|unknown|disagrees|taint' | tail -n 4")
-			: () => 'netifd reads its protocol handlers when it starts; it was running before AmneziaWG was installed.',
-		repair: !st.loaded ? { what: 'loading it', run: () => system('modprobe amneziawg >/dev/null 2>&1') } : null,
+			: () => L_('netifd reads its protocol handlers when it starts; it was running before AmneziaWG was installed.'),
+		repair: !st.loaded ? { what: L_('loading it'), run: () => system('modprobe amneziawg >/dev/null 2>&1') } : null,
 	});
 	// Without the protocol handler ifup cannot work: the tunnels are not probed (or restarted) one by one.
 	if (st.loaded && !st.handler)
@@ -574,13 +627,13 @@ export function probes(m, ctx) {
 		// A tunnel Dawnline may not set up (dawnline.netifd) is reported, never restarted:
 		// an interface of the same name that isn't Dawnline's may be your LAN.
 		let own = core.valid_ifname(srv.ifname) ? ctx.owner?.(srv.ifname) : null;
-		let why = srv.blocked ?? (!core.valid_ifname(srv.ifname) ? `has an invalid interface name "${srv.ifname}"`
-			: own != null && own != srv.id ? `can't use the network interface ${srv.ifname}: it exists and isn't Dawnline's` : null);
+		let why = srv.blocked ?? (!core.valid_ifname(srv.ifname) ? { code: 'ifname', ifname: srv.ifname }
+			: own != null && own != srv.id ? { code: 'taken', ifname: srv.ifname } : null);
 		if (why) {
 			push(out, {
 				id: `up_${srv.id}`, src: 'awg', name: `${srv.name} · AmneziaWG`, who: srv.name, ok: false, repair: null,
-				problem: why, back: 'AmneziaWG is running again',
-				detail: () => 'Choose another interface name in the server settings.',
+				problem: blocked_note(why), back: L_('AmneziaWG is running again'),
+				detail: () => L_('Choose another interface name in the server settings.'),
 			});
 			continue;
 		}
@@ -588,10 +641,11 @@ export function probes(m, ctx) {
 		let up = !!s?.up;
 		push(out, {
 			id: `up_${srv.id}`, src: 'awg', name: `${srv.name} · AmneziaWG`, who: srv.name, ok: up && ctx.udp_listening(srv.port),
-			problem: !s ? 'AmneziaWG is missing from the router' : !up ? "AmneziaWG isn't running" : `AmneziaWG isn't accepting connections on port ${srv.port}`,
-			back: `AmneziaWG is running again · accepting connections on port ${srv.port}`,
+			problem: !s ? L_('AmneziaWG is missing from the router') : !up ? L_("AmneziaWG isn't running")
+				: sprintf(L_("AmneziaWG isn't accepting connections on port %d"), srv.port),
+			back: sprintf(L_('AmneziaWG is running again · accepting connections on port %d'), srv.port),
 			detail: () => iface_errors(srv.ifname),
-			repair: s ? { what: 'restarting it', run: () => system(`ifup ${q(srv.ifname)}`) } : { what: 'setting it up again', run: ctx.reapply },
+			repair: s ? { what: L_('restarting it'), run: () => system(`ifup ${q(srv.ifname)}`) } : { what: L_('setting it up again'), run: ctx.reapply },
 		});
 	}
 	return out;

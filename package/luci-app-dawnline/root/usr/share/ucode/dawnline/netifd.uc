@@ -2,13 +2,15 @@
 // ifname and marked `_dawnline` = server id. Only interfaces Dawnline created
 // are changed or removed: a name already used by another interface (`lan`, a
 // tunnel of your own, one from an imported config) is left alone and the
-// server is reported instead.
+// server is reported instead. Why a server is kept down is kept in
+// core.BLOCKED as a code with its values (awg.blocked_text says it).
 
 import { cursor } from 'uci';
 import { stat, unlink, writefile } from 'fs';
 import { q, uci_put, uci_section, ack_config, iface_intent, ensure_dir, read_json, write_json, slog, RUN_DIR } from 'dawnline.util';
 import * as core from 'dawnline.core';
 import * as awg from 'dawnline.awg';
+import { L_ } from 'dawnline.i18n';
 
 // Set while AmneziaWG is missing and that was logged (once until it is back).
 const NO_AWG = `${RUN_DIR}/netifd-no-awg`;
@@ -35,12 +37,12 @@ export function sync(m) {
 	let changed = false, touched = [], want = {};
 	// Servers whose interface can't be set up (core.BLOCKED), each logged once while it lasts.
 	let was = read_json(core.BLOCKED, {}), blocked = {};
-	let block = (srv, msg, detail) => {
-		blocked[srv.id] = msg;
+	let block = (srv, why, detail) => {
+		blocked[srv.id] = why;
 		// The rest of this apply works from the same model: no tunnel for it there either.
-		srv.blocked = msg;
-		if (was[srv.id] != msg)
-			log(srv.name, msg, 'error', detail);
+		srv.blocked = why;
+		if (sprintf('%J', was[srv.id]) != sprintf('%J', why))
+			log(srv.name, awg.blocked_note(why), 'error', detail);
 	};
 
 	// Without amneziawg-tools there is no protocol script: changing or bringing
@@ -49,7 +51,7 @@ export function sync(m) {
 	if (tools && stat(NO_AWG))
 		unlink(NO_AWG);
 	else if (!tools && length(filter(values(m.servers), (s) => s.private_key)) && !stat(NO_AWG)) {
-		log('AmneziaWG', "isn't installed: tunnels were left as they are", 'error', 'Install it in Dawnline → Components.');
+		log('AmneziaWG', L_("isn't installed: tunnels were left as they are"), 'error', L_('Install it in Dawnline → Components.'));
 		ensure_dir(RUN_DIR);
 		writefile(NO_AWG, `${time()}`);
 	}
@@ -59,12 +61,12 @@ export function sync(m) {
 			continue;
 		let ifn = srv.ifname;
 		if (!core.valid_ifname(ifn)) {
-			block(srv, `has an invalid interface name "${ifn}"`, 'Interface name: 1-12 lowercase letters, digits or _.');
+			block(srv, { code: 'ifname', ifname: ifn }, 'Interface name: 1-12 lowercase letters, digits or _.');
 			continue;
 		}
 		let own = owner(ifn, c);
 		if (own != null && own != id) {
-			block(srv, `can't use the network interface ${ifn}: it exists and isn't Dawnline's`,
+			block(srv, { code: 'taken', ifname: ifn },
 				'Dawnline never changes interfaces it did not create. Choose another interface name for this server.');
 			continue;
 		}
@@ -74,7 +76,7 @@ export function sync(m) {
 		// disguise is changed.
 		let why = tools ? awg.obf_unsupported(srv.obf) : null;
 		if (why) {
-			block(srv, `is kept down: ${why}`, 'Install that AmneziaWG build in Dawnline → Components, or switch the disguise on the Server page.');
+			block(srv, why, 'Install that AmneziaWG build in Dawnline → Components, or switch the disguise on the Server page.');
 			continue;
 		}
 		delete srv.blocked;

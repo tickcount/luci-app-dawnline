@@ -2,13 +2,14 @@
 // timer and what a finished check found. Pure (no DOM, no RPC).
 
 import type { UpdateJob, UpdatesStatus } from '../api';
+import { fmt, plural } from '../../shared/i18n';
 
-export const NAME: Record<string, string> = {
-  app: 'Dawnline',
-  amneziawg: 'AmneziaWG',
-  packages: 'System packages',
-  pkgs: 'System packages',
-};
+/** A component's name in words; undefined for "all" and unknown ones. */
+export function componentName(comp: string): string | undefined {
+  if (comp === 'app') return 'Dawnline';
+  if (comp === 'amneziawg') return 'AmneziaWG';
+  return comp === 'packages' || comp === 'pkgs' ? _('System packages') : undefined;
+}
 
 /** "app@0.3.1" → "app"; "check:amneziawg" → "amneziawg"; "check" → "all"; "pkgs:a,b" → "pkgs". */
 export function jobComponent(what: string): string {
@@ -49,17 +50,17 @@ export function checkVerdict(st: Pick<UpdatesStatus, 'check'>, comp: string): Ve
     const c = all[k];
     if (!c) continue;
     if (c.error) return { tone: 'warn', text: c.error };
-    if (k === 'packages' && c.updates) found.push(`${c.updates} system package${c.updates === 1 ? '' : 's'}`);
+    if (k === 'packages' && c.updates) found.push(plural(c.updates, '%s system package', '%s system packages'));
     else if (k !== 'packages' && c.update && c.installed && c.latest) {
-      found.push(`${NAME[k]} ${c.latest}`);
+      found.push(`${componentName(k)} ${c.latest}`);
       if (comp !== 'all') update = c.latest;
     }
   }
-  if (found.length) return { tone: 'acc', text: `Update available: ${found.join(', ')}`, update };
+  if (found.length) return { tone: 'acc', text: fmt(_('Update available: %s'), found.join(', ')), update };
   const one = list.length === 1 ? all[list[0]] : null;
-  if (one?.status === 'dev') return { tone: 'acc', text: `Installed version is newer than the release (${one.latest})` };
+  if (one?.status === 'dev') return { tone: 'acc', text: fmt(_('Installed version is newer than the release (%s)'), one.latest) };
   if (one?.note) return { tone: 'warn', text: one.note };
-  return { tone: 'ok', text: list.length > 1 ? 'Everything is up to date' : 'Latest version is installed' };
+  return { tone: 'ok', text: list.length > 1 ? _('Everything is up to date') : _('Latest version is installed') };
 }
 
 /**

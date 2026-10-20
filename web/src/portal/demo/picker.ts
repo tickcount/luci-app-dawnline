@@ -11,7 +11,7 @@ import { closeSheet, head, openSheet, sub, type View } from '../ui/sheet';
 import { glass, type Tone } from '../ui/glass';
 import { toast } from '../ui/feedback';
 import { EASE_OUT, play } from '../motion';
-import { GROUPS, REPO, type Scenario, type ScenarioId } from './data';
+import { REPO, groups, type Scenario, type ScenarioId } from './data';
 import type { DemoRouter } from './router';
 
 /** Each scenario's glass icon and tone (the glass set is smaller than the line icons). */
@@ -75,9 +75,9 @@ export function scenarioChip(router: DemoRouter): HTMLElement {
     const el = h(
       'div',
       { class: 'view' },
-      head('Try a scenario'),
-      sub('How the page looks in each case. Nothing here connects.'),
-      ...GROUPS.map((g) =>
+      head(_('Try a scenario')),
+      sub(_('How the page looks in each case. Nothing here connects.')),
+      ...groups().map((g) =>
         h('div', { class: 'dm-group' }, h('div', { class: 'lbl-s' }, g.title), h('div', { class: 'dm-list' }, ...g.items.map(row))),
       ),
       h(
@@ -85,20 +85,20 @@ export function scenarioChip(router: DemoRouter): HTMLElement {
         { class: 'dm-foot' },
         h(
           'button',
-          { type: 'button', class: 'btn soft', onclick: () => pick(router.scenario(), 'The demo started over') },
+          { type: 'button', class: 'btn soft', onclick: () => pick(router.scenario(), _('The demo started over')) },
           ic('reset'),
-          h('span', {}, 'Start over'),
+          h('span', {}, _('Start over')),
         ),
         h('a', { class: 'btn soft dm-gh-alt', href: REPO, target: '_blank', rel: 'noopener' }, ic('github'), h('span', {}, 'GitHub')),
       ),
     );
-    return { el, label: 'Try a scenario' };
+    return { el, label: _('Try a scenario') };
   }
 
   return h(
     'button',
     { type: 'button', class: 'dm-chip', 'aria-haspopup': 'dialog', onclick: () => openSheet(scenarios) },
-    h('span', {}, 'Demo'),
+    h('span', {}, _('Demo')),
     ic('chevron', 'i'),
   );
 }

@@ -2,6 +2,7 @@ import { defineConfig } from 'tsup';
 import { build } from 'esbuild';
 import fs from 'node:fs';
 import path from 'node:path';
+import { poCatalog } from './tsup.config';
 
 // The portal demo: a static site in dist/demo (vercel.json deploys it). The
 // real portal with the demo's router in the page (src/portal/demo); its
@@ -19,6 +20,7 @@ export default defineConfig({
   sourcemap: false,
   minify: true,
   noExternal: ['qrcode-generator'],
+  esbuildPlugins: [poCatalog],
   esbuildOptions(o) {
     o.legalComments = 'none';
     o.charset = 'utf8';

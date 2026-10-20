@@ -103,3 +103,15 @@ test('handshake_since: Reconnect hides older handshakes', () => {
 	eq(awg.handshake_since(1600, 1500), 1600, 'connected after');
 	eq(awg.handshake_since(0, 1500), 0, 'never connected');
 });
+
+test('blocked reasons', () => {
+	let srv = (b) => ({ name: 'Home', blocked: b });
+	eq(awg.blocked_text(srv(null)), null, 'not kept down');
+	eq(awg.blocked_text(srv({ code: 'ifname', ifname: 'bad name' })), 'Home has an invalid interface name "bad name".', 'interface name');
+	eq(awg.blocked_text(srv({ code: 'taken', ifname: 'wg0' })), "Home can't use the network interface wg0: it exists and isn't Dawnline's.", 'foreign interface');
+	eq(awg.blocked_text(srv({ code: 'disguise', need: '3.1', installed: '2.0' })), 'Home is kept down: its disguise needs AmneziaWG 3.1 (installed: 2.0).', 'disguise');
+	eq(awg.blocked_text(srv({ code: 'disguise', need: '3.1' })), 'Home is kept down: its disguise needs AmneziaWG 3.1 (installed: none).', 'disguise, none installed');
+	// Files of older versions hold the English fragment after the name.
+	eq(awg.blocked_text(srv('has an invalid interface name "x"')), 'Home has an invalid interface name "x".', 'old fragment');
+	eq(awg.blocked_note({ code: 'ifname', ifname: 'x' }), 'has an invalid interface name "x"', 'the log keeps the fragment');
+});

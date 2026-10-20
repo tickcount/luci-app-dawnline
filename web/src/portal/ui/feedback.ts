@@ -43,7 +43,9 @@ export function toast(msg: string, bad = false) {
 
 /**
  * The control that copied says so for a moment: its icon turns into a check
- * and a "Copy…" label (`.lbl`, a badge's main line) into "Copied".
+ * and its "Copy…" label (`.lbl`, a badge's main line) into "Copied". Every
+ * control that copies with a label says "Copy…" (in any language), so the
+ * label is not read for the word.
  */
 function copied(from: Element) {
   if (from.classList.contains('copied')) return;
@@ -67,16 +69,16 @@ function copied(from: Element) {
       },
     );
   }
-  if (label && /^Copy/.test(was)) morphText(label, 'Copied');
+  if (label) morphText(label, _('Copied'));
   setTimeout(() => {
     if (check && icon) check.replaceWith(icon);
-    if (label && /^Copy/.test(was)) morphText(label, was);
+    if (label) morphText(label, was);
     from.classList.remove('copied');
   }, 1600);
 }
 
 /** `from`: the control that copied, which then shows a check for a moment. */
-export async function copy(text: string, what = 'Copied', from?: EventTarget | null) {
+export async function copy(text: string, what = _('Copied'), from?: EventTarget | null) {
   try {
     await navigator.clipboard.writeText(text);
   } catch {
@@ -85,7 +87,7 @@ export async function copy(text: string, what = 'Copied', from?: EventTarget | n
     ta.select();
     const ok = document.execCommand('copy');
     ta.remove();
-    if (!ok) return toast('Copying is blocked here. Select the text and copy it by hand.', true);
+    if (!ok) return toast(_('Copying is blocked here. Select the text and copy it by hand.'), true);
   }
   if (from instanceof Element) copied(from);
   toast(what);

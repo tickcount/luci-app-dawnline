@@ -5,6 +5,7 @@
 
 import { api } from '../api';
 import { notify } from '../ui/toast';
+import { fmt } from '../../shared/i18n';
 
 const EVERY = 2;
 
@@ -22,7 +23,7 @@ async function tick(): Promise<void> {
   // and RPC shapes may not match any more.
   if (r.version) {
     if (version && r.version !== version) {
-      notify(`Dawnline was updated to ${r.version}: reload the page.`, 'warning', 15000);
+      notify(fmt(_('Dawnline was updated to %s: reload the page.'), r.version), 'warning', 15000);
       version = null;
     } else version ??= r.version;
   }

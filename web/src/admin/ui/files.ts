@@ -9,7 +9,7 @@ import { errorText, notify } from './toast';
  * refuse a write outside the click that started it (Safari after an await),
  * and then nothing is said — the link is on screen with its own Copy button.
  */
-export async function copyText(text: string, what = 'Copied to clipboard', quiet = false): Promise<boolean> {
+export async function copyText(text: string, what = _('Copied to clipboard'), quiet = false): Promise<boolean> {
   try {
     if (navigator.clipboard && window.isSecureContext) {
       await navigator.clipboard.writeText(text);
@@ -19,7 +19,7 @@ export async function copyText(text: string, what = 'Copied to clipboard', quiet
       ta.select();
       const ok = document.execCommand('copy');
       ta.remove();
-      if (!ok) throw new Error('Copying is blocked here. Select the text and copy it by hand.');
+      if (!ok) throw new Error(_('Copying is blocked here. Select the text and copy it by hand.'));
     }
     notify(what, 'success', 2500);
     return true;

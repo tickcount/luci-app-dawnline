@@ -8,6 +8,7 @@ import { stat, unlink } from 'fs';
 import { q, slog } from 'dawnline.util';
 import * as core from 'dawnline.core';
 import * as store from 'dawnline.store';
+import { L_ } from 'dawnline.i18n';
 
 const LAN_CGI = '/www/cgi-bin/dawnline-portal';
 const LAN_CGI_URL = '/cgi-bin/dawnline-portal';
@@ -32,7 +33,7 @@ function word_codes() {
 			}
 		});
 	});
-	slog('dawnline', 'info', 'moved to word codes', null, 'Personal links');
+	slog('dawnline', 'info', L_('moved to word codes'), null, L_('Personal links'));
 }
 
 /*
@@ -101,7 +102,7 @@ function auto_mtu() {
 		mark_migrated(w, 'auto_mtu');
 	});
 	if (any)
-		slog('dawnline', 'info', 'MTU is now automatic', null, 'Servers');
+		slog('dawnline', 'info', L_('MTU is now automatic'), null, L_('Servers'));
 }
 
 /** All of them, in order. */

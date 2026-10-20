@@ -21,12 +21,18 @@ import * as upd from 'dawnline.updates';
 import * as app from 'dawnline.upd_app';
 import * as awg from 'dawnline.upd_awg';
 import * as pkgs from 'dawnline.upd_pkgs';
+import * as i18n from 'dawnline.i18n';
+import { _, L_ } from 'dawnline.i18n';
+
+// The phases and errors of a job LuCI started are in the admin's language (rpc/updates.uc hands it over).
+i18n.use(getenv('DAWNLINE_LANG'));
 
 const PID = +split(fs.readfile('/proc/self/stat') ?? '0', ' ')[0];
 const POL = core.load().settings.updates;
 const CHECKS = { app: app.check, amneziawg: awg.check, packages: pkgs.check };
 const INSTALLS = { app: app.install, amneziawg: awg.install, pkgs: pkgs.install };
-const WHO = { app: 'Dawnline', amneziawg: 'AmneziaWG', pkgs: 'System packages', packages: 'System packages' };
+// Names in the service log (English there, like the rest of it); the phases are checking() and updating().
+const WHO = { app: 'Dawnline', amneziawg: 'AmneziaWG', pkgs: L_('System packages'), packages: L_('System packages') };
 
 let job = {
 	id: `${time()}-${PID}`, action: ARGV[0], component: ARGV[1] ?? null, state: 'running', started: time(), finished: null,
@@ -82,6 +88,24 @@ const ctx = {
 	after: (what) => after[what] = true,
 };
 
+/** The phase of a component's check (app, amneziawg, packages). */
+function checking(name) {
+	if (name == 'app')
+		return _('Checking Dawnline');
+	if (name == 'amneziawg')
+		return _('Checking AmneziaWG');
+	return _('Checking system packages');
+}
+
+/** The phase of a component's update (app, amneziawg, pkgs). */
+function updating(name) {
+	if (name == 'app')
+		return _('Updating Dawnline');
+	if (name == 'amneziawg')
+		return _('Updating AmneziaWG');
+	return _('Updating system packages');
+}
+
 /* ---------- check results ---------- */
 
 function checks_file() {
@@ -98,7 +122,10 @@ function save_check(res) {
 	write_json(upd.CHECK_FILE, c, 0o644);
 }
 
-/** What a check found, as short names ("Dawnline 0.3.3", "2 system packages"). */
+/**
+ * What a check found, as short names ("Dawnline 0.3.3", "2 system packages"):
+ * kept in the history and shown later, so English whatever the job's language.
+ */
 function found_in(res) {
 	let found = [];
 	if (res.app?.update)
@@ -106,19 +133,19 @@ function found_in(res) {
 	if (res.amneziawg?.update && res.amneziawg.installed)
 		push(found, `AmneziaWG ${res.amneziawg.latest}`);
 	if (res.packages?.updates)
-		push(found, `${res.packages.updates} system package${res.packages.updates == 1 ? '' : 's'}`);
+		push(found, sprintf(res.packages.updates == 1 ? L_('%d system package') : L_('%d system packages'), res.packages.updates));
 	return found;
 }
 
 function run_checks(which) {
 	let res = {};
 	for (let name in which) {
-		phase(`Checking ${WHO[name]}`);
+		phase(checking(name));
 		try {
 			res[name] = CHECKS[name](ctx);
 		}
 		catch (e) {
-			log(`Error: ${e.message}`);
+			log(sprintf(_('Error: %s'), e.message));
 			res[name] = { error: e.message, status: '' };
 		}
 	}
@@ -132,7 +159,7 @@ function note_found(res, st, auto) {
 	let sig = join(', ', found);
 	if (length(found) && sig != st.announced) {
 		if (auto)
-			slog('dawnline', 'info', `updates available · ${sig}`, null, 'Components');
+			slog('dawnline', 'info', sprintf(L_('updates available · %s'), sig), null, L_('Components'));
 		upd.history_add({ kind: 'found', items: found, auto });
 	}
 	st.announced = sig;
@@ -142,14 +169,14 @@ function note_found(res, st, auto) {
 
 /** A line in the service log for each finished update (Dawnline's own is logged by the new agent). */
 function log_update(name, r) {
-	let how = job.auto ? ' automatically' : '';
 	if (name == 'amneziawg') {
 		let b = r?.before?.['kmod-amneziawg'], a = r?.after?.['kmod-amneziawg'];
-		slog('awg', 'up', b && a && b != a ? `updated${how} · ${b} → ${a}`
-			: `installed the ${r?.build ?? ''} build${a ? ' · ' + a : ''}`, null, 'AmneziaWG');
+		slog('awg', 'up', b && a && b != a ? sprintf(job.auto ? L_('updated automatically · %s → %s') : L_('updated · %s → %s'), b, a)
+			: a ? sprintf(L_('installed the %s build · %s'), r?.build ?? '', a) : sprintf(L_('installed the %s build'), r?.build ?? ''), null, 'AmneziaWG');
 	}
 	else if (name == 'pkgs' && length([ ...(r?.updated ?? []), ...(r?.installed ?? []) ]))
-		slog('dawnline', 'up', `updated${how} · ${join(', ', [ ...(r.updated ?? []), ...(r.installed ?? []) ])}`, null, 'System packages');
+		slog('dawnline', 'up', sprintf(job.auto ? L_('updated automatically · %s') : L_('updated · %s'),
+			join(', ', [ ...(r.updated ?? []), ...(r.installed ?? []) ])), null, L_('System packages'));
 }
 
 function split_target(w) {
@@ -172,9 +199,9 @@ function install(what) {
 	for (let w in what) {
 		let t = split_target(w), name = t[0], arg = t[1];
 		if (!INSTALLS[name])
-			die(`Unknown component ${name}`);
+			die(sprintf(_('Unknown component %s'), name));
 		job.current = name;
-		phase(`Updating ${WHO[name]}`);
+		phase(updating(name));
 		let r = INSTALLS[name](ctx, arg);
 		job.result[name] = r;
 		log_update(name, r);
@@ -228,7 +255,7 @@ function auto() {
 		if (a.current && !a.gen_change)
 			push(todo, `amneziawg:${a.current}${a.ru ? ':ru' : ''}`);
 		else
-			slog('awg', 'info', `${a.latest ?? 'a new build'} needs a manual switch in Components`, null, 'AmneziaWG');
+			slog('awg', 'info', a.latest ? sprintf(L_('%s needs a manual switch in Components'), a.latest) : L_('a new build needs a manual switch in Components'), null, 'AmneziaWG');
 	}
 	if (index(POL.targets, 'app') >= 0 && res.app?.update)
 		push(todo, 'app');
@@ -239,7 +266,7 @@ function auto() {
 	job.component = join(' ', todo);
 	job.auto = true;
 	job.log = [];
-	log(`Automatic update: ${join(', ', todo)}`);
+	log(sprintf(_('Automatic update: %s'), join(', ', todo)));
 	install(todo);
 }
 
@@ -257,12 +284,53 @@ function restarts() {
 	let cmds = [];
 	if (after.apply)
 		push(cmds, '/usr/bin/dawnline apply');
-	if (after.uhttpd)
+	// LuCI's own web server reads a language's catalogs once: a new translation needs a fresh one.
+	if (after.uhttpd || after.luci)
 		push(cmds, '/etc/init.d/uhttpd restart');
 	if (after.apply || after.uhttpd)
 		push(cmds, '/etc/init.d/dawnline restart');
 	if (length(cmds))
 		system(`( sleep 2; ${join('; ', cmds)} ) </dev/null >/dev/null 2>&1 &`);
+}
+
+/** The job the command line asks for, to its final state: done, or failed with the error in the log and the history. */
+function main() {
+	try {
+		if (job.action == 'check') {
+			let which = job.component ? [ job.component ] : upd.TARGETS;
+			for (let w in which)
+				if (!CHECKS[w])
+					die(sprintf(_('Unknown component %s'), w));
+			job.result = run_checks(which);
+			let st = upd.auto_state();
+			note_found(job.result, st, false);
+			if (length(which) == length(upd.TARGETS))
+				st.check = time();
+			upd.auto_save(st);
+		}
+		else if (job.action == 'install')
+			install([ job.component ]);
+		else if (job.action == 'auto')
+			auto();
+		else
+			die('Usage: updater check [app|amneziawg|packages] | install <what> | auto');
+		job.state = 'done';
+		phase(_('Finished'));
+	}
+	catch (e) {
+		quiet = false;
+		job.state = 'failed';
+		job.error = e.message;
+		log(sprintf(_('Error: %s'), e.message));
+		let name = job.current ?? split_target(split(job.component ?? '', ' ')[0])[0];
+		if (job.action != 'check') {
+			slog(name == 'amneziawg' ? 'awg' : 'dawnline', 'error', job.auto ? L_('automatic update failed') : L_('update failed'), e.message, WHO[name] ?? 'Dawnline');
+			upd.history_add({ kind: 'install', component: name, from: job.from, to: job.to, state: 'failed', auto: job.auto, error: e.message,
+				took: time() - job.started });
+		}
+		else
+			upd.history_add({ kind: 'error', component: job.component ?? 'all', state: 'failed', error: e.message });
+	}
 }
 
 /* ---------- main ---------- */
@@ -279,43 +347,7 @@ if (!LOCK)
 	exit(0);
 fs.mkdir(ctx.work, 0o700);
 save();
-
-try {
-	if (job.action == 'check') {
-		let which = job.component ? [ job.component ] : upd.TARGETS;
-		for (let w in which)
-			if (!CHECKS[w])
-				die(`Unknown component ${w}`);
-		job.result = run_checks(which);
-		let st = upd.auto_state();
-		note_found(job.result, st, false);
-		if (length(which) == length(upd.TARGETS))
-			st.check = time();
-		upd.auto_save(st);
-	}
-	else if (job.action == 'install')
-		install([ job.component ]);
-	else if (job.action == 'auto')
-		auto();
-	else
-		die('Usage: updater check [app|amneziawg|packages] | install <what> | auto');
-	job.state = 'done';
-	phase('Finished');
-}
-catch (e) {
-	quiet = false;
-	job.state = 'failed';
-	job.error = e.message;
-	log(`Error: ${e.message}`);
-	let name = job.current ?? split_target(split(job.component ?? '', ' ')[0])[0];
-	if (job.action != 'check') {
-		slog(name == 'amneziawg' ? 'awg' : 'dawnline', 'error', `${job.auto ? 'automatic ' : ''}update failed`, e.message, WHO[name] ?? 'Dawnline');
-		upd.history_add({ kind: 'install', component: name, from: job.from, to: job.to, state: 'failed', auto: job.auto, error: e.message,
-			took: time() - job.started });
-	}
-	else
-		upd.history_add({ kind: 'error', component: job.component ?? 'all', state: 'failed', error: e.message });
-}
+main();
 
 system(`rm -rf '${ctx.work}'`);
 job.finished = time();

@@ -3,7 +3,9 @@
 // throws an ApiError carrying the status and, for a plain-HTTP visitor, the
 // HTTPS twin of the link.
 
+import { fmt } from '../shared/i18n';
 import { base } from './state';
+import { lang, routerText } from './i18n';
 
 export class ApiError extends Error {
   constructor(
@@ -20,7 +22,8 @@ export async function call<T>(path: string, body?: unknown): Promise<T> {
   const res = await fetch(`${base}/api/${path}`, {
     method: body === undefined ? 'GET' : 'POST',
     credentials: 'omit',
-    headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
+    // The page's language: the router writes its messages in it when it has the translation.
+    headers: body === undefined ? { 'Accept-Language': lang() } : { 'Content-Type': 'application/json', 'Accept-Language': lang() },
     body: body === undefined ? undefined : JSON.stringify(body),
     cache: 'no-store',
   });
@@ -31,7 +34,12 @@ export async function call<T>(path: string, body?: unknown): Promise<T> {
   } catch {
     /* empty */
   }
-  if (!res.ok) throw new ApiError(res.status, data?.error ?? `Request failed (${res.status})`, data?.https_url || undefined);
+  if (!res.ok)
+    throw new ApiError(
+      res.status,
+      data?.error ? routerText(data.error) : fmt(_('Request failed (%s)'), res.status),
+      data?.https_url || undefined,
+    );
   return data as T;
 }
 

@@ -93,7 +93,7 @@ export function qrSvg(text: string, margin = 3, logo = true, look: QrLook = 'pla
       `<rect x="${o}" y="${o}" width="${s}" height="${s}" rx="${s * (round ? 0.28 : 0.25)}" fill="${round ? fg : '#0a0a0a'}"/>` +
       `<g transform="translate(${o} ${o}) scale(${s / 64})">${mark(round ? bg : '#fff')}</g>`;
   }
-  const open = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" role="img" aria-label="QR code">`;
+  const open = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" role="img" aria-label="${_('QR code')}">`;
   return round
     ? `${open}<rect width="${size}" height="${size}" fill="${bg}"/><path d="${d}" fill="${fg}"/>` +
         `<path d="${eyes}" fill="${fg}" fill-rule="evenodd"/>${logoTile}</svg>`

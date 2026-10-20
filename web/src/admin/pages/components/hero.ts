@@ -1,19 +1,30 @@
 // Components → the Dawnline block: version, what the update brings, its
-// settings at a glance, and every release to install (Versions).
+// settings at a glance, every release to install (Versions) and the admin's
+// translation.
 
 import { E } from '../../e';
 import { api, type UpdateComponent } from '../../api';
 import { button, iconButton } from '../../ui/button';
 import { confirmDialog } from '../../ui/modal';
 import { errorText, notify } from '../../ui/toast';
-import { input } from '../../ui/controls';
+import { input, sw } from '../../ui/controls';
 import { pill } from '../../ui/badges';
 import { icon } from '../../../shared/icons';
 import { ago, duration, fmtDay } from '../../../shared/format';
+import { fmt, plural } from '../../../shared/i18n';
 import { whatsNew } from '../../updater/notes';
 import type { ComponentsPage, MenuEntry } from './index';
 
-const EVERY: Record<string, string> = { '6h': 'every 6 h', '12h': 'every 12 h', '1d': 'daily', '7d': 'weekly' };
+/** How often Settings → Updates checks, by its interval id. */
+function checksEvery(interval: string): string {
+  const t: Record<string, string> = {
+    '6h': _('checks every 6 h'),
+    '12h': _('checks every 12 h'),
+    '1d': _('checks daily'),
+    '7d': _('checks weekly'),
+  };
+  return t[interval] ?? t['1d'];
+}
 
 /** A release date (GitHub gives a timestamp). */
 const released = (d: string | null | undefined) => (d ? fmtDay(d) : '');
@@ -34,7 +45,7 @@ export function hero(page: ComponentsPage, a: UpdateComponent | undefined): HTML
   const pol = st.policy;
   const kept = st.kept?.app;
   const tag = a?.update && a.tag ? a.tag : st.version;
-  const notesOf = (t: string) => () => whatsNew('app', t, `What’s new in Dawnline ${t.replace(/^v/, '')}`);
+  const notesOf = (t: string) => () => whatsNew('app', t, fmt(_('What’s new in Dawnline %s'), t.replace(/^v/, '')));
   // What the offered release brings, or what the installed one brought when it is the latest.
   const items = a?.tag && (a.update || a.status === 'latest') ? bullets(page, a.tag, a.update ? st.version : '') : null;
   const ptag = a?.tag ?? tag;
@@ -43,29 +54,29 @@ export function hero(page: ComponentsPage, a: UpdateComponent | undefined): HTML
   const side = (label: string, value: (Node | string)[]) =>
     E('div', { class: 'dl-stack gap4' }, [E('span', { class: 'dl-metric-label' }, label), E('span', { class: 'dl-comp-side-v' }, value)]);
   const menu: (MenuEntry | null)[] = [
-    { label: 'What’s new', ic: 'file', run: notesOf(tag) },
-    { label: 'Open on GitHub', ic: 'globe', run: () => window.open(`https://github.com/${st.repo}`, '_blank', 'noopener') },
+    { label: _('What’s new'), ic: 'file', run: notesOf(tag) },
+    { label: _('Open on GitHub'), ic: 'globe', run: () => window.open(`https://github.com/${st.repo}`, '_blank', 'noopener') },
     null,
     {
-      label: `Reinstall ${st.version}`,
+      label: fmt(_('Reinstall %s'), st.version),
       ic: 'reset',
       warn: true,
-      run: () => page.op('app:reinstall', 'Reinstalling Dawnline', st.version),
+      run: () => page.op('app:reinstall', _('Reinstalling Dawnline'), st.version),
     },
     kept
       ? {
-          label: `Roll back to ${kept.version}`,
+          label: fmt(_('Roll back to %s'), kept.version),
           ic: 'archive',
           warn: true,
           run: async () => {
             if (
               await confirmDialog(
-                `Roll back to Dawnline ${kept.version}?`,
-                `The copy kept on the router replaces ${st.version}. A backup of the settings is made first.`,
-                'Roll back',
+                fmt(_('Roll back to Dawnline %s?'), kept.version),
+                fmt(_('The copy kept on the router replaces %s. A backup of the settings is made first.'), st.version),
+                _('Roll back'),
               )
             )
-              void page.op('app:rollback', 'Rolling back Dawnline', st.version);
+              void page.op('app:rollback', _('Rolling back Dawnline'), st.version);
           },
         }
       : null,
@@ -77,7 +88,7 @@ export function hero(page: ComponentsPage, a: UpdateComponent | undefined): HTML
         E('b', { class: 'dl-comp-name' }, 'Dawnline'),
         page.state('app', a, a?.latest ?? ''),
         E('span', { class: 'dl-spacer' }),
-        page.round(() => page.op('check:app', 'Checking Dawnline', st.version), menu, true),
+        page.round(() => page.op('check:app', _('Checking Dawnline'), st.version), menu, true),
       ]),
       // Version, what it is, and the update: one line.
       E('div', { class: 'dl-comp-verrow' }, [
@@ -87,7 +98,7 @@ export function hero(page: ComponentsPage, a: UpdateComponent | undefined): HTML
             a?.update
               ? E('small', {}, `→ ${a.latest}`)
               : a?.status === 'dev' && a.latest
-                ? E('small', { class: 'dl-faint' }, `release ${a.latest}`)
+                ? E('small', { class: 'dl-faint' }, fmt(_('release %s'), a.latest))
                 : '',
           ]),
           E(
@@ -97,13 +108,13 @@ export function hero(page: ComponentsPage, a: UpdateComponent | undefined): HTML
               ? ''
               : a?.update
                 ? a.published
-                  ? `released ${released(a.published)}`
+                  ? fmt(_('released %s'), released(a.published))
                   : ''
                 : a?.status === 'dev'
-                  ? 'ahead of the latest release'
+                  ? _('ahead of the latest release')
                   : a
-                    ? `latest release${a.published ? ` · released ${released(a.published)}` : ''}`
-                    : 'not checked yet',
+                    ? [_('latest release'), a.published ? fmt(_('released %s'), released(a.published)) : ''].filter(Boolean).join(' · ')
+                    : _('not checked yet'),
           ),
         ]),
       ]),
@@ -119,7 +130,7 @@ export function hero(page: ComponentsPage, a: UpdateComponent | undefined): HTML
               ? E(
                   'button',
                   { type: 'button', class: 'dl-linkbtn dl-comp-more', click: notesOf(ptag) },
-                  `+${items.total - items.items.length} more in What’s new`,
+                  plural(items.total - items.items.length, '+%s more in What’s new', '+%s more in What’s new'),
                 )
               : '',
           ])
@@ -128,42 +139,43 @@ export function hero(page: ComponentsPage, a: UpdateComponent | undefined): HTML
       // The update and its notes; without an update What's new stays in ⋯.
       a?.update
         ? E('div', { class: 'dl-comp-btns' }, [
-            button('Update now', () => page.op('app', 'Updating Dawnline', st.version), 'positive', { disabled: page.busy }),
-            button('What’s new', notesOf(tag)),
+            button(_('Update now'), () => page.op('app', _('Updating Dawnline'), st.version), 'positive', { disabled: page.busy }),
+            button(_('What’s new'), notesOf(tag)),
           ])
         : '',
       versions(page),
+      translation(page),
     ]),
     E('div', { class: 'dl-comp-hero-side' }, [
-      side('Source', [icon('globe'), E('a', { href: `https://github.com/${st.repo}`, target: '_blank', rel: 'noopener' }, st.repo)]),
-      side('Auto-update', [
-        pol.auto ? pill('ok', 'On') : pill('', 'Off'),
+      side(_('Source'), [icon('globe'), E('a', { href: `https://github.com/${st.repo}`, target: '_blank', rel: 'noopener' }, st.repo)]),
+      side(_('Auto-update'), [
+        pol.auto ? pill('ok', _('On')) : pill('', _('Off')),
         E(
           'span',
           { class: 'dl-muted' },
           pol.auto
             ? pol.mode === 'immediate'
-              ? 'as soon as found'
-              : `${EVERY[pol.interval] === 'weekly' ? 'weekly' : 'daily'} at ${pol.time}`
+              ? _('as soon as found')
+              : fmt(pol.interval === '7d' ? _('weekly at %s') : _('daily at %s'), pol.time)
             : pol.check
-              ? `checks ${EVERY[pol.interval]}`
-              : 'checks off',
+              ? checksEvery(pol.interval)
+              : _('checks off'),
         ),
       ]),
       side(
-        'Last check',
+        _('Last check'),
         st.check
           ? [
               ago(st.check.time, st.now),
-              nextCheck > st.now ? E('span', { class: 'dl-faint' }, `· next in ${duration(nextCheck - st.now)}`) : '',
+              nextCheck > st.now ? E('span', { class: 'dl-faint' }, `· ${fmt(_('next in %s'), duration(nextCheck - st.now))}`) : '',
             ]
-          : ['Never'],
+          : [_('Never')],
       ),
       side(
-        'Rollback',
+        _('Rollback'),
         kept
-          ? [E('span', { class: 'dl-mono' }, kept.version), E('span', { class: 'dl-faint' }, 'kept on flash')]
-          : [E('span', { class: 'dl-muted' }, pol.keep ? 'Kept after the next update' : 'Off')],
+          ? [E('span', { class: 'dl-mono' }, kept.version), E('span', { class: 'dl-faint' }, _('kept on flash'))]
+          : [E('span', { class: 'dl-muted' }, pol.keep ? _('Kept after the next update') : _('Off'))],
       ),
     ]),
   ]);
@@ -191,10 +203,52 @@ function bullets(page: ComponentsPage, tag: string, from: string): { items: stri
   return null;
 }
 
+/** A translation's name, by its language code. */
+export function translationName(lang: string): string {
+  return lang === 'ru' ? _('Russian translation') : lang;
+}
+
+/**
+ * The admin's translation, switched like AmneziaWG's: luci-i18n-dawnline-ru
+ * from the release of the installed version (the updater installs and
+ * removes it, then LuCI's web server restarts to read it).
+ */
+function translation(page: ComponentsPage): HTMLElement {
+  const ru = (page.st.translations ?? []).includes('ru');
+  const s = sw(ru, translationName('ru'), (v) => {
+    void page.op(
+      v ? 'app:lang:ru' : 'app:nolang',
+      v ? _('Adding the Russian translation') : _('Removing the Russian translation'),
+      page.st.version,
+    );
+  });
+  s.disabled = page.busy;
+  const fold = E('details', { class: 'dl-params dl-comp-fold', open: page.langOpen ? 'open' : null }, [
+    E('summary', {}, [
+      icon('chevron'),
+      E('span', {}, _('Translation')),
+      E('span', { class: 'dl-sub' }, ru ? _('Russian') : _('English only')),
+    ]),
+    E('div', { class: 'dl-params-body' }, [
+      E('div', { class: 'dl-list' }, [
+        E('div', { class: 'dl-row' }, [
+          E('span', { class: 'dl-row-main dl-stack' }, [
+            E('b', {}, translationName('ru')),
+            E('span', { class: 'dl-sub' }, _('LuCI pages for Dawnline')),
+          ]),
+          E('span', { class: 'dl-comp-bact' }, s),
+        ]),
+      ]),
+    ]),
+  ]);
+  fold.addEventListener('toggle', () => (page.langOpen = (fold as HTMLDetailsElement).open));
+  return fold;
+}
+
 function versions(page: ComponentsPage): HTMLElement {
   const body = E('div', { class: 'dl-params-body' });
   const fold = E('details', { class: 'dl-params dl-comp-vers', open: page.versOpen ? 'open' : null }, [
-    E('summary', {}, [icon('chevron'), E('span', {}, 'Versions'), E('span', { class: 'dl-sub' }, 'install any release')]),
+    E('summary', {}, [icon('chevron'), E('span', {}, _('Versions')), E('span', { class: 'dl-sub' }, _('install any release'))]),
     body,
   ]);
   fold.addEventListener('toggle', () => {
@@ -206,10 +260,10 @@ function versions(page: ComponentsPage): HTMLElement {
 }
 
 async function paintVersions(page: ComponentsPage, body: HTMLElement) {
-  const tag = input('', { placeholder: 'Tag, e.g. 0.3.1', class: 'cbi-input-text dl-mono', 'aria-label': 'Release tag' });
+  const tag = input('', { placeholder: _('Tag, e.g. 0.3.1'), class: 'cbi-input-text dl-mono', 'aria-label': _('Release tag') });
   const installTag = (t: string) => {
     t = t.trim();
-    if (!/^v?[0-9][0-9A-Za-z.+~-]{0,40}$/.test(t)) return notify('Enter a release tag like 0.3.1', 'warning');
+    if (!/^v?[0-9][0-9A-Za-z.+~-]{0,40}$/.test(t)) return notify(_('Enter a release tag like 0.3.1'), 'warning');
     void install(page, t);
   };
   tag.addEventListener('keydown', (ev: KeyboardEvent) => {
@@ -220,7 +274,7 @@ async function paintVersions(page: ComponentsPage, body: HTMLElement) {
   });
   const head = E('div', { class: 'dl-comp-tag' }, [
     tag,
-    button('Install', () => installTag(tag.value), 'neutral', { disabled: page.busy }),
+    button(_('Install'), () => installTag(tag.value), 'neutral', { disabled: page.busy }),
   ]);
   const pageNo = page.versPage;
   const turn = (d: number) => {
@@ -229,13 +283,13 @@ async function paintVersions(page: ComponentsPage, body: HTMLElement) {
   };
   const pager = (more: boolean) =>
     E('div', { class: 'dl-comp-pager' }, [
-      E('button', { type: 'button', class: 'dl-linkbtn', disabled: pageNo <= 1 ? 'disabled' : null, click: () => turn(-1) }, '← Newer'),
-      E('span', { class: 'dl-faint' }, `Page ${pageNo}`),
-      E('button', { type: 'button', class: 'dl-linkbtn', disabled: more ? null : 'disabled', click: () => turn(1) }, 'Older →'),
+      E('button', { type: 'button', class: 'dl-linkbtn', disabled: pageNo <= 1 ? 'disabled' : null, click: () => turn(-1) }, _('← Newer')),
+      E('span', { class: 'dl-faint' }, fmt(_('Page %s'), pageNo)),
+      E('button', { type: 'button', class: 'dl-linkbtn', disabled: more ? null : 'disabled', click: () => turn(1) }, _('Older →')),
     ]);
   let rows = page.versCache.get(pageNo);
   if (!rows) {
-    dom.content(body, [head, E('p', { class: 'dl-muted dl-loading' }, 'Loading versions…')]);
+    dom.content(body, [head, E('p', { class: 'dl-muted dl-loading' }, _('Loading versions…'))]);
     try {
       rows = (await api.updatesReleases(pageNo)).releases;
     } catch (e) {
@@ -244,8 +298,8 @@ async function paintVersions(page: ComponentsPage, body: HTMLElement) {
       dom.content(body, [
         head,
         E('div', { class: 'dl-row-actions' }, [
-          E('span', { class: 'dl-muted' }, `Failed to load versions: ${errorText(e)}`),
-          button('Try again', () => paintVersions(page, body)),
+          E('span', { class: 'dl-muted' }, fmt(_('Failed to load versions: %s'), errorText(e))),
+          button(_('Try again'), () => paintVersions(page, body)),
         ]),
         pager(false),
       ]);
@@ -255,7 +309,11 @@ async function paintVersions(page: ComponentsPage, body: HTMLElement) {
     if (pageNo !== page.versPage || !body.isConnected) return;
   }
   if (!rows.length)
-    return dom.content(body, [head, E('p', { class: 'dl-muted' }, pageNo > 1 ? 'No more versions.' : 'No versions found.'), pager(false)]);
+    return dom.content(body, [
+      head,
+      E('p', { class: 'dl-muted' }, pageNo > 1 ? _('No more versions.') : _('No versions found.')),
+      pager(false),
+    ]);
   const cur = page.st.version;
   dom.content(body, [
     head,
@@ -264,13 +322,13 @@ async function paintVersions(page: ComponentsPage, body: HTMLElement) {
       return E('div', { class: 'dl-comp-ver' }, [
         E('span', { class: 'dl-mono' }, v),
         E('span', { class: 'dl-sub' }, released(r.published)),
-        r.prerelease ? pill('warn', 'Pre-release') : '',
+        r.prerelease ? pill('warn', _('Pre-release')) : '',
         E(
           'span',
           { class: 'dl-comp-ic' },
-          iconButton('file', 'What’s new', () => whatsNew('app', r.tag, `What’s new in Dawnline ${v}`)),
+          iconButton('file', _('What’s new'), () => whatsNew('app', r.tag, fmt(_('What’s new in Dawnline %s'), v))),
         ),
-        v === cur ? pill('ok', 'Installed') : button('Install', () => install(page, r.tag), 'neutral', { disabled: page.busy }),
+        v === cur ? pill('ok', _('Installed')) : button(_('Install'), () => install(page, r.tag), 'neutral', { disabled: page.busy }),
       ]);
     }),
     pager(rows.length >= 5),
@@ -284,11 +342,14 @@ async function install(page: ComponentsPage, tag: string) {
   if (
     older &&
     !(await confirmDialog(
-      `Install Dawnline ${v}?`,
-      `It is older than ${page.st.version}. A backup of the settings is made first; restore it from Settings if something looks wrong.`,
-      'Install',
+      fmt(_('Install Dawnline %s?'), v),
+      fmt(
+        _('It is older than %s. A backup of the settings is made first; restore it from Settings if something looks wrong.'),
+        page.st.version,
+      ),
+      _('Install'),
     ))
   )
     return;
-  void page.op(`app@${tag}`, `Installing Dawnline ${v}`, page.st.version);
+  void page.op(`app@${tag}`, fmt(_('Installing Dawnline %s'), v), page.st.version);
 }

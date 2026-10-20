@@ -64,9 +64,9 @@ export class PersonPage {
     const p = this.st.people.find((x) => x.id === this.id);
     if (!p)
       return E('div', { class: 'dl-empty' }, [
-        E('h3', {}, 'Person not found'),
-        E('p', {}, 'They may have been removed.'),
-        E('a', { class: 'cbi-button', href: L.url('admin/network/dawnline/server') }, 'Back to Servers'),
+        E('h3', {}, _('Person not found')),
+        E('p', {}, _('They may have been removed.')),
+        E('a', { class: 'cbi-button', href: L.url('admin/network/dawnline/server') }, _('Back to Servers')),
       ]);
     this.p = p;
     for (const k of ['crumbs', 'head', 'devices', 'traffic', 'places', 'activity', 'limits'] as Part[]) this.parts[k] = E('div', {});
@@ -173,10 +173,10 @@ export class PersonPage {
   /** Server / People / name: the server changes when the person is moved. */
   private crumbs(): HTMLElement {
     const p = this.p;
-    return E('nav', { class: 'dl-crumbs', 'aria-label': 'Breadcrumb' }, [
-      E('a', { href: peopleUrl(p.server) }, this.st.servers.find((x) => x.id === p.server)?.name ?? 'Servers'),
+    return E('nav', { class: 'dl-crumbs', 'aria-label': _('Breadcrumb') }, [
+      E('a', { href: peopleUrl(p.server) }, this.st.servers.find((x) => x.id === p.server)?.name ?? _('Servers')),
       E('span', {}, '/'),
-      E('a', { href: peopleUrl(p.server) }, 'People'),
+      E('a', { href: peopleUrl(p.server) }, _('People')),
       E('span', {}, '/'),
       E('span', {}, p.name),
     ]);

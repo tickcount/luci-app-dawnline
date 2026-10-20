@@ -4,6 +4,7 @@
 // ctx is the updater's job context (see usr/libexec/dawnline/updater).
 
 import * as pkg from 'dawnline.pkg';
+import { _, N_ } from 'dawnline.i18n';
 
 /** What Dawnline itself adds to OpenWrt (the rest of LuCI, ucode, rpcd and uhttpd is the stock system). */
 export const NAMES = [ 'ip-full', 'kmod-veth', 'libustream-openssl', 'openssl-util', 'acme', 'acme-acmesh-dnsapi', 'luci-app-acme' ];
@@ -41,7 +42,7 @@ function with_family(names, up) {
 /** refresh: update the package lists first (a check by hand or on schedule). */
 export function check(ctx, refresh) {
 	if (refresh ?? true) {
-		ctx.phase('Refreshing package lists');
+		ctx.phase(_('Refreshing package lists'));
 		pkg.refresh();
 	}
 	let up = pkg.upgradable();
@@ -54,7 +55,8 @@ export function check(ctx, refresh) {
 			all[x] = true;
 	}
 	let n = length(keys(all));
-	ctx.log(n ? `${n} package update${n == 1 ? '' : 's'} in the feeds: ${join(', ', sort(keys(all)))}` : 'System packages are up to date');
+	ctx.log(n ? sprintf(N_(n, '%d package update in the feeds: %s', '%d package updates in the feeds: %s'), n, join(', ', sort(keys(all))))
+		: _('System packages are up to date'));
 	return { pkgs: res, updates: n, status: n ? 'outdated' : 'latest' };
 };
 
@@ -63,22 +65,22 @@ export function install(ctx, arg) {
 	let names = filter(split(arg ?? '', ','), (x) => x != '');
 	for (let n in names)
 		if (index(NAMES, n) < 0)
-			die(`${n} is not a package Dawnline manages`);
+			die(sprintf(_('%s is not a package Dawnline manages'), n));
 	if (!length(names))
-		die('Nothing to install');
-	ctx.phase('Refreshing package lists');
+		die(_('Nothing to install'));
+	ctx.phase(_('Refreshing package lists'));
 	pkg.refresh(ctx.log);
 	let missing = filter(names, (n) => pkg.version(n) == null);
 	let have = with_family(filter(names, (n) => pkg.version(n) != null), pkg.upgradable());
 	if (length(have)) {
-		ctx.phase(`Updating ${join(', ', have)}`);
+		ctx.phase(sprintf(_('Updating %s'), join(', ', have)));
 		if (!pkg.upgrade(have, ctx.log))
-			die('Update failed');
+			die(_('Update failed'));
 	}
 	if (length(missing)) {
-		ctx.phase(`Installing ${join(', ', missing)}`);
+		ctx.phase(sprintf(_('Installing %s'), join(', ', missing)));
 		if (!pkg.add(missing, ctx.log))
-			die('Installation failed');
+			die(_('Installation failed'));
 	}
 	// The portal's HTTPS runs in uhttpd; a piece that just arrived lets the portal or the home-like link start.
 	let touched = [ ...missing, ...have ];

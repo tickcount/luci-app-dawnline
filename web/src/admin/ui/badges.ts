@@ -3,7 +3,8 @@
 import type { Device, Person } from '../../shared/types';
 import { E } from '../e';
 import { icon } from '../../shared/icons';
-import { ACCESS_LABEL, STATE_LABEL, ago } from '../../shared/format';
+import { accessLabel, stateLabel, ago } from '../../shared/format';
+import { fmt, locale, plural } from '../../shared/i18n';
 import { attachTip } from './tooltip';
 
 export function pill(tone: string, text: string, title?: string): HTMLElement {
@@ -29,7 +30,7 @@ function ownState(p: Person): Person['state'] {
 export function statePill(p: Person): HTMLElement | '' {
   const s = ownState(p);
   if (s === 'active' || s === 'server_off') return '';
-  return pill(stateTone({ ...p, state: s }), STATE_LABEL[s]);
+  return pill(stateTone({ ...p, state: s }), stateLabel(s));
 }
 
 /** What the person can reach, as icons: home network, internet, or both. */
@@ -37,27 +38,30 @@ export function accessBadge(p: Person): HTMLElement {
   const kinds = p.access === 'both' ? ['lan', 'inet'] : p.access === 'lan' ? ['lan'] : ['inet'];
   const el = E(
     'span',
-    { class: 'dl-access', 'aria-label': ACCESS_LABEL[p.access] },
+    { class: 'dl-access', 'aria-label': accessLabel(p.access) },
     kinds.map((k) => E('span', { class: `dl-ibadge ${k}` }, icon(k === 'lan' ? 'home' : 'globe'))),
   );
   attachTip(el, () => [
-    E('div', { class: 'dl-tip-title' }, ACCESS_LABEL[p.access]),
+    E('div', { class: 'dl-tip-title' }, accessLabel(p.access)),
     p.access === 'lan' && p.services?.length
-      ? E('div', { class: 'dl-muted' }, `${p.services.length} home service${p.services.length === 1 ? '' : 's'} only`)
+      ? E('div', { class: 'dl-muted' }, plural(p.services.length, '%s home service only', '%s home services only'))
       : '',
   ]);
   return el;
 }
 
-/** Why a person's devices cannot connect right now, in two words. */
-const STOPPED: Partial<Record<Person['state'], string>> = {
-  paused: 'Paused',
-  expired: 'Access ended',
-  quota: 'Data limit',
-  hours: 'Outside hours',
-  server_off: 'Server off',
-  no_server: 'No server',
-};
+/** Why a person's devices cannot connect right now, in two words; null while they can. */
+function stoppedLabel(s: Person['state']): string | null {
+  return {
+    active: null,
+    paused: _('Paused'),
+    expired: _('Access ended'),
+    quota: _('Data limit'),
+    hours: _('Outside hours'),
+    server_off: _('Server off'),
+    no_server: _('No server'),
+  }[s];
+}
 
 /**
  * A device's status as coloured text, no dots (only avatars carry one). `now`
@@ -65,12 +69,13 @@ const STOPPED: Partial<Record<Person['state'], string>> = {
  * With the person, a device that cannot come back says why ("Paused",
  * "Data limit") instead of a "Last seen" that reads like it might.
  */
-export function deviceStatus(d: Device, now?: number, waiting = 'Not set up yet', p?: Person): HTMLElement {
-  const seen = d.handshake ? `Last seen ${ago(d.handshake, now)} · ${new Date(d.handshake * 1000).toLocaleString()}` : '';
-  if (d.disabled) return E('span', { class: 'dl-dstat', title: seen }, 'Disabled');
-  if (d.online) return E('span', { class: 'dl-dstat ok' }, 'Connected');
-  const why = p && STOPPED[p.state];
-  if (why) return E('span', { class: 'dl-dstat warn', title: seen || 'Not connected yet' }, why);
-  if (!d.handshake) return E('span', { class: 'dl-dstat warn', title: 'Waiting for the first connection' }, waiting);
-  return E('span', { class: 'dl-dstat', title: new Date(d.handshake * 1000).toLocaleString() }, `Last seen ${ago(d.handshake, now)}`);
+export function deviceStatus(d: Device, now?: number, waiting = _('Not set up yet'), p?: Person): HTMLElement {
+  const at = new Date(d.handshake * 1000).toLocaleString(locale());
+  const seen = d.handshake ? `${fmt(_('Last seen %s'), ago(d.handshake, now))} · ${at}` : '';
+  if (d.disabled) return E('span', { class: 'dl-dstat', title: seen }, _('Disabled'));
+  if (d.online) return E('span', { class: 'dl-dstat ok' }, _('Connected'));
+  const why = p && stoppedLabel(p.state);
+  if (why) return E('span', { class: 'dl-dstat warn', title: seen || _('Not connected yet') }, why);
+  if (!d.handshake) return E('span', { class: 'dl-dstat warn', title: _('Waiting for the first connection') }, waiting);
+  return E('span', { class: 'dl-dstat', title: at }, fmt(_('Last seen %s'), ago(d.handshake, now)));
 }

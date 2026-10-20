@@ -8,6 +8,7 @@
 // connection sits on top the whole time (wait.ts).
 
 import type { ClientConfig, Device } from '../../shared/types';
+import { fmt } from '../../shared/i18n';
 import { vpnKey, vpnQrText } from '../../shared/vpnkey';
 import { ApiError, call } from '../api';
 import { h, put } from '../dom';
@@ -115,6 +116,7 @@ export function setupView(d: Device, cfg: ClientConfig, key: string): View {
   const same = sameDevice(d.kind, pf);
   const layout: Layout = same ? 'same' : router ? 'router' : handheld ? 'away' : 'pc-away';
   const there = deviceNoun(d.kind);
+  const thereOn = deviceNoun(d.kind, true);
   // A router takes AmneziaWG (or WireGuard), never AmneziaVPN.
   const choices = apps.filter((a) => !router || a.id !== 'vpn');
   let app: AppId = recallApp(d) ?? (router ? 'awg' : 'vpn');
@@ -152,15 +154,15 @@ export function setupView(d: Device, cfg: ClientConfig, key: string): View {
     layout === 'away'
       ? connPill(() => ({
           ...(app === 'vpn'
-            ? { text: key, msg: 'Key copied', file: keyFileName(cfg.filename) }
-            : { text: cfg.conf, msg: 'Configuration copied', file: cfg.filename }),
+            ? { text: key, msg: _('Key copied'), file: keyFileName(cfg.filename) }
+            : { text: cfg.conf, msg: _('Configuration copied'), file: cfg.filename }),
           app: APP_NAME[app],
         }))
       : null;
 
   /** Everything a pick changes, refilled in place. */
   function fill() {
-    morphText(title1, router ? `Get ${APP_NAME[app]} on the router` : `Get ${APP_NAME[app]}`, undefined, { whole: true });
+    morphText(title1, router ? fmt(_('Get %s on the router'), APP_NAME[app]) : fmt(_('Get %s'), APP_NAME[app]), undefined, { whole: true });
     morphInto(getBox, storeBlock(app, pf, router));
     // The router's file is the same for either app: it stays as it is (a folded configuration stays folded).
     if (!router) morphInto(addBox, connectKids(c));
@@ -187,22 +189,22 @@ export function setupView(d: Device, cfg: ClientConfig, key: string): View {
   const linkThere = setupLink(pageUrl(), d.id);
   const linkBody = () => [
     handheld
-      ? codeRow(linkThere, [h('span', {}, 'Point its camera at the code: the link opens there.')]).el
-      : h('p', { class: 'desc' }, `Open this link on the ${there} to set it up there.`),
+      ? codeRow(linkThere, [h('span', {}, _('Point its camera at the code: the link opens there.'))]).el
+      : h('p', { class: 'desc' }, fmt(_('Open this link on the %s to set it up there.'), thereOn)),
     linkRow(linkThere),
   ];
   const step1 = () => step('1', title1, [picker(), getBox]);
-  const step2 = () => step('2', router ? 'Import the configuration' : 'Add the connection', [addBox]);
+  const step2 = () => step('2', router ? _('Import the configuration') : _('Add the connection'), [addBox]);
 
   const body = h('div', { class: 'setup' });
   if (inWebview(navigator.userAgent))
     body.appendChild(
-      notice('warn', 'shield', null, 'Open this page in Safari or Chrome: the store opens from here, but the app handoff does not.'),
+      notice('warn', 'shield', null, _('Open this page in Safari or Chrome: the store opens from here, but the app handoff does not.')),
     );
   if (layout === 'same') {
     // Opened, the way round folds the steps away: the device is not in hand.
     const steps = h('div', { class: 'steps-wrap' }, h('div', { class: 'steps-gap' }), step1(), step2());
-    const round = accordion([{ icon: glass('link'), title: `Not on the ${there} right now?`, body: linkBody() }], {
+    const round = accordion([{ icon: glass('link'), title: fmt(_('Not on the %s right now?'), thereOn), body: linkBody() }], {
       inset: true,
       onToggle: (_i, open, instant) => foldBlock(steps, open, instant),
     });
@@ -213,8 +215,8 @@ export function setupView(d: Device, cfg: ClientConfig, key: string): View {
     body.appendChild(
       accordion(
         [
-          { icon: glass('link'), title: `Open your link on the ${there}`, body: linkBody() },
-          { icon: glass('app'), title: 'Already has the app', body: [picker(), codeBox] },
+          { icon: glass('link'), title: fmt(_('Open your link on the %s'), thereOn), body: linkBody() },
+          { icon: glass('app'), title: _('Already has the app'), body: [picker(), codeBox] },
         ],
         { inset: true, open: 1 },
       ).el,
@@ -224,8 +226,8 @@ export function setupView(d: Device, cfg: ClientConfig, key: string): View {
     body.appendChild(
       accordion(
         [
-          { icon: glass('link'), title: `Open your link on the ${there}`, body: linkBody() },
-          { icon: glass('key'), title: 'Copy or save the connection', body: [picker(), sendBox] },
+          { icon: glass('link'), title: fmt(_('Open your link on the %s'), thereOn), body: linkBody() },
+          { icon: glass('key'), title: _('Copy or save the connection'), body: [picker(), sendBox] },
         ],
         { inset: true, open: 0 },
       ).el,
@@ -248,7 +250,12 @@ export function setupView(d: Device, cfg: ClientConfig, key: string): View {
   onClosed(() => repaint());
 
   const subline =
-    layout === 'same' ? 'Two steps, about a minute' : router ? 'The packages and the file for OpenWrt' : `The app goes on the ${there}.`;
-  const el = h('div', { class: 'view' }, head(`Set up ${d.name}`, { acts: !!pill }), sub(subline), way.el, body);
-  return { el, label: `Set up ${d.name}`, acts: pill?.el ?? null };
+    layout === 'same'
+      ? _('Two steps, about a minute')
+      : router
+        ? _('The packages and the file for OpenWrt')
+        : fmt(_('The app goes on the %s.'), there);
+  const title = fmt(_('Set up %s'), d.name);
+  const el = h('div', { class: 'view' }, head(title, { acts: !!pill }), sub(subline), way.el, body);
+  return { el, label: title, acts: pill?.el ?? null };
 }

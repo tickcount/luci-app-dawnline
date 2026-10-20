@@ -10,23 +10,32 @@ import { button, type ButtonKind } from '../ui/button';
 import { confirmDialog } from '../ui/modal';
 import { attempt } from '../ui/toast';
 import { needRow } from '../ui/layout';
+import { fmt, num } from '../../shared/i18n';
 
-const FIX_LABEL: Record<string, string> = {
-  apply: 'Repair',
-  sync: 'Reload devices',
-  restart: 'Restart service',
-  netrestart: 'Restart network',
-  updates: 'Open Components',
-};
+/** The button of a backend fix, by its id. */
+function fixLabel(fix: string): string {
+  const labels: Record<string, string> = {
+    apply: _('Repair'),
+    sync: _('Reload devices'),
+    restart: _('Restart service'),
+    netrestart: _('Restart network'),
+    updates: _('Open Components'),
+  };
+  return labels[fix] ?? _('Fix');
+}
 
 /** Run a backend fix (a network restart asks first); the checks again, or null. */
 export async function runFix(fix: string): Promise<Health | null> {
   if (
     fix === 'netrestart' &&
-    !(await confirmDialog('Restart the network?', 'Every interface restarts. Connections drop for a few seconds.', 'Restart network'))
+    !(await confirmDialog(
+      _('Restart the network?'),
+      _('Every interface restarts. Connections drop for a few seconds.'),
+      _('Restart network'),
+    ))
   )
     return null;
-  return (await attempt(() => api.healthFix(fix), 'Done')) ?? null;
+  return (await attempt(() => api.healthFix(fix), _('Done'))) ?? null;
 }
 
 /**
@@ -37,10 +46,10 @@ export function fixAction(c: HealthCheck, run: (fix: string) => void, refresh: (
   const fix = c.fix;
   if (!fix) return '';
   // install:awg installs AmneziaWG itself (the build for this firmware), the rest come from the feeds.
-  if (fix.startsWith('install:')) return button('Install', () => installFeature(fix.slice(8) as keyof Needs, refresh), kind);
+  if (fix.startsWith('install:')) return button(_('Install'), () => installFeature(fix.slice(8) as keyof Needs, refresh), kind);
   if (fix === 'updates')
-    return E('a', { class: `cbi-button cbi-button-${kind}`, href: L.url('admin/network/dawnline/updates') }, FIX_LABEL.updates);
-  return button(FIX_LABEL[fix] ?? 'Fix', () => run(fix), kind);
+    return E('a', { class: `cbi-button cbi-button-${kind}`, href: L.url('admin/network/dawnline/updates') }, fixLabel(fix));
+  return button(fixLabel(fix), () => run(fix), kind);
 }
 
 /** The icon tile of a check's notice, by what it is about. */
@@ -69,6 +78,7 @@ export function healthNotices(checks: HealthCheck[], run: (fix: string) => void,
   return E('div', { class: 'dl-list dl-notices' }, [
     ...bad
       .slice(0, max)
+      // The check's problem, title and detail come from the router.
       .map((c) =>
         needRow(
           checkIcon(c.id),
@@ -80,7 +90,7 @@ export function healthNotices(checks: HealthCheck[], run: (fix: string) => void,
       ),
     rest > 0
       ? E('a', { class: 'dl-row dl-notices-more', href: L.url('admin/network/dawnline/diagnostics') }, [
-          `${rest} more in Diagnostics`,
+          fmt(_('%s more in Diagnostics'), num(rest)),
           E('span', { class: 'dl-spacer' }),
           '→',
         ])

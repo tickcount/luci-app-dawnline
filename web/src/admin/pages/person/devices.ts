@@ -9,7 +9,8 @@ import { downloadFile } from '../../ui/files';
 import { attempt, notify } from '../../ui/toast';
 import { deviceStatus } from '../../ui/badges';
 import { icon } from '../../../shared/icons';
-import { KIND_LABEL, ago, byDeviceState, bytes } from '../../../shared/format';
+import { kindLabel, ago, byDeviceState, bytes } from '../../../shared/format';
+import { fmt, num } from '../../../shared/i18n';
 import { addDevice, openDevice, quickMenu } from '../../device';
 import { dayBars } from '../../widgets/tiles';
 import type { PersonPage } from './index';
@@ -18,14 +19,14 @@ import type { PersonPage } from './index';
 async function showDeviceQr(page: PersonPage, d: Device) {
   const cfg = await attempt(() => api.deviceConfig(d.id));
   if (!cfg) return;
-  modal(`Set up ${d.name}`, [await page.core.connectBlock(cfg, 'qr')], [cancelButton('Close')]);
+  modal(fmt(_('Set up %s'), d.name), [await page.core.connectBlock(cfg, 'qr')], [cancelButton(_('Close'))]);
 }
 
 async function downloadConfig(page: PersonPage, d: Device) {
   const cfg = await attempt(() => api.deviceConfig(d.id));
   if (!cfg) return;
   if (!cfg.has_private_key) {
-    notify('This device made its own keys in the browser; its configuration only exists there.', 'warning');
+    notify(_('This device made its own keys in the browser; its configuration only exists there.'), 'warning');
     return;
   }
   const f = page.core.file.make(cfg);
@@ -42,7 +43,7 @@ export function devicesPart(page: PersonPage): HTMLElement {
   };
   const more = (d: Device) =>
     button([icon('more')], (ev: MouseEvent) => quickMenu(ev.currentTarget as HTMLElement, p, d, page.deviceOpts()), 'neutral', {
-      title: 'QR, file, key, rename, new keys, remove',
+      title: _('QR, file, key, rename, new keys, remove'),
       class: 'cbi-button cbi-button-neutral dl-icon-only',
     });
   const cards = byDeviceState(p.devices).map((d) => {
@@ -51,12 +52,12 @@ export function devicesPart(page: PersonPage): HTMLElement {
       E('button', { type: 'button', class: 'dl-dcard-title', click: () => open(d) }, [
         E('b', {}, d.name),
         deviceStatus(d, now, undefined, p),
-        d.config_stale ? E('span', { class: 'dl-pill warn dl-stale' }, 'Update config') : '',
+        d.config_stale ? E('span', { class: 'dl-pill warn dl-stale' }, _('Update config')) : '',
       ]),
       more(d),
     ]);
     const trend = E('div', { class: 'dl-dcard-trend' }, [
-      E('div', { class: 'dl-stack' }, [E('b', {}, bytes(d.month[0] + d.month[1])), E('span', { class: 'dl-sub' }, 'this month')]),
+      E('div', { class: 'dl-stack' }, [E('b', {}, bytes(d.month[0] + d.month[1])), E('span', { class: 'dl-sub' }, _('this month'))]),
       dayBars(page.devSeries[d.id] ?? []),
     ]);
     return E('article', { class: `dl-dcard clickable${d.online ? ' online' : ''}${d.disabled ? ' off' : ''}`, click: clickCard(d) }, [
@@ -67,11 +68,11 @@ export function devicesPart(page: PersonPage): HTMLElement {
           ? E(
               'div',
               { class: 'dl-sub' },
-              `${KIND_LABEL[d.kind]} · created ${ago(d.created, now)} ${d.created_by === 'portal' ? 'in the portal' : 'by you'}.`,
+              `${kindLabel(d.kind)} · ${fmt(d.created_by === 'portal' ? _('created %s in the portal.') : _('created %s by you.'), ago(d.created, now))}`,
             )
           : E('div', { class: 'dl-chips-row' }, [
-              E('button', { type: 'button', class: 'dl-chipbtn', click: () => showDeviceQr(page, d) }, [icon('qr'), 'Show QR']),
-              E('button', { type: 'button', class: 'dl-chipbtn', click: () => downloadConfig(page, d) }, [icon('download'), 'Config']),
+              E('button', { type: 'button', class: 'dl-chipbtn', click: () => showDeviceQr(page, d) }, [icon('qr'), _('Show QR')]),
+              E('button', { type: 'button', class: 'dl-chipbtn', click: () => downloadConfig(page, d) }, [icon('download'), _('Config')]),
             ]),
     ]);
   });
@@ -81,17 +82,19 @@ export function devicesPart(page: PersonPage): HTMLElement {
     E('button', { type: 'button', class: 'dl-dslot add', click: () => addDevice(p, page.deviceOpts()) }, [
       E('span', { class: 'dl-dslot-ic' }, icon('plus')),
       E('span', { class: 'dl-stack' }, [
-        E('b', {}, 'Add device'),
+        E('b', {}, _('Add device')),
         E(
           'span',
           { class: 'dl-sub' },
-          over ? `Over the limit · ${p.devices.length} of ${p.device_limit}` : `${p.devices.length} of ${p.device_limit}`,
+          over
+            ? `${_('Over the limit')} · ${fmt(_('%s of %s'), p.devices.length, p.device_limit)}`
+            : fmt(_('%s of %s'), p.devices.length, p.device_limit),
         ),
       ]),
     ]),
   );
   return E('section', { class: 'dl-devsec' }, [
-    E('div', { class: 'dl-panel-head' }, [E('h3', {}, 'Devices'), E('span', { class: 'dl-sub' }, `${p.online} online`)]),
+    E('div', { class: 'dl-panel-head' }, [E('h3', {}, _('Devices')), E('span', { class: 'dl-sub' }, fmt(_('%s online'), num(p.online)))]),
     E('div', { class: 'dl-dgrid' }, cards),
   ]);
 }

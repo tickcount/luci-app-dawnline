@@ -11,18 +11,21 @@ import { liveField } from '../../ui/layout';
 import { quotaHelp } from '../../netcheck';
 import { attachTip } from '../../ui/tooltip';
 import { icon } from '../../../shared/icons';
-import { ACCESS_LABEL, bytes, date, daysLeft, endsSoon, shiftDay } from '../../../shared/format';
+import { accessLabel, bytes, date, daysLeft, endsSoon, shiftDay } from '../../../shared/format';
+import { fmt, num, plural } from '../../../shared/i18n';
 import { resetUsageDialog } from '../../logs';
 import { homeAccess } from '../../access';
 import { endSettings } from './dialogs';
 import { circleTile, devTile, dnsPicker, netsPicker, servicesPicker } from './pickers';
 import type { PersonPage } from './index';
 
-const ACCESS_TEXT: Record<Person['access'], string> = {
-  internet: 'Browse the internet through your router. No access to devices at home, and home cannot reach theirs.',
-  lan: 'Reach devices at home, and home reaches theirs. Internet stays on their own connection.',
-  both: 'Home devices and the internet, all through your router. Home reaches their devices too.',
-};
+function accessText(a: Person['access']): string {
+  return {
+    internet: _('Browse the internet through your router. No access to devices at home, and home cannot reach theirs.'),
+    lan: _('Reach devices at home, and home reaches theirs. Internet stays on their own connection.'),
+    both: _('Home devices and the internet, all through your router. Home reaches their devices too.'),
+  }[a];
+}
 
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -39,19 +42,19 @@ function endTile(page: PersonPage): HTMLElement {
   }) as HTMLInputElement;
   dateInput.addEventListener(
     'change',
-    () => dateInput.value && page.patch({ expires: dateInput.value }, `Access until ${date(dateInput.value)}`),
+    () => dateInput.value && page.patch({ expires: dateInput.value }, fmt(_('Access until %s'), date(dateInput.value))),
   );
   // Extend from the current end, or from today when there is none or it has passed.
   const extend = (step: 'week' | 'month' | 'year', n: number) => {
     const next = shiftDay(p.expires && (left ?? -1) >= 0 ? p.expires : '', step, n, today);
-    void page.patch({ expires: next }, `Access until ${date(next)}`);
+    void page.patch({ expires: next }, fmt(_('Access until %s'), date(next)));
   };
   const ext = (
     [
-      ['week', 1, '+1 week'],
-      ['month', 1, '+1 month'],
-      ['month', 3, '+3 months'],
-      ['year', 1, '+1 year'],
+      ['week', 1, _('+1 week')],
+      ['month', 1, _('+1 month')],
+      ['month', 3, _('+3 months')],
+      ['year', 1, _('+1 year')],
     ] as const
   ).map(([step, n, label]) => E('button', { type: 'button', class: 'dl-chipbtn', click: () => extend(step, n) }, label));
   // The native date input stays hidden behind the chip and only opens its picker. It takes the
@@ -71,34 +74,40 @@ function endTile(page: PersonPage): HTMLElement {
           }
         },
       },
-      [icon('calendar'), p.expires ? date(p.expires) : 'Date'],
+      [icon('calendar'), p.expires ? date(p.expires) : _('Date')],
     ),
     dateInput,
   ]);
-  const action = { pause: 'pause access', notify: 'keep access', remove: 'remove their devices' }[p.expire_action];
+  const action = { pause: _('pause access'), notify: _('keep access'), remove: _('remove their devices') }[p.expire_action];
   return E('div', { class: 'dl-tile2' }, [
     E('div', { class: 'dl-tile2-label' }, [
-      E('span', {}, 'Access ends'),
+      E('span', {}, _('Access ends')),
       p.expires
         ? E(
             'span',
             { class: left != null && left < 0 ? 'dl-bad' : endsSoon(p, left) ? 'dl-warn' : 'dl-ok' },
-            left != null && left < 0 ? 'ended' : `${left} day${left === 1 ? '' : 's'} left`,
+            left != null && left < 0 ? _('ended') : plural(left ?? 0, '%s day left', '%s days left'),
           )
-        : E('span', { class: 'dl-faint' }, 'no end date'),
+        : E('span', { class: 'dl-faint' }, _('no end date')),
     ]),
     E('div', { class: 'dl-chips-row' }, [
       ...ext,
       pick,
       p.expires
-        ? E('button', { type: 'button', class: 'dl-chipbtn', click: () => page.patch({ expires: '' }, 'No end date') }, 'No end')
+        ? E('button', { type: 'button', class: 'dl-chipbtn', click: () => page.patch({ expires: '' }, _('No end date')) }, _('No end'))
         : '',
     ]),
     E('div', { class: 'dl-tile2-foot' }, [
       E(
         'span',
         { class: 'dl-muted' },
-        `When it ends: ${action}${p.expire_warn ? `, warn ${p.expire_warn} day${p.expire_warn === 1 ? '' : 's'} before` : ''}`,
+        p.expire_warn
+          ? fmt(
+              N_(p.expire_warn, 'When it ends: %s, warn %s day before', 'When it ends: %s, warn %s days before'),
+              action,
+              num(p.expire_warn),
+            )
+          : fmt(_('When it ends: %s'), action),
       ),
       E(
         'a',
@@ -109,7 +118,7 @@ function endTile(page: PersonPage): HTMLElement {
             endSettings(page);
           },
         },
-        'Change',
+        _('Change'),
       ),
     ]),
   ]);
@@ -121,26 +130,26 @@ function dataTile(page: PersonPage): HTMLElement {
   const pct = p.quota_limit ? Math.min(100, (p.quota_used / p.quota_limit) * 100) : 0;
   const bar = E('div', { class: `dl-meter${pct >= 100 ? ' bad' : pct >= 90 ? ' warn' : ''}` }, [
     E('i'),
-    p.quota_limit ? E('span', { class: 'mark', title: 'Alert at 90%' }) : '',
+    p.quota_limit ? E('span', { class: 'mark', title: _('Alert at 90%') }) : '',
   ]);
   (bar.firstChild as HTMLElement).style.width = `${pct}%`;
   if (p.quota_limit)
     attachTip(bar, () => [
-      E('div', { class: 'dl-tip-title' }, `${pct.toFixed(1)}% used`),
+      E('div', { class: 'dl-tip-title' }, fmt(_('%s%% used'), num(pct, 1))),
       E(
         'div',
         { class: 'dl-muted' },
-        `${bytes(p.quota_used)} of ${bytes(p.quota_limit)} · ${bytes(Math.max(0, p.quota_limit - p.quota_used))} left`,
+        `${fmt(_('%s of %s'), bytes(p.quota_used), bytes(p.quota_limit))} · ${fmt(_('%s left'), bytes(Math.max(0, p.quota_limit - p.quota_used)))}`,
       ),
-      E('div', { class: 'dl-faint' }, 'Alert at 90%'),
+      E('div', { class: 'dl-faint' }, _('Alert at 90%')),
     ]);
   const period = seg(
     [
-      ['month', 'Monthly'],
-      ['total', 'Total'],
+      ['month', _('Monthly')],
+      ['total', _('Total')],
     ],
     p.quota_period,
-    { label: 'Data limit period', cls: 'sm', optimistic: false, onChange: (v) => page.patch({ quota_period: v }) },
+    { label: _('Data limit period'), cls: 'sm', optimistic: false, onChange: (v) => page.patch({ quota_period: v }) },
   );
   const presets = [10, 50, 100].map((gb) =>
     E(
@@ -148,16 +157,16 @@ function dataTile(page: PersonPage): HTMLElement {
       {
         type: 'button',
         class: `dl-chipbtn${p.quota_gb === gb ? ' on' : ''}`,
-        click: () => page.patch({ quota_gb: String(gb) }, `Data limit ${gb} GB`),
+        click: () => page.patch({ quota_gb: String(gb) }, fmt(_('Data limit %s GB'), num(gb))),
       },
-      `${gb} GB`,
+      `${num(gb)} ${_('GB')}`,
     ),
   );
   presets.push(
     E(
       'button',
-      { type: 'button', class: `dl-chipbtn${!p.quota_gb ? ' on' : ''}`, click: () => page.patch({ quota_gb: '' }, 'No data limit') },
-      'Unlimited',
+      { type: 'button', class: `dl-chipbtn${!p.quota_gb ? ' on' : ''}`, click: () => page.patch({ quota_gb: '' }, _('No data limit')) },
+      _('Unlimited'),
     ),
   );
   presets.push(
@@ -174,15 +183,15 @@ function dataTile(page: PersonPage): HTMLElement {
             step: 'any',
             value: p.quota_gb ? String(p.quota_gb) : '',
           }) as HTMLInputElement;
-          const row = liveField('Data limit (GB)', inp, () => quotaHelp(inp.value, p.quota_period === 'month'));
+          const row = liveField(_('Data limit (GB)'), inp, () => quotaHelp(inp.value, p.quota_period === 'month'));
           modal(
-            'Data limit',
+            _('Data limit'),
             [row],
             [
               cancelButton(),
               ' ',
               button(
-                'Save',
+                _('Save'),
                 async () => {
                   const h = row.help();
                   if (h.bad) {
@@ -190,7 +199,10 @@ function dataTile(page: PersonPage): HTMLElement {
                     return;
                   }
                   const v = inp.value.trim();
-                  if (await page.patch({ quota_gb: v }, v && Number(v) > 0 ? `Data limit ${v} GB` : 'No data limit')) closeModal();
+                  if (
+                    await page.patch({ quota_gb: v }, v && Number(v) > 0 ? fmt(_('Data limit %s GB'), num(Number(v))) : _('No data limit'))
+                  )
+                    closeModal();
                 },
                 'positive',
               ),
@@ -199,38 +211,44 @@ function dataTile(page: PersonPage): HTMLElement {
           setTimeout(() => inp.select(), 50);
         },
       },
-      'Custom',
+      _('Custom'),
     ),
   );
   return E('div', { class: 'dl-tile2' }, [
-    E('div', { class: 'dl-tile2-label' }, [E('span', {}, 'Data'), period]),
+    E('div', { class: 'dl-tile2-label' }, [E('span', {}, _('Data')), period]),
     E('div', { class: 'dl-tile2-row' }, [
       E('span', { class: 'dl-tile2-value' }, [
         bytes(used),
-        p.quota_limit ? E('span', { class: 'dl-faint' }, ` of ${bytes(p.quota_limit)}`) : E('span', { class: 'dl-faint' }, ' · no limit'),
+        p.quota_limit
+          ? E('span', { class: 'dl-faint' }, ` ${fmt(_('of %s'), bytes(p.quota_limit))}`)
+          : E('span', { class: 'dl-faint' }, ` · ${_('no limit')}`),
       ]),
-      p.quota_period === 'month' ? E('span', { class: 'dl-sub' }, 'resets on the 1st') : '',
+      p.quota_period === 'month' ? E('span', { class: 'dl-sub' }, _('resets on the 1st')) : '',
     ]),
     p.quota_limit ? bar : '',
     E('div', { class: 'dl-chips-row' }, presets),
     p.quota_gb && p.quota_period === 'month'
       ? E('div', { class: 'dl-tile2-foot' }, [
-          E('span', { class: 'dl-muted' }, p.bonus_gb ? `Includes +${p.bonus_gb} GB extra this month` : 'Need a little more this month?'),
+          E(
+            'span',
+            { class: 'dl-muted' },
+            p.bonus_gb ? fmt(_('Includes +%s GB extra this month'), num(p.bonus_gb)) : _('Need a little more this month?'),
+          ),
           E(
             'a',
             {
               href: '#',
               click: (ev: Event) => {
                 ev.preventDefault();
-                void page.patch({ bonus_gb: String((p.bonus_gb || 0) + 10) }, '+10 GB this month');
+                void page.patch({ bonus_gb: String((p.bonus_gb || 0) + 10) }, _('+10 GB this month'));
               },
             },
-            '+10 GB this month',
+            _('+10 GB this month'),
           ),
         ])
       : '',
     E('div', { class: 'dl-tile2-foot' }, [
-      E('span', { class: 'dl-muted' }, `${bytes(p.total[0] + p.total[1])} in total`),
+      E('span', { class: 'dl-muted' }, fmt(_('%s in total'), bytes(p.total[0] + p.total[1]))),
       E(
         'button',
         {
@@ -238,7 +256,7 @@ function dataTile(page: PersonPage): HTMLElement {
           class: 'dl-linkbtn danger',
           click: () => resetUsageDialog('person', p.id, p.name, () => setTimeout(() => page.refresh(), 300)),
         },
-        'Reset usage',
+        _('Reset usage'),
       ),
     ]),
   ]);
@@ -253,15 +271,15 @@ function hoursTile(page: PersonPage): HTMLElement {
   const p = page.p;
   const hoursOn = !!p.hours;
   const [h1, h2] = (p.hours || '07:00-23:00').split('-');
-  const from = E('input', { type: 'time', class: 'cbi-input-text', value: h1, 'aria-label': 'From' }) as HTMLInputElement;
-  const to = E('input', { type: 'time', class: 'cbi-input-text', value: h2, 'aria-label': 'To' }) as HTMLInputElement;
-  const times = E('div', { class: 'dl-tile2-row' }, [from, E('span', { class: 'dl-faint' }, 'to'), to]);
+  const from = E('input', { type: 'time', class: 'cbi-input-text', value: h1, 'aria-label': _('From') }) as HTMLInputElement;
+  const to = E('input', { type: 'time', class: 'cbi-input-text', value: h2, 'aria-label': _('To') }) as HTMLInputElement;
+  const times = E('div', { class: 'dl-tile2-row' }, [from, E('span', { class: 'dl-faint' }, _('to', 'time range')), to]);
   const commit = () => {
     const v = `${from.value}-${to.value}`;
     if (v === p.hours) return;
-    if (!TIME.test(from.value) || !TIME.test(to.value)) return notify('Enter both times, like 07:00 and 23:00.', 'warning');
-    if (from.value === to.value) return notify('The start and the end must differ.', 'warning');
-    void page.patch({ hours: v }, `Allowed ${from.value}–${to.value}`);
+    if (!TIME.test(from.value) || !TIME.test(to.value)) return notify(_('Enter both times, like 07:00 and 23:00.'), 'warning');
+    if (from.value === to.value) return notify(_('The start and the end must differ.'), 'warning');
+    void page.patch({ hours: v }, fmt(_('Allowed %s–%s'), from.value, to.value));
   };
   times.addEventListener('focusout', (ev: FocusEvent) => {
     if (!times.contains(ev.relatedTarget as Node | null)) commit();
@@ -280,23 +298,23 @@ function hoursTile(page: PersonPage): HTMLElement {
       role: 'switch',
       'aria-checked': hoursOn ? 'true' : 'false',
       class: `dl-switch${hoursOn ? ' on' : ''}`,
-      'aria-label': 'Limit hours',
+      'aria-label': _('Limit hours'),
       // Turning on shows the times to set; nothing is enforced until they are saved.
       click: () => {
-        if (hoursOn) return page.patch({ hours: '' }, 'Any time');
+        if (hoursOn) return page.patch({ hours: '' }, _('Any time'));
         sw.classList.add('on');
         sw.setAttribute('aria-checked', 'true');
-        label.textContent = 'Set the hours, then press Enter';
+        label.textContent = _('Set the hours, then press Enter');
         tile.appendChild(times);
         from.focus();
       },
     },
     E('i'),
   );
-  const label = E('span', {}, hoursOn ? `${h1} – ${h2} (router time)` : 'Any time');
+  const label = E('span', {}, hoursOn ? fmt(_('%s – %s (router time)'), h1, h2) : _('Any time'));
   const tile = E('div', { class: 'dl-tile2' }, [
     E('div', { class: 'dl-tile2-row' }, [
-      E('div', { class: 'dl-stack' }, [E('span', { class: 'dl-tile2-label' }, 'Allowed hours'), label]),
+      E('div', { class: 'dl-stack' }, [E('span', { class: 'dl-tile2-label' }, _('Allowed hours')), label]),
       sw,
     ]),
     hoursOn ? times : '',
@@ -309,19 +327,27 @@ export function limitsPart(page: PersonPage): HTMLElement {
   const access = seg(
     (['internet', 'lan', 'both'] as const).map((a) => [
       a,
-      [icon(a === 'internet' ? 'globe' : a === 'lan' ? 'home' : 'shield'), a === 'internet' ? 'Internet' : a === 'lan' ? 'Home' : 'Both'],
+      [
+        icon(a === 'internet' ? 'globe' : a === 'lan' ? 'home' : 'shield'),
+        a === 'internet' ? _('Internet') : a === 'lan' ? _('Home') : _('Both'),
+      ],
     ]),
     p.access,
-    { label: 'Access', cls: 'wide', optimistic: false, onChange: (a) => page.patch({ access: a }, `Access: ${ACCESS_LABEL[a]}`) },
+    {
+      label: _('Access'),
+      cls: 'wide',
+      optimistic: false,
+      onChange: (a) => page.patch({ access: a }, fmt(_('Access: %s'), accessLabel(a))),
+    },
   );
   // Heading above the card, like "Devices", so both columns line up (as on the portal).
-  return E('section', { class: 'dl-devsec', 'aria-label': 'Access and limits' }, [
-    E('div', { class: 'dl-panel-head' }, [E('h3', {}, 'Access & limits')]),
+  return E('section', { class: 'dl-devsec', 'aria-label': _('Access and limits') }, [
+    E('div', { class: 'dl-panel-head' }, [E('h3', {}, _('Access & limits'))]),
     E('div', { class: 'dl-panel' }, [
       E('div', { class: 'dl-stack gap8' }, [
-        E('span', { class: 'dl-tile2-label' }, 'Can reach'),
+        E('span', { class: 'dl-tile2-label' }, _('Can reach')),
         access,
-        E('span', { class: 'dl-sub' }, ACCESS_TEXT[p.access]),
+        E('span', { class: 'dl-sub' }, accessText(p.access)),
         p.access === 'lan' && page.st.services.length ? servicesPicker(page) : '',
         homeAccess(p) ? netsPicker(page) : '',
         p.access === 'lan' ? dnsPicker(page) : '',

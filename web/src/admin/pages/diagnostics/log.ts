@@ -8,9 +8,10 @@ import { api, type LogCategory, type LogsInfo, type ServiceLogEntry } from '../.
 import { button } from '../../ui/button';
 import { dropdown } from '../../ui/menu';
 import { icon } from '../../../shared/icons';
-import { CATEGORIES, CATEGORY_LABEL, categoryOf, isProblem, retentionText, type LogItem } from '../../events/model';
+import { CATEGORIES, categoryLabel, categoryOf, isProblem, retentionText, type LogItem } from '../../events/model';
 import { dayTitle, eventRow, systemRow } from '../../events/render';
 import { clearLogDialog, exportEvents } from '../../logs';
+import { fmt, locale, num } from '../../../shared/i18n';
 
 export type LogKind = 'all' | LogCategory | 'system';
 type Events = Awaited<ReturnType<typeof api.events>>;
@@ -54,16 +55,16 @@ export class LogTab {
         items.filter((x) => x.sys).map((x) => x.sys!),
       );
     };
-    const exp = button([icon('download'), ' Export'], () =>
+    const exp = button([icon('download'), ` ${_('Export')}`], () =>
       dropdown(exp, [
-        { label: 'CSV (spreadsheet)', icon: icon('download'), run: run('csv') },
+        { label: _('CSV (spreadsheet)'), icon: icon('download'), run: run('csv') },
         { label: 'JSON', icon: icon('download'), run: run('json') },
       ]),
     );
-    const clear = button([icon('trash'), ' Clear'], () =>
+    const clear = button([icon('trash'), ` ${_('Clear')}`], () =>
       clearLogDialog(
-        'Clear the log',
-        'Removes events from the log on the router.',
+        _('Clear the log'),
+        _('Removes events from the log on the router.'),
         {},
         () => this.reload(),
         this.kind === 'all' ? undefined : this.kind,
@@ -77,7 +78,8 @@ export class LogTab {
     this.events = r.events;
     this.policy = r.policy;
     const off = CATEGORIES.filter((c) => !r.policy.categories.includes(c));
-    this.sub = `${retentionText(r.policy)}${off.length ? ` Not recorded: ${off.map((c) => CATEGORY_LABEL[c].toLowerCase()).join(', ')}.` : ''}`;
+    const kept = retentionText(r.policy);
+    this.sub = off.length ? `${kept} ${fmt(_('Not recorded: %s.'), off.map((c) => categoryLabel(c).toLowerCase()).join(', '))}` : kept;
   }
 
   async reload() {
@@ -119,7 +121,7 @@ export class LogTab {
             click: () => this.show(k),
           },
           [
-            k === 'all' ? 'All' : k === 'system' ? 'System' : CATEGORY_LABEL[k],
+            k === 'all' ? _('All') : k === 'system' ? _('System') : categoryLabel(k),
             E('b', {}, String(all.filter((x) => this.matches(x, k)).length)),
           ],
         ),
@@ -139,7 +141,9 @@ export class LogTab {
     if (!items.length) {
       dom.content(
         this.list,
-        E('div', { class: 'dl-empty' }, [E('p', {}, this.events.length || this.system.length ? 'No events match.' : 'The log is empty.')]),
+        E('div', { class: 'dl-empty' }, [
+          E('p', {}, this.events.length || this.system.length ? _('No events match.') : _('The log is empty.')),
+        ]),
       );
       return;
     }
@@ -153,7 +157,7 @@ export class LogTab {
         panel = E('div', { class: 'dl-panel flush' }, E('div', { class: 'dl-panel-head pad' }, E('h3', {}, t)));
         groups.push(panel);
       }
-      const time = new Date(x.ts * 1000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+      const time = new Date(x.ts * 1000).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
       if (x.sys) {
         const key = `${x.sys.ts}|${x.sys.msg}`;
         panel!.appendChild(
@@ -176,7 +180,7 @@ export class LogTab {
         E(
           'div',
           { class: 'dl-more-row' },
-          button(`Show ${Math.min(PAGE, items.length - this.shown)} more of ${items.length - this.shown}`, () => {
+          button(fmt(_('Show %s more of %s'), num(Math.min(PAGE, items.length - this.shown)), num(items.length - this.shown)), () => {
             this.shown += PAGE;
             this.paint();
           }),

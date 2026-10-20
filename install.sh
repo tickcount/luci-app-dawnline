@@ -9,7 +9,8 @@
 #   sh /tmp/dawnline-install.sh [options] [version]
 #
 # Installs AmneziaWG built for this firmware when it is missing, then the
-# Dawnline package with its dependencies from the OpenWrt feeds. Settings and
+# Dawnline package with its dependencies from the OpenWrt feeds, and the admin's
+# translation when LuCI speaks that language (--lang). Settings and
 # keys survive reinstalls and upgrades. A recovery snapshot of the configs it
 # may touch is taken first and restored if anything fails. `--help` lists the
 # options.
@@ -18,6 +19,8 @@ INSTALLER_VERSION="1.0.0"
 REPO="${DAWNLINE_REPO:-tickcount/luci-app-dawnline}"
 PKG_NAME="luci-app-dawnline"
 AWG_PKGS="kmod-amneziawg amneziawg-tools luci-proto-amneziawg"
+# The admin's translations a release has: luci-i18n-dawnline-<lang>.
+I18N_LANGS="ru"
 
 CONNECT_TIMEOUT=15
 METADATA_TIMEOUT=60
@@ -43,6 +46,7 @@ VERBOSE=0
 QUIET=0
 TAG=""
 AWG_SOURCE="${DAWNLINE_AWG:-auto}"
+I18N_CHOICE="${DAWNLINE_LANG:-auto}"
 
 LOG_READY=0
 TMP_DIR=""
@@ -66,6 +70,11 @@ WAS_VERSION=""
 WAS_ENABLED=0
 WAS_RUNNING=0
 MODE="install"
+
+I18N_LANG=""
+I18N_PKG=""
+I18N_ASSET=""
+I18N_FILE=""
 
 AWG_ACTION="keep"
 AWG_CANDIDATES=""
@@ -175,12 +184,18 @@ Usage: sh install.sh [options] [version]
                           grey   2Grey/awg-openwrt
                           skip   do not install it (add it later in Dawnline → Components)
       --no-awg          Same as --awg skip
+      --lang LANG       The admin's translation (luci-i18n-dawnline-LANG):
+                          auto   when LuCI is set to that language or has its
+                                 LuCI translation installed (default)
+                          ru     Russian
+                          none   add none (an installed one is kept up to date)
       --version         Print the installer version
   -h, --help            Show this help
 
 Environment:
   DAWNLINE_REPO=owner/name       GitHub repository with the releases ($REPO)
   DAWNLINE_AWG=SOURCE            Same as --awg (the option wins)
+  DAWNLINE_LANG=LANG             Same as --lang (the option wins)
   DAWNLINE_SNAPSHOT_KEEP=N       Recovery snapshots to keep (default 3)
 
 Log: $LOG_FILE
@@ -214,6 +229,17 @@ set_awg() {
 	esac
 }
 
+set_lang() {
+	for _l in auto none $I18N_LANGS; do
+		[ "$1" = "$_l" ] && {
+			I18N_CHOICE="$1"
+			return 0
+		}
+	done
+	err "Unknown language: $1 (auto, none or one of: $I18N_LANGS)"
+	return 1
+}
+
 parse_args() {
 	while [ "$#" -gt 0 ]; do
 		case "$1" in
@@ -240,6 +266,15 @@ parse_args() {
 			;;
 		--awg=*) set_awg "${1#*=}" || return 2 ;;
 		--no-awg) AWG_SOURCE="skip" ;;
+		--lang)
+			[ "$#" -gt 1 ] || {
+				err "--lang needs a language (auto, none or one of: $I18N_LANGS)"
+				return 2
+			}
+			shift
+			set_lang "$1" || return 2
+			;;
+		--lang=*) set_lang "${1#*=}" || return 2 ;;
 		--version)
 			printf 'dawnline-installer %s\n' "$INSTALLER_VERSION"
 			exit 0
@@ -268,6 +303,7 @@ parse_args() {
 		return 2
 	fi
 	set_awg "$AWG_SOURCE" || return 2
+	set_lang "$I18N_CHOICE" || return 2
 	return 0
 }
 
@@ -895,6 +931,68 @@ resolve_release() {
 	fi
 }
 
+lang_name() {
+	case "$1" in
+	ru) printf 'Russian' ;;
+	*) printf '%s' "$1" ;;
+	esac
+}
+
+# LuCI's language, when Dawnline has a translation for it: its setting, or with
+# "auto" (the browser's) a LuCI translation that is installed (base.<lang>.lmo).
+luci_lang() {
+	_ll="$(uci -q get luci.main.lang)"
+	for _l in $I18N_LANGS; do
+		case "$_ll" in "$_l" | "$_l"[_-]*)
+			printf '%s' "$_l"
+			return 0
+			;;
+		esac
+	done
+	case "$_ll" in '' | auto) ;; *) return 0 ;; esac
+	for _l in $I18N_LANGS; do
+		[ -f "/usr/lib/lua/luci/i18n/base.$_l.lmo" ] && {
+			printf '%s' "$_l"
+			return 0
+		}
+	done
+	return 0
+}
+
+# The admin's translation: an installed one is kept (it must match the app's
+# version), else --lang or LuCI's own language decides.
+resolve_i18n() {
+	I18N_LANG=""
+	for _l in $I18N_LANGS; do
+		pkg_is_installed "luci-i18n-dawnline-$_l" && I18N_LANG="$_l"
+	done
+	if [ -z "$I18N_LANG" ]; then
+		case "$I18N_CHOICE" in
+		none) ;;
+		auto) I18N_LANG="$(luci_lang)" ;;
+		*) I18N_LANG="$I18N_CHOICE" ;;
+		esac
+	fi
+	[ -n "$I18N_LANG" ] || return 0
+	I18N_PKG="luci-i18n-dawnline-$I18N_LANG"
+	I18N_ASSET="$I18N_PKG-$VERSION.$EXT"
+	_rj="$TMP_DIR/release.json"
+	if [ -s "$_rj" ]; then
+		_size="$(jsonfilter -i "$_rj" -e "@.assets[@.name='$I18N_ASSET'].size" 2>/dev/null | head -n 1)"
+		if [ -z "$_size" ]; then
+			# Releases before the translations have none.
+			warn "Release $VERSION has no $(lang_name "$I18N_LANG") translation: Dawnline stays in English"
+			I18N_LANG=""
+			I18N_PKG=""
+			I18N_ASSET=""
+			return 0
+		fi
+		DOWNLOAD_BYTES=$((DOWNLOAD_BYTES + _size))
+	else
+		DOWNLOAD_BYTES=$((DOWNLOAD_BYTES + 262144))
+	fi
+}
+
 # AmneziaWG packages are built per firmware version and target by the
 # awg-openwrt projects: <name>_v<release>_<arch>_<target>_<subtarget>.<ext>
 awg_postfix() {
@@ -981,6 +1079,11 @@ print_plan() {
 	downgrade) msg "  Dawnline: downgrade $WAS_VERSION → $VERSION (a backup is made first)" ;;
 	esac
 	msg "  Package manager: $PKG_MANAGER ($ASSET)"
+	if [ -n "$I18N_PKG" ]; then
+		msg "  Translation: $(lang_name "$I18N_LANG") ($I18N_PKG)"
+	else
+		msg "  Translation: none (Russian: --lang ru)"
+	fi
 	case "$AWG_ACTION" in
 	keep) msg "  AmneziaWG: keep the installed one" ;;
 	skip) msg "  AmneziaWG: skip (install it later from Dawnline → Components)" ;;
@@ -1011,28 +1114,37 @@ confirm() {
 
 # ---------- download phase ----------
 
-download_dawnline() {
+# download_release_file NAME: one file of the release into $TMP_DIR, verified.
+download_release_file() {
+	_name="$1"
 	_sums="$TMP_DIR/sha256sums.txt"
-	ASSET_FILE="$TMP_DIR/$ASSET"
 	# The checksum: GitHub's own (API), else the release's sha256sums.txt straight from github.com.
-	_want="$(asset_digest "$TMP_DIR/release.json" "$ASSET")"
+	_want="$(asset_digest "$TMP_DIR/release.json" "$_name")"
 	if [ -z "$_want" ]; then
-		download "$ASSET_BASE/sha256sums.txt" "$_sums" sha256sums.txt || {
+		[ -s "$_sums" ] || download "$ASSET_BASE/sha256sums.txt" "$_sums" sha256sums.txt || {
 			err "Download failed: sha256sums.txt (does release $VERSION exist?)"
 			return 1
 		}
-		_want="$(awk -v f="$ASSET" '$2 == f || $2 == "*" f { print $1; exit }' "$_sums")"
+		_want="$(awk -v f="$_name" '$2 == f || $2 == "*" f { print $1; exit }' "$_sums")"
 		[ -n "$_want" ] || {
-			err "sha256sums.txt has no entry for $ASSET: not installing an unverified package"
+			err "sha256sums.txt has no entry for $_name: not installing an unverified package"
 			return 1
 		}
 	fi
-	download "$ASSET_BASE/$ASSET" "$ASSET_FILE" "$ASSET" "$_want" || {
-		err "Download failed: $ASSET"
+	download "$ASSET_BASE/$_name" "$TMP_DIR/$_name" "$_name" "$_want" || {
+		err "Download failed: $_name"
 		return 1
 	}
-	verify_archive "$ASSET_FILE" || return 1
-	ok "$ASSET verified (sha256, package format)"
+	verify_archive "$TMP_DIR/$_name" || return 1
+	ok "$_name verified (sha256, package format)"
+}
+
+download_dawnline() {
+	download_release_file "$ASSET" || return 1
+	ASSET_FILE="$TMP_DIR/$ASSET"
+	[ -n "$I18N_ASSET" ] || return 0
+	download_release_file "$I18N_ASSET" || return 1
+	I18N_FILE="$TMP_DIR/$I18N_ASSET"
 }
 
 download_awg() {
@@ -1156,11 +1268,16 @@ install_dawnline() {
 	_force=0
 	case "$MODE" in reinstall | downgrade) _force=1 ;; esac
 	if [ "$DRY_RUN" -eq 1 ]; then
-		dry "$MODE Dawnline $VERSION ($ASSET)"
+		dry "$MODE Dawnline $VERSION ($ASSET${I18N_ASSET:+, $I18N_ASSET})"
 		return 0
 	fi
 	msg "Installing Dawnline $VERSION"
-	pkg_install_files dawnline "$_force" "$ASSET_FILE"
+	# The translation in the same transaction: it depends on this very version.
+	if [ -n "$I18N_FILE" ]; then
+		pkg_install_files dawnline "$_force" "$ASSET_FILE" "$I18N_FILE"
+	else
+		pkg_install_files dawnline "$_force" "$ASSET_FILE"
+	fi
 }
 
 healthcheck() {
@@ -1201,6 +1318,9 @@ healthcheck() {
 	if [ "$_r" != true ]; then
 		warn "The Dawnline agent is not running yet (see Dawnline → Diagnostics)"
 	fi
+	if [ -n "$I18N_PKG" ] && [ "$(pkg_version "$I18N_PKG")" != "$VERSION" ]; then
+		warn "$I18N_PKG $VERSION is not installed: Dawnline shows in English"
+	fi
 	ok "Healthcheck passed: $PKG_NAME $VERSION, LuCI backend answers"
 }
 
@@ -1213,6 +1333,15 @@ keep_service_intent() {
 	/etc/init.d/dawnline disable >/dev/null 2>&1
 	/etc/init.d/dawnline stop >/dev/null 2>&1
 	return 0
+}
+
+# LuCI reads a language's catalogs once per web server process: a new or
+# replaced translation needs a fresh one.
+reload_luci() {
+	[ "$DRY_RUN" -eq 0 ] && [ -n "$I18N_FILE" ] || return 0
+	msg "Restarting the web server so LuCI reads the translation"
+	/etc/init.d/uhttpd restart >/dev/null 2>&1 ||
+		warn "uhttpd did not restart: the translation shows after a reboot"
 }
 
 commit_transaction() {
@@ -1328,6 +1457,7 @@ main() {
 
 	select_release
 	resolve_release || fail "Could not resolve the Dawnline release"
+	resolve_i18n
 	resolve_awg || fail "AmneziaWG is not available for this firmware"
 	check_tmp_space || fail "Not enough free memory for the downloads"
 	print_plan
@@ -1348,6 +1478,7 @@ main() {
 	healthcheck || fail "The installed Dawnline did not pass the healthcheck"
 	keep_service_intent
 	commit_transaction
+	reload_luci
 	trap on_hup HUP
 
 	_took=$(($(date +%s 2>/dev/null || echo "$START_TS") - START_TS))

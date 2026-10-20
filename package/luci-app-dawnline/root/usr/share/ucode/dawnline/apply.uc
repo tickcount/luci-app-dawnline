@@ -22,6 +22,7 @@ import * as nft from 'dawnline.nft';
 import * as fw from 'dawnline.fw';
 import * as netifd from 'dawnline.netifd';
 import * as migrate from 'dawnline.migrate';
+import { _, L_ } from 'dawnline.i18n';
 
 const HOSTS_FILE = '/tmp/hosts/dawnline';
 /** The network signature the last apply() worked from (the agent compares against it). */
@@ -93,9 +94,9 @@ function nft_result(err, present) {
 		return null;
 	}
 	if (was != err) {
-		log('Access rules', present
-			? "couldn't be updated — the previous rules stay, and changes to access wait until they load"
-			: "couldn't load — no device is loaded into the tunnels until they do", 'error', err);
+		log(L_('Access rules'), present
+			? L_("couldn't be updated - the previous rules stay, and changes to access wait until they load")
+			: L_("couldn't load - no device is loaded into the tunnels until they do"), 'error', err);
 		ensure_dir(RUN_DIR);
 		writefile(NFT_ERR, err);
 	}
@@ -138,18 +139,19 @@ export function firewall_drift(m) {
 
 /**
  * What an admin should hear when a sync did not fully take: the access table
- * failed, or a server did not accept its devices. Null when all went in.
+ * failed, or a server did not accept its devices (sentences in the caller's
+ * language, with what nft or awg said). Null when all went in.
  */
 function sync_warning(m, table, peers) {
 	let out = [];
 	if (table != null)
 		push(out, nft.present()
-			? `Access rules couldn't be updated (${table}): the previous rules stay, so this change isn't in effect yet.`
-			: `Access rules couldn't load (${table}): no device is loaded into the tunnels until they do.`);
+			? sprintf(_("Access rules couldn't be updated (%s): the previous rules stay, so this change isn't in effect yet."), table)
+			: sprintf(_("Access rules couldn't load (%s): no device is loaded into the tunnels until they do."), table));
 	for (let id, r in peers)
 		if (r != 'ok' && r != 'down')
-			push(out, `Couldn't load devices into ${m.servers[id]?.name ?? id}: ${r}.`);
-	return length(out) ? join(' ', out) + ' Open Diagnostics → Health.' : null;
+			push(out, sprintf(_("Couldn't load devices into %s: %s."), m.servers[id]?.name ?? id, r));
+	return length(out) ? join(' ', [ ...out, _('Open Diagnostics → Health.') ]) : null;
 }
 
 /*
@@ -242,7 +244,7 @@ export function apply(opts) {
 		return { network, firewall, lp, peers: s.peers, warning: s.warning };
 	});
 	loop.remember(r.lp);
-	return { network: r.network, firewall: r.firewall, like_home: r.lp.error ? { error: r.lp.error } : !r.lp.off, peers: r.peers, warning: r.warning };
+	return { network: r.network, firewall: r.firewall, like_home: r.lp.error ? { error: loop.error_text(r.lp.error) } : !r.lp.off, peers: r.peers, warning: r.warning };
 };
 
 /** Remove everything Dawnline created (used by the uninstaller). */

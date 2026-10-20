@@ -16,6 +16,7 @@ Read with `code-standards.md`. Everything here runs on a small router (2 × Cort
 - Modules with `export` cannot be loaded with `require()`: imports are static and compiled on every start of the script.
 - Doc comments (`/** … */`) on every export: what it returns, including the null/empty case.
 - Shell out through one small helper per module (`run()`/`sh()`), with `2>&1` captured and the exit code checked.
+- Messages people read (`die()` texts, check titles and details, phases) go through `_()` / `N_()` of `dawnline.i18n`, inside functions, with `sprintf()` for values (`i18n.md`).
 - nft changes load as one script (`nft.load()`, a transaction); tables Dawnline owns are named `dawnline*` and rebuilt whole (`table X` + `delete table X` + the table).
 
 ## Cost on the router

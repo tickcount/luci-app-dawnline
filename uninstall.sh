@@ -655,6 +655,8 @@ do_leftovers() {
 			/usr/share/luci/menu.d/luci-app-dawnline.json /www/luci-static/resources/dawnline \
 			/www/luci-static/resources/view/dawnline
 		for _r in /etc/rc.d/*dawnline; do [ -e "$_r" ] && set -- "$@" "$_r"; done
+		# The translations' catalogs (luci-i18n-dawnline-<lang> depends on the package, so it is gone too).
+		for _r in /usr/lib/lua/luci/i18n/dawnline.*.lmo; do [ -e "$_r" ] && set -- "$@" "$_r"; done
 	fi
 	if [ "$PURGE" -eq 1 ]; then
 		set -- "$@" "$DATA_DIR" /etc/config/dawnline /etc/config/dawnline-opkg /etc/config/dawnline.apk-new

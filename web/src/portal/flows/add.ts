@@ -4,7 +4,8 @@
 // opens on the device itself, from a code, ready to add it there.
 
 import type { ClientConfig, Kind } from '../../shared/types';
-import { KIND_LABEL } from '../../shared/format';
+import { kindLabel } from '../../shared/format';
+import { fmt, num, plural } from '../../shared/i18n';
 import { ApiError, call } from '../api';
 import { h, ic } from '../dom';
 import { EASE_OUT, play } from '../motion';
@@ -62,12 +63,12 @@ const modelReady: Promise<string> = (async () => {
 function guessName(kind: Kind): string {
   if (/iPhone/.test(UA)) return 'iPhone';
   if (IPAD) return 'iPad';
-  if (/Android/.test(UA)) return MODEL || (kind === 'tablet' ? 'Android tablet' : 'Android phone');
+  if (/Android/.test(UA)) return MODEL || (kind === 'tablet' ? _('Android tablet') : _('Android phone'));
   if (/CrOS/.test(UA)) return 'Chromebook';
   if (/Mac OS X/.test(UA)) return 'Mac';
-  if (/Windows/.test(UA)) return 'Windows PC';
-  if (/Linux/.test(UA)) return 'Linux PC';
-  return KIND_LABEL[kind];
+  if (/Windows/.test(UA)) return _('Windows PC');
+  if (/Linux/.test(UA)) return _('Linux PC');
+  return kindLabel(kind);
 }
 
 /*
@@ -76,14 +77,18 @@ function guessName(kind: Kind): string {
  * which; picked from elsewhere it is a phone.
  */
 type Pick = 'computer' | 'mobile' | 'router' | 'other';
-const PICK_LABEL: Record<Pick, string> = { computer: 'PC', mobile: 'Mobile', router: 'Router', other: 'Other' };
+const pickLabel = (p: Pick): string => (p === 'mobile' ? _('Mobile') : kindLabel(p));
 const pickOf = (k: Kind): Pick => (k === 'phone' || k === 'tablet' ? 'mobile' : k);
 const kindOf = (p: Pick): Kind => (p !== 'mobile' ? p : guessKind() === 'tablet' ? 'tablet' : 'phone');
 
 export function startAdd() {
   const st = state();
   if (!st || st.locked) return;
-  if (!st.can_add) return toast(`You have reached your limit of ${st.person.device_limit} devices`, true);
+  if (!st.can_add)
+    return toast(
+      plural(st.person.device_limit, 'You have reached your limit of %s device', 'You have reached your limit of %s devices'),
+      true,
+    );
   if (secureFirst()) return;
   openSheet(vAdd);
 }
@@ -97,26 +102,32 @@ function vAdd(): View {
   let edited = false;
   const taken = new Set(p.devices.map((d) => d.name.toLowerCase()));
   const suggest = (k: Pick) => {
-    const n = k === pickOf(guessKind()) ? guessName(kindOf(k)) : k === 'mobile' ? 'Phone' : KIND_LABEL[k];
+    const n = k === pickOf(guessKind()) ? guessName(kindOf(k)) : kindLabel(k === 'mobile' ? 'phone' : k);
     if (!taken.has(n.toLowerCase())) return n;
     for (let i = 2; i < 20; i++) if (!taken.has(`${n} ${i}`.toLowerCase())) return `${n} ${i}`;
     return n;
   };
 
-  const kinds = h('div', { class: 'kinds', role: 'radiogroup', 'aria-label': 'What is it?' });
+  const kinds = h('div', { class: 'kinds', role: 'radiogroup', 'aria-label': _('What is it?') });
   kinds.style.setProperty('--n', String(picks.length));
   const tiles = picks.map((k) => {
     const t = h(
       'button',
-      { type: 'button', class: 'kind', role: 'radio', 'aria-label': PICK_LABEL[k], onclick: () => choose(k) },
+      { type: 'button', class: 'kind', role: 'radio', 'aria-label': pickLabel(k), onclick: () => choose(k) },
       h('span', { class: 'kind-tile' }, glass(k, 'blue')),
-      h('span', { class: 'kind-lbl' }, PICK_LABEL[k]),
+      h('span', { class: 'kind-lbl' }, pickLabel(k)),
     );
     kinds.appendChild(t);
     return t;
   });
-  const input = h('input', { type: 'text', maxlength: 48, required: true, 'aria-label': 'Name', autocomplete: 'off' }) as HTMLInputElement;
-  const goBtn = h('button', { class: 'go ready', type: 'submit', 'aria-label': 'Create connection' }, ic('arrow')) as HTMLButtonElement;
+  const input = h('input', {
+    type: 'text',
+    maxlength: 48,
+    required: true,
+    'aria-label': _('Name'),
+    autocomplete: 'off',
+  }) as HTMLInputElement;
+  const goBtn = h('button', { class: 'go ready', type: 'submit', 'aria-label': _('Create connection') }, ic('arrow')) as HTMLButtonElement;
   const err = h('p', { class: 'hint bad-t', hidden: true });
   const say = (msg: string) => {
     // Already showing: its words change in place.
@@ -162,7 +173,7 @@ function vAdd(): View {
     e.preventDefault();
     const name = input.value.trim();
     if (!name) return;
-    if (taken.has(name.toLowerCase())) return say('You already have a device with this name.');
+    if (taken.has(name.toLowerCase())) return say(_('You already have a device with this name.'));
     void once(goBtn, async () => {
       try {
         const r = await call<{ id: string; config: ClientConfig; state: State }>('devices', { name, kind: kindOf(pick) });
@@ -180,23 +191,23 @@ function vAdd(): View {
     'button',
     { type: 'button', class: 'btn soft block', onclick: () => go(vLink) },
     ic('qr'),
-    h('span', {}, 'Add it from the device'),
+    h('span', {}, _('Add it from the device')),
   );
   const free = p.device_limit - p.devices.length;
   const el = h(
     'div',
     { class: 'view' },
-    head('Add a device'),
-    sub(`${free} of ${p.device_limit} slots free`),
+    head(_('Add a device')),
+    sub(fmt(N_(p.device_limit, '%s of %s slot free', '%s of %s slots free'), num(free), num(p.device_limit))),
     kinds,
-    hint('Phones and tablets get a smaller packet size that suits mobile networks.'),
+    hint(_('Phones and tablets get a smaller packet size that suits mobile networks.')),
     form,
     err,
-    h('div', { class: 'or' }, 'OR'),
+    h('div', { class: 'or' }, _('OR')),
     viaLink,
   );
   el.querySelector('.hint')!.classList.add('kinds-note');
-  return { el, label: 'Add a device' };
+  return { el, label: _('Add a device') };
 }
 
 /** The page on the device itself, ready to add it: the link as a code for its camera, and as text. */
@@ -205,10 +216,10 @@ function vLink(): View {
   const el = h(
     'div',
     { class: 'view' },
-    head('Open on the device', { back: true }),
-    sub('Point its camera at the code: your page opens there with this device ready to add.'),
+    head(_('Open on the device'), { back: true }),
+    sub(_('Point its camera at the code: your page opens there with this device ready to add.')),
     qrBox(link, true),
     linkRow(link),
   );
-  return { el, label: 'Open on the device' };
+  return { el, label: _('Open on the device') };
 }

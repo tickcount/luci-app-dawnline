@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # Build the web bundles and pack luci-app-dawnline as a filesystem overlay
-# tarball: dist/luci-app-dawnline-<version>.tar.gz (paths relative to /).
-# This is the asset the in-app updater and install.sh install.
+# tarball: dist/luci-app-dawnline-<version>.tar.gz (paths relative to /), with
+# the translations as their packages lay them out (the catalogs compiled by
+# web/i18n/lmo.ts, byte for byte po2lmo's, and the uci-defaults that adds the
+# language to LuCI). scripts/deploy.sh installs it for development; releases
+# are the .ipk/.apk packages (build-packages.sh).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -19,6 +22,15 @@ grep -q "\"version\": \"$VERSION\"" "$ROOT/web/package.json" || { echo "web/pack
 mkdir -p "$STAGE/www" "$OUT"
 cp -R "$APP/root/." "$STAGE/"
 cp -R "$APP/htdocs/." "$STAGE/www/"
+for po in "$APP"/po/*/dawnline.po; do
+	l="$(basename "$(dirname "$po")")"
+	[ "$l" = templates ] && continue
+	mkdir -p "$STAGE/usr/lib/lua/luci/i18n"
+	node "$ROOT/web/i18n/lmo.ts" "$po" "$STAGE/usr/lib/lua/luci/i18n/dawnline.$l.lmo"
+	# The name LuCI lists the language by (luci.mk's LUCI_LANG.<lang>).
+	case "$l" in ru) name='Русский (Russian)' ;; *) name="$l" ;; esac
+	printf "uci set luci.languages.%s='%s'; uci commit luci\n" "$l" "$name" > "$STAGE/etc/uci-defaults/luci-i18n-dawnline-$l"
+done
 chmod 755 "$STAGE/usr/bin/dawnline" "$STAGE/usr/libexec/dawnline/agent" "$STAGE/usr/libexec/dawnline/updater" "$STAGE/usr/libexec/dawnline/resolver" "$STAGE/usr/libexec/dawnline/postupdate" \
 	"$STAGE/etc/init.d/dawnline" "$STAGE/etc/uci-defaults/90_dawnline" "$STAGE/etc/hotplug.d/iface/95-dawnline" \
 	"$STAGE/usr/share/dawnline/portal/www/cgi-bin/portal" "$STAGE/usr/share/dawnline/portal/cgi.uc"

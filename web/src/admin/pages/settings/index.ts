@@ -51,7 +51,7 @@ export class SettingsPage implements SettingsHost {
     // ?section=updates (from Components) and the like: open at that card.
     const sec = new URLSearchParams(location.search).get('section');
     if (sec && sec !== 'backups') requestAnimationFrame(() => document.getElementById(`dl-set-${sec}`)?.scrollIntoView({ block: 'start' }));
-    return E('div', {}, [E('div', { class: 'dl-pagehead' }, [E('h2', { class: 'dl-h1' }, 'Settings')]), this.root]);
+    return E('div', {}, [E('div', { class: 'dl-pagehead' }, [E('h2', { class: 'dl-h1' }, _('Settings'))]), this.root]);
   }
 
   async save(values: Record<string, string | string[]>, ok: string, card: CardId) {

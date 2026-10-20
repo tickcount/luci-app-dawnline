@@ -8,48 +8,50 @@ import { chipToggle, input, isOn, seg, setChip, sw } from '../../ui/controls';
 import { row } from '../../ui/layout';
 import { notify } from '../../ui/toast';
 import { timeHelp } from '../../netcheck';
+import { fmt } from '../../../shared/i18n';
 import { section, type SettingsHost } from './common';
 
-const TARGET: [string, string][] = [
+/** The components automatic updates may install: id and chip label. */
+const targetChoices = (): [string, string][] => [
   ['app', 'Dawnline'],
   ['amneziawg', 'AmneziaWG'],
-  ['packages', 'System packages'],
+  ['packages', _('System packages')],
 ];
 
 export function updatesCard(host: SettingsHost): HTMLElement {
   const u = (host.d.effective as Record<string, any>).updates as UpdatePolicy;
-  const check = sw(u.check, 'Check automatically', (v) => show(v, isOn(auto)));
+  const check = sw(u.check, _('Check automatically'), (v) => show(v, isOn(auto)));
   const every = seg(
     [
-      ['6h', 'Every 6 h'],
-      ['12h', 'Every 12 h'],
-      ['1d', 'Daily'],
-      ['7d', 'Weekly'],
+      ['6h', _('Every 6 h')],
+      ['12h', _('Every 12 h')],
+      ['1d', _('Daily')],
+      ['7d', _('Weekly')],
     ],
     u.interval,
-    { label: 'How often', cls: 'sm' },
+    { label: _('How often'), cls: 'sm' },
   );
-  const auto = sw(u.auto, 'Install automatically', (v) => show(isOn(check), v));
+  const auto = sw(u.auto, _('Install automatically'), (v) => show(isOn(check), v));
   const at = input(u.time, {
     placeholder: '04:00',
     inputmode: 'numeric',
     class: 'cbi-input-text dl-w-port dl-mono',
-    'aria-label': 'Time',
+    'aria-label': _('Time'),
   });
   const mode = seg(
     [
-      ['scheduled', 'At a set time'],
-      ['immediate', 'As soon as found'],
+      ['scheduled', _('At a set time')],
+      ['immediate', _('As soon as found')],
     ],
     u.mode,
-    { label: 'When', cls: 'sm', onChange: (v) => (at.hidden = v !== 'scheduled') },
+    { label: _('When'), cls: 'sm', onChange: (v) => (at.hidden = v !== 'scheduled') },
   );
   at.hidden = u.mode !== 'scheduled';
   const chosen = new Set<string>(u.targets);
   const targets = E(
     'div',
     { class: 'dl-chips-row' },
-    TARGET.map(([k, t]) => {
+    targetChoices().map(([k, t]) => {
       const b = chipToggle(t, chosen.has(k), () => {
         if (!chosen.delete(k)) chosen.add(k);
         setChip(b, chosen.has(k));
@@ -57,16 +59,16 @@ export function updatesCard(host: SettingsHost): HTMLElement {
       return b;
     }),
   );
-  const keep = sw(u.keep, 'Keep the previous version');
-  const mirrors = sw(u.mirrors, 'GitHub mirrors');
-  const everyRow = row('How often', every);
+  const keep = sw(u.keep, _('Keep the previous version'));
+  const mirrors = sw(u.mirrors, _('GitHub mirrors'));
+  const everyRow = row(_('How often'), every);
   const autoRows = [
     row(
-      'When',
+      _('When'),
       E('div', { class: 'dl-hostport' }, [mode, at]),
-      'A set time keeps tunnel restarts out of the evening; the run happens within an hour of it.',
+      _('A set time keeps tunnel restarts out of the evening; the run happens within an hour of it.'),
     ),
-    row('Components', targets, 'AmneziaWG is off by default: a new kernel module restarts every tunnel.'),
+    row(_('Components'), targets, _('AmneziaWG is off by default: a new kernel module restarts every tunnel.')),
   ];
   const show = (c: boolean, a: boolean) => {
     everyRow.hidden = !c;
@@ -75,37 +77,37 @@ export function updatesCard(host: SettingsHost): HTMLElement {
   show(u.check, u.auto);
   return section(
     'updates',
-    'Updates',
+    _('Updates'),
     [
       E(
         'span',
         { class: 'dl-muted' },
-        'How Dawnline keeps its components current. Every Dawnline update makes a backup of the settings first.',
+        _('How Dawnline keeps its components current. Every Dawnline update makes a backup of the settings first.'),
       ),
       row(
-        'Check automatically',
+        _('Check automatically'),
         check,
-        'Looks for new versions in the background; Components shows what it found and the service log names it.',
+        _('Looks for new versions in the background; Components shows what it found and the service log names it.'),
       ),
       everyRow,
-      row('Install automatically', auto, 'Downloads and installs new versions of the components below.'),
+      row(_('Install automatically'), auto, _('Downloads and installs new versions of the components below.')),
       ...autoRows,
       row(
-        'Keep the previous version',
+        _('Keep the previous version'),
         keep,
-        'Saves the replaced Dawnline or AmneziaWG package on flash, so Roll back works without internet. Under 1 MB.',
+        _('Saves the replaced Dawnline or AmneziaWG package on flash, so Roll back works without internet. Under 1 MB.'),
       ),
-      row('GitHub mirrors', mirrors, 'When GitHub is unreachable, download through mirrors. Checksums are still verified.'),
+      row(_('GitHub mirrors'), mirrors, _('When GitHub is unreachable, download through mirrors. Checksums are still verified.')),
     ],
     [
-      E('span', { class: 'dl-sub' }, 'Run a check or an update by hand in Components.'),
+      E('span', { class: 'dl-sub' }, _('Run a check or an update by hand in Components.')),
       button(
-        'Save',
+        _('Save'),
         () => {
           if (mode.dataset.value === 'scheduled') {
             const h = timeHelp(at.value);
             if (h.bad) {
-              notify(`Time: ${h.text}`, 'warning');
+              notify(fmt(_('Time: %s'), h.text), 'warning');
               return;
             }
           }
@@ -120,7 +122,7 @@ export function updatesCard(host: SettingsHost): HTMLElement {
               update_keep: isOn(keep) ? '1' : '0',
               update_mirrors: isOn(mirrors) ? '1' : '0',
             },
-            'Saved',
+            _('Saved'),
             'updates',
           );
         },

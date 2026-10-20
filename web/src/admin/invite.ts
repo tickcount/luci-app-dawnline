@@ -10,6 +10,7 @@ import { copyText, downloadFile } from './ui/files';
 import { attempt, notify } from './ui/toast';
 import { icon } from '../shared/icons';
 import { qrSvg } from '../shared/qr';
+import { fill, fmt } from '../shared/i18n';
 
 const W = 1080,
   H = 1512;
@@ -23,8 +24,9 @@ const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&
 function cardSvg(p: Pick<Person, 'name'>, server: string, link: string): string {
   const url = new URL(link);
   const word = url.pathname.slice(1);
+  const hi = fmt(_('Hi, %s'), p.name);
   // Long names shrink to stay on one line (roughly 0.58 em per character).
-  const nameSize = Math.min(92, Math.floor((W - 2 * M) / (0.58 * (4 + p.name.length))));
+  const nameSize = Math.min(92, Math.floor((W - 2 * M) / (0.58 * hi.length)));
   const tile = W - 2 * M,
     top = 392,
     pad = 40;
@@ -39,8 +41,8 @@ function cardSvg(p: Pick<Person, 'name'>, server: string, link: string): string 
     `<g transform="scale(.9375)"><path d="M14 38a18 18 0 0 1 36 0z" fill="#0b0b0b"/><rect x="12" y="43" width="40" height="4" rx="2" fill="#0b0b0b" opacity=".5"/></g></g>` +
     text(M + 82, M + 42, 36, '#a3a3a3', esc(server)) +
     // Greeting
-    text(M, 276, nameSize, '#ffffff', `Hi, ${esc(p.name)}`, 'font-weight="600"') +
-    text(M, 340, 40, '#8a8a8a', `Scan to connect to ${esc(server)}`) +
+    text(M, 276, nameSize, '#ffffff', esc(hi), 'font-weight="600"') +
+    text(M, 340, 40, '#8a8a8a', esc(fmt(_('Scan to connect to %s'), server))) +
     // Big QR on a white tile, edge to edge with the text above
     `<rect x="${M}" y="${top}" width="${tile}" height="${tile}" rx="52" fill="#ffffff"/>` +
     qr +
@@ -60,7 +62,7 @@ async function toPng(svg: string): Promise<Blob> {
   canvas.height = H;
   canvas.getContext('2d')!.drawImage(img, 0, 0, W, H);
   return new Promise((resolve, reject) =>
-    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Could not draw the card'))), 'image/png'),
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error(_('Could not draw the card')))), 'image/png'),
   );
 }
 
@@ -72,7 +74,7 @@ export async function personLinks(id: string): Promise<{ link: string; links: st
   const r = await attempt(() => api.personLinks(id));
   if (!r) return null;
   if (!r.link) {
-    notify('The personal portal is off. Turn it on in Settings.', 'warning');
+    notify(_('The personal portal is off. Turn it on in Settings.'), 'warning');
     return null;
   }
   return { link: r.link, links: r.links ?? [] };
@@ -81,7 +83,7 @@ export async function personLinks(id: string): Promise<{ link: string; links: st
 /** Copy a person's personal link. */
 export async function copyPersonLink(id: string) {
   const r = await personLinks(id);
-  if (r) await copyText(r.link, 'Personal link copied');
+  if (r) await copyText(r.link, _('Personal link copied'));
 }
 
 /**
@@ -98,7 +100,7 @@ export async function inviteCard(p: Invitee, server: string, opts: { title?: str
     links = r.links;
   }
   if (!link) {
-    notify('The personal portal is off. Turn it on in Settings.', 'warning');
+    notify(_('The personal portal is off. Turn it on in Settings.'), 'warning');
     return;
   }
   const href = link;
@@ -123,49 +125,54 @@ export async function inviteCard(p: Invitee, server: string, opts: { title?: str
     }
   };
   const share = canShareFile
-    ? button([icon('link'), ' Share card'], () => shareIt({ files: [file], title: `Invite ${p.name}` }), 'positive')
+    ? button([icon('link'), ' ', _('Share card')], () => shareIt({ files: [file], title: fmt(_('Invite %s'), p.name) }), 'positive')
     : canShareLink
       ? button(
-          [icon('link'), ' Share link'],
-          () => shareIt({ url: href, title: `Invite ${p.name}`, text: `Your personal VPN link` }),
+          [icon('link'), ' ', _('Share link')],
+          () => shareIt({ url: href, title: fmt(_('Invite %s'), p.name), text: _('Your personal VPN link') }),
           'positive',
         )
-      : button([icon('download'), ' Download card'], () => downloadFile(file.name, png), 'positive');
+      : button([icon('download'), ' ', _('Download card')], () => downloadFile(file.name, png), 'positive');
   modal(
-    opts.title ?? `Invite ${p.name}`,
+    opts.title ?? fmt(_('Invite %s'), p.name),
     E('div', { class: 'dl-invite' }, [
-      E('img', { src: url, alt: `Invite card for ${p.name}` }),
+      E('img', { src: url, alt: fmt(_('Invite card for %s'), p.name) }),
       E('div', { class: 'dl-invite-side' }, [
         E(
           'p',
           { class: 'dl-muted' },
-          opts.lead ?? `Send ${p.name} the card or the link. They open it, add their devices and connect — no account needed.`,
+          opts.lead ?? fmt(_('Send %s the card or the link. They open it, add their devices and connect - no account needed.'), p.name),
         ),
-        E('button', { type: 'button', class: 'dl-invite-link', title: 'Copy link', click: () => copyText(href, 'Personal link copied') }, [
-          E('span', {}, href.replace(/^https:\/\//, '')),
-          icon('copy'),
-        ]),
+        E(
+          'button',
+          { type: 'button', class: 'dl-invite-link', title: _('Copy link'), click: () => copyText(href, _('Personal link copied')) },
+          [E('span', {}, href.replace(/^https:\/\//, '')), icon('copy')],
+        ),
         ...(links ?? [])
           .filter((l) => l !== href)
           .map((l) =>
-            E('button', { type: 'button', class: 'dl-invite-link alt', title: 'Copy this link', click: () => copyText(l, 'Link copied') }, [
-              E('span', {}, l.replace(/^https?:\/\//, '')),
-              E('span', { class: `dl-pill ${l.startsWith('http:') ? 'warn' : ''}` }, l.startsWith('http:') ? 'HTTP' : 'Also'),
-              icon('copy'),
-            ]),
+            E(
+              'button',
+              { type: 'button', class: 'dl-invite-link alt', title: _('Copy this link'), click: () => copyText(l, _('Link copied')) },
+              [
+                E('span', {}, l.replace(/^https?:\/\//, '')),
+                E('span', { class: `dl-pill ${l.startsWith('http:') ? 'warn' : ''}` }, l.startsWith('http:') ? 'HTTP' : _('Also')),
+                icon('copy'),
+              ],
+            ),
           ),
         E('ol', { class: 'dl-invite-steps' }, [
-          E('li', {}, ['Install ', E('b', {}, 'AmneziaVPN'), ' on the device']),
-          E('li', {}, 'Open the link or scan the code'),
-          E('li', {}, 'Add the device and connect'),
+          E('li', {}, fill(_('Install %s on the device'), E('b', {}, 'AmneziaVPN'))),
+          E('li', {}, _('Open the link or scan the code')),
+          E('li', {}, _('Add the device and connect')),
         ]),
         E('div', { class: 'dl-invite-actions' }, [
           share,
-          button([icon('copy'), ' Copy link'], () => copyText(href, 'Personal link copied')),
+          button([icon('copy'), ' ', _('Copy link')], () => copyText(href, _('Personal link copied'))),
         ]),
       ]),
     ]),
-    [E('button', { class: 'cbi-button cbi-button-neutral', click: close }, 'Done')],
+    [E('button', { class: 'cbi-button cbi-button-neutral', click: close }, _('Done'))],
     'wide',
   );
 }

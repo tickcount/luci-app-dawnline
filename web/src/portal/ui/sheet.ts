@@ -14,7 +14,7 @@ export interface View {
   el: HTMLElement;
   /** The sheet's accessible name while this view shows (its title). */
   label: string;
-  /** A question (Remove, Reconnect): an alert dialog. */
+  /** A question (Remove, Reconnect): an alert dialog, closed by its Cancel (no ×). */
   asks?: boolean;
   /** Its own buttons, pinned beside × while it shows. */
   acts?: HTMLElement | null;
@@ -108,7 +108,7 @@ export function startWidth(p: WidthPlan | null) {
 /* ---------- the drawer ---------- */
 
 function build() {
-  closeBtn = h('button', { type: 'button', class: 'knob x', 'aria-label': 'Close', onclick: () => closeSheet() }, ic('x'));
+  closeBtn = h('button', { type: 'button', class: 'knob x', onclick: () => closeSheet() }, ic('x'));
   actsEl = h('div', { class: 'sheet-acts' });
   vp = h('div', { class: 'vp' });
   scroller = h('div', { class: 'sheet-scroll' }, vp);
@@ -122,7 +122,10 @@ function build() {
 
 function label(v: View) {
   sheetEl.setAttribute('aria-label', v.label);
+  // Built once, named each time: the language may have changed since.
+  closeBtn.setAttribute('aria-label', _('Close'));
   sheetEl.setAttribute('role', v.asks ? 'alertdialog' : 'dialog');
+  sheetEl.classList.toggle('asks', !!v.asks);
 }
 
 /** The view being left (a new one, or the sheet closing) lets go of what it holds. */
@@ -466,7 +469,7 @@ export function head(title: string, o: { back?: boolean; acts?: boolean } = {}):
   return h(
     'div',
     { class: `vhead${o.back ? ' center' : ''}${o.acts ? ' with-acts' : ''}` },
-    o.back ? h('button', { type: 'button', class: 'knob back', 'aria-label': 'Back', onclick: back }, ic('chevron')) : null,
+    o.back ? h('button', { type: 'button', class: 'knob back', 'aria-label': _('Back'), onclick: back }, ic('chevron')) : null,
     h('h2', {}, title),
   );
 }

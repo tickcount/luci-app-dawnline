@@ -146,7 +146,7 @@ if methods and os.path.exists(ACL):
 # Layering (rules/backend.md): util, schema → core → store → domain modules →
 # apply → entry points. A module importing one from a layer above it is
 # reported, not failed, until the existing edges are untangled.
-LAYER = {'util': 0, 'schema': 1, 'core': 2, 'store': 3, 'apply': 5}
+LAYER = {'util': 0, 'i18n': 0, 'schema': 1, 'core': 2, 'store': 3, 'apply': 5}
 LAYER_NAME = {0: 'util', 1: 'schema', 2: 'core', 3: 'store', 4: 'domain', 5: 'apply'}
 notes = 0
 for f in modules:

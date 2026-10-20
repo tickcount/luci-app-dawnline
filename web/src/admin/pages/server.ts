@@ -16,6 +16,7 @@ import { card, firstBad, group, liveRow, needRow, row } from '../ui/layout';
 import { dnsHelp, endpointProbe, hostHelp, nameHelp, portalPortHelp, portHelp, rangeHelp, rangeOf, subnetOf } from '../netcheck';
 import { icon } from '../../shared/icons';
 import { ago, duration } from '../../shared/format';
+import { fmt, locale, plural } from '../../shared/i18n';
 import { accessCards } from '../interfaces';
 import { checkAccess, whoReaches } from '../access';
 import { defaultMethod, methodPicker } from '../disguise';
@@ -27,13 +28,10 @@ import { PeoplePage } from './people';
 
 /** `awg` is the server's core section (named after its core; the key stays for old links). */
 type Section = 'overview' | 'people' | 'connection' | 'access' | 'awg';
-const SECTIONS: [Section, string][] = [
-  ['overview', 'Overview'],
-  ['people', 'People'],
-  ['connection', 'Connection'],
-  ['access', 'Access'],
-  ['awg', ''],
-];
+const SECTIONS: Section[] = ['overview', 'people', 'connection', 'access', 'awg'];
+/** A section's tab; the core's own is named after the core. */
+const sectionLabel = (k: Exclude<Section, 'awg'>): string =>
+  ({ overview: _('Overview'), people: _('People'), connection: _('Connection'), access: _('Access') })[k];
 /** Section names from before the regrouping, for old links. */
 const OLD_SECTIONS: Record<string, Section> = {
   general: 'connection',
@@ -82,7 +80,7 @@ export class ServerPage {
     const q = new URLSearchParams(location.search);
     const raw = q.get('section') ?? '';
     const want = (OLD_SECTIONS[raw] ?? raw) as Section;
-    if (SECTIONS.some(([k]) => k === want)) this.section = want;
+    if (SECTIONS.includes(want)) this.section = want;
     this.srvId = (st.servers.find((x) => x.id === q.get('server')) ?? st.servers[0]).id;
     dom.content(this.root, [this.tabsEl, this.headEl, this.secEl, this.bodyEl]);
     this.paint();
@@ -146,7 +144,7 @@ export class ServerPage {
     const srv = this.current();
     dom.content(
       this.tabsEl,
-      E('div', { class: 'dl-srvtabs', role: 'tablist', 'aria-label': 'Servers' }, [
+      E('div', { class: 'dl-srvtabs', role: 'tablist', 'aria-label': _('Servers') }, [
         ...this.st.servers.map((x) =>
           E(
             'button',
@@ -164,7 +162,7 @@ export class ServerPage {
             [E('i', { class: `dot ${!x.enabled ? 'warn' : x.up ? 'ok' : 'bad'}` }), E('b', {}, x.name)],
           ),
         ),
-        E('button', { type: 'button', class: 'dl-srvtab add', click: () => this.addServer() }, [icon('plus'), 'Add server']),
+        E('button', { type: 'button', class: 'dl-srvtab add', click: () => this.addServer() }, [icon('plus'), _('Add server')]),
       ]),
     );
   }
@@ -175,8 +173,8 @@ export class ServerPage {
       this.secEl,
       E(
         'div',
-        { class: 'dl-seg dl-srvsections', role: 'tablist', 'aria-label': 'Server' },
-        SECTIONS.map(([k, t]) =>
+        { class: 'dl-seg dl-srvsections', role: 'tablist', 'aria-label': _('Server') },
+        SECTIONS.map((k) =>
           E(
             'button',
             {
@@ -187,7 +185,7 @@ export class ServerPage {
               'aria-selected': k === this.section ? 'true' : 'false',
               click: () => this.showSection(k),
             },
-            k === 'awg' ? core.label : t,
+            k === 'awg' ? core.label : sectionLabel(k),
           ),
         ),
       ),
@@ -241,7 +239,7 @@ export class ServerPage {
           void pp.update();
           return pp.el;
         }
-        const holder = E('div', {}, E('p', { class: 'dl-muted' }, 'Loading people…'));
+        const holder = E('div', {}, E('p', { class: 'dl-muted' }, _('Loading people…')));
         const page = (this.pp[srv.id] ??= new PeoplePage());
         page
           .embed(st, srv.id)
@@ -252,7 +250,7 @@ export class ServerPage {
           .catch((e) => {
             // Try again on the next visit instead of keeping a broken page.
             delete this.pp[srv.id];
-            dom.content(holder, E('p', { class: 'dl-muted' }, `Couldn't show people: ${errorText(e)}`));
+            dom.content(holder, E('p', { class: 'dl-muted' }, fmt(_("Couldn't show people: %s"), errorText(e))));
           });
         return holder;
       },
@@ -273,8 +271,8 @@ export class ServerPage {
     const actions = E('div', { class: 'dl-actions' }, [
       !srv.enabled
         ? button(
-            [icon('play'), ' Turn on'],
-            () => this.save(srv, { enabled: '1' }, 'Server turned on'),
+            [icon('play'), ` ${_('Turn on')}`],
+            () => this.save(srv, { enabled: '1' }, _('Server turned on')),
             // White, as the other main actions (Add person).
             'add',
           )
@@ -288,7 +286,7 @@ export class ServerPage {
           'span',
           // Off on purpose is a warning (yellow), not a failure (red).
           { class: `dl-pill ${!srv.enabled ? 'warn' : srv.up ? 'ok' : 'bad'}` },
-          !srv.enabled ? 'Turned off' : srv.up ? 'Running' : srv.blocked ? 'Can’t start' : 'Not running',
+          !srv.enabled ? _('Turned off') : srv.up ? _('Running') : srv.blocked ? _('Can’t start') : _('Not running'),
         ),
         E('span', { class: 'dl-spacer' }),
         actions,
@@ -296,78 +294,82 @@ export class ServerPage {
       E('div', { class: 'dl-addrbar' }, [
         E(
           'button',
-          { type: 'button', class: 'dl-addrbar-seg main', title: 'Copy address', click: () => copyText(addr, 'Address copied') },
+          { type: 'button', class: 'dl-addrbar-seg main', title: _('Copy address'), click: () => copyText(addr, _('Address copied')) },
           [icon('globe'), E('span', { class: 'dl-mono' }, addr), icon('copy')],
         ),
         part(coreOf(srv).id === 'awg' ? 'amneziawg' : 'tunnel', [E('span', { class: 'dl-mono' }, `${coreOf(srv).label} :${srv.port}`)]),
-        srv.up ? part('clock', [`up ${duration(srv.uptime)}`]) : '',
+        srv.up ? part('clock', [fmt(_('up %s'), duration(srv.uptime))]) : '',
       ]),
       // The reason the tunnel can't run at all ("can't use the network interface awg0: it exists and isn't Dawnline's").
-      srv.blocked ? E('div', { class: 'dl-note warn' }, [icon('alert'), E('span', {}, `${srv.name} ${srv.blocked}.`)]) : '',
+      srv.blocked ? E('div', { class: 'dl-note warn' }, [icon('alert'), E('span', {}, srv.blocked)]) : '',
     ]);
   }
 
-  async save(srv: Server, values: Record<string, unknown>, ok = 'Saved') {
+  async save(srv: Server, values: Record<string, unknown>, ok = _('Saved')) {
     if (await attempt(() => api.serverUpdate(srv.id, values), ok)) await this.refresh();
   }
 
   /** The name, where devices find the router, DNS; then the danger zone. */
   connection(srv: Server): HTMLElement {
-    const name = input(srv.name, { placeholder: 'Home' });
+    const name = input(srv.name, { placeholder: _('Home') });
     const endpoint = input(srv.endpoint, { placeholder: 'vpn.example.com', class: 'cbi-input-text dl-mono' });
-    const dns = input(srv.dns.join(', '), { placeholder: 'This router (recommended)', class: 'cbi-input-text dl-mono' });
+    const dns = input(srv.dns.join(', '), { placeholder: _('This router (recommended)'), class: 'cbi-input-text dl-mono' });
     const people = this.st.people.filter((p) => p.server === srv.id).length;
     const toggle = button(
-      [icon(srv.enabled ? 'pause' : 'play'), srv.enabled ? ' Turn off' : ' Turn on'],
+      [icon(srv.enabled ? 'pause' : 'play'), ` ${srv.enabled ? _('Turn off') : _('Turn on')}`],
       async () => {
         if (
           srv.enabled &&
           !(await confirmDialog(
-            `Turn off ${srv.name}?`,
-            `The tunnel stops and ${people} ${people === 1 ? 'person is' : 'people are'} disconnected until you turn it back on. Nothing is deleted.`,
-            'Turn off',
+            fmt(_('Turn off %s?'), srv.name),
+            plural(
+              people,
+              'The tunnel stops and %s person is disconnected until you turn it back on. Nothing is deleted.',
+              'The tunnel stops and %s people are disconnected until you turn it back on. Nothing is deleted.',
+            ),
+            _('Turn off'),
             true,
           ))
         )
           return;
-        await this.save(srv, { enabled: srv.enabled ? '0' : '1' }, srv.enabled ? 'Server turned off' : 'Server turned on');
+        await this.save(srv, { enabled: srv.enabled ? '0' : '1' }, srv.enabled ? _('Server turned off') : _('Server turned on'));
       },
       srv.enabled ? 'negative' : 'positive',
     );
     const portalHost = this.st.settings.portal_host;
-    const nameRow = liveRow('Name', name, () => nameHelp(name.value, [], 'Shown to people in their portal and apps.'));
+    const nameRow = liveRow(_('Name'), name, () => nameHelp(name.value, [], _('Shown to people in their portal and apps.')));
     // Where the address points is checked on the router as it is typed (debounced).
     const ep = endpointProbe(
       () => ({ host: endpoint.value, port: srv.port, id: srv.id }),
       (h, id, port) => api.endpointProbe(h, id, port),
       () => epRow.refresh(),
-      { empty: portalHost ? `Empty = the portal’s address (${portalHost}).` : 'Empty = the portal’s address.' },
+      { empty: portalHost ? fmt(_('Empty = the portal’s address (%s).'), portalHost) : _('Empty = the portal’s address.') },
     );
-    const epRow = liveRow('Public address', endpoint, ep.help);
+    const epRow = liveRow(_('Public address'), endpoint, ep.help);
     endpoint.addEventListener('input', ep.schedule);
     ep.schedule();
     const reached = srv.reached
-      ? `Reached from the internet ${ago(srv.reached, this.st.now)}.`
-      : 'Never reached from the internet yet — test with a phone on mobile data.';
-    const dnsRow = liveRow('DNS for devices', dns, () => dnsHelp(dns.value, srv.address));
+      ? fmt(_('Reached from the internet %s.'), ago(srv.reached, this.st.now))
+      : _('Never reached from the internet yet - test with a phone on mobile data.');
+    const dnsRow = liveRow(_('DNS for devices'), dns, () => dnsHelp(dns.value, srv.address));
     return E('div', { class: 'dl-stack gap16' }, [
       card(
-        'Connection',
+        _('Connection'),
         [
-          E('p', { class: 'dl-muted' }, 'The name people see, where devices find the router, and DNS. The port is on AmneziaWG.'),
-          group('router', 'Server', 'What people see', [nameRow]),
+          E('p', { class: 'dl-muted' }, _('The name people see, where devices find the router, and DNS. The port is on AmneziaWG.')),
+          group('router', _('Server'), _('What people see'), [nameRow]),
           group(
             'globe',
-            'Devices connect to',
-            'A DDNS name keeps links working when your IP changes; not through Cloudflare (use a DNS-only name or an IP)',
+            _('Devices connect to'),
+            _('A DDNS name keeps links working when your IP changes; not through Cloudflare (use a DNS-only name or an IP)'),
             [epRow, E('div', { class: `dl-sub ${srv.reached ? 'ok' : 'warn'}` }, reached)],
           ),
-          group('file', 'For every device', 'Changing it marks devices “Update config” until they import again', [dnsRow]),
+          group('file', _('For every device'), _('Changing it marks devices “Update config” until they import again'), [dnsRow]),
         ],
         [
           E('span'),
           button(
-            'Save',
+            _('Save'),
             () => {
               const bad = firstBad([nameRow, epRow, dnsRow]);
               if (bad) {
@@ -381,49 +383,58 @@ export class ServerPage {
         ],
       ),
       card(
-        'Danger zone',
+        _('Danger zone'),
         [
           E('div', { class: 'dl-setrow' }, [
             E('div', { class: 'dl-stack' }, [
-              E('span', { class: 'dl-setrow-label' }, srv.enabled ? 'Turn off this server' : 'This server is off'),
+              E('span', { class: 'dl-setrow-label' }, srv.enabled ? _('Turn off this server') : _('This server is off')),
               E(
                 'span',
                 { class: 'dl-sub' },
                 srv.enabled
-                  ? 'Stops the tunnel and disconnects everyone on it. Settings and people are kept.'
-                  : 'Nobody can connect. Turn it on to bring the tunnel back.',
+                  ? _('Stops the tunnel and disconnects everyone on it. Settings and people are kept.')
+                  : _('Nobody can connect. Turn it on to bring the tunnel back.'),
               ),
             ]),
             E('div', { class: 'dl-setrow-ctl' }, toggle),
           ]),
           E('div', { class: 'dl-setrow' }, [
             E('div', { class: 'dl-stack' }, [
-              E('span', { class: 'dl-setrow-label' }, 'Change the tunnel network'),
+              E('span', { class: 'dl-setrow-label' }, _('Change the tunnel network')),
               E(
                 'span',
                 { class: 'dl-sub' },
-                `Devices have ${rangeOf(srv.subnet)}.x addresses now. A new range when it clashes with a network you connect to; every device then needs its configuration again.`,
+                fmt(
+                  _(
+                    'Devices have %s addresses now. A new range when it clashes with a network you connect to; every device then needs its configuration again.',
+                  ),
+                  `${rangeOf(srv.subnet)}.x`,
+                ),
               ),
             ]),
             E(
               'div',
               { class: 'dl-setrow-ctl' },
-              button([icon('edit'), ' Change'], () => this.changeSubnet(srv), 'negative'),
+              button([icon('edit'), ` ${_('Change')}`], () => this.changeSubnet(srv), 'negative'),
             ),
           ]),
           E('div', { class: 'dl-setrow' }, [
             E('div', { class: 'dl-stack' }, [
-              E('span', { class: 'dl-setrow-label' }, 'Remove server'),
+              E('span', { class: 'dl-setrow-label' }, _('Remove server')),
               E(
                 'span',
                 { class: 'dl-sub' },
-                `Removes the tunnel, its firewall rules and ${people} ${people === 1 ? 'person' : 'people'} with all their devices. A backup is made first.`,
+                plural(
+                  people,
+                  'Removes the tunnel, its firewall rules and %s person with all their devices. A backup is made first.',
+                  'Removes the tunnel, its firewall rules and %s people with all their devices. A backup is made first.',
+                ),
               ),
             ]),
             E(
               'div',
               { class: 'dl-setrow-ctl' },
-              button([icon('trash'), ' Remove'], () => this.remove(srv), 'negative'),
+              button([icon('trash'), ` ${_('Remove')}`], () => this.remove(srv), 'negative'),
             ),
           ]),
         ],
@@ -483,24 +494,28 @@ export class ServerPage {
     const nets = taken.networks ?? [];
     const devices = this.st.people.filter((p) => p.server === srv.id).reduce((n, p) => n + p.devices.length, 0);
     const range = input(rangeOf(srv.subnet), { class: 'cbi-input-text dl-mono dl-w-range' });
-    const rangeRow = liveRow('Address range', range, () => rangeHelp(range.value, nets, ''));
+    const rangeRow = liveRow(_('Address range'), range, () => rangeHelp(range.value, nets, ''));
     modal(
-      'Change the tunnel network',
+      _('Change the tunnel network'),
       [
         rangeRow,
         E(
           'p',
           { class: 'dl-muted' },
           devices
-            ? `${devices} device${devices === 1 ? ' gets a new address and stops' : 's get new addresses and stop'} connecting until ${devices === 1 ? 'it imports its' : 'they import their'} configuration again (from their personal link or from you).`
-            : 'No devices on this server yet: nothing else changes.',
+            ? plural(
+                devices,
+                '%s device gets a new address and stops connecting until it imports its configuration again (from their personal link or from you).',
+                '%s devices get new addresses and stop connecting until they import their configuration again (from their personal link or from you).',
+              )
+            : _('No devices on this server yet: nothing else changes.'),
         ),
       ],
       [
         cancelButton(),
         ' ',
         button(
-          'Change',
+          _('Change'),
           async () => {
             const h = rangeRow.help();
             if (h.bad) {
@@ -512,9 +527,9 @@ export class ServerPage {
               closeModal();
               return;
             }
-            if (await attempt(() => api.serverUpdate(srv.id, { subnet }), 'Tunnel network changed')) {
+            if (await attempt(() => api.serverUpdate(srv.id, { subnet }), _('Tunnel network changed'))) {
               closeModal();
-              if (devices) notify('Devices are marked “Update config” until they import again.', 'info', 6000);
+              if (devices) notify(_('Devices are marked “Update config” until they import again.'), 'info', 6000);
               await this.refresh();
             }
           },
@@ -528,22 +543,26 @@ export class ServerPage {
   async remove(srv: Server) {
     const people = this.st.people.filter((p) => p.server === srv.id);
     modal(
-      `Remove ${srv.name}?`,
+      fmt(_('Remove %s?'), srv.name),
       [
         E(
           'p',
           {},
-          `This removes the tunnel, its firewall rules and ${people.length} ${people.length === 1 ? 'person' : 'people'} with all their devices. A backup is made first.`,
+          plural(
+            people.length,
+            'This removes the tunnel, its firewall rules and %s person with all their devices. A backup is made first.',
+            'This removes the tunnel, its firewall rules and %s people with all their devices. A backup is made first.',
+          ),
         ),
       ],
       [
         cancelButton(),
         ' ',
         button(
-          'Remove',
+          _('Remove'),
           async () => {
             closeModal();
-            if (await attempt(() => api.serverDelete(srv.id), 'Server removed'))
+            if (await attempt(() => api.serverDelete(srv.id), _('Server removed')))
               setTimeout(() => {
                 location.href = url();
               }, 800);
@@ -584,13 +603,15 @@ export class ServerPage {
       portHelp(
         state.port,
         d.udp_taken ?? [],
-        `Opened on the WAN firewall automatically.${state.port === 4500 ? ' 4500 is IPsec’s port: most networks let it through.' : ''}`,
+        state.port === 4500
+          ? `${_('Opened on the WAN firewall automatically.')} ${_('4500 is IPsec’s port: most networks let it through.')}`
+          : _('Opened on the WAN firewall automatically.'),
       );
     const FROM: Record<string, string> = {
-      ddns: 'From your DDNS name.',
-      cert: 'From your Let’s Encrypt certificate.',
-      wan: 'Your WAN address now — it may change; a DDNS name is better.',
-      portal: 'The portal’s address.',
+      ddns: _('From your DDNS name.'),
+      cert: _('From your Let’s Encrypt certificate.'),
+      wan: _('Your WAN address now - it may change; a DDNS name is better.'),
+      portal: _('The portal’s address.'),
     };
     const ep = endpointProbe(
       () => ({ host: state.endpoint, port: state.port }),
@@ -605,10 +626,14 @@ export class ServerPage {
         ? needRow(
             'alert',
             'warn',
-            d.wan_kind === 'cgnat' ? 'Your router has no public address (CGNAT)' : `Your router is behind another router (WAN ${d.wan_ip})`,
             d.wan_kind === 'cgnat'
-              ? 'The ISP shares one address: devices can only connect if the ISP gives you a public address or IPv6. Ask them, or use a DDNS name that points at an IPv6 address.'
-              : 'Forward the UDP port on the upstream router to this one and use a DDNS name or that router’s public address here.',
+              ? _('Your router has no public address (CGNAT)')
+              : fmt(_('Your router is behind another router (WAN %s)'), d.wan_ip),
+            d.wan_kind === 'cgnat'
+              ? _(
+                  'The ISP shares one address: devices can only connect if the ISP gives you a public address or IPv6. Ask them, or use a DDNS name that points at an IPv6 address.',
+                )
+              : _('Forward the UDP port on the upstream router to this one and use a DDNS name or that router’s public address here.'),
             '',
           )
         : '';
@@ -616,7 +641,11 @@ export class ServerPage {
       d.awg_state?.tools && d.awg_state.handler === false
         ? E('div', { class: 'dl-note warn' }, [
             icon('alert'),
-            E('span', {}, 'Creating the server restarts the network for a few seconds: AmneziaWG was installed after the network started.'),
+            E(
+              'span',
+              {},
+              _('Creating the server restarts the network for a few seconds: AmneziaWG was installed after the network started.'),
+            ),
           ])
         : '';
     const rangeHelpNow = () => rangeHelp(state.range, d.networks ?? [], rangeOf(d.subnet));
@@ -636,27 +665,33 @@ export class ServerPage {
     type Page = { id: string; title: string; render: () => Node; check?: () => string | null };
     const serverPage: Page = {
       id: 'server',
-      title: 'Server',
+      title: _('Server'),
       render: () =>
         E('div', { class: 'dl-wizard-groups' }, [
           E(
             'p',
             { class: 'dl-muted' },
             extra
-              ? 'One more server: another port or disguise for networks where the first does not get through, or its own home access rules. People are moved between servers from their page.'
-              : 'Where devices connect to. A hostname that always points at your router (DDNS) keeps links working when your IP changes.',
+              ? _(
+                  'One more server: another port or disguise for networks where the first does not get through, or its own home access rules. People are moved between servers from their page.',
+                )
+              : _(
+                  'Where devices connect to. A hostname that always points at your router (DDNS) keeps links working when your IP changes.',
+                ),
           ),
-          group('router', 'Server', 'What people see', [
-            liveRow('Name', field('name'), () => nameHelp(state.name, [], 'Shown to people in their portal and apps.')),
+          group('router', _('Server'), _('What people see'), [
+            liveRow(_('Name'), field('name'), () => nameHelp(state.name, [], _('Shown to people in their portal and apps.'))),
           ]),
           group(
             'globe',
-            'Devices connect to',
-            'A hostname or IP address of your router on the internet; not through Cloudflare (use a DNS-only name or an IP). IPv6 works too, and is the way out of CGNAT',
+            _('Devices connect to'),
+            _(
+              'A hostname or IP address of your router on the internet; not through Cloudflare (use a DNS-only name or an IP). IPv6 works too, and is the way out of CGNAT',
+            ),
             [
               (() => {
                 const el = field('endpoint', { placeholder: 'vpn.example.com', class: 'cbi-input-text dl-mono' });
-                epRow = liveRow('Public address', el, ep.help);
+                epRow = liveRow(_('Public address'), el, ep.help);
                 el.addEventListener('input', ep.schedule);
                 ep.schedule();
                 return epRow;
@@ -668,9 +703,9 @@ export class ServerPage {
         ]),
       check: () => {
         const n = nameHelp(state.name);
-        if (n.bad) return `Name: ${n.text}`;
+        if (n.bad) return fmt(_('Name: %s'), n.text);
         const h = hostHelp(state.endpoint, state.port);
-        return h.bad ? `Public address: ${h.text}` : null;
+        return h.bad ? fmt(_('Public address: %s'), h.text) : null;
       },
     };
     const awgPage: Page = {
@@ -678,50 +713,50 @@ export class ServerPage {
       title: 'AmneziaWG',
       render: () =>
         E('div', { class: 'dl-wizard-groups' }, [
-          group('globe', 'Listening', 'Where devices reach AmneziaWG from the internet', [
-            liveRow('UDP port', field('port', { inputmode: 'numeric', class: 'cbi-input-text dl-w-port dl-mono' }), portHelpNow),
+          group('globe', _('Listening'), _('Where devices reach AmneziaWG from the internet'), [
+            liveRow(_('UDP port'), field('port', { inputmode: 'numeric', class: 'cbi-input-text dl-w-port dl-mono' }), portHelpNow),
           ]),
-          group('network', 'Tunnel network', 'Addresses devices get inside the tunnel', [
+          group('network', _('Tunnel network'), _('Addresses devices get inside the tunnel'), [
             (() => {
               const el = field('range', {
                 class: 'cbi-input-text dl-w-range dl-mono',
-                'aria-label': 'First three numbers of the device addresses',
+                'aria-label': _('First three numbers of the device addresses'),
               });
               return liveRow(
-                'Device addresses',
+                _('Device addresses'),
                 el,
                 rangeHelpNow,
                 E('span', { class: 'dl-suffixed' }, [el, E('span', { class: 'dl-mono' }, '.x')]),
               );
             })(),
           ]),
-          group('shield', 'Disguise', 'So networks that block VPNs do not recognise the tunnel. Off = plain WireGuard', [
+          group('shield', _('Disguise'), _('So networks that block VPNs do not recognise the tunnel. Off = plain WireGuard'), [
             methodPicker(d.awg, state.preset, (m) => (state.preset = m), undefined, d.awg_state?.tools !== false),
           ]),
         ]),
       check: () => {
         const p = portHelpNow();
-        if (p.bad) return `UDP port: ${p.text}`;
+        if (p.bad) return fmt(_('UDP port: %s'), p.text);
         const r = rangeHelpNow();
-        return r.bad ? `Device addresses: ${r.text}` : null;
+        return r.bad ? fmt(_('Device addresses: %s'), r.text) : null;
       },
     };
     const portalPage: Page = {
       id: 'portal',
-      title: 'Portal',
+      title: _('Portal'),
       render: () => {
         const portalPort = field('portal_port', { inputmode: 'numeric', class: 'cbi-input-text dl-w-port dl-mono' });
-        const portRow = liveRow('Listening port', portalPort, portalHelpNow);
+        const portRow = liveRow(_('Listening port'), portalPort, portalHelpNow);
         portRow.hidden = !state.portal;
         // Off | On, Off first: the same segmented control as in Settings.
         const onOff = seg(
           [
-            ['off', 'Off'],
-            ['on', 'On'],
+            ['off', _('Off')],
+            ['on', _('On')],
           ],
           state.portal ? 'on' : 'off',
           {
-            label: 'Personal portal',
+            label: _('Personal portal'),
             onChange: (v) => {
               state.portal = v === 'on';
               portRow.hidden = !state.portal;
@@ -729,15 +764,17 @@ export class ServerPage {
           },
         );
         return E('div', { class: 'dl-wizard-groups' }, [
-          group('home', 'Internet like a home device', 'How devices reach the internet', [
+          group('home', _('Internet like a home device'), _('How devices reach the internet'), [
             row(
-              'Through the home network',
-              sw(state.lan_like, 'Internet like a home device', (v) => (state.lan_like = v)),
-              'Whatever handles home traffic on this router (proxies, filters, DNS) handles theirs too. Change it later under Servers → Access.',
+              _('Through the home network'),
+              sw(state.lan_like, _('Internet like a home device'), (v) => (state.lan_like = v)),
+              _(
+                'Whatever handles home traffic on this router (proxies, filters, DNS) handles theirs too. Change it later under Servers → Access.',
+              ),
             ),
           ]),
-          group('link', 'Personal portal', 'A page where each person adds their own devices with their personal link', [
-            row('Portal', onOff, 'Off: only you add devices, from LuCI. On: people manage their devices within the limits you set.'),
+          group('link', _('Personal portal'), _('A page where each person adds their own devices with their personal link'), [
+            row(_('Portal'), onOff, _('Off: only you add devices, from LuCI. On: people manage their devices within the limits you set.')),
             portRow,
           ]),
         ]);
@@ -745,7 +782,7 @@ export class ServerPage {
       check: () => {
         if (!state.portal) return null;
         const h = portalHelpNow();
-        return h.bad ? `Portal port: ${h.text}` : null;
+        return h.bad ? fmt(_('Portal port: %s'), h.text) : null;
       },
     };
     const pages = (): Page[] => [serverPage, awgPage, extra ? null : portalPage].filter((x): x is Page => x != null);
@@ -757,9 +794,12 @@ export class ServerPage {
           needRow(
             'shield',
             'bad',
-            'AmneziaWG isn’t installed',
-            `The tunnel needs ${missing.join(' and ')}. Install the build made for this firmware, then create the server.`,
-            button('Install', () => installAwg(() => location.reload()), 'positive'),
+            _('AmneziaWG isn’t installed'),
+            fmt(
+              _('The tunnel needs %s. Install the build made for this firmware, then create the server.'),
+              new Intl.ListFormat(locale(), { type: 'conjunction' }).format(missing),
+            ),
+            button(_('Install'), () => installAwg(() => location.reload()), 'positive'),
           ),
         ])
       : aw && !aw.loaded
@@ -767,9 +807,9 @@ export class ServerPage {
             needRow(
               'shield',
               'warn',
-              'AmneziaWG’s kernel module doesn’t load on this firmware',
-              'Try another build in Components, or update OpenWrt. The server can’t start until it loads.',
-              E('a', { class: 'cbi-button cbi-button-neutral', href: L.url('admin/network/dawnline/updates') }, 'Open Components'),
+              _('AmneziaWG’s kernel module doesn’t load on this firmware'),
+              _('Try another build in Components, or update OpenWrt. The server can’t start until it loads.'),
+              E('a', { class: 'cbi-button cbi-button-neutral', href: L.url('admin/network/dawnline/updates') }, _('Open Components')),
             ),
           ])
         : '';
@@ -778,7 +818,7 @@ export class ServerPage {
       const ps = pages();
       if (step >= ps.length) step = ps.length - 1;
       dom.content(root, [
-        E('h2', {}, extra ? 'Add a server' : 'Set up Dawnline'),
+        E('h2', {}, extra ? _('Add a server') : _('Set up Dawnline')),
         awgNotice,
         E(
           'div',
@@ -793,17 +833,17 @@ export class ServerPage {
         E('div', { class: 'dl-panel' }, ps[step].render()),
         E('div', { class: 'dl-actions' }, [
           step > 0
-            ? button('Back', () => {
+            ? button(_('Back'), () => {
                 step--;
                 paint();
               })
             : onCancel
-              ? button('Cancel', onCancel)
+              ? button(_('Cancel'), onCancel)
               : '',
           E('span', { class: 'dl-spacer' }),
           step < ps.length - 1
             ? button(
-                'Next',
+                _('Next'),
                 () => {
                   const err = ps[step].check?.();
                   if (err) {
@@ -816,7 +856,7 @@ export class ServerPage {
                 'positive',
               )
             : button(
-                'Create server',
+                _('Create server'),
                 async () => {
                   for (const pg of ps) {
                     const err = pg.check?.();
@@ -843,11 +883,11 @@ export class ServerPage {
                         extra ? undefined : state.portal,
                         extra ? undefined : state.portal_port,
                       ),
-                    'Server created',
+                    _('Server created'),
                   );
                   if (!r) return;
                   // A network restart drops the connection to LuCI for a few seconds.
-                  if (r.network_restart) notify('Restarting the network so it knows AmneziaWG: back in a few seconds');
+                  if (r.network_restart) notify(_('Restarting the network so it knows AmneziaWG: back in a few seconds'));
                   setTimeout(
                     () => {
                       location.href = url(r.id);
@@ -856,7 +896,7 @@ export class ServerPage {
                   );
                 },
                 'positive',
-                { disabled: missing.length > 0, title: missing.length ? 'Install AmneziaWG first' : null },
+                { disabled: missing.length > 0, title: missing.length ? _('Install AmneziaWG first') : null },
               ),
         ]),
       ]);

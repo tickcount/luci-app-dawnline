@@ -12,6 +12,7 @@ import * as schema from 'dawnline.schema';
 import * as health from 'dawnline.health';
 import * as pc from 'dawnline.portalcert';
 import { wrap, check_portal, tcp_taken } from 'dawnline.rpc.common';
+import { _ } from 'dawnline.i18n';
 
 /** The portal's own checks from Health, shown next to its settings. */
 const PORTAL_CHECKS = [ 'portal', 'portal_dns', 'portal_reply', 'portal_http', 'cert' ];
@@ -92,7 +93,7 @@ function same(a, b) {
 function settings_update(a) {
 	let v = a.values ?? {};
 	if (type(v) != 'object')
-		die('Nothing to save.');
+		die(_('Nothing to save.'));
 	let res = store.transact((c, m) => {
 		let restart = false;
 		c.set(core.CONFIG, 'settings', 'settings');

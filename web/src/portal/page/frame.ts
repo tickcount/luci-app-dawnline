@@ -1,11 +1,14 @@
 // The page's frame: no navbar. The page fades out under the screen's top and
 // bottom edges (the top fade only once it scrolls, so the breadcrumb at rest
 // stays crisp), and opens with a breadcrumb: the Dawnline mark, the place (the
-// server's name) and the person. The content goes in `body`.
+// server's name) and the person, then the language and this page's code. The
+// content goes in `body`.
 
 import { h, ic, markup } from '../dom';
 import { placeName, state } from '../state';
 import { showPageCode } from '../flows/page-code';
+import { openMenu } from '../ui/menu';
+import { LANGS, lang, setLang } from '../i18n';
 
 // The sun rises from behind the horizon once, on the visit's first paint.
 const LOGO =
@@ -37,10 +40,28 @@ export function single(on: boolean) {
   pageEl?.classList.toggle('single', on);
 }
 
+/** The language: its code and a chevron; the menu lists the languages by their own names. */
+function langPicker(): HTMLElement {
+  const b = h(
+    'button',
+    { type: 'button', class: 'cr-lang', 'aria-label': _('Language'), 'aria-haspopup': 'menu', 'aria-expanded': 'false' },
+    h('span', {}, lang().toUpperCase()),
+    ic('chevron', 'i cr-down'),
+  );
+  b.addEventListener('click', () =>
+    openMenu(
+      b,
+      LANGS.map((l) => ({ label: l.name, checked: l.code === lang(), run: () => l.code !== lang() && setLang(l.code) })),
+    ),
+  );
+  return b;
+}
+
 /**
  * The breadcrumb: the place, then the person (none when the link stopped
- * working); at its end, this page's code for another device, on the page
- * itself only (not over a card: paused, link gone, nothing loaded).
+ * working); at its end, the language and this page's code for another
+ * device, on the page itself only (not over a card: paused, link gone,
+ * nothing loaded).
  */
 export function crumbs(gone = false, card = false) {
   if (!crumbsEl) return;
@@ -50,12 +71,13 @@ export function crumbs(gone = false, card = false) {
     h('span', { class: 'cr-mark' }, markup(LOGO)),
     h(
       'nav',
-      { class: 'cr-path', 'aria-label': 'Breadcrumb' },
+      { class: 'cr-path', 'aria-label': _('Breadcrumb') },
       place,
       p ? [ic('chevron'), h('span', { class: 'cur', 'aria-current': 'page' }, p.name)] : null,
     ),
+    ...(card ? [] : [langPicker()]),
     ...(p && !card
-      ? [h('button', { type: 'button', class: 'knob cr-qr', 'aria-label': 'Open on another device', onclick: showPageCode }, ic('qr'))]
+      ? [h('button', { type: 'button', class: 'knob cr-qr', 'aria-label': _('Open on another device'), onclick: showPageCode }, ic('qr'))]
       : []),
   );
 }

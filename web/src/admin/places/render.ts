@@ -7,6 +7,7 @@ import type { Device, Geo, LogEvent, Person } from '../../shared/types';
 import { E } from '../e';
 import { icon } from '../../shared/icons';
 import { ago } from '../../shared/format';
+import { fmt } from '../../shared/i18n';
 import { devicePlaces, type ConnectionMap, type MapData, type Range } from '../map';
 import {
   MOVE_MS,
@@ -63,7 +64,7 @@ export class PlacesView {
   private endTimer = 0;
   private play = E('button', { type: 'button', class: 'dl-map-btn' });
   private chip = E('span', { class: 'dl-map-chip' });
-  private stop = E('button', { type: 'button', class: 'dl-map-btn', title: 'Back to now', 'aria-label': 'Back to now' }, icon('x'));
+  private stop = E('button', { type: 'button', class: 'dl-map-btn', title: _('Back to now'), 'aria-label': _('Back to now') }, icon('x'));
   private reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
   constructor(
@@ -137,13 +138,13 @@ export class PlacesView {
               const row = E('div', { class: 'dl-dplace-row' }, [
                 E('span', { class: `dl-dplace-n${x.online ? ' live' : ''}` }, x.online ? icon(d.device.kind) : String(x.n)),
                 E('span', { class: 'dl-row-main dl-stack' }, [
-                  E('span', {}, [x.city || x.cc || 'Unknown city', x.org ? E('span', { class: 'dl-muted' }, ` · ${x.org}`) : '']),
+                  E('span', {}, [x.city || x.cc || _('Unknown city'), x.org ? E('span', { class: 'dl-muted' }, ` · ${x.org}`) : '']),
                   E('span', { class: 'dl-faint' }, [
                     E('span', { class: 'dl-mono' }, x.ip),
-                    sh != null ? ` · ${sh > 0 && sh < 0.005 ? '<1' : Math.round(sh * 100)}% of the time` : '',
+                    sh != null ? ` · ${fmt(_('%s%% of the time'), sh > 0 && sh < 0.005 ? '<1' : Math.round(sh * 100))}` : '',
                   ]),
                 ]),
-                E('span', { class: x.online ? 'dl-dplace-now' : 'dl-faint dl-nowrap' }, x.online ? 'now' : ago(x.ts, d.now)),
+                E('span', { class: x.online ? 'dl-dplace-now' : 'dl-faint dl-nowrap' }, x.online ? _('now') : ago(x.ts, d.now)),
                 strip,
               ]);
               row.addEventListener('mouseenter', () => this.map.hoverPlace(key));
@@ -173,14 +174,14 @@ export class PlacesView {
                 )
               : '',
           ]
-        : E('div', { class: 'dl-sub' }, 'No locations in this period.'),
+        : E('div', { class: 'dl-sub' }, _('No locations in this period.')),
     );
     this.paintControls();
   }
 
   private paintControls() {
     dom.content(this.play, icon(this.playing ? 'pause' : 'play'));
-    this.play.title = this.playing ? 'Pause' : 'Replay this period';
+    this.play.title = this.playing ? _('Pause', 'replay') : _('Replay this period');
     this.play.setAttribute('aria-label', this.play.title);
     // LuCI's dom.content takes one level of children: no nested arrays.
     dom.content(this.controls, this.on ? [this.play, this.chip, this.stop] : this.st.length > 1 ? [this.play] : []);

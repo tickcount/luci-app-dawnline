@@ -6,6 +6,7 @@
 // "iPad connected"), and a menu path for another app or the other phone system
 // (`menuLine`: where the app scans, iOS "Create", Android "Scan").
 
+import { fmt } from '../../shared/i18n';
 import { h, ic, markup, put, type Kid } from '../dom';
 import { EASE_IN, EASE_OUT, POP, SMOOTH, calm, play } from '../motion';
 
@@ -229,8 +230,8 @@ export function morphText(el: HTMLElement, next: string, from = textOf(el), o: M
         easing: SMOOTH.easing,
       });
   });
-  const out = was.filter((_, i) => !stays.has(i));
-  const inn = now.filter((_, j) => !comes.has(j));
+  const out = was.filter((_x, i) => !stays.has(i));
+  const inn = now.filter((_x, j) => !comes.has(j));
   // A long text keeps the same overall sweep: the steps shorten instead.
   const so = Math.min(12, 160 / Math.max(1, out.length));
   const si = Math.min(22, 260 / Math.max(1, inn.length));
@@ -521,7 +522,7 @@ export function menuLine(ios: string, android: string): MenuLine {
     );
 
   const set = (i: string, a: string) => {
-    el.setAttribute('aria-label', (i === a ? i : `${i} (Android: ${a.split(' → ').pop()})`).replace(/ → /g, ' › '));
+    el.setAttribute('aria-label', (i === a ? i : fmt(_('%s (Android: %s)'), i, a.split(' → ').pop())).replace(/ → /g, ' › '));
     const I = i.split(' → ');
     const A = a.split(' → ');
     const next = I.map((s, n) => cut(s, A[n] ?? s));

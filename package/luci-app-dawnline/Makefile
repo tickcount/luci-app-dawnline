@@ -6,9 +6,12 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-dawnline
-PKG_VERSION:=0.10.0
+PKG_VERSION:=0.11.0
 PKG_RELEASE:=1
 PKG_LICENSE:=MIT
+# po/<lang>/dawnline.po becomes luci-i18n-dawnline-<lang> (luci.mk), released
+# with the app and at its version (luci.mk would take a git revision otherwise).
+PKG_PO_VERSION:=$(PKG_VERSION)-r$(PKG_RELEASE)
 
 LUCI_TITLE:=Dawnline - AmneziaWG access server
 # AmneziaWG itself (kmod-amneziawg, amneziawg-tools, luci-proto-amneziawg) is not

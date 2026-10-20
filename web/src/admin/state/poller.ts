@@ -64,10 +64,10 @@ export function createPoller<T>(o: PollerOptions<T>): Poller<T> {
     let d: T | null = null;
     try {
       d = await o.fetch(live);
-      if (failed >= LOST_AFTER) notify('The router answers again.', 'success', 3000);
+      if (failed >= LOST_AFTER) notify(_('The router answers again.'), 'success', 3000);
       failed = 0;
     } catch {
-      if (++failed === LOST_AFTER) notify('The router is not answering: what you see may be out of date.', 'warning', 8000);
+      if (++failed === LOST_AFTER) notify(_('The router is not answering: what you see may be out of date.'), 'warning', 8000);
       return null;
     }
     if (d == null || !seq.take(t)) return null;

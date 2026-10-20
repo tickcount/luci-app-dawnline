@@ -2,7 +2,7 @@
 // Interfaces settings, its disguise, and removing it.
 
 import { cursor } from 'uci';
-import { sh_out, sh_bg, parse_cidr, cidr_str, cidr_overlaps, valid_host, valid_name, NAME_RULE, rand_int, uniq, admin_log } from 'dawnline.util';
+import { sh_out, sh_bg, parse_cidr, cidr_str, cidr_overlaps, valid_host, valid_name, rand_int, uniq, admin_log } from 'dawnline.util';
 import * as core from 'dawnline.core';
 import * as live from 'dawnline.live';
 import * as apply from 'dawnline.apply';
@@ -15,6 +15,7 @@ import * as health from 'dawnline.health';
 import * as backup from 'dawnline.backup';
 import * as devices from 'dawnline.devices';
 import { wrap, str, check_method, default_method, check_portal, tcp_taken } from 'dawnline.rpc.common';
+import { _ } from 'dawnline.i18n';
 
 /** Server ids that would shadow a portal path. */
 const PORTAL_PATHS = [ 'api', 'assets', 'cgi-bin' ];
@@ -27,6 +28,7 @@ const MESH_WORDS = { off: 'devices kept apart', all: 'devices reach each other',
  * UDP ports a server can't listen on, and who holds them: [{ from, to, who }].
  * Other servers, tunnel interfaces, programs on the router and port forwards
  * from its WAN zone. `srv` is the server being edited: its own port isn't counted.
+ * `who` is shown in the admin's language ("Used by %s.").
  */
 function udp_taken(m, srv, wan_zone) {
 	let out = [];
@@ -39,26 +41,26 @@ function udp_taken(m, srv, wan_zone) {
 	};
 	for (let id, o in m.servers)
 		if (id != srv?.id)
-			hold(o.port, `server “${o.name}”`);
+			hold(o.port, sprintf(_('server “%s”'), o.name));
 	let nc = cursor();
 	nc.load('network');
 	nc.foreach('network', 'interface', (s) => {
 		if (s.listen_port && s['.name'] != srv?.ifname)
-			hold(+s.listen_port, `interface ${s['.name']}`);
+			hold(+s.listen_port, sprintf(_('interface %s'), s['.name']));
 	});
 	let progs = health.udp_port_programs();
 	for (let p in health.udp_bound())
 		if (p != srv?.port)
-			hold(p, progs[`${p}`] ? `${progs[`${p}`]} on this router` : 'another program on this router');
+			hold(p, progs[`${p}`] ? sprintf(_('%s on this router'), progs[`${p}`]) : _('another program on this router'));
 	for (let f in core.wan_forwards(wan_zone, 'udp'))
-		push(out, { from: f.from, to: f.to, who: `port forward “${f.name}”` });
+		push(out, { from: f.from, to: f.to, who: sprintf(_('port forward “%s”'), f.name) });
 	return out;
 }
 
 function check_udp_port(port, taken) {
 	for (let t in taken)
 		if (t.from <= port && port <= t.to)
-			die(`UDP ${port} is used by ${t.who}. Choose another port.`);
+			die(sprintf(_('UDP %d is used by %s. Choose another port.'), port, t.who));
 }
 
 /** The usual AmneziaWG port when free, otherwise a random high one. */
@@ -197,7 +199,8 @@ function setup_defaults(a) {
 	let port = free_port(udp);
 	return {
 		id: free_server_id(m),
-		name: length(m.servers) ? `Server ${length(m.servers) + 1}` : 'Home',
+		// A name to start from, in the admin's language (it is theirs once saved).
+		name: length(m.servers) ? sprintf(_('Server %d'), length(m.servers) + 1) : _('Home'),
 		ifname: free_ifname(m),
 		port,
 		subnet: free_subnet(map(networks, (n) => n.cidr)),
@@ -229,7 +232,7 @@ function setup_defaults(a) {
 function endpoint_probe(a) {
 	let host = str(a.host);
 	if (host != '' && !valid_host(host))
-		die('Public address must be a hostname or IP address.');
+		die(_('Public address must be a hostname or IP address.'));
 	let m = core.load();
 	let srv = m.servers[str(a.id)] ?? null;
 	let f = health.endpoint_facts(srv, host);
@@ -241,14 +244,14 @@ function endpoint_probe(a) {
 function need_awg_loaded() {
 	devices.need_awg();
 	if (!awg.load().loaded)
-		die("AmneziaWG's kernel module doesn't load on this firmware: reinstall a build for this kernel in Components.");
+		die(_("AmneziaWG's kernel module doesn't load on this firmware: reinstall a build for this kernel in Components."));
 }
 
 /** An MTU as typed: '' (automatic) or 1280-1500. */
 function check_mtu(v) {
 	let s = str(v);
 	if (s != '' && (!match(s, /^[0-9]{1,4}$/) || +s < 1280 || +s > 1500))
-		die('MTU must be 1280-1500.');
+		die(_('MTU must be 1280-1500.'));
 	return s;
 }
 
@@ -260,19 +263,19 @@ function server_create(a) {
 		let id = str(a.id) || 'home';
 		// A UCI section name: a dash would make uci drop it silently.
 		if (!match(id, /^[a-z][a-z0-9_]{0,23}$/))
-			die('Server ID may use lowercase letters, digits and underscores.');
+			die(_('Server ID may use lowercase letters, digits and underscores.'));
 		if (!id_free(m, id))
-			die(`"${id}" is already taken.`);
+			die(sprintf(_('"%s" is already taken.'), id));
 		let nc = cursor();
 		nc.load('network');
 		let ifname = str(a.ifname) || free_ifname(m);
 		if (!ifname_free(m, nc, ifname))
-			die(`Network interface ${ifname} already exists.`);
+			die(sprintf(_('Network interface %s already exists.'), ifname));
 		let udp = udp_taken(m, null, str(a.wan_zone) || 'wan');
 		let port = free_port(udp);
 		if (a.port != null && str(a.port) != '' && str(a.port) != '0') {
 			if (!schema.valid_port(a.port))
-				die('UDP port must be 1-65535.');
+				die(_('UDP port must be 1-65535.'));
 			port = +str(a.port);
 		}
 		check_udp_port(port, udp);
@@ -285,7 +288,7 @@ function server_create(a) {
 		// Public addresses inside the tunnel would hide the real hosts behind them.
 		// New servers only: a restored backup keeps what it had.
 		if (pc && !core.private_cidr(pc))
-			die('Use a private range: 10.x.x.x, 172.16–31.x.x or 192.168.x.x.');
+			die(_('Use a private range: 10.x.x.x, 172.16–31.x.x or 192.168.x.x.'));
 		let taken = [ ...router_subnets ];
 		for (let sid, o in m.servers)
 			push(taken, o.subnet);
@@ -298,7 +301,7 @@ function server_create(a) {
 		c.set(core.CONFIG, 'settings', 'settings');
 		c.set(core.CONFIG, id, 'server');
 		if (!valid_name(str(a.name) || 'Home'))
-			die(`Server: ${NAME_RULE}`);
+			die(_('Server: Enter a name: up to 48 characters, without < > " or \\.'));
 		set('name', str(a.name) || 'Home');
 		set('ifname', ifname);
 		set('port', `${port}`);
@@ -329,7 +332,7 @@ function server_create(a) {
 			c.set(core.CONFIG, 'settings', 'portal_enabled', on ? '1' : '0');
 			if (a.portal_port != null && str(a.portal_port) != '' && str(a.portal_port) != '0') {
 				if (!schema.valid_port(a.portal_port))
-					die('Portal port must be 1-65535.');
+					die(_('Portal port must be 1-65535.'));
 				c.set(core.CONFIG, 'settings', 'portal_port', `${+str(a.portal_port)}`);
 			}
 		}
@@ -394,7 +397,7 @@ function interfaces_get(a) {
 	let m = core.load();
 	let srv = m.servers[a.id] ?? values(m.servers)[0];
 	if (!srv)
-		die('No server yet.');
+		die(_('No server yet.'));
 	return interfaces_view(m, srv, net.snapshot(true));
 }
 
@@ -406,12 +409,12 @@ function server_interfaces(a) {
 	let res = store.transact((c, m) => {
 		let srv = m.servers[a.id];
 		if (!srv)
-			die('Unknown server.');
+			die(_('Unknown server.'));
 		if (!auto_wan) {
 			if (!snap.devices[wan_dev])
-				die('Choose the interface that leads to the internet.');
+				die(_('Choose the interface that leads to the internet.'));
 			if (!snap.devices[wan_dev].zone)
-				die(`${wan_dev} is not in a firewall zone, so the server port cannot be opened on it.`);
+				die(sprintf(_('%s is not in a firewall zone, so the server port cannot be opened on it.'), wan_dev));
 		}
 		let lans = [];
 		for (let d in (type(a.lan_devices) == 'array' ? a.lan_devices : [])) {
@@ -420,9 +423,9 @@ function server_interfaces(a) {
 			if (d == '' || d == srv.ifname || (!snap.devices[d] && index(srv.lan_devices, d) < 0))
 				continue;
 			if (snap.devices[d]?.master)
-				die(`${d} is part of ${snap.devices[d].master}; choose ${snap.devices[d].master} instead.`);
+				die(sprintf(_('%s is part of %s; choose %s instead.'), d, snap.devices[d].master, snap.devices[d].master));
 			if (d == (auto_wan ? snap.wan : wan_dev))
-				die(`${d} is the WAN.`);
+				die(sprintf(_('%s is the WAN.'), d));
 			push(lans, d);
 		}
 		lans = uniq(lans);
@@ -485,7 +488,7 @@ function dns_list(v) {
 	let list = filter(map(type(v) == 'array' ? v : split(str(v), /[ ,]+/), str), (x) => x != '');
 	for (let d in list)
 		if (!schema.ip(d))
-			die(`${d} is not an IP address.`);
+			die(sprintf(_('%s is not an IP address.'), d));
 	return list;
 }
 
@@ -497,22 +500,22 @@ function server_update(a) {
 	let srv = store.transact((c, m) => {
 		let srv = m.servers[a.id];
 		if (!srv)
-			die('Unknown server.');
+			die(_('Unknown server.'));
 		let set = (k, val) => (val == null || val == '') ? c.delete(core.CONFIG, srv.id, k) : c.set(core.CONFIG, srv.id, k, val);
 		if (v.name != null) {
 			if (!valid_name(str(v.name)))
-				die(`Server: ${NAME_RULE}`);
+				die(_('Server: Enter a name: up to 48 characters, without < > " or \\.'));
 			set('name', str(v.name));
 		}
 		// Empty = the portal's address (core.endpoint_host), as at creation.
 		if (v.endpoint != null) {
 			if (str(v.endpoint) != '' && !valid_host(str(v.endpoint)))
-				die('Public address must be a hostname or IP address.');
+				die(_('Public address must be a hostname or IP address.'));
 			set('endpoint', str(v.endpoint));
 		}
 		if (v.port != null) {
 			if (!schema.valid_port(v.port))
-				die('UDP port must be 1-65535.');
+				die(_('UDP port must be 1-65535.'));
 			let n = +str(v.port);
 			if (n != srv.port)
 				check_udp_port(n, udp_taken(m, srv, srv.wan_zone));
@@ -522,7 +525,7 @@ function server_update(a) {
 			set('enabled', v.enabled === true || v.enabled == '1' ? '1' : '0');
 		if (v.mesh != null) {
 			if (index(core.MESH, v.mesh) < 0)
-				die('Unknown choice for devices reaching each other.');
+				die(_('Unknown choice for devices reaching each other.'));
 			set('mesh', v.mesh);
 			set('device_mesh', null);
 		}
@@ -530,7 +533,7 @@ function server_update(a) {
 			set('mtu', check_mtu(v.mtu));
 		if (v.keepalive != null) {
 			if (str(v.keepalive) != '' && (!match(str(v.keepalive), /^[0-9]{1,3}$/) || +v.keepalive > 600))
-				die('Keep-alive must be 0-600 seconds.');
+				die(_('Keep-alive must be 0-600 seconds.'));
 			set('keepalive', str(v.keepalive));
 		}
 		if (v.dns != null) {
@@ -544,13 +547,13 @@ function server_update(a) {
 		if (v.subnet != null && str(v.subnet) != '' && str(v.subnet) != srv.subnet) {
 			let pc = parse_cidr(str(v.subnet));
 			if (!pc)
-				die('Subnet must look like 10.77.0.0/24.');
+				die(_('Subnet must look like 10.77.0.0/24.'));
 			if (!core.private_cidr(pc))
-				die('Use a private range: 10.x.x.x, 172.16–31.x.x or 192.168.x.x.');
+				die(_('Use a private range: 10.x.x.x, 172.16–31.x.x or 192.168.x.x.'));
 			let taken = map(filter(taken_networks(m), (n) => n.cidr != srv.subnet && n.name != srv.name), (n) => n.cidr);
 			for (let t in taken)
 				if (cidr_overlaps(pc, parse_cidr(t)))
-					die(`Subnet overlaps ${t}.`);
+					die(sprintf(_('Subnet overlaps %s.'), t));
 			core.renumber_server(c, m, srv, cidr_str(pc));
 		}
 		return srv;
@@ -583,7 +586,7 @@ function server_ports(a) {
 	let m = core.load();
 	let srv = m.servers[a.id];
 	if (!srv)
-		die('Unknown server.');
+		die(_('Unknown server.'));
 	// `networks`: what a new tunnel network must not overlap (everything but this server's own).
 	return { udp_taken: udp_taken(m, srv, srv.wan_zone), tcp_taken: tcp_taken(m),
 		networks: filter(taken_networks(m), (n) => n.cidr != srv.subnet) };
@@ -595,7 +598,7 @@ function server_obfuscation(a) {
 	let srv = store.transact((c, m) => {
 		let srv = m.servers[a.id];
 		if (!srv)
-			die('Unknown server.');
+			die(_('Unknown server.'));
 		for (let k in core.OBF_KEYS)
 			c.delete(core.CONFIG, srv.id, k);
 		for (let k, v in o)
@@ -611,12 +614,12 @@ function server_obfuscation(a) {
 /** Remove a server with its people, their devices and its circles (a backup is made first). */
 function server_delete(a) {
 	if (!core.load().servers[a.id])
-		die('Unknown server.');
+		die(_('Unknown server.'));
 	backup.backup_create('pre-delete');
 	let res = store.transact((c, m) => {
 		let srv = m.servers[a.id];
 		if (!srv)
-			die('Unknown server.');
+			die(_('Unknown server.'));
 		let gone = 0;
 		for (let pid, p in m.people)
 			if (p.server == srv.id) {

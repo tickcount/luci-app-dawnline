@@ -4,6 +4,7 @@ import { E } from '../../e';
 import { button } from '../../ui/button';
 import { dropdown } from '../../ui/menu';
 import { icon } from '../../../shared/icons';
+import { fill, fmt, num, plural } from '../../../shared/i18n';
 import { ConnectionMap, rangeControl } from '../../map';
 import { eventRow, eventText } from '../../events/render';
 import { clearLogDialog, exportEvents } from '../../logs';
@@ -13,11 +14,11 @@ import type { PersonPage } from './index';
 function mapCard(page: PersonPage): HTMLElement {
   const st = page.st;
   const head = E('div', { class: 'dl-panel-head pad' }, [
-    E('h3', {}, 'Locations'),
+    E('h3', {}, _('Locations')),
     E('span', { class: 'dl-spacer' }),
     st.geo.enabled ? rangeControl('30d', (r) => page.map?.setRange(r), false) : '',
     button(
-      'Hide',
+      _('Hide'),
       () => {
         page.mapOpen = false;
         page.map?.destroy();
@@ -30,11 +31,11 @@ function mapCard(page: PersonPage): HTMLElement {
   if (!st.geo.enabled)
     return E('div', { class: 'dl-panel flush' }, [
       head,
-      E('div', { class: 'dl-map-off' }, [
-        'Locations are off. ',
-        E('a', { href: L.url('admin/network/dawnline/settings') }, 'Turn them on in Settings'),
-        '.',
-      ]),
+      E(
+        'div',
+        { class: 'dl-map-off' },
+        fill(_('Locations are off. %s.'), E('a', { href: L.url('admin/network/dawnline/settings') }, _('Turn them on in Settings'))),
+      ),
     ]);
   const map = new ConnectionMap(
     {
@@ -59,11 +60,11 @@ export function placesPart(page: PersonPage): HTMLElement | null {
     return E('div', { class: 'dl-places' }, [
       icon('pin'),
       E('div', { class: 'dl-stack' }, [
-        E('span', {}, 'Locations are off'),
-        E('span', { class: 'dl-sub' }, 'City-level, from the client IP'),
+        E('span', {}, _('Locations are off')),
+        E('span', { class: 'dl-sub' }, _('City-level, from the client IP')),
       ]),
       E('span', { class: 'dl-spacer' }),
-      E('a', { class: 'cbi-button cbi-button-neutral', href: L.url('admin/network/dawnline/settings') }, 'Turn on'),
+      E('a', { class: 'cbi-button cbi-button-neutral', href: L.url('admin/network/dawnline/settings') }, _('Turn on')),
     ]);
   if (page.mapOpen) return page.map && page.parts.places.contains(page.map.el) ? null : mapCard(page);
   const since = st.now - 30 * 86400;
@@ -73,19 +74,19 @@ export function placesPart(page: PersonPage): HTMLElement | null {
   return E('div', { class: 'dl-places' }, [
     icon('pin'),
     E('div', { class: 'dl-stack' }, [
-      E('span', {}, last ? last.city || last.country : 'No locations yet'),
+      E('span', {}, last ? last.city || last.country : _('No locations yet')),
       E(
         'span',
         { class: 'dl-sub' },
         last
-          ? `${places.length} place${places.length === 1 ? '' : 's'} in 30 days${last.org ? ` · ${last.org}` : ''}`
-          : 'Shown after a device connects',
+          ? [plural(places.length, '%s place in 30 days', '%s places in 30 days'), last.org].filter(Boolean).join(' · ')
+          : _('Shown after a device connects'),
       ),
     ]),
     E('span', { class: 'dl-spacer' }),
     pts.length
       ? button(
-          'Show map',
+          _('Show map'),
           () => {
             page.mapOpen = true;
             page.paintPlaces();
@@ -110,7 +111,7 @@ export function activityPart(page: PersonPage): HTMLElement {
     const row = eventRow(st, e, { server: false });
     if (n > 1) {
       const main = row.querySelector('.dl-row-main') as HTMLElement;
-      dom.content(main, [...eventText(st, e).slice(0, 3), E('span', { class: 'dl-muted' }, `${n} times`)]);
+      dom.content(main, [...eventText(st, e).slice(0, 3), E('span', { class: 'dl-muted' }, plural(n, '%s time', '%s times'))]);
       main.title = latest
         .slice(i, i + n)
         .map((x) => x.detail ?? '')
@@ -123,29 +124,32 @@ export function activityPart(page: PersonPage): HTMLElement {
     [icon('more')],
     () =>
       dropdown(more, [
-        { label: 'Export CSV', icon: icon('download'), run: () => exportEvents(st, all, 'csv', p.id) },
-        { label: 'Export JSON', icon: icon('download'), run: () => exportEvents(st, all, 'json', p.id) },
+        { label: _('Export CSV'), icon: icon('download'), run: () => exportEvents(st, all, 'csv', p.id) },
+        { label: _('Export JSON'), icon: icon('download'), run: () => exportEvents(st, all, 'json', p.id) },
         null,
         {
-          label: `Clear ${p.name}'s activity`,
+          label: fmt(_("Clear %s's activity"), p.name),
           icon: icon('trash'),
           danger: true,
           run: () =>
-            clearLogDialog(`Clear ${p.name}'s activity`, `Removes events about ${p.name} and their devices.`, { person: p.id }, () =>
-              page.refresh(),
+            clearLogDialog(
+              fmt(_("Clear %s's activity"), p.name),
+              fmt(_('Removes events about %s and their devices.'), p.name),
+              { person: p.id },
+              () => page.refresh(),
             ),
         },
       ]),
     'neutral',
-    { title: 'Export or clear', class: 'cbi-button cbi-button-neutral dl-icon-only' },
+    { title: _('Export or clear'), class: 'cbi-button cbi-button-neutral dl-icon-only' },
   );
   return E('div', { class: 'dl-panel flush' }, [
     E('div', { class: 'dl-panel-head pad' }, [
-      E('h3', {}, 'Activity'),
-      E('span', { class: 'dl-sub' }, all.length > 10 ? `latest 10 of ${all.length}` : ''),
+      E('h3', {}, _('Activity')),
+      E('span', { class: 'dl-sub' }, all.length > 10 ? fmt(_('latest 10 of %s'), num(all.length)) : ''),
       E('span', { class: 'dl-spacer' }),
       more,
     ]),
-    rows.length ? rows : E('div', { class: 'dl-row dl-muted' }, 'Nothing yet.'),
+    rows.length ? rows : E('div', { class: 'dl-row dl-muted' }, _('Nothing yet.')),
   ]);
 }

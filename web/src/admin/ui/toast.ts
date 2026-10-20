@@ -22,13 +22,14 @@ export function notify(message: Child, tone: Tone = 'info', timeout = 0) {
   const t = E('div', { class: `dl-toast ${tone}` }, [
     ic ? icon(ic) : '',
     E('span', {}, message),
-    tone === 'error' ? E('button', { type: 'button', 'aria-label': 'Close', click: close }, icon('x')) : '',
+    tone === 'error' ? E('button', { type: 'button', 'aria-label': _('Close'), click: close }, icon('x')) : '',
   ]);
   stack.appendChild(t);
   requestAnimationFrame(() => t.classList.add('show'));
   setTimeout(close, timeout || (tone === 'error' ? 8000 : tone === 'warning' ? 5000 : 2600));
 }
 
+/** A failure's message as it came: the router's own text for RPC failures. */
 export function errorText(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }

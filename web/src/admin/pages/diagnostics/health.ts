@@ -9,6 +9,7 @@ import { sw, setSwitch } from '../../ui/controls';
 import { callout } from '../../ui/layout';
 import { icon } from '../../../shared/icons';
 import { ago, clock } from '../../../shared/format';
+import { fmt, num, plural } from '../../../shared/i18n';
 import { isProblem, type LogItem } from '../../events/model';
 import { eventRow, systemRow } from '../../events/render';
 import { fixAction, runFix } from '../../widgets/health';
@@ -59,8 +60,8 @@ export class HealthTab {
     if (!checks) {
       dom.content(this.summary, '');
       dom.content(this.checksEl, [
-        E('div', { class: 'dl-panel-head' }, [E('h3', {}, 'Checks')]),
-        E('p', { class: 'dl-muted dl-loading' }, 'Running checks…'),
+        E('div', { class: 'dl-panel-head' }, [E('h3', {}, _('Checks'))]),
+        E('p', { class: 'dl-muted dl-loading' }, _('Running checks…')),
       ]);
       return;
     }
@@ -69,16 +70,16 @@ export class HealthTab {
     dom.content(
       this.summary,
       bad
-        ? callout('error', `${bad} problem${bad > 1 ? 's' : ''} need attention.`)
+        ? callout('error', plural(bad, '%s problem needs attention.', '%s problems need attention.'))
         : warn
-          ? callout('warn', `${warn} warning${warn > 1 ? 's' : ''}.`)
-          : callout('ok', 'All checks passed.'),
+          ? callout('warn', plural(warn, '%s warning.', '%s warnings.'))
+          : callout('ok', _('All checks passed.')),
     );
     const repaired = new Map<string, number>();
     for (const x of this.sl.watchdog.repairs) repaired.set(x.id, Math.max(repaired.get(x.id) ?? 0, x.ts));
     const refresh = () => this.run();
     dom.content(this.checksEl, [
-      E('div', { class: 'dl-panel-head' }, [E('h3', {}, 'Checks'), E('span', { class: 'dl-spacer' }), button('Run again', refresh)]),
+      E('div', { class: 'dl-panel-head' }, [E('h3', {}, _('Checks')), E('span', { class: 'dl-spacer' }), button(_('Run again'), refresh)]),
       E(
         'ul',
         { class: 'dl-checks' },
@@ -86,10 +87,11 @@ export class HealthTab {
           E('li', {}, [
             E('span', { class: `dl-check-icon ${c.status}` }, icon(ICON[c.status])),
             E('div', { class: 'dl-check-body' }, [
+              // The check's title and detail come from the router.
               E('div', { class: 'dl-check-title' }, c.title),
               E('div', { class: 'dl-check-detail' }, c.detail),
               repaired.has(c.id)
-                ? E('div', { class: 'dl-check-repaired' }, `Repaired by the watchdog at ${clock(repaired.get(c.id)!)}`)
+                ? E('div', { class: 'dl-check-repaired' }, fmt(_('Repaired by the watchdog at %s'), clock(repaired.get(c.id)!)))
                 : '',
             ]),
             fixAction(c, (fix) => void this.run(fix), refresh),
@@ -107,8 +109,8 @@ export class HealthTab {
     const stale = wd.beat != null && wd.now - wd.beat > 180;
     const today = wd.repairs.filter((x) => wd.now - x.ts < 86400);
     const lastRep = today[today.length - 1];
-    const toggle = sw(wd.enabled, 'Watchdog repairs', async (v) => {
-      const ok = await attempt(() => api.settingsUpdate({ watchdog: v ? '1' : '0' }), v ? 'Watchdog on' : 'Watchdog off');
+    const toggle = sw(wd.enabled, _('Watchdog repairs'), async (v) => {
+      const ok = await attempt(() => api.settingsUpdate({ watchdog: v ? '1' : '0' }), v ? _('Watchdog on') : _('Watchdog off'));
       if (!ok) setSwitch(toggle, !v);
       const n = await api.serviceLog().catch(() => null);
       if (n) this.paintLive(n, this.events);
@@ -119,13 +121,13 @@ export class HealthTab {
         E('div', { class: 'dl-wd-head' }, [
           E('span', { class: `dl-wd-tile${wd.enabled ? '' : ' off'}` }, icon('shield')),
           E('div', { class: 'dl-stack' }, [
-            E('span', { class: 'dl-wd-title' }, 'Watchdog'),
+            E('span', { class: 'dl-wd-title' }, _('Watchdog')),
             E(
               'span',
               { class: 'dl-sub' },
               wd.enabled
-                ? 'Every minute it checks the tunnels and services and repairs what it can on its own.'
-                : 'Off: problems are only written to the log. Nothing is repaired on its own.',
+                ? _('Every minute it checks the tunnels and services and repairs what it can on its own.')
+                : _('Off: problems are only written to the log. Nothing is repaired on its own.'),
             ),
           ]),
           E('span', { class: 'dl-spacer' }),
@@ -140,8 +142,13 @@ export class HealthTab {
                 'span',
                 {
                   class: `dl-check-chip${t.ok ? '' : ' error'}`,
-                  title: t.ok ? 'OK' : `Not working${t.tries ? ` · ${t.tries} repair${t.tries > 1 ? 's' : ''}` : ''}`,
+                  title: t.ok
+                    ? _('OK')
+                    : t.tries
+                      ? `${_('Not working')} · ${plural(t.tries, '%s repair', '%s repairs')}`
+                      : _('Not working'),
                 },
+                // The target's name comes from the router.
                 [icon(t.ok ? 'check' : 'x'), t.name],
               ),
             ),
@@ -150,13 +157,18 @@ export class HealthTab {
             'span',
             { class: `dl-sub${stale ? ' dl-warn-text' : ''}` },
             stale
-              ? `The agent has not checked in for ${Math.round((wd.now - wd.beat!) / 60)} min; cron restarts it after 5.`
+              ? fmt(_('The agent has not checked in for %s min; cron restarts it after 5.'), num(Math.round((wd.now - wd.beat!) / 60)))
               : [
-                  wd.last ? `Looked ${ago(wd.last, wd.now)}` : 'Starts within a minute',
+                  wd.last ? fmt(_('Looked %s'), ago(wd.last, wd.now)) : _('Starts within a minute'),
                   ' · ',
                   today.length
-                    ? `${today.length} repair${today.length > 1 ? 's' : ''} today, last ${lastRep.name} at ${clock(lastRep.ts)}`
-                    : 'no repairs today',
+                    ? fmt(
+                        N_(today.length, '%s repair today, last %s at %s', '%s repairs today, last %s at %s'),
+                        num(today.length),
+                        lastRep.name,
+                        clock(lastRep.ts),
+                      )
+                    : _('no repairs today'),
                 ],
           ),
         ]),
@@ -172,16 +184,16 @@ export class HealthTab {
       .filter((x) => x.ts >= since && isProblem(x))
       .sort((a, b) => b.ts - a.ts);
     const head = E('div', { class: 'dl-panel-head pad' }, [
-      E('h3', {}, 'Recent problems'),
+      E('h3', {}, _('Recent problems')),
       E('span', { class: 'dl-spacer' }),
-      items.length ? E('a', { href: '#', click: (e: Event) => (e.preventDefault(), this.toLog()) }, 'All in Log →') : '',
+      items.length ? E('a', { href: '#', click: (e: Event) => (e.preventDefault(), this.toLog()) }, `${_('All in Log')} →`) : '',
     ]);
     if (!items.length) {
       dom.content(this.recentEl, [
         head,
         E('div', { class: 'dl-recent-empty' }, [
           E('span', { class: 'dl-check-icon ok' }, icon('check')),
-          'No problems in the last 7 days.',
+          _('No problems in the last 7 days.'),
         ]),
       ]);
       return;

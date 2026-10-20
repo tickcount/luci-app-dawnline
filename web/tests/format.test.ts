@@ -1,18 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import {
-  addDays,
-  addMonthsClamped,
-  date,
-  dayDiff,
-  daysLeft,
-  endsIn,
-  endsSoon,
-  fmtDay,
-  kb,
-  plural,
-  shiftDay,
-  todayOf,
-} from '../src/shared/format';
+import { addDays, addMonthsClamped, date, dayDiff, daysLeft, endsIn, endsSoon, fmtDay, kb, shiftDay, todayOf } from '../src/shared/format';
+import { plural } from '../src/shared/i18n';
 
 describe('months', () => {
   it('clamps the day to the end of the month', () => {
@@ -69,8 +57,8 @@ describe('router days', () => {
 
 describe('numbers', () => {
   it('pluralises and sizes', () => {
-    expect(plural(1, 'event')).toBe('1 event');
-    expect(plural(2000, 'address', 'addresses')).toBe('2,000 addresses');
+    expect(plural(1, '%s event', '%s events')).toBe('1 event');
+    expect(plural(2000, '%s address', '%s addresses')).toBe('2,000 addresses');
     expect(kb(512)).toBe('512 B');
     expect(kb(1536)).toBe('1.5 KB');
     expect(kb(3 * 1048576)).toBe('3.0 MB');

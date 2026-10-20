@@ -55,6 +55,10 @@
   height: 16px;
   color: var(--text-2);
 }
+/* An option's check, kept in its place on the others so the names line up. */
+.mi .i.off {
+  visibility: hidden;
+}
 .mi.warn,
 .mi.warn .i {
   color: var(--warn);

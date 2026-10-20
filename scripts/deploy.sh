@@ -20,6 +20,11 @@ ls -d /root/dawnline-predeploy-* 2>/dev/null | sort | head -n -5 | xargs -r rm -
 tar -xozf /tmp/luci-app-dawnline.tar.gz -C /
 rm -f /tmp/luci-app-dawnline.tar.gz
 sh /etc/uci-defaults/90_dawnline && rm -f /etc/uci-defaults/90_dawnline
+for f in /etc/uci-defaults/luci-i18n-dawnline-*; do
+	if [ -f "$f" ]; then sh "$f" && rm -f "$f"; fi
+done
+# LuCI reads a language's catalogs once per web server: the new ones need a fresh one.
+/etc/init.d/uhttpd restart
 sleep 1
 ubus list luci.dawnline >/dev/null && echo "luci.dawnline registered (backup: /root/dawnline-predeploy-$ts)"
 REMOTE

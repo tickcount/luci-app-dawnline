@@ -24,6 +24,10 @@
 // disguise) only go over HTTPS: a plain-HTTP link (an IP address in Settings)
 // shows the page, but gets them from its HTTPS twin.
 //
+// Messages go out in the page's language (Accept-Language: the portal's
+// fetch sends the visitor's choice) when a Dawnline translation for it is
+// installed; else in English, and the page translates the ones it knows.
+//
 // handle() serves one request: `io` = { env, headers, read(n), write(s) }; the
 // CGI script (cgi.uc) is its wrapper, behind the shell door www/cgi-bin/portal
 // that answers anything not shaped like a link (its not_found() twin).
@@ -36,6 +40,8 @@ import * as live from 'dawnline.live';
 import * as view from 'dawnline.view';
 import * as schema from 'dawnline.schema';
 import * as devices from 'dawnline.devices';
+import * as i18n from 'dawnline.i18n';
+import { _ } from 'dawnline.i18n';
 
 const RATE = `${RUN_DIR}/portal-rate.json`;
 const ASSETS = '/usr/share/dawnline/portal/assets';
@@ -60,13 +66,22 @@ const SECURITY_HEADERS = {
 	'Cache-Control': 'no-store',
 };
 
-const NOT_READY = "Adding devices isn't available right now: the VPN server isn't ready. Ask whoever sent you this link.";
-
 // States the admin stopped the person in: the portal only shows, it changes nothing.
-const LOCKED = {
-	paused: 'Your access is paused.',
-	expired: 'Your access has ended.',
-};
+const LOCKED = [ 'paused', 'expired' ];
+
+/** Why a stopped person (a LOCKED state) can't change anything, in the visitor's language; null for other states. */
+function locked_reason(st) {
+	if (st == 'paused')
+		return _('Your access is paused.');
+	if (st == 'expired')
+		return _('Your access has ended.');
+	return null;
+}
+
+/** Why a new device or a new set-up is refused while the router has no AmneziaWG. */
+function not_ready() {
+	return _("Adding devices isn't available right now: the VPN server isn't ready. Ask whoever sent you this link.");
+}
 
 function html_escape(s) {
 	return replace(`${s}`, /[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -124,7 +139,7 @@ function body(r) {
 	if (len <= 0)
 		return {};
 	if (len > BODY_MAX)
-		fail(r, '413 Payload Too Large', 'Request too large.');
+		fail(r, '413 Payload Too Large', _('Request too large.'));
 	let raw = '';
 	while (length(raw) < len) {
 		let chunk = r.io.read(len - length(raw));
@@ -137,7 +152,7 @@ function body(r) {
 		return type(j) == 'object' ? j : {};
 	}
 	catch (e) {
-		fail(r, '400 Bad Request', 'Invalid JSON.');
+		fail(r, '400 Bad Request', _('Invalid JSON.'));
 	}
 }
 
@@ -236,7 +251,7 @@ function rate_action(r) {
 	write_json(RATE, st, 0o600);
 	unlock(l);
 	if (v.count > ACTION_LIMIT)
-		fail(r, '429 Too Many Requests', 'Too many changes in a short time. Try again in a few minutes.');
+		fail(r, '429 Too Many Requests', _('Too many changes in a short time. Try again in a few minutes.'));
 }
 
 /* ---------- pages ---------- */
@@ -305,7 +320,7 @@ function person_state(m, p, usage) {
 	let st = core.person_state(m, p, usage);
 	if (st == 'server_off') {
 		let own = core.own_state(m, p, usage);
-		if (LOCKED[own])
+		if (index(LOCKED, own) >= 0)
 			return own;
 	}
 	return st;
@@ -313,7 +328,7 @@ function person_state(m, p, usage) {
 
 /** Why the person can't change anything right now, or null. */
 function locked(r) {
-	return LOCKED[person_state(r.m, r.person, core.load_usage())] ?? null;
+	return locked_reason(person_state(r.m, r.person, core.load_usage()));
 }
 
 /** Refuses a change (or a config) while the person is stopped. */
@@ -340,7 +355,7 @@ function https_url(r) {
 function need_https(r) {
 	let u = https_url(r);
 	if (u)
-		send_json(r, '403 Forbidden', { error: 'Open this link over HTTPS to get the connection settings.', https_url: u });
+		send_json(r, '403 Forbidden', { error: _('Open this link over HTTPS to get the connection settings.'), https_url: u });
 }
 
 /** The router's offset from UTC in minutes: the admin sets hours in its time, the page shows the visitor's. */
@@ -371,7 +386,7 @@ function state(r) {
 			preset: !srv || awg.obf_neutral(srv.obf) ? 'off' : index([ 'balanced', 'max' ], srv.preset) >= 0 ? srv.preset : 'legacy',
 		},
 		can_add: length(person.devices) < person.device_limit,
-		locked: LOCKED[v.state] != null,
+		locked: index(LOCKED, v.state) >= 0,
 		// Over plain HTTP: where the configurations are (keys only travel encrypted).
 		https_url: https_url(r),
 		kinds: core.KINDS,
@@ -389,7 +404,7 @@ function state(r) {
 function own_device(r, id) {
 	let d = r.m.devices[id];
 	if (!d || d.person != r.person.id)
-		fail(r, '404 Not Found', 'Device not found.');
+		fail(r, '404 Not Found', _('Device not found.'));
 	return d;
 }
 
@@ -402,7 +417,7 @@ function api_add(r) {
 	need_https(r);
 	let b = body(r);
 	if (!devices.ready())
-		fail(r, '503 Service Unavailable', NOT_READY);
+		fail(r, '503 Service Unavailable', not_ready());
 	rate_action(r);
 	let res = guard(r, () => devices.add(r.person.id, b.name, b.kind, { by: 'portal', public_key: b.public_key }));
 	reload(r);
@@ -427,7 +442,7 @@ const ACTIONS = {
 	reconnect: (r, d, b) => {
 		need_https(r);
 		if (!devices.ready())
-			fail(r, '503 Service Unavailable', NOT_READY);
+			fail(r, '503 Service Unavailable', not_ready());
 		let config = guard(r, () => devices.reconnect(d.id, { by: 'portal', person: r.person.id, defer: d.address == r.peer }));
 		return { config };
 	},
@@ -443,7 +458,7 @@ function api_device(r, id) {
 	let b = body(r);
 	let act = ACTIONS[b.action];
 	if (!act)
-		fail(r, '400 Bad Request', 'Unknown action.');
+		fail(r, '400 Bad Request', _('Unknown action.'));
 	rate_action(r);
 	let res = act(r, d, b);
 	reload(r);
@@ -542,21 +557,23 @@ export function handle(io) {
 		let origin = header('origin');
 		if (!match(env.CONTENT_TYPE ?? '', /^application\/json/) ||
 		    (origin != null && origin != `${https ? 'https' : 'http'}://${host}`))
-			fail(r, '403 Forbidden', 'Cross-site request refused.');
+			fail(r, '403 Forbidden', _('Cross-site request refused.'));
 	}
 	else if (r.method != 'GET')
-		fail(r, '405 Method Not Allowed', 'Method not allowed.');
+		fail(r, '405 Method Not Allowed', _('Method not allowed.'));
 
 	let rt = route(API, r.method, slice(rest, 1));
 	if (!rt)
-		fail(r, '404 Not Found', 'Not found.');
+		fail(r, '404 Not Found', _('Not found.'));
 	rt.run(r, rt.args[0]);
-	fail(r, '404 Not Found', 'Not found.');
+	fail(r, '404 Not Found', _('Not found.'));
 };
 
 /** Run handle() and swallow its early end. */
 export function serve(io) {
 	try {
+		// "ru-RU,ru;q=0.9" → ru (i18n.use takes plain language codes only).
+		i18n.use((match(io.env.HTTP_ACCEPT_LANGUAGE ?? '', /^[ \t]*([A-Za-z][A-Za-z][A-Za-z]?)/) ?? [])[1]);
 		handle(io);
 	}
 	catch (e) {

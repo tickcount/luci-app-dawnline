@@ -15,7 +15,8 @@ import { liveField } from './ui/layout';
 import { qrCode } from './ui/qr';
 import { nameHelp } from './netcheck';
 import { deviceStatus } from './ui/badges';
-import { ago, bytes, isoDay, KIND_LABEL, KINDS, todayOf } from '../shared/format';
+import { ago, bytes, isoDay, kindLabel, KINDS, todayOf } from '../shared/format';
+import { fill, fmt, locale, num } from '../shared/i18n';
 import { icon } from '../shared/icons';
 import { eventBy } from './events/model';
 import { spark } from './widgets/spark';
@@ -43,7 +44,7 @@ export interface DeviceOpts {
 
 function when(ts: number): string {
   return ts
-    ? new Date(ts * 1000).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    ? new Date(ts * 1000).toLocaleString(locale(), { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
     : '—';
 }
 
@@ -52,7 +53,12 @@ function copyRow(label: string, value: string, mono = false): HTMLElement {
     E('span', { class: 'dl-kvrow-k' }, label),
     E(
       'button',
-      { type: 'button', class: `dl-kvrow-v copy${mono ? ' dl-mono' : ''}`, title: 'Copy', click: () => copyText(value, `${label} copied`) },
+      {
+        type: 'button',
+        class: `dl-kvrow-v copy${mono ? ' dl-mono' : ''}`,
+        title: _('Copy'),
+        click: () => copyText(value, fmt(_('%s copied'), label)),
+      },
       [E('span', {}, value), icon('copy')],
     ),
   ]);
@@ -62,14 +68,35 @@ function row(label: string, value: Node | string): HTMLElement {
   return E('div', { class: 'dl-kvrow' }, [E('span', { class: 'dl-kvrow-k' }, label), E('span', { class: 'dl-kvrow-v' }, value)]);
 }
 
-const DEV_EVENT: Record<string, [string, string, string]> = {
-  connect: ['ok', 'Connected', 'plug'],
-  disconnect: ['', 'Went offline', 'plug'],
-  roam: ['', 'Changed network', 'network'],
-  device_added: ['ok', 'Added', 'plus'],
-  device_removed: ['', 'Removed', 'trash'],
-  device_keys: ['', 'New keys', 'reset'],
+/** The device's own events: tone and icon (what they say is in eventText). */
+const DEV_EVENT: Record<string, [string, string]> = {
+  connect: ['ok', 'plug'],
+  disconnect: ['', 'plug'],
+  roam: ['', 'network'],
+  device_added: ['ok', 'plus'],
+  device_removed: ['', 'trash'],
+  device_keys: ['', 'reset'],
 };
+
+/** What happened in the text colour, the details muted (as in the main log). */
+function eventText(e: LogEvent): (string | HTMLElement)[] {
+  const m = (t: string) => E('span', { class: 'dl-muted' }, t);
+  const by = eventBy(e) === 'portal' ? _('on the portal') : eventBy(e) === 'admin' ? _('by you') : '';
+  switch (e.type) {
+    case 'connect':
+      return [...(e.detail ? fill(_('Connected from %s'), m(e.detail)) : [_('Connected')]), e.where ? m(` · ${e.where}`) : ''];
+    case 'disconnect':
+      return [_('Went offline')];
+    case 'roam':
+      return [_('Changed network'), m(` · ${e.detail ?? ''}`)];
+    case 'device_added':
+      return by ? fill(_('Added %s'), m(by)) : [_('Added')];
+    case 'device_removed':
+      return by ? fill(_('Removed %s'), m(by)) : [_('Removed')];
+    default: // device_keys
+      return by ? fill(_('New keys %s'), m(by)) : [_('New keys')];
+  }
+}
 
 /** Activity of one device, newest first. */
 function deviceEvents(events: LogEvent[], id: string, now?: number): HTMLElement {
@@ -77,31 +104,19 @@ function deviceEvents(events: LogEvent[], id: string, now?: number): HTMLElement
     .filter((e) => e.device === id && DEV_EVENT[e.type])
     .reverse()
     .slice(0, 12);
-  if (!mine.length) return E('div', { class: 'dl-sub' }, 'No activity yet.');
+  if (!mine.length) return E('div', { class: 'dl-sub' }, _('No activity yet.'));
   return E(
     'div',
     { class: 'dl-dev-log' },
     mine.map((e) => {
-      const [tone, label, ic] = DEV_EVENT[e.type];
-      // As in the main log: what happened in the text colour, the details muted.
-      const extra =
-        e.type === 'connect'
-          ? [
-              e.detail ? E('span', { class: 'dl-muted' }, ` from ${e.detail}`) : '',
-              e.where ? E('span', { class: 'dl-muted' }, ` · ${e.where}`) : '',
-            ]
-          : e.type === 'roam'
-            ? [E('span', { class: 'dl-muted' }, ` · ${e.detail ?? ''}`)]
-            : e.type === 'device_added' || e.type === 'device_removed' || e.type === 'device_keys'
-              ? [E('span', { class: 'dl-muted' }, eventBy(e) === 'portal' ? ' on the portal' : eventBy(e) === 'admin' ? ' by you' : '')]
-              : [];
+      const [tone, ic] = DEV_EVENT[e.type];
       const t = new Date(e.ts * 1000);
       return E('div', { class: `dl-dev-log-row${eventBy(e) === 'admin' ? ' dl-ev-by-admin' : ''}` }, [
         eventBy(e) === 'admin'
-          ? E('span', { class: 'dl-ev-tile', title: 'Done by you in LuCI' }, icon('admin'))
+          ? E('span', { class: 'dl-ev-tile', title: _('Done by you in LuCI') }, icon('admin'))
           : E('span', { class: `dl-ev-tile ev ${tone}` }, icon(ic)),
-        E('span', { class: 'dl-row-main' }, [E('span', {}, label), ...extra]),
-        E('span', { class: 'dl-faint dl-nowrap', title: t.toLocaleString() }, ago(e.ts, now)),
+        E('span', { class: 'dl-row-main' }, eventText(e)),
+        E('span', { class: 'dl-faint dl-nowrap', title: t.toLocaleString(locale()) }, ago(e.ts, now)),
       ]);
     }),
   );
@@ -131,7 +146,7 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
   const titleEl = E('div', { class: 'dl-drawer-title' });
   const stats = E('div', {});
   const details = E('div', {});
-  const log = E('div', {}, E('div', { class: 'dl-sub' }, 'Loading…'));
+  const log = E('div', {}, E('div', { class: 'dl-sub' }, _('Loading…')));
   let logEvents: LogEvent[] = [];
   const showLog = (events: LogEvent[]) => {
     logEvents = events.filter((e) => e.device === d.id);
@@ -157,9 +172,9 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
       E('div', { class: 'dl-stack' }, [
         E('div', { class: 'dl-title-row' }, [
           E('h3', {}, d.name),
-          button([icon('edit')], () => rename(), 'neutral', { title: 'Rename', class: 'cbi-button cbi-button-neutral dl-icon-only sm' }),
+          button([icon('edit')], () => rename(), 'neutral', { title: _('Rename'), class: 'cbi-button cbi-button-neutral dl-icon-only sm' }),
         ]),
-        E('span', { class: 'dl-sub' }, `${p.name} · ${KIND_LABEL[d.kind]}`),
+        E('span', { class: 'dl-sub' }, `${p.name} · ${kindLabel(d.kind)}`),
       ]),
     ]);
     const week = d.spark.reduce((a, b) => a + b, 0);
@@ -167,16 +182,16 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
       stats,
       E('div', { class: 'dl-dstats' }, [
         E('div', { class: 'dl-dstats-cell wide' }, [
-          E('span', { class: 'dl-metric-label' }, 'Status'),
-          deviceStatus(d, now, 'Waiting for the first connection', p),
+          E('span', { class: 'dl-metric-label' }, _('Status')),
+          deviceStatus(d, now, _('Waiting for the first connection'), p),
         ]),
         E('div', { class: 'dl-dstats-cell' }, [
-          E('span', { class: 'dl-metric-label' }, 'This month'),
+          E('span', { class: 'dl-metric-label' }, _('This month')),
           E('b', {}, bytes(d.month[0] + d.month[1])),
           E('span', { class: 'dl-sub dl-mono' }, `↓ ${bytes(d.month[1])} ↑ ${bytes(d.month[0])}`),
         ]),
         E('div', { class: 'dl-dstats-cell' }, [
-          E('span', { class: 'dl-metric-label' }, 'Last 7 days'),
+          E('span', { class: 'dl-metric-label' }, _('Last 7 days')),
           E('b', {}, bytes(week)),
           spark(d.spark, 120, 22, today),
         ]),
@@ -185,13 +200,13 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
     dom.content(
       details,
       E('div', { class: 'dl-kv2' }, [
-        copyRow('Tunnel address', d.address),
-        d.hostname && p.access !== 'internet' ? copyRow('Local address', d.hostname) : '',
+        copyRow(_('Tunnel address'), d.address),
+        d.hostname && p.access !== 'internet' ? copyRow(_('Local address'), d.hostname) : '',
         // Where it connects from is under Locations (with the place and network); from home
         // (not on the map) or without locations, here.
-        d.endpoint && !geo?.points.some((x) => x.device === d.id && x.ip === d.endpoint) ? row('Client IP', d.endpoint) : '',
+        d.endpoint && !geo?.points.some((x) => x.device === d.id && x.ip === d.endpoint) ? row(_('Client IP'), d.endpoint) : '',
         row(
-          'Total',
+          _('Total'),
           E('span', { class: 'dl-kv-act' }, [
             `↓ ${bytes(d.total[1])} · ↑ ${bytes(d.total[0])}`,
             E(
@@ -201,36 +216,36 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
                 class: 'dl-linkbtn danger',
                 click: () => resetUsageDialog('device', d.id, d.name, () => setTimeout(changed, 300)),
               },
-              'Reset',
+              _('Reset'),
             ),
           ]),
         ),
-        row('Added', `${when(d.created)} · ${d.created_by === 'portal' ? 'from the portal' : 'by you'}`),
+        row(_('Added'), `${when(d.created)} · ${d.created_by === 'portal' ? _('from the portal') : _('by you')}`),
         // The whole key, copyable: it is what another WireGuard server needs to add this device by hand.
-        cfg.amnezia.client_pub_key ? copyRow('Public key', cfg.amnezia.client_pub_key) : row('Public key', '—'),
+        cfg.amnezia.client_pub_key ? copyRow(_('Public key'), cfg.amnezia.client_pub_key) : row(_('Public key'), '—'),
       ]),
     );
     dom.content(foot, [
       button(
-        [icon(d.disabled ? 'play' : 'pause'), d.disabled ? ' Enable' : ' Disable'],
+        [icon(d.disabled ? 'play' : 'pause'), ' ', d.disabled ? _('Enable') : _('Disable')],
         async () => {
-          if (await attempt(() => api.deviceUpdate(d.id, undefined, !d.disabled), d.disabled ? 'Device enabled' : 'Device disabled'))
+          if (await attempt(() => api.deviceUpdate(d.id, undefined, !d.disabled), d.disabled ? _('Device enabled') : _('Device disabled')))
             await changed();
         },
         'neutral',
         d.disabled ? {} : { class: 'cbi-button cbi-button-neutral dl-btn-warn' },
       ),
-      button([icon('key'), ' New keys'], async () => {
+      button([icon('key'), ' ', _('New keys')], async () => {
         if (
           !(await confirmDialog(
-            'Generate new keys?',
-            'The current configuration on this device stops working until it is imported again.',
-            'Generate',
+            _('Generate new keys?'),
+            _('The current configuration on this device stops working until it is imported again.'),
+            _('Generate'),
             true,
           ))
         )
           return;
-        const c = await attempt(() => api.deviceRotate(d.id), 'New keys generated');
+        const c = await attempt(() => api.deviceRotate(d.id), _('New keys generated'));
         if (c) {
           o.refresh();
           handle.close();
@@ -239,18 +254,18 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
       }),
       E('span', { class: 'dl-spacer' }),
       button(
-        [icon('trash'), ' Remove'],
+        [icon('trash'), ' ', _('Remove')],
         async () => {
           if (
             !(await confirmDialog(
-              `Remove ${d.name}?`,
-              'The device is disconnected immediately and its configuration stops working.',
-              'Remove',
+              fmt(_('Remove %s?'), d.name),
+              _('The device is disconnected immediately and its configuration stops working.'),
+              _('Remove'),
               true,
             ))
           )
             return;
-          if (await attempt(() => api.deviceDelete(d.id), 'Device removed')) {
+          if (await attempt(() => api.deviceDelete(d.id), _('Device removed'))) {
             handle.close();
             o.refresh();
           }
@@ -283,22 +298,22 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
   const rename = () => {
     const input = E('input', { type: 'text', class: 'cbi-input-text', value: d.name, maxlength: 48 }) as HTMLInputElement;
     const taken = p.devices.filter((x) => x.id !== d.id).map((x) => x.name);
-    const nameRow = liveField('Name', input, () => nameHelp(input.value, taken, 'Shown in the portal and in the app.'));
+    const nameRow = liveField(_('Name'), input, () => nameHelp(input.value, taken, _('Shown in the portal and in the app.')));
     modal(
-      `Rename ${d.name}`,
+      fmt(_('Rename %s'), d.name),
       [nameRow],
       [
         cancelButton(),
         ' ',
         button(
-          'Save',
+          _('Save'),
           async () => {
             const h = nameRow.help();
             if (h.bad) {
               notify(h.text, 'warning');
               return;
             }
-            if (await attempt(() => api.deviceUpdate(d.id, input.value, undefined), 'Renamed')) {
+            if (await attempt(() => api.deviceUpdate(d.id, input.value, undefined), _('Renamed'))) {
               closeModal();
               await changed();
             }
@@ -313,14 +328,16 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
   const foot = E('div', { class: 'dl-drawer-actions' });
   const connectSec = E('section', { class: 'dl-dsec' }, [
     // Whether it is connected (or still waiting) is in Status above.
-    E('div', { class: 'dl-dsec-head' }, [E('h4', {}, 'Connect')]),
+    E('div', { class: 'dl-dsec-head' }, [E('h4', {}, _('Connect', 'section'))]),
     d.config_stale
       ? E('div', { class: 'dl-note warn' }, [
           icon('alert'),
           E(
             'span',
             {},
-            'This device has an older configuration: networks or DNS changed since it was set up. Import it again with the QR code, key or file below.',
+            _(
+              'This device has an older configuration: networks or DNS changed since it was set up. Import it again with the QR code, key or file below.',
+            ),
           ),
         ])
       : '',
@@ -328,28 +345,35 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
   ]);
   const activitySec = E('section', { class: 'dl-dsec' }, [
     E('div', { class: 'dl-dsec-head' }, [
-      E('h4', {}, 'Activity'),
+      E('h4', {}, _('Activity')),
       E('div', { class: 'dl-dsec-actions' }, [
-        E('button', { type: 'button', class: 'dl-linkbtn', click: () => exportEvents({ people: [p] }, logEvents, 'csv', d.id) }, 'Export'),
+        E(
+          'button',
+          { type: 'button', class: 'dl-linkbtn', click: () => exportEvents({ people: [p] }, logEvents, 'csv', d.id) },
+          _('Export'),
+        ),
         E(
           'button',
           {
             type: 'button',
             class: 'dl-linkbtn danger',
             click: () =>
-              clearLogDialog(`Clear ${d.name}'s activity`, `Removes events about ${d.name}.`, { device: d.id }, () => {
+              clearLogDialog(fmt(_("Clear %s's activity"), d.name), fmt(_('Removes events about %s.'), d.name), { device: d.id }, () => {
                 void loadLog(true);
                 o.refresh();
               }),
           },
-          'Clear',
+          _('Clear'),
         ),
-        E('a', { href: `${L.url('admin/network/dawnline/diagnostics')}?tab=log` }, 'All activity'),
+        E('a', { href: `${L.url('admin/network/dawnline/diagnostics')}?tab=log` }, _('All activity')),
       ]),
     ]),
     log,
   ]);
-  const detailsSec = E('section', { class: 'dl-dsec' }, [E('div', { class: 'dl-dsec-head' }, E('h4', {}, 'Details')), details]);
+  const detailsSec = E('section', { class: 'dl-dsec' }, [
+    E('div', { class: 'dl-dsec-head' }, E('h4', {}, _('Details', 'section'))),
+    details,
+  ]);
   let locationsSec: HTMLElement | '' = '';
   if (geo?.enabled) {
     map = new ConnectionMap(
@@ -366,7 +390,7 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
     }));
     locationsSec = E('section', { class: 'dl-dsec' }, [
       E('div', { class: 'dl-dsec-head' }, [
-        E('h4', {}, 'Locations'),
+        E('h4', {}, _('Locations')),
         rangeControl(
           range,
           (r) => {
@@ -412,22 +436,24 @@ export function quickMenu(anchor: HTMLElement, p: Person, d: Device, o: DeviceOp
   const cfg = () => attempt(() => api.deviceConfig(d.id));
   const items: (MenuItem | null)[] = [
     {
-      label: 'Show QR code',
+      label: _('Show QR code'),
       icon: icon('qr'),
       run: async () => {
         const c = await cfg();
         if (!c) return;
         modal(
-          `${d.name} · QR code`,
+          `${d.name} · ${_('QR code')}`,
           E('div', { class: 'dl-qr-pane' }, [
             qrCode(core.qrText(c)),
             E(
               'span',
               { class: 'dl-sub' },
-              plainWg(c) ? 'Scan with AmneziaVPN or any WireGuard app on the device.' : 'Scan with AmneziaVPN or AmneziaWG on the device.',
+              plainWg(c)
+                ? _('Scan with AmneziaVPN or any WireGuard app on the device.')
+                : _('Scan with AmneziaVPN or AmneziaWG on the device.'),
             ),
           ]),
-          cancelButton('Close'),
+          cancelButton(_('Close')),
         );
       },
     },
@@ -447,50 +473,50 @@ export function quickMenu(anchor: HTMLElement, p: Person, d: Device, o: DeviceOp
           icon: icon('copy'),
           run: async () => {
             const c = await cfg();
-            if (c) copyText(await core.appKey!.make(c), 'Key copied');
+            if (c) copyText(await core.appKey!.make(c), _('Key copied'));
           },
         }
       : null,
     null,
-    { label: 'Rename', icon: icon('edit'), run: () => openDevice(p, d, o) },
+    { label: _('Rename'), icon: icon('edit'), run: () => openDevice(p, d, o) },
     {
-      label: 'New keys',
+      label: _('New keys'),
       icon: icon('key'),
       run: async () => {
         if (
           await confirmDialog(
-            'Generate new keys?',
-            'The current configuration on this device stops working until it is imported again.',
-            'Generate',
+            _('Generate new keys?'),
+            _('The current configuration on this device stops working until it is imported again.'),
+            _('Generate'),
             true,
           )
         )
-          if (await attempt(() => api.deviceRotate(d.id), 'New keys generated')) o.refresh();
+          if (await attempt(() => api.deviceRotate(d.id), _('New keys generated'))) o.refresh();
       },
     },
     {
-      label: d.disabled ? 'Enable' : 'Disable',
+      label: d.disabled ? _('Enable') : _('Disable'),
       icon: icon(d.disabled ? 'play' : 'pause'),
       warn: !d.disabled,
       run: async () => {
-        if (await attempt(() => api.deviceUpdate(d.id, undefined, !d.disabled), d.disabled ? 'Device enabled' : 'Device disabled'))
+        if (await attempt(() => api.deviceUpdate(d.id, undefined, !d.disabled), d.disabled ? _('Device enabled') : _('Device disabled')))
           o.refresh();
       },
     },
     {
-      label: 'Delete',
+      label: _('Delete'),
       icon: icon('trash'),
       danger: true,
       run: async () => {
         if (
           await confirmDialog(
-            `Remove ${d.name}?`,
-            'The device is disconnected immediately and its configuration stops working.',
-            'Remove',
+            fmt(_('Remove %s?'), d.name),
+            _('The device is disconnected immediately and its configuration stops working.'),
+            _('Remove'),
             true,
           )
         )
-          if (await attempt(() => api.deviceDelete(d.id), 'Device removed')) o.refresh();
+          if (await attempt(() => api.deviceDelete(d.id), _('Device removed'))) o.refresh();
       },
     },
   ];
@@ -502,7 +528,7 @@ export function addDevice(person: Person, o: DeviceOpts) {
   const taken = person.devices.map((x) => x.name);
   // The name a type gives when none is typed: "Phone", then "Phone 2" (as the portal does).
   const suggest = (k: Kind) => {
-    const base = KIND_LABEL[k];
+    const base = kindLabel(k);
     let n = 1;
     let name = base;
     while (taken.some((t) => t.toLowerCase() === name.toLowerCase())) name = `${base} ${++n}`;
@@ -510,14 +536,14 @@ export function addDevice(person: Person, o: DeviceOpts) {
   };
   let kind: Kind = 'phone';
   const nameInput = E('input', { type: 'text', class: 'cbi-input-text', placeholder: suggest(kind), maxlength: 48 }) as HTMLInputElement;
-  const nameRow = liveField('Name', nameInput, () =>
+  const nameRow = liveField(_('Name'), nameInput, () =>
     nameInput.value.trim()
-      ? nameHelp(nameInput.value, taken, 'Shown in the portal and in the app.')
-      : { text: `Named after its type: ${suggest(kind)}.`, bad: false },
+      ? nameHelp(nameInput.value, taken, _('Shown in the portal and in the app.'))
+      : { text: fmt(_('Named after its type: %s.'), suggest(kind)), bad: false },
   );
   const kinds = E(
     'div',
-    { class: 'dl-kinds', role: 'radiogroup', 'aria-label': 'Type' },
+    { class: 'dl-kinds', role: 'radiogroup', 'aria-label': _('Type') },
     KINDS.map((k) =>
       E(
         'button',
@@ -538,29 +564,38 @@ export function addDevice(person: Person, o: DeviceOpts) {
             nameRow.refresh();
           },
         },
-        [icon(k), E('span', {}, KIND_LABEL[k])],
+        [icon(k), E('span', {}, kindLabel(k))],
       ),
     ),
   );
   const over = person.devices.length >= person.device_limit;
   modal(
-    `Add a device for ${person.name}`,
+    fmt(_('Add a device for %s'), person.name),
     [
       over
         ? E(
             'p',
             { class: 'dl-hint' },
-            `${person.name} already has ${person.devices.length} of ${person.device_limit} devices. As admin you can still add one.`,
+            fmt(
+              N_(
+                person.device_limit,
+                '%s already has %s of %s device. As admin you can still add one.',
+                '%s already has %s of %s devices. As admin you can still add one.',
+              ),
+              person.name,
+              num(person.devices.length),
+              num(person.device_limit),
+            ),
           )
         : '',
-      E('div', { class: 'dl-fld' }, [E('span', { class: 'dl-fld-label' }, 'Type'), kinds]),
+      E('div', { class: 'dl-fld' }, [E('span', { class: 'dl-fld-label' }, _('Type')), kinds]),
       nameRow,
     ],
     [
       cancelButton(),
       ' ',
       button(
-        'Add device',
+        _('Add device'),
         async () => {
           const h = nameRow.help();
           if (h.bad) {
@@ -571,7 +606,7 @@ export function addDevice(person: Person, o: DeviceOpts) {
           const r = await attempt(() => api.deviceCreate(person.id, name, kind));
           if (!r) return;
           closeModal();
-          notify(`${name} added`, 'success', 3000);
+          notify(fmt(_('%s added'), name), 'success', 3000);
           o.refresh();
           await reopen(person.id, r.id, o);
         },

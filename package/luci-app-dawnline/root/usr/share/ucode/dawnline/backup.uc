@@ -13,6 +13,7 @@ import * as live from 'dawnline.live';
 import * as apply from 'dawnline.apply';
 import * as net from 'dawnline.net';
 import * as health from 'dawnline.health';
+import { _ } from 'dawnline.i18n';
 
 const BACKUP_DIR = `${DATA_DIR}/backups`;
 /**
@@ -51,17 +52,16 @@ export function config_errors(c) {
 	let internal = values(net.INTERNAL);
 	let ifnames = {}, ports = {}, subnets = [];
 	for (let id, srv in m.servers) {
-		let who = `Server ${srv.name}`;
 		for (let e in core.server_errors(m, srv, [ ...foreign, ...subnets ]))
-			push(errs, `${who}: ${e}`);
+			push(errs, sprintf(_('Server %s: %s'), srv.name, e));
 		if (ifnames[srv.ifname])
-			push(errs, `${who}: interface ${srv.ifname} is also used by ${ifnames[srv.ifname]}.`);
+			push(errs, sprintf(_('Server %s: interface %s is also used by %s.'), srv.name, srv.ifname, ifnames[srv.ifname]));
 		ifnames[srv.ifname] = srv.name;
 		let t = nc.get('network', srv.ifname);
 		if (index(internal, srv.ifname) >= 0 || (t != null && (t != 'interface' || nc.get('network', srv.ifname, '_dawnline') == null)))
-			push(errs, `${who}: ${srv.ifname} is one of the router's own network interfaces.`);
+			push(errs, sprintf(_("Server %s: %s is one of the router's own network interfaces."), srv.name, srv.ifname));
 		if (ports[srv.port])
-			push(errs, `${who}: UDP ${srv.port} is also used by ${ports[srv.port]}.`);
+			push(errs, sprintf(_('Server %s: UDP %s is also used by %s.'), srv.name, srv.port, ports[srv.port]));
 		ports[srv.port] = srv.name;
 		if (srv.subnet)
 			push(subnets, srv.subnet);
@@ -75,10 +75,10 @@ function check_config_dir(dir) {
 	// Its own delta directory: changes staged in LuCI must not leak into the check.
 	let c = cursor(dir, `${dir}/.delta`);
 	if (!c.load('dawnline'))
-		die('The configuration in this file cannot be read.');
+		die(_('The configuration in this file cannot be read.'));
 	let errs = config_errors(c);
 	if (length(errs))
-		die(`This configuration can't be used: ${join(' ', errs)}`);
+		die(sprintf(_("This configuration can't be used: %s"), join(' ', errs)));
 }
 
 /** A private scratch directory under RUN_DIR (the caller removes it). */
@@ -129,7 +129,8 @@ export function backup_create(reason, keep) {
 	let r = sh(`tar -czf ${q(tmp)} -C / ${files}`);
 	if (r.code != 0 || !rename(tmp, `${BACKUP_DIR}/${name}`)) {
 		unlink(tmp);
-		die(`Backup failed: ${trim(r.out) || 'the archive could not be written (is the flash full?)'}`);
+		let why = trim(r.out);
+		die(why ? sprintf(_('Backup failed: %s'), why) : _('Backup failed: the archive could not be written (is the flash full?)'));
 	}
 	system(`chmod 600 ${q(BACKUP_DIR + '/' + name)}`);
 	let by_kind = {};
@@ -144,10 +145,10 @@ export function backup_create(reason, keep) {
 
 function backup_path(name) {
 	if (!match(name ?? '', NAME))
-		die('Invalid backup name.');
+		die(_('Invalid backup name.'));
 	let p = `${BACKUP_DIR}/${name}`;
 	if (!file_exists(p))
-		die('Backup not found.');
+		die(_('Backup not found.'));
 	return p;
 }
 
@@ -158,24 +159,24 @@ function backup_path(name) {
 function check_archive(path) {
 	let r = sh(`tar -tvzf ${q(path)}`);
 	if (r.code != 0)
-		die('Not a valid backup archive.');
+		die(_('Not a valid backup archive.'));
 	let has_config = false, total = 0;
 	for (let line in split(trim(r.out), '\n')) {
 		let f = split(trim(line), /[ \t]+/);
 		let name = replace(f[length(f) >= 6 ? 5 : length(f) - 1] ?? '', /^\.?\//, '');
 		// "-rw------- root/root 1234 2026-01-01 12:00:00 etc/config/dawnline"; links show "a -> b".
 		if (substr(line, 0, 1) != '-' || index(line, ' -> ') >= 0 || index(line, ' link to ') >= 0)
-			die(`Unexpected entry in backup: ${name}`);
+			die(sprintf(_('Unexpected entry in backup: %s'), name));
 		if (index(FILES, name) < 0)
-			die(`Unexpected file in backup: ${name}`);
+			die(sprintf(_('Unexpected file in backup: %s'), name));
 		total += +(f[2] ?? 0) || 0;
 		if (name == 'etc/config/dawnline')
 			has_config = true;
 	}
 	if (!has_config)
-		die('Backup does not contain /etc/config/dawnline.');
+		die(_('Backup does not contain /etc/config/dawnline.'));
 	if (total > MAX_UNPACKED)
-		die('Backup is too large.');
+		die(_('Backup is too large.'));
 }
 
 /**
@@ -190,7 +191,7 @@ function install_files(dir) {
 		for (let f in FILES) {
 			let data = readfile(`${dir}/${f}`);
 			if (data != null && !write_file(`/${f}`, data, 0o600))
-				die(`Couldn't write /${f}. Is the flash full?`);
+				die(sprintf(_("Couldn't write %s. Is the flash full?"), `/${f}`));
 		}
 	}
 	catch (e) {
@@ -208,7 +209,7 @@ export function backup_restore(name, path) {
 	try {
 		let r = sh(`tar -xzf ${q(path)} -C ${q(dir)} ${join(' ', map(FILES, q))} 2>/dev/null; test -f ${q(dir + '/etc/config/dawnline')}`);
 		if (r.code != 0)
-			die('Not a valid backup archive.');
+			die(_('Not a valid backup archive.'));
 		check_config_dir(`${dir}/etc/config`);
 		backup_create('pre-restore', name);
 		install_files(dir);
@@ -238,7 +239,7 @@ export function backup_read(name) {
 export function backup_upload(data_b64) {
 	let data = b64dec(data_b64 ?? '');
 	if (!data || length(data) > 4 * 1024 * 1024)
-		die('Upload is empty or too large.');
+		die(_('Upload is empty or too large.'));
 	ensure_dir(RUN_DIR);
 	let tmp = `${RUN_DIR}/upload.tar.gz`;
 	write_file(tmp, data);
@@ -273,23 +274,23 @@ export function export_json() {
 /** An export as /etc/config/dawnline text; dies on anything that is not one. */
 function export_to_uci(data) {
 	if (type(data) != 'object' || data.format != 'dawnline' || type(data.sections) != 'array')
-		die('Not a Dawnline export.');
+		die(_('Not a Dawnline export.'));
 	let types = { settings: true, server: true, person: true, device: true, service: true, circle: true };
 	let esc = (x) => replace(`${x}`, "'", "'\\''");
 	let lines = [];
 	for (let s in data.sections) {
 		if (type(s) != 'object' || !types[s['.type']] || !match(s['.name'] ?? '', /^[A-Za-z0-9_]{1,64}$/))
-			die(`Invalid section ${s?.['.name']}.`);
+			die(sprintf(_('Invalid section %s.'), s?.['.name']));
 		push(lines, `config ${s['.type']} '${s['.name']}'`);
 		for (let k, v in s) {
 			if (substr(k, 0, 1) == '.')
 				continue;
 			if (!match(k, /^[a-z0-9_]{1,32}$/) || (type(v) != 'string' && type(v) != 'array'))
-				die(`Invalid option ${k}.`);
+				die(sprintf(_('Invalid option %s.'), k));
 			if (type(v) == 'array')
 				for (let x in v) {
 					if (type(x) != 'string')
-						die(`Invalid option ${k}.`);
+						die(sprintf(_('Invalid option %s.'), k));
 					push(lines, `\tlist ${k} '${esc(x)}'`);
 				}
 			else
@@ -317,6 +318,6 @@ export function import_json(data) {
 	let ok = write_file('/etc/config/dawnline', text, 0o600);
 	unlock(l);
 	if (!ok)
-		die("Couldn't write /etc/config/dawnline. Is the flash full?");
+		die(sprintf(_("Couldn't write %s. Is the flash full?"), '/etc/config/dawnline'));
 	return apply.apply();
 };

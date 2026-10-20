@@ -29,4 +29,4 @@ A mock is judged against the page it will live on, so it must already look like 
 
 ## Done means seen
 
-Deploy, then look at it in the browser (desktop width, and narrow when layout changes) before reporting. Check modals and drawers stack correctly and long values do not overflow.
+Deploy, then look at it in the browser (desktop width, and narrow when layout changes) before reporting. Check modals and drawers stack correctly and long values do not overflow. Look at it in Russian too: a visible change is localized in the same change (`i18n.md`), and Russian text is longer.

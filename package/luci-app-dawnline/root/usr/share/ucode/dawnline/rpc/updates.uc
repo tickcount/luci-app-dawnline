@@ -11,11 +11,14 @@ import * as upd from 'dawnline.updates';
 import * as gh from 'dawnline.github';
 import * as builds from 'dawnline.awg_builds';
 import { NAMES as PKG_NAMES } from 'dawnline.upd_pkgs';
+import { langs } from 'dawnline.upd_app';
+import * as i18n from 'dawnline.i18n';
+import { _ } from 'dawnline.i18n';
 
 const TAG = /^v?[0-9][0-9A-Za-z.+~-]{0,40}$/;
-// check[:app|amneziawg|packages] | app[@tag|:reinstall|:rollback]
+// check[:app|amneziawg|packages] | app[@tag|:reinstall|:rollback|:lang:<code>|:nolang]
 // | amneziawg[:auto|slava|grey[:ru]|:rollback] | pkgs:<name,…> (only packages Dawnline manages)
-const TARGET = /^(check(:(app|amneziawg|packages))?|app(@v?[0-9][0-9A-Za-z.+~-]{0,40}|:reinstall|:rollback)?|amneziawg(:rollback|:(auto|slava|grey)(:ru)?)?|pkgs:[a-z0-9][a-z0-9.+,-]*)$/;
+const TARGET = /^(check(:(app|amneziawg|packages))?|app(@v?[0-9][0-9A-Za-z.+~-]{0,40}|:reinstall|:rollback|:lang:[a-z]{2,3}(_[A-Za-z]{2,4})?|:nolang)?|amneziawg(:rollback|:(auto|slava|grey)(:ru)?)?|pkgs:[a-z0-9][a-z0-9.+,-]*)$/;
 
 function wrap(fn) {
 	return function(req) {
@@ -62,6 +65,8 @@ function status(a) {
 		policy: m.settings.updates,
 		auto: upd.auto_state(),
 		kept: upd.kept_all(builds.firmware()?.postfix),
+		// The admin's translations installed (luci-i18n-dawnline-<lang>).
+		translations: langs(),
 		history: slice(upd.history(), 0, 12),
 		tunnels: awg_tunnels(),
 	};
@@ -71,7 +76,7 @@ function status(a) {
 function releases(a) {
 	let page = +(a.page ?? 1);
 	if (page != int(page) || page < 1 || page > 50)
-		die('Unknown page.');
+		die(_('Unknown page.'));
 	return { releases: map(gh.releases(REPO, page), (x) => ({ ...x, body: null, digests: null })), page };
 }
 
@@ -80,12 +85,12 @@ function notes(a) {
 	let rp = a.component == 'amneziawg' ? builds.SOURCES[a.build || 'slava']?.repo : REPO;
 	let tag = a.tag ?? '';
 	if (!rp || !match(tag, TAG))
-		die('Unknown release.');
+		die(_('Unknown release.'));
 	let r = gh.release(rp, tag);
 	if (!r && a.component != 'amneziawg' && substr(tag, 0, 1) != 'v')
 		r = gh.release(rp, `v${tag}`);
 	if (!r)
-		die(`No release ${tag} in ${rp}.`);
+		die(sprintf(_('No release %s in %s.'), tag, rp));
 	return { ...r, digests: null, repo: rp };
 }
 
@@ -93,7 +98,7 @@ function notes(a) {
 function changes(a) {
 	let to = a.to ?? '', from = a.from ?? '';
 	if (!match(to, TAG) || (from != '' && !match(from, TAG)))
-		die('Unknown release.');
+		die(_('Unknown release.'));
 	// The installed version as a tag when it was released (a build ahead of the releases has none).
 	let base = null;
 	for (let t in (from != '' ? [ `v${replace(from, /^v/, '')}`, replace(from, /^v/, '') ] : []))
@@ -109,18 +114,20 @@ function changes(a) {
 function run(a) {
 	let what = a.what ?? 'check';
 	if (length(what) > 400 || !match(what, TARGET))
-		die('Unknown update target.');
+		die(_('Unknown update target.'));
 	// Checked here too, so a wrong name never becomes a failed job in the history.
 	if (substr(what, 0, 5) == 'pkgs:')
 		for (let n in split(substr(what, 5), ','))
 			if (index(PKG_NAMES, n) < 0)
-				die(n == '' ? 'Unknown update target.' : `${n} is not a package Dawnline manages.`);
+				die(n == '' ? _('Unknown update target.') : sprintf(_('%s is not a package Dawnline manages'), n));
 	if (upd.busy())
-		die('Another component action is already running.');
+		die(_('Another component action is already running'));
 	ensure_dir(RUN_DIR);
 	let t0 = time();
 	let args = substr(what, 0, 5) == 'check' ? `check ${substr(what, 6)}` : `install ${what}`;
-	system(`start-stop-daemon -S -b -x /usr/libexec/dawnline/updater -- ${args}`);
+	// The job speaks the admin's language (use() let only a plain language code through).
+	let lang = i18n.current();
+	system(`${lang ? `DAWNLINE_LANG=${lang} ` : ''}start-stop-daemon -S -b -x /usr/libexec/dawnline/updater -- ${args}`);
 	for (let i = 0; i < 20; i++) {
 		let j = read_json(upd.JOB_FILE, null);
 		if (j?.state == 'running' && j.started >= t0)

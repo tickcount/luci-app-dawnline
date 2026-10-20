@@ -6,6 +6,7 @@
 
 import { open, stat } from 'fs';
 import { q, read_json, write_json, ensure_dir, RUN_DIR, DATA_DIR } from 'dawnline.util';
+import { _ } from 'dawnline.i18n';
 
 export const JOB_FILE = `${RUN_DIR}/update-job.json`;
 export const CHECK_FILE = `${RUN_DIR}/update-check.json`;
@@ -126,12 +127,16 @@ export function busy() {
 	return false;
 };
 
-/** The last job; a "running" one whose worker is gone (the lock is free) reads as failed. */
+/**
+ * The last job; a "running" one whose worker is gone (the lock is free) reads
+ * as failed. Its phases, log and error are in the language of whoever started
+ * it (English for automatic runs); only the stopped-job error is made here.
+ */
 export function job() {
 	let j = read_json(JOB_FILE, null);
 	if (j?.state == 'running' && !busy()) {
 		j.state = 'failed';
-		j.error = 'The update stopped unexpectedly.';
+		j.error = _('The update stopped unexpectedly.');
 		j.finished = j.finished ?? time();
 	}
 	return j;

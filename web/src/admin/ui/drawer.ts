@@ -17,7 +17,7 @@ export function drawer(title: Node, body: Node, foot: Node | null, onClose: () =
   const panel = E('aside', { class: 'dl-drawer', role: 'dialog', 'aria-modal': 'true' }, [
     E('div', { class: 'dl-drawer-head' }, [
       title,
-      E('button', { type: 'button', class: 'dl-drawer-x', 'aria-label': 'Close', click: () => close() }, icon('x')),
+      E('button', { type: 'button', class: 'dl-drawer-x', 'aria-label': _('Close'), click: () => close() }, icon('x')),
     ]),
     E('div', { class: 'dl-drawer-body' }, body),
     foot ? E('div', { class: 'dl-drawer-foot' }, foot) : '',

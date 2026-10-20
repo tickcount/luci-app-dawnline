@@ -5,6 +5,7 @@
 
 import { lock, unlock } from 'dawnline.util';
 import * as core from 'dawnline.core';
+import { _ } from 'dawnline.i18n';
 
 /** Section names that are never ids of people, devices, servers, services or circles. */
 export const RESERVED_IDS = [ 'settings', 'main', 'global', 'defaults' ];
@@ -15,8 +16,11 @@ export const RESERVED_IDS = [ 'settings', 'main', 'global', 'defaults' ];
  * caller's change never happened, and nothing downstream may act on it.
  */
 export function commit(c) {
-	if (!c.commit(core.CONFIG))
-		die(`Couldn't save /etc/config/dawnline: ${c.error() ?? 'the write failed'}. Is the flash full?`);
+	if (!c.commit(core.CONFIG)) {
+		let why = c.error();
+		die(why != null ? sprintf(_("Couldn't save /etc/config/dawnline: %s. Is the flash full?"), why)
+			: _("Couldn't save /etc/config/dawnline: the write failed. Is the flash full?"));
+	}
 	system('chmod 600 /etc/config/dawnline');
 };
 

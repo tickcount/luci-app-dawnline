@@ -5,18 +5,24 @@ import { api, type Needs } from './api';
 import { attempt } from './ui/toast';
 import { confirmDialog } from './ui/modal';
 import { runOperation } from './updater/operation';
+import { fmt } from '../shared/i18n';
 
-const WHAT: Record<keyof Needs, string> = {
-  https: 'HTTPS for the portal',
-  acme: 'ACME certificates',
-  home: 'the home-like link',
-  awg: 'AmneziaWG',
-};
+/** What installing a feature's packages is called: the question, then the operation's title. */
+function texts(feature: keyof Needs): [string, string] {
+  const t: Record<keyof Needs, [string, string]> = {
+    https: [_('Install HTTPS for the portal?'), _('Installing HTTPS for the portal')],
+    acme: [_('Install ACME certificates?'), _('Installing ACME certificates')],
+    home: [_('Install the home-like link?'), _('Installing the home-like link')],
+    awg: [_('Install AmneziaWG?'), _('Installing AmneziaWG')],
+  };
+  return t[feature];
+}
 
 /** Ask, then wait for the job; after it `done` runs once the service had a moment to pick the packages up. */
-async function install(what: string, label: string, body: string, done?: () => void): Promise<boolean> {
-  if (!(await confirmDialog(`Install ${label}?`, body, 'Install'))) return false;
-  const job = await runOperation(what, { title: `Installing ${label}` });
+async function install(what: string, feature: keyof Needs, body: string, done?: () => void): Promise<boolean> {
+  const [ask, title] = texts(feature);
+  if (!(await confirmDialog(ask, body, _('Install')))) return false;
+  const job = await runOperation(what, { title });
   if (job?.state !== 'done') return false;
   // The service restarts to pick them up; give it a moment before reloading.
   setTimeout(() => done?.(), 4000);
@@ -31,8 +37,10 @@ async function install(what: string, label: string, body: string, done?: () => v
 export function installAwg(done?: () => void): Promise<boolean> {
   return install(
     'amneziawg:auto',
-    'AmneziaWG',
-    'Dawnline installs the AmneziaWG build made for this firmware and loads it. If the network service has to restart to learn it, connections drop for a few seconds.',
+    'awg',
+    _(
+      'Dawnline installs the AmneziaWG build made for this firmware and loads it. If the network service has to restart to learn it, connections drop for a few seconds.',
+    ),
     done,
   );
 }
@@ -43,8 +51,8 @@ export async function installMissing(feature: keyof Needs, names: string[], done
   if (!names.length) return true;
   return install(
     `pkgs:${names.join(',')}`,
-    WHAT[feature],
-    `${names.join(', ')} from the OpenWrt feeds. Dawnline sets the rest up when they arrive.`,
+    feature,
+    fmt(_('%s from the OpenWrt feeds. Dawnline sets the rest up when they arrive.'), names.join(', ')),
     done,
   );
 }

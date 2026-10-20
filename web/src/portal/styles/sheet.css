@@ -210,7 +210,8 @@
   visibility: hidden;
   white-space: nowrap;
 }
-/* Connected: nothing is left to do here, so × and the view's buttons step away; the sheet then closes by itself. */
+/* Connected: nothing is left to do here, so × and the view's buttons step away; the sheet then closes
+   by itself. A question has its own Cancel: no × beside it either. */
 .sheet .x,
 .sheet-acts {
   transition:
@@ -221,7 +222,8 @@
     scale 240ms var(--ease-out);
 }
 .sheet.arrived .x,
-.sheet.arrived .sheet-acts {
+.sheet.arrived .sheet-acts,
+.sheet.asks .x {
   opacity: 0;
   filter: blur(3px);
   scale: 0.9;
@@ -229,37 +231,53 @@
 }
 
 /* A question before something that cannot be undone. */
-.center-col {
+.center-col,
+.ask {
   display: flex;
   flex-direction: column;
+}
+.center-col {
   align-items: center;
   text-align: center;
 }
-.center-col.ask {
-  padding-top: 28px;
+/* A question before something that cannot be undone (Reconnect, Remove): the icon, the question
+   and what happens on the left edge, as iOS asks now, as far from the top as from the sides; the
+   buttons span the sheet under them. */
+.ask {
+  align-items: flex-start;
+  text-align: left;
+  padding-top: 24px;
 }
 .center-col.secure {
   padding-top: 4px;
 }
-.center-col .gi.xl {
+:is(.center-col, .ask) .gi.xl {
   width: 64px;
   height: 64px;
   margin: 8px 0 16px;
 }
-.center-col h3 {
+.ask .gi.xl {
+  margin: 0 0 18px;
+}
+:is(.center-col, .ask) h3 {
   margin: 0;
   font-size: 20px;
   line-height: 28px;
   font-weight: 500;
   letter-spacing: -0.5px;
 }
-.center-col p {
+:is(.center-col, .ask) p {
   margin: 6px 0 22px;
   color: var(--text-2);
   font-size: 15px;
   line-height: 21px;
+}
+.center-col p {
   max-width: 30ch;
   text-wrap: balance;
+}
+.ask p {
+  text-wrap: pretty;
 }
 .center-col.secure p {
   margin-top: 0;

@@ -5,6 +5,7 @@
 import type { Network, PortHold } from './netcheck';
 import type { AwgCaps, AwgState, Circle, ClientConfig, DayUsage, HealthCheck, LogEvent, MeshMode, Person, Status } from '../shared/types';
 import { notify } from './ui/toast';
+import { lang } from '../shared/i18n';
 
 /** Throw a backend failure; show a warning the answer carries. */
 function settle<T>(r: any): T {
@@ -15,9 +16,13 @@ function settle<T>(r: any): T {
   return r as T;
 }
 
+/**
+ * A method of luci.dawnline. The page's language goes last, after the
+ * method's own arguments: the router writes its messages in it.
+ */
 function call<T>(method: string, params: string[] = []) {
-  const fn = rpc.declare<any>({ object: 'luci.dawnline', method, params });
-  return async (...args: unknown[]): Promise<T> => settle<T>(await fn(...args));
+  const fn = rpc.declare<any>({ object: 'luci.dawnline', method, params: [...params, 'lang'] });
+  return async (...args: unknown[]): Promise<T> => settle<T>(await fn(...params.map((_p, i) => args[i]), lang()));
 }
 
 export interface SetupDefaults {
@@ -129,6 +134,8 @@ export interface UpdatesStatus {
   history: UpdateEvent[];
   /** AmneziaWG interfaces (their Dawnline names): switching builds restarts them. */
   tunnels: string[];
+  /** The admin's translations installed (luci-i18n-dawnline-<lang>): "ru". */
+  translations?: string[];
 }
 
 export interface UpdateEvent {

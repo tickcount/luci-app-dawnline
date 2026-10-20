@@ -51,6 +51,15 @@ jobs:
         id: types
         run: npm run --silent typecheck
 
+      # The catalogs follow the code: every string collected, translated, its placeholders kept.
+      - name: Translations
+        id: i18n
+        run: |
+          if ! npm run --silent i18n:check; then
+            echo "::error::The translation catalogs are out of date or incomplete. Run 'npm run i18n' in web/, translate the new entries in each ru.po and commit them (rules/i18n.md)."
+            exit 1
+          fi
+
       - name: Tests
         id: tests
         run: npm test
@@ -79,6 +88,7 @@ jobs:
             echo "|---|---|"
             echo "| Formatting | ${{ steps.format.outcome }} |"
             echo "| Types | ${{ steps.types.outcome }} |"
+            echo "| Translations | ${{ steps.i18n.outcome }} |"
             echo "| Tests | ${{ steps.tests.outcome }} |"
             echo "| Bundles | ${{ steps.build.outcome }} |"
           } >> "$GITHUB_STEP_SUMMARY"

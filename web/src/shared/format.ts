@@ -1,36 +1,41 @@
-// Formatting helpers shared by the admin UI and the portal (English only).
+// Formatting helpers shared by the admin UI and the portal, in the page's
+// language (shared/i18n.ts): units, relative times, dates, labels.
 
 import type { Access, Kind, PersonState } from './types';
+import { fmt, locale, num, plural } from './i18n';
 
-export function bytes(n: number): string {
-  if (!n || n < 0) return '0 B';
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+/** A size with its unit: one decimal from 1 KB up to 100 of a unit ("1.5 GB", "120 MB"). */
+function sized(v: number, units: string[], step: number): string {
   let i = 0;
-  let v = n;
-  while (v >= 1024 && i < units.length - 1) {
-    v /= 1024;
+  while (v >= step && i < units.length - 1) {
+    v /= step;
     i++;
   }
-  return `${v >= 100 || i === 0 ? Math.round(v) : v.toFixed(1)} ${units[i]}`;
+  return `${v >= 100 || i === 0 ? num(Math.round(v)) : num(v, 1)} ${units[i]}`;
+}
+
+export function bytes(n: number): string {
+  return sized(!n || n < 0 ? 0 : n, [_('B'), _('KB'), _('MB'), _('GB'), _('TB')], 1024);
 }
 
 /** Bytes per second as a bit rate. */
 export function bits(bps: number): string {
   const b = bps * 8;
-  if (b < 1000) return `${Math.round(b)} bit/s`;
-  if (b < 1e6) return `${(b / 1e3).toFixed(b < 1e4 ? 1 : 0)} kbit/s`;
-  if (b < 1e9) return `${(b / 1e6).toFixed(b < 1e7 ? 1 : 0)} Mbit/s`;
-  return `${(b / 1e9).toFixed(1)} Gbit/s`;
+  const units = [_('bit/s'), _('kbit/s'), _('Mbit/s'), _('Gbit/s')];
+  if (b < 1000) return `${num(Math.round(b))} ${units[0]}`;
+  const i = b < 1e6 ? 1 : b < 1e9 ? 2 : 3;
+  const v = b / 1000 ** i;
+  return `${num(v, i === 3 || v < 10 ? 1 : 0)} ${units[i]}`;
 }
 
 export function ago(ts: number, now = Date.now() / 1000): string {
-  if (!ts) return 'never';
+  if (!ts) return _('never');
   const d = Math.max(0, Math.round(now - ts));
-  if (d < 60) return 'just now';
-  if (d < 3600) return `${Math.floor(d / 60)} min ago`;
-  if (d < 86400) return `${Math.floor(d / 3600)} h ago`;
-  if (d < 86400 * 30) return `${Math.floor(d / 86400)} d ago`;
-  return new Date(ts * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  if (d < 60) return _('just now');
+  if (d < 3600) return fmt(_('%s min ago'), Math.floor(d / 60));
+  if (d < 86400) return fmt(_('%s h ago'), Math.floor(d / 3600));
+  if (d < 86400 * 30) return fmt(_('%s d ago'), Math.floor(d / 86400));
+  return new Date(ts * 1000).toLocaleDateString(locale(), { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 export function duration(sec: number): string {
@@ -38,17 +43,17 @@ export function duration(sec: number): string {
   const d = Math.floor(sec / 86400);
   const h = Math.floor((sec % 86400) / 3600);
   const m = Math.floor((sec % 3600) / 60);
-  if (d) return `${d}d ${h}h`;
-  if (h) return `${h}h ${m}m`;
-  return `${m}m`;
+  if (d) return fmt(_('%sd %sh'), d, h);
+  if (h) return fmt(_('%sh %sm'), h, m);
+  return fmt(_('%sm'), m);
 }
 
 export function clock(ts: number): string {
   const d = new Date(ts * 1000);
   const today = new Date();
   const sameDay = d.toDateString() === today.toDateString();
-  const t = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-  return sameDay ? t : `${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} ${t}`;
+  const t = d.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
+  return sameDay ? t : `${d.toLocaleDateString(locale(), { day: 'numeric', month: 'short' })} ${t}`;
 }
 
 /* ---------- days (YYYY-MM-DD, the router's calendar) ---------- */
@@ -67,7 +72,7 @@ export function parseDay(s: string): Date {
 /** "1 Oct 2026". A YYYY-MM-DD is a calendar day; other strings and Dates are moments. */
 export function fmtDay(d: Date | string): string {
   const v = typeof d === 'string' ? (/^\d{4}-\d{2}-\d{2}$/.test(d) ? parseDay(d) : new Date(d)) : d;
-  return v.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  return v.toLocaleDateString(locale(), { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 export function date(s: string): string {
@@ -137,47 +142,37 @@ export function endsSoon(p: { expire_warn: number }, left: number | null): boole
 
 /** "ends today", "ends tomorrow", "ends in 7 days" for daysLeft() > 0. */
 export function endsIn(left: number): string {
-  return left <= 1 ? 'ends today' : left === 2 ? 'ends tomorrow' : `ends in ${left} days`;
-}
-
-/** "1 event", "2,000 events". */
-export function plural(n: number, one: string, many = `${one}s`): string {
-  return `${n.toLocaleString('en-GB')} ${n === 1 ? one : many}`;
+  return left <= 1 ? _('ends today') : left === 2 ? _('ends tomorrow') : plural(left, 'ends in %s day', 'ends in %s days');
 }
 
 /** Small sizes on flash and in memory: B, KB, MB. */
 export function kb(n: number): string {
-  return n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(n < 10240 ? 1 : 0)} KB` : `${(n / 1048576).toFixed(1)} MB`;
+  if (n < 1024) return `${num(n)} ${_('B')}`;
+  return n < 1048576 ? `${num(n / 1024, n < 10240 ? 1 : 0)} ${_('KB')}` : `${num(n / 1048576, 1)} ${_('MB')}`;
 }
 
-export const ACCESS_LABEL: Record<Access, string> = {
-  lan: 'Home network',
-  internet: 'Internet',
-  both: 'Home network + Internet',
-};
-
-export const ACCESS_SHORT: Record<Access, string> = { lan: 'LAN', internet: 'Internet', both: 'LAN + Internet' };
+export function accessLabel(a: Access): string {
+  return { lan: _('Home network'), internet: _('Internet'), both: _('Home network + Internet') }[a];
+}
 
 /** In picker order. */
 export const KINDS: Kind[] = ['computer', 'phone', 'tablet', 'router', 'other'];
 
-export const KIND_LABEL: Record<Kind, string> = {
-  computer: 'PC',
-  phone: 'Phone',
-  tablet: 'Tablet',
-  router: 'Router',
-  other: 'Other',
-};
+export function kindLabel(k: Kind): string {
+  return { computer: _('PC'), phone: _('Phone'), tablet: _('Tablet'), router: _('Router'), other: _('Other') }[k];
+}
 
-export const STATE_LABEL: Record<PersonState, string> = {
-  active: 'Active',
-  paused: 'Paused',
-  expired: 'Expired',
-  quota: 'Data limit reached',
-  hours: 'Outside allowed hours',
-  no_server: 'No server',
-  server_off: 'Server is turned off',
-};
+export function stateLabel(s: PersonState): string {
+  return {
+    active: _('Active'),
+    paused: _('Paused'),
+    expired: _('Expired'),
+    quota: _('Data limit reached'),
+    hours: _('Outside allowed hours'),
+    no_server: _('No server'),
+    server_off: _('Server is turned off'),
+  }[s];
+}
 
 export function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -190,8 +185,8 @@ export function initials(name: string): string {
 /** "1.2 GB of 50 GB" style quota text, or just usage when unlimited. */
 export function quotaText(used: number, quotaGb: number, period: 'month' | 'total'): string {
   const u = bytes(used);
-  if (!quotaGb) return `${u} ${period === 'total' ? 'in total' : 'this month'}`;
-  return `${u} of ${quotaGb} GB${period === 'total' ? '' : ' this month'}`;
+  if (!quotaGb) return fmt(period === 'total' ? _('%s in total') : _('%s this month'), u);
+  return fmt(period === 'total' ? _('%s of %s GB') : _('%s of %s GB this month'), u, num(quotaGb));
 }
 
 export function slugify(s: string): string {

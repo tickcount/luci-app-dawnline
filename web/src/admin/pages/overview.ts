@@ -8,7 +8,8 @@ import { api } from '../api';
 import { svg } from '../ui/layout';
 import { attachTip } from '../ui/tooltip';
 import { icon } from '../../shared/icons';
-import { ago, bits, bytes, date, daysLeft, endsIn, endsSoon, initials, todayOf } from '../../shared/format';
+import { ago, bits, bytes, date, daysLeft, duration, endsIn, endsSoon, initials, todayOf } from '../../shared/format';
+import { fill, fmt, plural } from '../../shared/i18n';
 import { ConnectionMap, rangeControl, type Range } from '../map';
 import { personUrl } from '../urls';
 import { eventRow } from '../events/render';
@@ -32,29 +33,27 @@ interface Attention {
 function attention(st: Status): Attention[] {
   const out: Attention[] = [];
   const link = (href: string, t: string) => E('a', { href }, t);
+  const diagnostics = () => link(L.url('admin/network/dawnline/diagnostics'), _('Open Diagnostics'));
   const today = todayOf(st.series);
   // AmneziaWG itself can't run: the health notice says so once, not "Tunnel down" for every server.
   const awg = !!st.awg_state && !st.awg_state.ok;
   for (const s of st.servers)
     if (s.enabled && s.blocked)
-      // The reason, not just "down": its interface name is taken by a network section Dawnline didn't make.
-      out.push({ tone: 'bad', text: [`${s.name} ${s.blocked}. `, link(L.url('admin/network/dawnline/diagnostics'), 'Open Diagnostics')] });
-    else if (s.enabled && !s.up && !awg)
-      out.push({
-        tone: 'bad',
-        text: [`Tunnel ${s.ifname} is down. `, link(L.url('admin/network/dawnline/diagnostics'), 'Open Diagnostics')],
-      });
+      // The reason (the router's words), not just "down": its interface name is taken by a network section Dawnline didn't make.
+      out.push({ tone: 'bad', text: [s.blocked, ' ', diagnostics()] });
+    else if (s.enabled && !s.up && !awg) out.push({ tone: 'bad', text: [fmt(_('Tunnel %s is down.'), s.ifname), ' ', diagnostics()] });
   for (const p of st.people) {
-    if (p.state === 'quota') out.push({ tone: 'warn', text: [link(personUrl(p.id), p.name), ' reached the data limit.'] });
-    else if (p.state === 'expired') out.push({ tone: 'warn', text: [link(personUrl(p.id), p.name), '’s access has ended.'] });
+    const who = () => link(personUrl(p.id), p.name);
+    if (p.state === 'quota') out.push({ tone: 'warn', text: fill(_('%s reached the data limit.'), who()) });
+    else if (p.state === 'expired') out.push({ tone: 'warn', text: fill(_('%s’s access has ended.'), who()) });
     else {
       const left = daysLeft(p.expires, today);
-      if (endsSoon(p, left)) out.push({ tone: '', text: [link(personUrl(p.id), p.name), `’s access ${endsIn(left as number)}.`] });
+      if (endsSoon(p, left)) out.push({ tone: '', text: fill<Node | string>(_('%s’s access %s.'), who(), endsIn(left as number)) });
       // "Keep access" at the end date: nothing changes on its own, so it is said here.
       else if (left != null && left < 0 && p.expire_action === 'notify')
-        out.push({ tone: '', text: [link(personUrl(p.id), p.name), `’s end date passed (${date(p.expires)}) · access kept.`] });
+        out.push({ tone: '', text: fill<Node | string>(_('%s’s end date passed (%s) · access kept.'), who(), date(p.expires)) });
       if (p.quota_limit && p.quota_used >= p.quota_limit * 0.9)
-        out.push({ tone: '', text: [link(personUrl(p.id), p.name), ' has used 90% of the data limit.'] });
+        out.push({ tone: '', text: fill(_('%s has used 90% of the data limit.'), who()) });
     }
   }
   const stale = st.people.flatMap((p) => p.devices.filter((d) => d.config_stale).map((d) => [p, d] as const));
@@ -63,11 +62,17 @@ function attention(st: Status): Attention[] {
       tone: 'warn',
       text:
         stale.length === 1
-          ? [
+          ? fill(
+              _('%s needs its configuration again.'),
               link(personUrl(stale[0][0].id, stale[0][1].id), `${stale[0][0].name} · ${stale[0][1].name}`),
-              ' needs its configuration again.',
-            ]
-          : [`${stale.length} devices need their configuration again (networks or DNS changed).`],
+            )
+          : [
+              plural(
+                stale.length,
+                '%s device needs its configuration again (networks or DNS changed).',
+                '%s devices need their configuration again (networks or DNS changed).',
+              ),
+            ],
     });
   // A server that gives devices an IPv4 that is no longer the router's: one click puts the new one in.
   for (const s of st.servers)
@@ -75,7 +80,8 @@ function attention(st: Status): Attention[] {
       out.push({
         tone: 'warn',
         text: [
-          `Public address changed: ${s.name} still gives devices ${s.endpoint}, the router is ${st.wan} now. `,
+          fmt(_('Public address changed: %s still gives devices %s, the router is %s now.'), s.name, s.endpoint, st.wan),
+          ' ',
           E(
             'button',
             {
@@ -86,24 +92,30 @@ function attention(st: Status): Attention[] {
                 b.disabled = true;
                 await attempt(
                   () => api.serverUpdate(s.id, { endpoint: st.wan }),
-                  `${s.name} uses ${st.wan} now — devices need their configuration again`,
+                  fmt(_('%s uses %s now - devices need their configuration again'), s.name, st.wan),
                 );
                 b.disabled = false;
               },
             },
-            'Use the new address',
+            _('Use the new address'),
           ),
-          ' A DDNS name would follow it by itself.',
+          ' ',
+          _('A DDNS name would follow it by itself.'),
         ],
       });
   if (st.servers.some((s) => s.lan_like) && st.like_home.error)
     out.push({
       tone: 'warn',
-      text: [`Internet through the LAN is off: ${st.like_home.error} `, link(L.url('admin/network/dawnline/diagnostics'), 'Details')],
+      // The reason is the router's.
+      text: [
+        fmt(_('Internet through the LAN is off: %s'), st.like_home.error),
+        ' ',
+        link(L.url('admin/network/dawnline/diagnostics'), _('Details')),
+      ],
     });
   // Only while setting up: an admin who keeps the portal off has decided so.
   if (!st.settings.portal_enabled && !st.people.length)
-    out.push({ tone: '', text: ['The personal portal is off. ', link(L.url('admin/network/dawnline/settings'), 'Turn on')] });
+    out.push({ tone: '', text: [_('The personal portal is off.'), ' ', link(L.url('admin/network/dawnline/settings'), _('Turn on'))] });
   return out;
 }
 
@@ -188,8 +200,8 @@ export class ServerOverview {
     const st = this.st;
     const head = E('div', { class: 'dl-panel-head pad' }, [
       E('div', { class: 'dl-stack' }, [
-        E('h3', {}, 'Where people connect from'),
-        E('span', { class: 'dl-sub' }, 'City-level, from the client IP · locations cached on the router'),
+        E('h3', {}, _('Where people connect from')),
+        E('span', { class: 'dl-sub' }, _('City-level, from the client IP · locations cached on the router')),
       ]),
       E('span', { class: 'dl-spacer' }),
       rangeControl(this.range, (r) => {
@@ -202,11 +214,11 @@ export class ServerOverview {
     if (!st.geo.enabled)
       return E('div', { class: 'dl-panel flush' }, [
         head,
-        E('div', { class: 'dl-map-off' }, [
-          'Locations are off. ',
-          E('a', { href: L.url('admin/network/dawnline/settings') }, 'Turn them on in Settings'),
-          '.',
-        ]),
+        E(
+          'div',
+          { class: 'dl-map-off' },
+          fill(_('Locations are off. %s.'), E('a', { href: L.url('admin/network/dawnline/settings') }, _('Turn them on in Settings'))),
+        ),
       ]);
     const map = (this.map = new ConnectionMap(
       {
@@ -224,8 +236,8 @@ export class ServerOverview {
       if (this.map === map) this.map = null;
     });
     const legend = E('div', { class: 'dl-map-legend' }, [
-      E('span', {}, [E('i', { class: 'line live' }), 'Live tunnel']),
-      E('span', {}, [E('i', { class: 'line' }), 'Seen recently']),
+      E('span', {}, [E('i', { class: 'line live' }), _('Live tunnel')]),
+      E('span', {}, [E('i', { class: 'line' }), _('Seen recently')]),
     ]);
     const wrap = E('div', { class: 'dl-map-wrap' }, [map.el, legend]);
     requestAnimationFrame(() => map.mount(this.mapData()));
@@ -248,9 +260,9 @@ export class ServerOverview {
       this.parts.side,
       E('div', { class: 'dl-panel flush' }, [
         E('div', { class: 'dl-panel-head pad' }, [
-          E('h3', {}, 'Needs attention'),
+          E('h3', {}, _('Needs attention')),
           E('span', { class: 'dl-spacer' }),
-          E('a', { href: L.url('admin/network/dawnline/diagnostics') }, 'Health'),
+          E('a', { href: L.url('admin/network/dawnline/diagnostics') }, _('Health')),
         ]),
         att.length
           ? att
@@ -262,7 +274,7 @@ export class ServerOverview {
                   a.action ?? '',
                 ]),
               )
-          : E('div', { class: 'dl-row dl-muted' }, [icon('check'), 'All good. Nothing needs you right now.']),
+          : E('div', { class: 'dl-row dl-muted' }, [icon('check'), _('All good. Nothing needs you right now.')]),
       ]),
       quiet,
     );
@@ -272,13 +284,13 @@ export class ServerOverview {
       this.parts.activity,
       E('div', { class: 'dl-panel flush' }, [
         E('div', { class: 'dl-panel-head pad' }, [
-          E('h3', {}, 'Activity'),
+          E('h3', {}, _('Activity')),
           E('span', { class: 'dl-spacer' }),
-          E('a', { href: `${L.url('admin/network/dawnline/diagnostics')}?tab=log` }, 'View all'),
+          E('a', { href: `${L.url('admin/network/dawnline/diagnostics')}?tab=log` }, _('View all')),
         ]),
         events.length
           ? events.map((e) => eventRow(st, e))
-          : E('div', { class: 'dl-row dl-muted' }, 'Nothing yet. Connections, new devices and pauses appear here.'),
+          : E('div', { class: 'dl-row dl-muted' }, _('Nothing yet. Connections, new devices and pauses appear here.')),
       ]),
       quiet,
     );
@@ -332,7 +344,7 @@ export class ServerOverview {
             E('span', { class: 'dl-onl-av sm' }, initials(p.name)),
             E('span', { class: 'dl-stack' }, [
               E('b', {}, p.name),
-              E('span', { class: 'dl-hc-since' }, since ? `online for ${ago(since, st.now).replace(' ago', '')}` : 'online'),
+              E('span', { class: 'dl-hc-since' }, since ? fmt(_('online for %s'), duration(Math.max(60, st.now - since))) : _('online')),
             ]),
             E(
               'span',
@@ -345,12 +357,12 @@ export class ServerOverview {
               'div',
               { class: 'dl-hc-speed-row' },
               idle
-                ? [E('span', { class: 'dl-faint' }, 'Idle right now')]
+                ? [E('span', { class: 'dl-faint' }, _('Idle right now'))]
                 : [
                     E('span', {}, [E('span', { class: 'dl-dn' }, '↓'), ` ${bits(fresh![2])}`]),
                     E('span', {}, [E('span', { class: 'dl-up' }, '↑'), ` ${bits(fresh![1])}`]),
                     E('span', { class: 'dl-spacer' }),
-                    E('span', { class: 'dl-faint' }, '15 min'),
+                    E('span', { class: 'dl-faint' }, _('15 min')),
                   ],
             ),
             chart,
@@ -364,7 +376,7 @@ export class ServerOverview {
             E(
               'span',
               { class: 'dl-faint' },
-              `${bytes(devs.reduce((n, d) => n + today(d), 0))} today · ${bytes(p.month[0] + p.month[1])} this month`,
+              `${fmt(_('%s today'), bytes(devs.reduce((n, d) => n + today(d), 0)))} · ${fmt(_('%s this month'), bytes(p.month[0] + p.month[1]))}`,
             ),
           ]),
         ]),
@@ -374,7 +386,7 @@ export class ServerOverview {
     const person = (x: { p: Person; devs: Device[] }) => {
       const { p, devs } = x;
       const badge = E('span', { class: 'dl-onl-dev' }, devs.length > 1 ? String(devs.length) : icon(devs[0].kind));
-      const el = E('a', { class: `dl-onl-p${big ? '' : ' sm'}`, href: personUrl(p.id), 'aria-label': `${p.name}, online` }, [
+      const el = E('a', { class: `dl-onl-p${big ? '' : ' sm'}`, href: personUrl(p.id), 'aria-label': fmt(_('%s, online'), p.name) }, [
         E('span', { class: 'dl-onl-av' }, [initials(p.name), badge]),
         big ? E('span', { class: 'dl-onl-name' }, p.name) : '',
         big
@@ -391,15 +403,14 @@ export class ServerOverview {
 
     const count = E('b', { class: `dl-onl-count${on.length ? '' : ' none'}` }, String(on.length));
     const ndev = on.reduce((n, x) => n + x.devs.length, 0);
-    if (on.length)
-      attachTip(count, () => [`${on.length} ${on.length === 1 ? 'person' : 'people'} · ${ndev} device${ndev === 1 ? '' : 's'}`]);
+    if (on.length) attachTip(count, () => [`${plural(on.length, '%s person', '%s people')} · ${plural(ndev, '%s device', '%s devices')}`]);
     const shown = on.length > CAP ? on.slice(0, CAP - 1) : on;
     const last = st.people
       .flatMap((p) => p.devices.map((d) => ({ p, d })))
       .filter((x) => x.d.handshake)
       .sort((a, b) => b.d.handshake - a.d.handshake)[0];
     return E('div', { class: 'dl-bento-tile online' }, [
-      E('div', { class: 'dl-bento-head' }, [E('span', { class: 'dl-metric-label' }, 'Online'), count]),
+      E('div', { class: 'dl-bento-head' }, [E('span', { class: 'dl-metric-label' }, _('Online')), count]),
       on.length
         ? E('div', { class: `dl-onl-row${big ? '' : ' grid'}` }, [
             ...shown.map(person),
@@ -409,7 +420,7 @@ export class ServerOverview {
                   {
                     class: 'dl-onl-p sm more',
                     href: `${L.url('admin/network/dawnline/server')}?server=${encodeURIComponent(this.srvId)}&section=people&filter=online`,
-                    title: 'Everyone online',
+                    title: _('Everyone online'),
                     click: (ev: Event) => {
                       if (this.go) {
                         ev.preventDefault();
@@ -423,10 +434,10 @@ export class ServerOverview {
           ])
         : E('div', { class: 'dl-onl-empty' }, [
             // A server that is off takes no connections: say so rather than "nobody".
-            E('span', {}, off ? 'The server is turned off' : 'Nobody is connected'),
+            E('span', {}, off ? _('The server is turned off') : _('Nobody is connected')),
             last
-              ? E('span', { class: 'dl-sub' }, `Last: ${last.p.name}, ${ago(last.d.handshake, st.now)}`)
-              : E('span', { class: 'dl-sub' }, off ? 'Devices connect once it is on' : 'No device has connected yet'),
+              ? E('span', { class: 'dl-sub' }, fmt(_('Last: %s, %s'), last.p.name, ago(last.d.handshake, st.now)))
+              : E('span', { class: 'dl-sub' }, off ? _('Devices connect once it is on') : _('No device has connected yet')),
           ]),
     ]);
   }
@@ -448,6 +459,6 @@ export class ServerOverview {
       .filter(([, n]) => n > 0)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 2);
-    return daysTile(this.st.series, top.length ? `Most: ${top.map(([p, n]) => `${p.name} ${bytes(n)}`).join(' · ')}` : '');
+    return daysTile(this.st.series, top.length ? fmt(_('Most: %s'), top.map(([p, n]) => `${p.name} ${bytes(n)}`).join(' · ')) : '');
   }
 }

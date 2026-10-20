@@ -4,10 +4,11 @@
 import type { DayUsage } from '../../shared/types';
 import { E } from '../e';
 import { bits, bytes, parseDay } from '../../shared/format';
+import { fill, fmt, locale } from '../../shared/i18n';
 import { attachTip } from '../ui/tooltip';
 import { svg } from '../ui/layout';
 
-const dayLabel = (day: string) => parseDay(day).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+const dayLabel = (day: string) => parseDay(day).toLocaleDateString(locale(), { day: 'numeric', month: 'short' });
 
 /**
  * Throughput over the last 15 minutes plus today's total. `off`: the server is
@@ -33,7 +34,7 @@ export function speedTile(rate: [number, number, number][], now: number, today: 
             `<path d="M${dl.join(' L')} L${W},${H} L0,${H}Z" class="area"/><path d="M${dl.join(' L')}" class="line"/>` +
             `<path d="M${ul.join(' L')}" class="line up"/></svg>`,
         )
-      : E('div', { class: 'dl-speed-wait' }, [E('i'), off ? '' : E('span', {}, 'Collecting… 1 point a minute')]);
+      : E('div', { class: 'dl-speed-wait' }, [E('i'), off ? '' : E('span', {}, _('Collecting… 1 point a minute'))]);
   const col = (label: string, ic: string, cls: string, v: number) =>
     E('div', { class: 'dl-speed-col' }, [
       E('span', { class: 'dl-sub' }, [E('span', { class: cls }, ic), ` ${label}`]),
@@ -43,19 +44,19 @@ export function speedTile(rate: [number, number, number][], now: number, today: 
     attachTip(chart, () => {
       const p = pts[pts.length - 1];
       return [
-        E('div', { class: 'dl-tip-title' }, new Date(p[0] * 1000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })),
+        E('div', { class: 'dl-tip-title' }, new Date(p[0] * 1000).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' })),
         E('div', {}, `↓ ${bits(p[2])} · ↑ ${bits(p[1])}`),
       ];
     });
   return E('div', { class: 'dl-bento-tile' }, [
     E('div', { class: 'dl-bento-head' }, [
-      E('span', { class: 'dl-metric-label' }, 'Speed now'),
-      off ? '' : E('span', { class: 'dl-sub' }, 'last 15 min'),
+      E('span', { class: 'dl-metric-label' }, _('Speed now')),
+      off ? '' : E('span', { class: 'dl-sub' }, _('last 15 min')),
     ]),
-    E('div', { class: 'dl-speed-cols' }, [col('Download', '↓', 'dl-dn', down), col('Upload', '↑', 'dl-up', up)]),
+    E('div', { class: 'dl-speed-cols' }, [col(_('Download', 'speed'), '↓', 'dl-dn', down), col(_('Upload', 'speed'), '↑', 'dl-up', up)]),
     chart,
     E('div', { class: 'dl-speed-today' }, [
-      E('span', {}, ['Today ', E('b', {}, bytes(rx + tx))]),
+      E('span', {}, fill(_('Today %s'), E('b', {}, bytes(rx + tx)))),
       E('span', {}, [E('span', { class: 'dl-dn' }, '↓'), ` ${bytes(tx)}  `, E('span', { class: 'dl-up' }, '↑'), ` ${bytes(rx)}`]),
     ]),
   ]);
@@ -75,7 +76,7 @@ export function daysTile(series: DayUsage[], note: string): HTMLElement {
       const v = vals[i];
       const bar = E('i', { class: i === days.length - 1 ? 'hi' : '', style: `height:${Math.max(4, (v / max) * 100)}%` });
       attachTip(bar, () => [
-        E('div', { class: 'dl-tip-title' }, i === days.length - 1 ? `Today · ${dayLabel(d.day)}` : dayLabel(d.day)),
+        E('div', { class: 'dl-tip-title' }, i === days.length - 1 ? `${_('Today')} · ${dayLabel(d.day)}` : dayLabel(d.day)),
         E('div', {}, bytes(v)),
         E('div', { class: 'dl-muted dl-mono' }, `↓ ${bytes(d.tx)} ↑ ${bytes(d.rx)}`),
       ]);
@@ -84,14 +85,14 @@ export function daysTile(series: DayUsage[], note: string): HTMLElement {
   );
   return E('div', { class: 'dl-bento-tile month' }, [
     E('div', { class: 'dl-bento-head' }, [
-      E('span', {}, [E('span', { class: 'dl-metric-label' }, 'Last 30 days'), E('b', { class: 'dl-bento-total' }, bytes(total))]),
-      vals[peakI] > 0 ? E('span', { class: 'dl-sub' }, `peak ${bytes(vals[peakI])} · ${dayLabel(days[peakI].day)}`) : '',
+      E('span', {}, [E('span', { class: 'dl-metric-label' }, _('Last 30 days')), E('b', { class: 'dl-bento-total' }, bytes(total))]),
+      vals[peakI] > 0 ? E('span', { class: 'dl-sub' }, `${fmt(_('peak %s'), bytes(vals[peakI]))} · ${dayLabel(days[peakI].day)}`) : '',
     ]),
-    days.length ? bars : E('p', { class: 'dl-muted' }, 'No traffic yet.'),
+    days.length ? bars : E('p', { class: 'dl-muted' }, _('No traffic yet.')),
     E('div', { class: 'dl-bento-head' }, [
       E('span', { class: 'dl-sub' }, days.length ? dayLabel(days[0].day) : ''),
       E('span', { class: 'dl-sub' }, note),
-      E('span', { class: 'dl-sub' }, 'today'),
+      E('span', { class: 'dl-sub' }, _('today')),
     ]),
   ]);
 }
@@ -108,7 +109,7 @@ export function dayBars(series: DayUsage[]): HTMLElement {
       const bar = E('i', { class: `${vals[i] ? '' : 'zero'}${i === days.length - 1 ? ' hi' : ''}` });
       bar.style.height = `${Math.max(8, (vals[i] / max) * 100)}%`;
       attachTip(bar, () => [
-        E('div', { class: 'dl-tip-title' }, i === days.length - 1 ? `Today · ${dayLabel(x.day)}` : dayLabel(x.day)),
+        E('div', { class: 'dl-tip-title' }, i === days.length - 1 ? `${_('Today')} · ${dayLabel(x.day)}` : dayLabel(x.day)),
         E('div', {}, bytes(vals[i])),
       ]);
       return bar;

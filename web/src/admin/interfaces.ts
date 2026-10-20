@@ -11,13 +11,15 @@ import { seg, sw } from './ui/controls';
 import { attachTip } from './ui/tooltip';
 import { installMissing } from './pkgs';
 import { icon } from '../shared/icons';
+import { fill, fmt, locale, plural } from '../shared/i18n';
 
-const GROUPS: [IfaceCategory, string][] = [
+/** Groups of "Other interfaces", in order, with their headings. */
+const groups = (): [IfaceCategory, string][] => [
   ['wan', 'WAN'],
   ['ethernet', 'Ethernet'],
   ['wifi', 'Wi-Fi'],
-  ['vpn', 'VPN & tunnels'],
-  ['other', 'Other'],
+  ['vpn', _('VPN & tunnels')],
+  ['other', _('Other')],
 ];
 
 const ICON: Record<NetDevice['kind'], string> = {
@@ -48,7 +50,7 @@ export function accessCards(srv: Server, first: Status, refresh: () => Promise<u
   const root = E(
     'div',
     { class: 'dl-stack gap16' },
-    E('section', { class: 'dl-setsec' }, E('div', { class: 'dl-setsec-body' }, E('p', { class: 'dl-muted' }, 'Loading interfaces…'))),
+    E('section', { class: 'dl-setsec' }, E('div', { class: 'dl-setsec-body' }, E('p', { class: 'dl-muted' }, _('Loading interfaces…')))),
   );
   let d: InterfacesData;
   let autoWan = true,
@@ -112,16 +114,16 @@ export function accessCards(srv: Server, first: Status, refresh: () => Promise<u
     const usable = !blocked && (x.nets.length > 0 || sel || !!x.missing);
     const noZone = (sel || isAuto) && !x.zone && !x.missing;
     const sub = x.missing
-      ? 'Not present right now'
+      ? _('Not present right now')
       : x.own
-        ? 'This server'
+        ? _('This server')
         : x.master
-          ? `Port of ${x.master}`
+          ? fmt(_('Port of %s'), x.master)
           : isWan
-            ? `Internet${x.zone ? ` · zone ${x.zone}` : ''}`
+            ? `${_('Internet')}${x.zone ? ` · ${fmt(_('zone %s'), x.zone)}` : ''}`
             : x.nets.length
               ? x.nets.join(', ')
-              : 'No IPv4 network';
+              : _('No IPv4 network');
     const el = E(
       'button',
       {
@@ -140,19 +142,20 @@ export function accessCards(srv: Server, first: Status, refresh: () => Promise<u
       [
         E('span', { class: 'dl-if-ic' }, icon(ICON[x.kind] ?? 'link')),
         E('span', { class: 'dl-if-main' }, [E('span', { class: 'dl-if-name' }, x.name), E('span', { class: 'dl-if-sub' }, sub)]),
-        isAuto ? E('span', { class: 'dl-if-badge ok' }, 'Auto') : sel ? E('span', { class: 'dl-if-check' }, icon('check')) : '',
+        isAuto ? E('span', { class: 'dl-if-badge ok' }, _('Auto')) : sel ? E('span', { class: 'dl-if-check' }, icon('check')) : '',
       ],
     );
     attachTip(el, () => [
       E('div', { class: 'dl-tip-title' }, x.name),
       E('div', { class: 'dl-muted' }, [
-        x.logical ? `Interface ${x.logical}` : 'No netifd interface',
-        x.zone ? ` · zone ${x.zone}` : ' · no firewall zone',
+        x.logical ? fmt(_('Interface %s'), x.logical) : _('No netifd interface'),
+        ' · ',
+        x.zone ? fmt(_('zone %s'), x.zone) : _('no firewall zone'),
       ]),
-      x.members.length ? E('div', { class: 'dl-muted' }, `Ports: ${x.members.join(', ')}`) : '',
+      x.members.length ? E('div', { class: 'dl-muted' }, fmt(_('Ports: %s'), x.members.join(', '))) : '',
       x.nets.length ? E('div', { class: 'dl-mono' }, x.nets.join(', ')) : '',
-      noZone ? E('div', { class: 'dl-warn' }, 'Not in a firewall zone: the firewall rejects this traffic.') : '',
-      x.master ? E('div', { class: 'dl-muted' }, `Choose ${x.master} to include it.`) : '',
+      noZone ? E('div', { class: 'dl-warn' }, _('Not in a firewall zone: the firewall rejects this traffic.')) : '',
+      x.master ? E('div', { class: 'dl-muted' }, fmt(_('Choose %s to include it.'), x.master)) : '',
     ]);
     return el;
   }
@@ -167,36 +170,39 @@ export function accessCards(srv: Server, first: Status, refresh: () => Promise<u
 
   function likeHomeText(): (Node | string)[] {
     const lh = d.like_home;
-    if (!lanLike) return ['Off: internet traffic goes straight to the WAN, past whatever handles home traffic on this router.'];
+    if (!lanLike) return [_('Off: internet traffic goes straight to the WAN, past whatever handles home traffic on this router.')];
     if (d.needs?.length)
       return [
-        E('span', { class: 'dl-warn' }, `Needs ${d.needs.join(' and ')}.`),
-        ' Until they are installed, internet traffic goes straight to the WAN.',
+        E('span', { class: 'dl-warn' }, fmt(_('Needs %s.'), new Intl.ListFormat(locale(), { type: 'conjunction' }).format(d.needs))),
+        ' ',
+        _('Until they are installed, internet traffic goes straight to the WAN.'),
       ];
     if (!d.config.lan_like)
-      return ['Internet traffic will enter the router from your LAN, so it is handled like any home device. Save to turn on.'];
+      return [_('Internet traffic will enter the router from your LAN, so it is handled like any home device. Save to turn on.')];
     // A server that is off has no link on purpose: describe the setting, not its state.
     if (!srv.enabled)
-      return ['Internet traffic enters the router from your LAN, so whatever handles home traffic (proxies, filters, DNS) handles it too.'];
-    if (lh.active && lh.bridged)
       return [
-        'Internet traffic enters ',
-        E('span', { class: 'dl-mono' }, lh.dev ?? ''),
-        ' as ',
-        E('span', { class: 'dl-mono' }, lh.address ?? ''),
-        ', so whatever handles home traffic (proxies, filters, DNS) handles it too.',
+        _('Internet traffic enters the router from your LAN, so whatever handles home traffic (proxies, filters, DNS) handles it too.'),
       ];
+    if (lh.active && lh.bridged)
+      return fill(
+        _('Internet traffic enters %s as %s, so whatever handles home traffic (proxies, filters, DNS) handles it too.'),
+        E('span', { class: 'dl-mono' }, lh.dev ?? ''),
+        E('span', { class: 'dl-mono' }, lh.address ?? ''),
+      );
     return [
-      E('span', { class: 'dl-warn' }, `Not working: ${lh.error ?? 'the link is down'}`),
-      ' Internet traffic goes straight to the WAN for now.',
+      E('span', { class: 'dl-warn' }, fmt(_('Not working: %s'), lh.error ?? _('the link is down'))),
+      ' ',
+      _('Internet traffic goes straight to the WAN for now.'),
     ];
   }
 
-  const MESH_TEXT: Record<MeshMode, string> = {
-    off: "Devices of different people never reach each other; a person's own devices don't either.",
-    all: 'Devices of people with home access reach each other, like home devices do. Internet-only people never.',
-    circles: 'Within a circle: family sees family, guests see guests. Everyone reaches their own devices. Internet-only people never.',
-  };
+  const meshText = (m: MeshMode): string =>
+    ({
+      off: _("Devices of different people never reach each other; a person's own devices don't either."),
+      all: _('Devices of people with home access reach each other, like home devices do. Internet-only people never.'),
+      circles: _('Within a circle: family sees family, guests see guests. Everyone reaches their own devices. Internet-only people never.'),
+    })[m];
 
   function setrow(
     ic: string,
@@ -217,8 +223,12 @@ export function accessCards(srv: Server, first: Status, refresh: () => Promise<u
 
   const hint = (live: string | null, saved: string) => {
     const mono = (t: string) => E('span', { class: 'dl-mono' }, t);
-    if (live) return E('span', {}, [' Now: ', mono(live), ...(saved && saved !== live ? [', was ', mono(saved)] : []), '.']);
-    return E('span', {}, saved ? [' Not found now: using ', mono(saved), '.'] : [' Not found.']);
+    if (live)
+      return E('span', {}, [
+        ' ',
+        ...(saved && saved !== live ? fill(_('Now: %s, was %s.'), mono(live), mono(saved)) : fill(_('Now: %s.'), mono(live))),
+      ]);
+    return E('span', {}, [' ', ...(saved ? fill(_('Not found now: using %s.'), mono(saved)) : [_('Not found.')])]);
   };
 
   function paint() {
@@ -226,7 +236,7 @@ export function accessCards(srv: Server, first: Status, refresh: () => Promise<u
       'select',
       {
         class: 'cbi-input-select',
-        'aria-label': 'Internet interface',
+        'aria-label': _('Internet interface'),
         change: (ev: Event) => {
           wanDev = (ev.target as HTMLSelectElement).value;
           paint();
@@ -234,7 +244,9 @@ export function accessCards(srv: Server, first: Status, refresh: () => Promise<u
       },
       d.devices
         .filter((x) => !x.own && !x.master && x.zone && !x.missing)
-        .map((x) => E('option', { value: x.name, selected: x.name === wanDev ? 'selected' : null }, `${x.name} · zone ${x.zone}`)),
+        .map((x) =>
+          E('option', { value: x.name, selected: x.name === wanDev ? 'selected' : null }, `${x.name} · ${fmt(_('zone %s'), x.zone)}`),
+        ),
     ) as HTMLSelectElement;
 
     const home = homeDevs();
@@ -247,17 +259,21 @@ export function accessCards(srv: Server, first: Status, refresh: () => Promise<u
     const homeDirty = changed(3, 4);
     const save = (on: boolean) =>
       button(
-        'Save',
+        _('Save'),
         async () => {
           const r = await attempt(
             () => api.serverInterfaces(serverId, autoWan, autoWan ? '' : wanDev, autoLan, [...lans], lanLike, mesh !== 'off', mesh),
-            'Access saved',
+            _('Access saved'),
           );
           if (!r) return;
           take(r, true);
           if (r.nets_changed && r.lan_only)
             notify(
-              `${r.lan_only} ${r.lan_only === 1 ? 'person has' : 'people have'} Home-only access: their devices need the configuration again to reach the new networks.`,
+              plural(
+                r.lan_only,
+                '%s person has Home-only access: their devices need the configuration again to reach the new networks.',
+                '%s people have Home-only access: their devices need the configuration again to reach the new networks.',
+              ),
               'warning',
               10000,
             );
@@ -269,17 +285,17 @@ export function accessCards(srv: Server, first: Status, refresh: () => Promise<u
     const internet = E('section', { class: 'dl-setsec dl-ifcard' }, [
       E('div', { class: 'dl-setsec-body' }, [
         E('div', { class: 'dl-panel-head' }, [
-          E('h3', {}, 'Internet'),
+          E('h3', {}, _('Internet')),
           E('span', { class: 'dl-spacer' }),
-          E('span', { class: 'dl-sub' }, 'People with Internet or Both'),
+          E('span', { class: 'dl-sub' }, _('People with Internet or Both')),
         ]),
         setrow(
           'home',
-          'Internet like a home device',
+          _('Internet like a home device'),
           likeHomeText(),
           [
-            lanLike && d.needs?.length ? button('Install', () => installMissing('home', d.needs!, () => load(false)), 'positive') : '',
-            sw(lanLike, 'Internet like a home device', (v) => {
+            lanLike && d.needs?.length ? button(_('Install'), () => installMissing('home', d.needs!, () => load(false)), 'positive') : '',
+            sw(lanLike, _('Internet like a home device'), (v) => {
               lanLike = v;
               paint();
             }),
@@ -288,14 +304,14 @@ export function accessCards(srv: Server, first: Status, refresh: () => Promise<u
         ),
         setrow(
           'globe',
-          'Auto-detect WAN',
+          _('Auto-detect WAN'),
           [
-            'The interface with the default route: the server port opens there and Internet access leaves through it.',
+            _('The interface with the default route: the server port opens there and Internet access leaves through it.'),
             hint(d.detected.wan, d.saved.wan),
           ],
           [
             autoWan ? '' : wanSel,
-            sw(autoWan, 'Auto-detect WAN', (v) => {
+            sw(autoWan, _('Auto-detect WAN'), (v) => {
               autoWan = v;
               paint();
             }),
@@ -307,10 +323,13 @@ export function accessCards(srv: Server, first: Status, refresh: () => Promise<u
           'span',
           { class: 'dl-sub' },
           lanLike
-            ? ['Internet like a home device', currentWan() ? [' · leaves through ', E('span', { class: 'dl-mono' }, currentWan())] : '']
+            ? [
+                _('Internet like a home device'),
+                currentWan() ? [' · ', ...fill(_('leaves through %s'), E('span', { class: 'dl-mono' }, currentWan()))] : '',
+              ]
             : currentWan()
-              ? ['Internet straight to ', E('span', { class: 'dl-mono' }, currentWan())]
-              : 'No WAN found',
+              ? fill(_('Internet straight to %s'), E('span', { class: 'dl-mono' }, currentWan()))
+              : _('No WAN found'),
         ),
         save(netDirty),
       ]),
@@ -318,19 +337,19 @@ export function accessCards(srv: Server, first: Status, refresh: () => Promise<u
 
     const meshSeg = seg(
       [
-        ['off', 'Off'],
-        ['all', 'Everyone'],
-        ['circles', 'Circles'],
+        ['off', _('Off')],
+        ['all', _('Everyone')],
+        ['circles', _('Circles')],
       ] as [MeshMode, string][],
       mesh,
       {
-        label: 'Devices reach each other',
+        label: _('Devices reach each other'),
         cls: 'sm',
         optimistic: false,
         // Applies at once, like the choices on a person's page.
         onChange: async (v) => {
-          const t = { off: 'Off', all: 'Everyone', circles: 'Circles' }[v];
-          if (!(await attempt(() => api.serverUpdate(serverId, { mesh: v }), `Devices reach each other: ${t}`))) return;
+          const t = { off: _('Off'), all: _('Everyone'), circles: _('Circles') }[v];
+          if (!(await attempt(() => api.serverUpdate(serverId, { mesh: v }), fmt(_('Devices reach each other: %s'), t)))) return;
           mesh = v;
           d.config.mesh = v;
           paint();
@@ -342,23 +361,25 @@ export function accessCards(srv: Server, first: Status, refresh: () => Promise<u
     const homeCard = E('section', { class: 'dl-setsec dl-ifcard' }, [
       E('div', { class: 'dl-setsec-body' }, [
         E('div', { class: 'dl-panel-head' }, [
-          E('h3', {}, 'Home network'),
+          E('h3', {}, _('Home network')),
           E('span', { class: 'dl-spacer' }),
-          E('span', { class: 'dl-sub' }, 'People with Home or Both'),
-          button([icon('reset'), ' Rescan'], () => load(false), 'neutral', { title: 'Read the interfaces again' }),
+          E('span', { class: 'dl-sub' }, _('People with Home or Both')),
+          button([icon('reset'), ' ', _('Rescan')], () => load(false), 'neutral', { title: _('Read the interfaces again') }),
         ]),
         setrow(
           'network',
-          'Networks',
-          'Everyone with home access reaches these, unless their page leaves one out; their devices can be reached from here too. Click one to add or remove it.',
+          _('Networks'),
+          _(
+            'Everyone with home access reaches these, unless their page leaves one out; their devices can be reached from here too. Click one to add or remove it.',
+          ),
           '',
           '',
           netPicker(),
         ),
         setrow(
           'link',
-          'Devices reach each other',
-          MESH_TEXT[mesh],
+          _('Devices reach each other'),
+          meshText(mesh),
           meshSeg,
           '',
           mesh === 'circles' ? circleChips(st, serverId, refresh) : undefined,
@@ -370,8 +391,15 @@ export function accessCards(srv: Server, first: Status, refresh: () => Promise<u
           'span',
           { class: 'dl-sub dl-if-summary' },
           nets.length
-            ? ['Home access reaches ', ...nets.flatMap(([n, dev], i) => [i ? ', ' : '', E('span', { class: 'dl-mono' }, n), ` (${dev})`])]
-            : 'No home network: Home access reaches nothing but this router.',
+            ? fill(
+                _('Home access reaches %s'),
+                E(
+                  'span',
+                  {},
+                  nets.flatMap(([n, dev], i) => [i ? ', ' : '', E('span', { class: 'dl-mono' }, n), ` (${dev})`]),
+                ),
+              )
+            : _('No home network: Home access reaches nothing but this router.'),
         ),
         save(homeDirty),
       ]),
@@ -392,13 +420,13 @@ export function accessCards(srv: Server, first: Status, refresh: () => Promise<u
     return E('div', { class: 'dl-stack gap8 dl-netpick' }, [
       avail.length
         ? E('div', { class: 'dl-ifgrid' }, avail.map(tile))
-        : E('span', { class: 'dl-warn' }, 'No home network: Home access reaches nothing but this router.'),
+        : E('span', { class: 'dl-warn' }, _('No home network: Home access reaches nothing but this router.')),
       E('label', { class: 'dl-boxrow' }, [
         E('span', { class: 'dl-stack' }, [
-          E('span', {}, 'Auto-detect LAN'),
-          E('span', { class: 'dl-sub' }, ['Adds the LAN this router uses.', hint(d.detected.lan, d.saved.lan)]),
+          E('span', {}, _('Auto-detect LAN')),
+          E('span', { class: 'dl-sub' }, [_('Adds the LAN this router uses.'), hint(d.detected.lan, d.saved.lan)]),
         ]),
-        sw(autoLan, 'Auto-detect LAN', (v) => {
+        sw(autoLan, _('Auto-detect LAN'), (v) => {
           autoLan = v;
           paint();
         }),
@@ -414,16 +442,16 @@ export function accessCards(srv: Server, first: Status, refresh: () => Promise<u
             [
               E('summary', {}, [
                 icon('chevron'),
-                E('span', {}, 'Other interfaces'),
+                E('span', {}, _('Other interfaces')),
                 E('span', { class: 'dl-pcount' }, String(rest.length)),
               ]),
               E('div', { class: 'dl-params-body' }, [
                 E(
                   'span',
                   { class: 'dl-sub' },
-                  'The WAN, this server, ports and Wi-Fi of a bridge (they come with it) and interfaces without an IPv4 network.',
+                  _('The WAN, this server, ports and Wi-Fi of a bridge (they come with it) and interfaces without an IPv4 network.'),
                 ),
-                ...GROUPS.map(([cat, label]) => {
+                ...groups().map(([cat, label]) => {
                   const list = rest.filter((x) => x.category === cat);
                   return list.length
                     ? E('div', { class: 'dl-ifgroup' }, [E('h4', {}, label), E('div', { class: 'dl-ifgrid' }, list.map(tile))])

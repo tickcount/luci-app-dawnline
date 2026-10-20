@@ -6,6 +6,7 @@
 
 import type { Device, Person } from '../../shared/types';
 import { addDays, ago, byDeviceState, bytes, parseDay } from '../../shared/format';
+import { fmt, locale, num, plural } from '../../shared/i18n';
 import { h, ic } from '../dom';
 import { BOUNCY, EASE_IN, EASE_OUT, SMOOTH, play } from '../motion';
 import { now, today, type RepaintOpts, type State } from '../state';
@@ -22,16 +23,16 @@ export const reachableFromHome = (p: Person, d: Device) => p.access !== 'interne
 
 /** The status line: its class and words (short, on one line; the full wording shows on hover). */
 function statusOf(d: Device, p: Person): [string, string] {
-  if (d.disabled) return ['', 'Disabled'];
+  if (d.disabled) return ['', _('Disabled')];
   // The Update pill beside it says what to do.
-  if (d.config_stale && d.handshake) return ['warn-t', 'Settings changed'];
+  if (d.config_stale && d.handshake) return ['warn-t', _('Settings changed')];
   // Over the data limit or outside the hours the tunnel stays up but passes nothing: the app says
   // "connected", so say here why nothing works.
-  if (d.online && p.state === 'quota') return ['warn-t', 'Connected, no data left'];
-  if (d.online && p.state === 'hours') return ['warn-t', 'Connected, outside your hours'];
-  if (d.online) return ['ok-t', 'Connected'];
-  if (!d.handshake) return ['warn-t', 'Not set up yet'];
-  return ['', `Last connected ${ago(d.handshake, now())}`];
+  if (d.online && p.state === 'quota') return ['warn-t', _('Connected, no data left')];
+  if (d.online && p.state === 'hours') return ['warn-t', _('Connected, outside your hours')];
+  if (d.online) return ['ok-t', _('Connected')];
+  if (!d.handshake) return ['warn-t', _('Not set up yet')];
+  return ['', fmt(_('Last connected %s'), ago(d.handshake, now()))];
 }
 
 function menuItems(d: Device, st: State): (MenuItem | null)[] {
@@ -39,8 +40,8 @@ function menuItems(d: Device, st: State): (MenuItem | null)[] {
     // How devices at home reach it: only where the router actually lets them through.
     ...(reachableFromHome(st.person, d)
       ? [
-          { label: 'Copy IP address', icon: 'copy', run: () => copy(d.address, 'IP address copied') },
-          ...(d.hostname ? [{ label: 'Copy local address', icon: 'home', run: () => copy(d.hostname, 'Address copied') }] : []),
+          { label: _('Copy IP address'), icon: 'copy', run: () => copy(d.address, _('IP address copied')) },
+          ...(d.hostname ? [{ label: _('Copy local address'), icon: 'home', run: () => copy(d.hostname, _('Address copied')) }] : []),
           null,
         ]
       : []),
@@ -48,24 +49,24 @@ function menuItems(d: Device, st: State): (MenuItem | null)[] {
     ...(d.disabled
       ? []
       : [
-          { label: 'Rename', icon: 'edit', run: () => rename(d) },
-          { label: 'Reconnect', icon: 'refresh', tone: 'warn' as const, run: () => reconnect(d) },
-          { label: 'Remove', icon: 'trash', tone: 'bad' as const, run: () => removeDevice(d) },
+          { label: _('Rename'), icon: 'edit', run: () => rename(d) },
+          { label: _('Reconnect'), icon: 'refresh', tone: 'warn' as const, run: () => reconnect(d) },
+          { label: _('Remove'), icon: 'trash', tone: 'bad' as const, run: () => removeDevice(d) },
         ]),
   ];
 }
 
 /** "Today", "Yesterday", "Tue 13 Oct": a spark bar's day, on the router's calendar. */
 function dayName(back: number): string {
-  if (back === 0) return 'Today';
-  if (back === 1) return 'Yesterday';
-  return parseDay(addDays(today(), -back)).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  if (back === 0) return _('Today');
+  if (back === 1) return _('Yesterday');
+  return parseDay(addDays(today(), -back)).toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
 /** Last 7 days as a number and bars; a bar under the pointer puts its own day in the number's place. */
 function usage(d: Device, stale: boolean): HTMLElement {
   const week = d.spark.reduce((a, b) => a + b, 0);
-  const lbl = h('span', { class: 'use-lbl' }, 'Last 7 days');
+  const lbl = h('span', { class: 'use-lbl' }, _('Last 7 days'));
   const val = h('span', { class: 'use-val num', 'data-t': `${d.id}:use` }, bytes(week));
   let side: HTMLElement;
   if (stale)
@@ -74,12 +75,12 @@ function usage(d: Device, stale: boolean): HTMLElement {
       {
         type: 'button',
         class: 'upd-pill',
-        'aria-label': 'Update the connection',
-        title: 'Its settings changed: update the connection',
+        'aria-label': _('Update the connection'),
+        title: _('Its settings changed: update the connection'),
         onclick: () => reconnect(d),
       },
       ic('refresh'),
-      h('span', {}, 'Update'),
+      h('span', {}, _('Update')),
     );
   else {
     const max = Math.max(1, ...d.spark);
@@ -94,7 +95,7 @@ function usage(d: Device, stale: boolean): HTMLElement {
         setText(val, bytes(v));
       });
       b.addEventListener('pointerleave', () => {
-        setText(lbl, 'Last 7 days');
+        setText(lbl, _('Last 7 days'));
         setText(val, bytes(week));
       });
       side.appendChild(b);
@@ -108,15 +109,15 @@ function card(d: Device, st: State): HTMLElement {
   const locked = !!st.locked;
   // The device this page was opened from (through the tunnel): it is connected, so say which one it is instead.
   const here = st.here === d.id;
-  const [cls, words] = here ? ['here-t', 'This device'] : statusOf(d, p);
+  const [cls, words] = here ? ['here-t', _('This device')] : statusOf(d, p);
   const setUp = !d.handshake && !d.disabled;
   const stale = d.config_stale && !setUp && !locked && !d.disabled;
   // On one line; the exact time, or the whole wording, on hover.
   const title =
     !here && d.handshake && !d.online && !d.disabled && !d.config_stale
-      ? new Date(d.handshake * 1000).toLocaleString('en-GB')
+      ? new Date(d.handshake * 1000).toLocaleString(locale())
       : stale
-        ? 'Settings changed, update needed'
+        ? _('Settings changed, update needed')
         : words;
   const items = menuItems(d, st);
   const more =
@@ -124,7 +125,13 @@ function card(d: Device, st: State): HTMLElement {
       ? null
       : h(
           'button',
-          { type: 'button', class: 'knob more', 'aria-label': `${d.name} options`, 'aria-haspopup': 'menu', 'aria-expanded': 'false' },
+          {
+            type: 'button',
+            class: 'knob more',
+            'aria-label': fmt(_('%s options'), d.name),
+            'aria-haspopup': 'menu',
+            'aria-expanded': 'false',
+          },
           ic('more'),
         );
   more?.addEventListener('click', () => openMenu(more, items));
@@ -152,11 +159,11 @@ function card(d: Device, st: State): HTMLElement {
             {
               type: 'button',
               class: 'btn tint block setup-btn',
-              'aria-label': `Set up ${d.name}`,
+              'aria-label': fmt(_('Set up %s'), d.name),
               onclick: (ev: Event) => openSetup(d, ev.currentTarget),
             },
             ic('qr'),
-            h('span', {}, 'Connect'),
+            h('span', {}, _('Connect')),
           )
         : usage(d, stale),
   );
@@ -168,25 +175,25 @@ const firstCard = (mobile: boolean) =>
     'div',
     { class: 'dev first', 'data-id': 'first' },
     glass('plus', 'blue'),
-    h('b', {}, 'Add your first device'),
-    h('p', {}, 'Two steps, about a minute: get the app, then add the connection.'),
+    h('b', {}, _('Add your first device')),
+    h('p', {}, _('Two steps, about a minute: get the app, then add the connection.')),
     h(
       'button',
       { type: 'button', class: 'btn accent block', onclick: startAdd },
       ic('plus'),
-      h('span', {}, mobile ? 'Add this phone' : 'Add this device'),
+      h('span', {}, mobile ? _('Add this phone') : _('Add this device')),
     ),
   );
 
 const addCard = () =>
-  h('button', { type: 'button', class: 'dev add', 'data-id': 'add', onclick: startAdd }, glass('plus'), h('span', {}, 'Add device'));
+  h('button', { type: 'button', class: 'dev add', 'data-id': 'add', onclick: startAdd }, glass('plus'), h('span', {}, _('Add device')));
 
 /** The section, built once; `fill` puts the cards in. */
 export function devicesSection(): HTMLElement {
   return h(
     'section',
-    { class: 'devices', id: 'devices', 'aria-label': 'Your devices' },
-    h('div', { class: 'sec-head' }, h('h2', {}, 'Your devices'), h('span', { class: 'aside num' })),
+    { class: 'devices', id: 'devices', 'aria-label': _('Your devices') },
+    h('div', { class: 'sec-head' }, h('h2', {}, _('Your devices')), h('span', { class: 'aside num' })),
     h('div', { class: 'dgrid' }),
     h('p', { class: 'note-s limit', hidden: true }),
   );
@@ -254,7 +261,7 @@ export function fillDevices(section: HTMLElement, st: State, o: RepaintOpts = {}
   }
   if (repainting) morphChanged(grid, said);
   const count = section.querySelector('.sec-head .aside') as HTMLElement;
-  const n = `${p.devices.length} of ${p.device_limit}`;
+  const n = fmt(_('%s of %s'), num(p.devices.length), num(p.device_limit));
   if (repainting) morphText(count, n);
   else count.textContent = n;
   // The admin may add devices past the limit.
@@ -262,7 +269,11 @@ export function fillDevices(section: HTMLElement, st: State, o: RepaintOpts = {}
   const limit = section.querySelector('.limit') as HTMLElement;
   const was = limit.hidden;
   const hide = st.can_add || !!st.locked;
-  limit.textContent = `You have reached your limit of ${p.device_limit} devices. Remove one to add another.`;
+  limit.textContent = plural(
+    p.device_limit,
+    'You have reached your limit of %s device. Remove one to add another.',
+    'You have reached your limit of %s devices. Remove one to add another.',
+  );
   limit.getAnimations().forEach((a) => a.cancel());
   // A slot freed: the note fades the way it came, then leaves the layout.
   if (repainting && !was && hide) {

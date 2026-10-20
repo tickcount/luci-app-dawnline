@@ -8,6 +8,7 @@
 
 import { stat, popen, access } from 'fs';
 import { q, read_json, write_json, ensure_dir, RUN_DIR } from 'dawnline.util';
+import { _ } from 'dawnline.i18n';
 
 /** Prefixes that fetch github.com files when GitHub itself is unreachable. */
 export const MIRRORS = [ 'https://ghfast.top/', 'https://gh-proxy.com/', 'https://ghproxy.net/' ];
@@ -54,11 +55,11 @@ function api_json(url) {
 		return null;
 	}
 	if (r.status == 403 || r.status == 429 || (type(j) == 'object' && match(j.message ?? '', /rate limit/i)))
-		die('GitHub API rate limit reached: try again in an hour.');
+		die(_('GitHub API rate limit reached: try again in an hour.'));
 	if (r.status == 404)
 		return null;
 	if (r.status >= 400)
-		die(`GitHub: ${j?.message ?? `HTTP ${r.status}`}`);
+		die(sprintf(_('GitHub: %s'), j?.message ?? `HTTP ${r.status}`));
 	return j;
 }
 
@@ -209,18 +210,18 @@ export function download(url, dest, o) {
 	for (let i, u in tries) {
 		let host = replace(u, /^https:\/\/([^\/]+)\/.*$/, '$1');
 		if (i > 0)
-			o.log?.(`Trying mirror ${host}`);
+			o.log?.(sprintf(_('Trying mirror %s'), host));
 		let r = have_curl()
 			? run(`curl -fsSL --connect-timeout 15 --max-time 300 --retry 1 -o ${q(dest)} ${q(u)}`)
 			: run(`uclient-fetch -q -T 30 -O ${q(dest)} ${q(u)}`);
 		if (r.code == 0 && (stat(dest)?.size ?? 0) > 0) {
 			if (!want || sha256(dest) == want)
 				return u;
-			o.log?.(`Warning: ${host} sent a file that does not match GitHub's sha256, discarded`);
+			o.log?.(sprintf(_("Warning: %s sent a file that does not match GitHub's sha256, discarded"), host));
 		}
 		system(`rm -f ${q(dest)}`);
 		if (i == 0 && length(tries) > 1)
-			o.log?.('GitHub did not answer, trying mirrors');
+			o.log?.(_('GitHub did not answer, trying mirrors'));
 	}
 	return null;
 };

@@ -5,6 +5,7 @@
 // and the sheet closes by itself onto the page.
 
 import type { Device } from '../../shared/types';
+import { fmt } from '../../shared/i18n';
 import { gone, call } from '../api';
 import { h, ic } from '../dom';
 import { EASE_OUT, play } from '../motion';
@@ -20,7 +21,7 @@ export interface Way {
 }
 
 export function waitWay(d: Device): Way {
-  const line = h('b', {}, 'Waiting for the connection');
+  const line = h('b', {}, _('Waiting for the connection'));
   const more = h('span', { class: 'ws', hidden: true });
   const el = h(
     'div',
@@ -38,12 +39,12 @@ export function waitWay(d: Device): Way {
     el,
     connected() {
       el.classList.add('done');
-      morphText(line, `${d.name} connected`);
+      morphText(line, fmt(_('%s connected'), d.name));
     },
     gaveUp() {
       el.classList.add('stopped');
-      morphText(line, 'No connection yet');
-      more.textContent = 'Close this and open it again to keep checking.';
+      morphText(line, _('No connection yet'));
+      more.textContent = _('Close this and open it again to keep checking.');
       more.hidden = false;
       play(
         line.parentElement!,

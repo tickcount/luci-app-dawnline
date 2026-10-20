@@ -13,10 +13,9 @@ type Tab = 'health' | 'log';
 type Events = Awaited<ReturnType<typeof api.events>>;
 type Loaded = [Status, Events, ServiceLog];
 
-const TABS: [Tab, string][] = [
-  ['health', 'Health'],
-  ['log', 'Log'],
-];
+const TABS: Tab[] = ['health', 'log'];
+
+const tabLabel = (t: Tab) => (t === 'log' ? _('Log') : _('Health'));
 
 /** The whole log is large (up to 20,000 events): fetched only for the Log tab. A "since" cursor on the router would make it cheap. */
 const LOG_LIMIT = 20000;
@@ -25,7 +24,7 @@ export class DiagnosticsPage {
   tab: Tab = new URLSearchParams(location.search).get('tab') === 'log' ? 'log' : 'health';
   health!: HealthTab;
   log!: LogTab;
-  segEl = E('div', { class: 'dl-seg dl-srvsections dl-diag-tabs', role: 'tablist', 'aria-label': 'Diagnostics' });
+  segEl = E('div', { class: 'dl-seg dl-srvsections dl-diag-tabs', role: 'tablist', 'aria-label': _('Diagnostics') });
   subEl = E('span', { class: 'dl-muted' });
   actionsEl = E('div', { class: 'dl-row-actions' });
   bodyEl = E('div', {});
@@ -61,7 +60,7 @@ export class DiagnosticsPage {
     });
     return E('div', {}, [
       E('div', { class: 'dl-pagehead' }, [
-        E('div', { class: 'dl-stack' }, [E('h2', { class: 'dl-h1' }, 'Diagnostics'), this.subEl]),
+        E('div', { class: 'dl-stack' }, [E('h2', { class: 'dl-h1' }, _('Diagnostics')), this.subEl]),
         this.actionsEl,
       ]),
       this.segEl,
@@ -87,7 +86,7 @@ export class DiagnosticsPage {
     this.tab = tab;
     dom.content(
       this.segEl,
-      TABS.map(([k, t]) =>
+      TABS.map((k) =>
         E(
           'button',
           {
@@ -97,14 +96,14 @@ export class DiagnosticsPage {
             'aria-selected': k === tab ? 'true' : 'false',
             click: () => k !== this.tab && this.show(k),
           },
-          t,
+          tabLabel(k),
         ),
       ),
     );
     // Both tabs stay alive; only the visible one is in the page.
     this.bodyEl.replaceChildren(tab === 'log' ? this.log.el : this.health.el);
     this.subEl.textContent =
-      tab === 'log' ? this.log.sub : 'Everything Dawnline depends on, checked live. The watchdog repairs what it can on its own.';
+      tab === 'log' ? this.log.sub : _('Everything Dawnline depends on, checked live. The watchdog repairs what it can on its own.');
     dom.content(this.actionsEl, tab === 'log' ? this.log.actions() : '');
     if (tab === 'log') {
       this.log.paint();

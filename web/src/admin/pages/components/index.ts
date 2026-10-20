@@ -13,6 +13,7 @@ import { attachTip } from '../../ui/tooltip';
 import { pill } from '../../ui/badges';
 import { icon } from '../../../shared/icons';
 import { ago } from '../../../shared/format';
+import { fmt, num, plural } from '../../../shared/i18n';
 import { runOperation } from '../../updater/operation';
 import { jobComponent, runningComponent } from '../../updater/jobs';
 import { hero } from './hero';
@@ -44,6 +45,8 @@ export class ComponentsPage {
   notes = new Map<string, { items: string[]; total: number } | null>();
   /** The AmneziaWG "Build and translation" fold, once opened or closed by hand. */
   awgOpen: boolean | null = null;
+  /** Dawnline's Translation fold. */
+  langOpen = false;
 
   load() {
     return api.updatesStatus();
@@ -85,7 +88,7 @@ export class ComponentsPage {
   /** Run `what` in the operation modal; the cards refresh when it ends. */
   async op(what: string, title: string, version?: string) {
     if (this.busy || this.following === 'starting') {
-      notify('Another component action is already running', 'warning');
+      notify(_('Another component action is already running'), 'warning');
       return;
     }
     this.following = 'starting';
@@ -101,10 +104,10 @@ export class ComponentsPage {
         if (comp === 'amneziawg' && c.amneziawg?.current)
           void this.op(
             `amneziawg:${c.amneziawg.current}${c.amneziawg.ru ? ':ru' : ''}`,
-            'Updating AmneziaWG',
+            _('Updating AmneziaWG'),
             c.amneziawg.installed ?? undefined,
           );
-        else void this.op('app', 'Updating Dawnline', this.st.version);
+        else void this.op('app', _('Updating Dawnline'), this.st.version);
       },
     });
     if (this.following === 'starting') this.following = job?.id ?? null;
@@ -113,14 +116,17 @@ export class ComponentsPage {
 
   async follow(job: UpdateJob) {
     this.following = job.id;
-    const comp = runningComponent(job);
-    const what =
-      ({ app: 'Dawnline', amneziawg: 'AmneziaWG', pkgs: 'system packages', all: 'components' } as Record<string, string>)[comp] ??
-      'components';
+    // [check, automatic update, update] per component.
+    const titles: Record<string, string[]> = {
+      app: [_('Checking Dawnline'), _('Automatic update: Dawnline'), _('Updating Dawnline')],
+      amneziawg: [_('Checking AmneziaWG'), _('Automatic update: AmneziaWG'), _('Updating AmneziaWG')],
+      pkgs: [_('Checking system packages'), _('Automatic update: system packages'), _('Updating system packages')],
+      all: [_('Checking components'), _('Automatic update: components'), _('Updating components')],
+    };
     await runOperation(
       null,
       {
-        title: `${job.action === 'check' ? 'Checking' : job.auto ? 'Automatic update:' : 'Updating'} ${what}`,
+        title: (titles[runningComponent(job)] ?? titles.all)[job.action === 'check' ? 0 : job.auto ? 1 : 2],
         onDone: (s) => this.refresh(s),
       },
       job,
@@ -139,13 +145,13 @@ export class ComponentsPage {
     dom.content(this.root, [
       E('div', { class: 'dl-pagehead' }, [
         E('div', { class: 'dl-stack' }, [
-          E('h2', { class: 'dl-h1' }, 'Components'),
+          E('h2', { class: 'dl-h1' }, _('Components')),
           E(
             'span',
             { class: 'dl-faint' },
             [
               fw?.version ? `OpenWrt ${fw.version} · ${fw.target}` : '',
-              st.check ? `checked ${ago(st.check.time, st.now)}` : 'not checked yet',
+              st.check ? fmt(_('checked %s'), ago(st.check.time, st.now)) : _('not checked yet'),
             ]
               .filter(Boolean)
               .join(' · '),
@@ -155,29 +161,31 @@ export class ComponentsPage {
           E(
             'a',
             { class: 'cbi-button cbi-button-neutral dl-icon-btn', href: `${L.url('admin/network/dawnline/settings')}?section=updates` },
-            [icon('edit'), ' Settings'],
+            [icon('edit'), ' ', _('Settings')],
           ),
-          button([icon('refresh'), ' Check all'], () => this.op('check', 'Checking all components'), 'neutral', { disabled: this.busy }),
+          button([icon('refresh'), ' ', _('Check all')], () => this.op('check', _('Checking all components')), 'neutral', {
+            disabled: this.busy,
+          }),
         ]),
       ]),
       hero(this, c.app),
       E('div', { class: 'dl-comp-cols' }, [
         E('section', { class: 'dl-panel flush' }, [
           E('div', { class: 'dl-panel-head pad' }, [
-            E('h3', {}, 'Components'),
+            E('h3', {}, _('Components')),
             E('span', { class: 'dl-spacer' }),
             E(
               'span',
               { class: 'dl-faint dl-comp-count' },
               awgMissing
                 ? n
-                  ? `AmneziaWG not installed · ${n} update${n === 1 ? '' : 's'}`
-                  : 'AmneziaWG not installed'
+                  ? `${_('AmneziaWG not installed')} · ${plural(n, '%s update', '%s updates')}`
+                  : _('AmneziaWG not installed')
                 : !c.amneziawg && !c.packages
                   ? ''
                   : n
-                    ? `${n} of ${1 + pk.total} need${n === 1 ? 's' : ''} an update`
-                    : 'Everything is up to date',
+                    ? fmt(N_(n, '%s of %s needs an update', '%s of %s need an update'), num(n), num(1 + pk.total))
+                    : _('Everything is up to date'),
             ),
           ]),
           E('div', {}, [...awgRows(this, c.amneziawg), ...pk.rows]),
@@ -194,16 +202,15 @@ export class ComponentsPage {
       const norm = (v: string) => (v === 'packages' ? 'pkgs' : v);
       const comps = j.action === 'check' ? [norm(j.component || 'all')] : (j.component ?? '').split(' ').map((v) => norm(jobComponent(v)));
       if (comps.includes(comp) || comps.includes('all'))
-        return E('button', { type: 'button', class: 'dl-pill info dl-comp-run', title: 'Show progress', click: () => this.follow(j) }, [
-          j.action === 'check' ? 'Checking' : 'Updating',
-          '…',
+        return E('button', { type: 'button', class: 'dl-pill info dl-comp-run', title: _('Show progress'), click: () => this.follow(j) }, [
+          j.action === 'check' ? _('Checking…') : _('Updating…'),
         ]);
     }
-    if (!x) return pill('', 'Not checked');
-    if (x.error) return pill('warn', 'Check failed', x.error);
-    if (x.update) return pill('info', 'Update available');
-    if (x.status === 'dev') return pill('info', 'Newer than release', `The latest release is ${latest}`);
-    return pill('ok', 'Up to date');
+    if (!x) return pill('', _('Not checked'));
+    if (x.error) return pill('warn', _('Check failed'), x.error);
+    if (x.update) return pill('info', _('Update available'));
+    if (x.status === 'dev') return pill('info', _('Newer than release'), fmt(_('The latest release is %s'), latest));
+    return pill('ok', _('Up to date'));
   }
 
   /** ⋯ menu; null is a separator. Actions refuse to start while a job runs (see op). */
@@ -219,7 +226,7 @@ export class ComponentsPage {
             .map((x) => (x ? { label: x.label, icon: icon(x.ic), warn: x.warn, run: x.run } : null)),
         ),
       'neutral',
-      { title: 'More', 'aria-label': 'More' },
+      { title: _('More'), 'aria-label': _('More') },
     );
     return b;
   }
@@ -229,16 +236,16 @@ export class ComponentsPage {
     const busy = this.busy ? ' is-busy' : '';
     let btn: HTMLButtonElement;
     if (label)
-      btn = button([icon('refresh'), ' Check'], check, 'neutral', {
+      btn = button([icon('refresh'), ' ', _('Check')], check, 'neutral', {
         class: `cbi-button cbi-button-neutral dl-comp-check${busy}`,
-        'aria-label': 'Check for updates',
+        'aria-label': _('Check for updates'),
       });
     else {
-      btn = iconButton('refresh', 'Check for updates', check, 'neutral', busy.trim());
+      btn = iconButton('refresh', _('Check for updates'), check, 'neutral', busy.trim());
       // Dawnline's own tooltip (the browser's title tip is slow and plain).
       btn.removeAttribute('title');
-      btn.setAttribute('aria-label', 'Check for updates');
-      attachTip(btn, () => ['Check for updates']);
+      btn.setAttribute('aria-label', _('Check for updates'));
+      attachTip(btn, () => [_('Check for updates')]);
     }
     return E('span', { class: 'dl-comp-ic' }, [btn, this.more(menu)]);
   }

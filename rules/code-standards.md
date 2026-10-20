@@ -15,7 +15,7 @@ Match the code around you: its naming, comment density and idiom win over person
 - **Every module opens with a header comment**: what it owns, what it deliberately does not (and where that lives), and any invariant callers rely on (locks, files it writes, who may call it).
 - **Layers point one way.** Pure helpers and the data model know nothing about the router or the UI; orchestration calls them, never the reverse. Dawnline's layers are in `backend.md`.
 - **No god files, no grab-bag `ops`/`misc`/`kit` modules.** When a helper is used by one module, it stays private in that module.
-- **Delete, don't deprecate.** When something is replaced, move every caller and remove the old code in the same change; no shims, no commented-out blocks.
+- **Delete, don't deprecate.** When something is replaced, move every caller and remove the old code in the same change; no shims, no commented-out blocks. The same goes for its strings: new text is translated in the same change, removed text leaves the catalogs (`i18n.md`).
 
 ## Logic and state
 

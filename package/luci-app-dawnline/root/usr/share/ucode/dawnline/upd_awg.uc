@@ -10,6 +10,7 @@ import * as upd from 'dawnline.updates';
 import * as gh from 'dawnline.github';
 import * as pkg from 'dawnline.pkg';
 import * as builds from 'dawnline.awg_builds';
+import { _, N_ } from 'dawnline.i18n';
 
 function sh(cmd) {
 	return system(`${cmd} >/dev/null 2>&1`);
@@ -51,16 +52,16 @@ export function check(ctx) {
 	let fw = builds.firmware();
 	if (!fw)
 		return { installed: cur, gen: builds.gen(cur), packages: installed, current: null, ru, sources: {}, update: false, status: '',
-			note: 'Cannot detect the firmware target' };
+			note: _('Cannot detect the firmware target') };
 	if (fw.snapshot)
 		return { installed: cur, gen: builds.gen(cur), packages: installed, current: null, ru, sources: {}, update: false, status: '',
-			note: 'This is a SNAPSHOT firmware: the AmneziaWG projects publish builds for releases only' };
+			note: _('This is a SNAPSHOT firmware: the AmneziaWG projects publish builds for releases only') };
 	let dir = `${ctx.work}/check`;
 	system(`mkdir -p '${dir}'`);
 	let sources = {};
 	for (let id in builds.ORDER) {
 		let src = builds.SOURCES[id];
-		ctx.log(`Looking for the ${src.label} build for OpenWrt ${substr(fw.tag, 1)}`);
+		ctx.log(sprintf(_('Looking for the %s build for OpenWrt %s'), src.label, substr(fw.tag, 1)));
 		let f = fetch(ctx, fw, 'amneziawg-tools', id, dir);
 		let v = f ? pkg.file_version(f) : null;
 		let date = null;
@@ -89,16 +90,16 @@ export function check(ctx) {
 	let mine = current ? sources[current] : null;
 	let c = cur && mine?.version ? pkg.cmp(cur, mine.version) : null;
 	let st = c == null ? '' : c < 0 ? 'outdated' : c > 0 ? 'dev' : 'latest';
-	ctx.log(cur == null ? 'AmneziaWG is not installed'
-		: !current ? `AmneziaWG ${cur}: no source publishes this build for this firmware any more`
-		: st == 'outdated' ? `AmneziaWG update is available: ${cur} → ${mine.version}`
-		: `AmneziaWG is up to date (${cur})`);
+	ctx.log(cur == null ? _('AmneziaWG is not installed')
+		: !current ? sprintf(_('AmneziaWG %s: no source publishes this build for this firmware any more'), cur)
+		: st == 'outdated' ? sprintf(_('AmneziaWG update is available: %s → %s'), cur, mine.version)
+		: sprintf(_('AmneziaWG is up to date (%s)'), cur));
 	return { installed: cur, gen: builds.gen(cur), packages: installed, current, ru, release: fw.tag, sources,
 		latest: mine?.version ?? null, status: st,
 		update: cur == null || st == 'outdated',
 		// An update that changes the generation (2.0 → 3.1) breaks older apps: never automatic.
 		gen_change: cur != null && mine?.version != null && builds.gen(cur) != builds.gen(mine.version),
-		note: !length(filter(values(sources), (x) => x.version)) ? `No AmneziaWG build for OpenWrt ${substr(fw.tag, 1)} yet` : null };
+		note: !length(filter(values(sources), (x) => x.version)) ? sprintf(_('No AmneziaWG build for OpenWrt %s yet'), substr(fw.tag, 1)) : null };
 };
 
 /** Tunnels on a new kernel module: every AmneziaWG interface is brought down and up again. */
@@ -112,7 +113,8 @@ function reload_module(ctx, before, after) {
 		if (s.proto == 'amneziawg' && s.disabled != '1')
 			push(ifaces, s['.name']);
 	});
-	ctx.phase(`Reloading the kernel module (${length(ifaces)} tunnel(s) restart)`);
+	let n = length(ifaces);
+	ctx.phase(sprintf(N_(n, 'Reloading the kernel module (%d tunnel restarts)', 'Reloading the kernel module (%d tunnels restart)'), n));
 	for (let i in ifaces) {
 		iface_intent(i, 'update', c.get('network', i, '_dawnline_name') ?? i);
 		sh(`ifdown '${i}'`);
@@ -121,10 +123,10 @@ function reload_module(ctx, before, after) {
 	// no module at all) leave every tunnel down while the job says "done".
 	ctx.run('rmmod amneziawg');
 	if (stat('/sys/module/amneziawg'))
-		die('The old AmneziaWG kernel module is still loaded (another AmneziaWG interface may use it): reboot the router to finish the update');
+		die(_('The old AmneziaWG kernel module is still loaded (another AmneziaWG interface may use it): reboot the router to finish the update'));
 	ctx.run('modprobe amneziawg');
 	if (!stat('/sys/module/amneziawg'))
-		die("The new AmneziaWG kernel module doesn't load on this firmware: the tunnels stay down until it does (see the log above)");
+		die(_("The new AmneziaWG kernel module doesn't load on this firmware: the tunnels stay down until it does (see the log above)"));
 	for (let i in ifaces)
 		sh(`ifup '${i}'`);
 }
@@ -132,15 +134,15 @@ function reload_module(ctx, before, after) {
 /** After packages changed: the module loaded, netifd knowing the protocol, Dawnline set up again. */
 function settle(ctx, before, after) {
 	if (!before['kmod-amneziawg'] && after['kmod-amneziawg']) {
-		ctx.phase('Loading the kernel module');
+		ctx.phase(_('Loading the kernel module'));
 		if (ctx.run('modprobe amneziawg').code != 0 && !stat('/sys/module/amneziawg'))
-			die("AmneziaWG is installed, but its kernel module doesn't load on this firmware");
+			die(_("AmneziaWG is installed, but its kernel module doesn't load on this firmware"));
 	}
 	else
 		reload_module(ctx, before, after);
 	// netifd reads its protocol handlers when it starts.
 	if (index(ctx.run('ubus call network get_proto_handlers').out, '"amneziawg"') < 0) {
-		ctx.phase('Restarting the network so it knows AmneziaWG (connections drop for a few seconds)');
+		ctx.phase(_('Restarting the network so it knows AmneziaWG (connections drop for a few seconds)'));
 		ctx.run('/etc/init.d/network restart');
 	}
 	ctx.after('apply');
@@ -166,19 +168,19 @@ export function install(ctx, arg) {
 	let out = { from: before['amneziawg-tools'], to: null, before };
 	let fw = builds.firmware();
 	if (!fw)
-		die('Cannot detect the firmware target');
+		die(_('Cannot detect the firmware target'));
 	if (arg == 'rollback') {
 		let k = upd.kept('amneziawg');
 		if (!k)
-			die('No previous AmneziaWG build is kept on the router');
+			die(_('No previous AmneziaWG build is kept on the router'));
 		if (k.firmware && k.firmware != fw.postfix)
-			die('The kept AmneziaWG build was made for another firmware: it would not load on this one');
+			die(_('The kept AmneziaWG build was made for another firmware: it would not load on this one'));
 		out.to = k.version;
 		out.build = k.build;
 		ctx.versions(out.from, out.to);
-		ctx.phase(`Rolling back to ${k.version}`);
+		ctx.phase(sprintf(_('Rolling back to %s'), k.version));
 		if (!pkg.install_files(k.files, true, ctx.log))
-			die('Package installation failed');
+			die(_('Package installation failed'));
 		upd.forget('amneziawg');
 		out.after = builds.installed();
 		settle(ctx, before, out.after);
@@ -190,18 +192,18 @@ export function install(ctx, arg) {
 	if (id == 'auto') {
 		id = pick(fw);
 		if (!id)
-			die(`No AmneziaWG build for OpenWrt ${substr(fw.tag, 1)} (${fw.postfix}) yet`);
+			die(sprintf(_('No AmneziaWG build for OpenWrt %s (%s) yet'), substr(fw.tag, 1), fw.postfix));
 	}
 	let src = builds.SOURCES[id];
 	if (!src)
-		die(`Unknown AmneziaWG build ${id}`);
+		die(sprintf(_('Unknown AmneziaWG build %s'), id));
 	out.build = id;
 	let files = [];
 	for (let p in [ ...builds.PKGS, ...(want_ru ? [ builds.RU ] : []) ]) {
-		ctx.phase(`Downloading ${p} from ${src.repo}`);
+		ctx.phase(sprintf(_('Downloading %s from %s'), p, src.repo));
 		let f = fetch(ctx, fw, p, id, ctx.work);
 		if (!f)
-			die(`No ${p} build for OpenWrt ${substr(fw.tag, 1)} in ${src.repo}, or it could not be verified`);
+			die(sprintf(_('No %s build for OpenWrt %s in %s, or it could not be verified'), p, substr(fw.tag, 1), src.repo));
 		push(files, f);
 	}
 	out.to = pkg.file_version(files[1]);
@@ -219,19 +221,19 @@ export function install(ctx, arg) {
 				kept = sid;
 		}
 		if (kept) {
-			ctx.phase(`Keeping AmneziaWG ${out.from} for rollback`);
+			ctx.phase(sprintf(_('Keeping AmneziaWG %s for rollback'), out.from));
 			let keepf = filter(map(builds.PKGS, (p) => fetch(ctx, fw, p, kept, dir)), (x) => x);
 			if (length(keepf) == length(builds.PKGS))
 				upd.keep('amneziawg', out.from, keepf, kept, fw.postfix);
 		}
 		else
-			ctx.log('Warning: the installed build is no longer published, nothing to keep for rollback');
+			ctx.log(_('Warning: the installed build is no longer published, nothing to keep for rollback'));
 	}
-	ctx.phase('Refreshing package lists');
+	ctx.phase(_('Refreshing package lists'));
 	pkg.refresh(ctx.log);
-	ctx.phase(`Installing the ${src.label} build`);
+	ctx.phase(sprintf(_('Installing the %s build'), src.label));
 	if (!pkg.install_files(files, true, ctx.log))
-		die('Package installation failed');
+		die(_('Package installation failed'));
 	if (!want_ru && pkg.version(builds.RU))
 		pkg.remove([ builds.RU ], ctx.log);
 	out.after = builds.installed();

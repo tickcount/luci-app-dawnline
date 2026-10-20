@@ -4,7 +4,9 @@
 // servers, people (and their devices), settings, home (services, circles),
 // maint (Diagnostics, backups, removal) and updates (Components). Each module
 // exports `methods` as { name: { args, call } }; read-only users get the
-// methods listed under "read" in acl.d/luci-app-dawnline.json.
+// methods listed under "read" in acl.d/luci-app-dawnline.json. Every method
+// also takes `lang`, the admin page's language, and answers in it (its
+// errors and the texts the backend writes, through dawnline.i18n).
 'use strict';
 
 import * as status from 'dawnline.rpc.status';
@@ -14,9 +16,29 @@ import * as settings from 'dawnline.rpc.settings';
 import * as home from 'dawnline.rpc.home';
 import * as maint from 'dawnline.rpc.maint';
 import * as updates from 'dawnline.rpc.updates';
+import * as i18n from 'dawnline.i18n';
+
+/** The methods with `lang` added: the language is set for the call, the method never sees it. */
+function in_lang(methods) {
+	let out = {};
+	for (let name, m in methods) {
+		let call = m.call;
+		out[name] = {
+			...m,
+			args: { ...(m.args ?? {}), lang: '' },
+			call: function(req) {
+				i18n.use(req.args?.lang);
+				if (req.args)
+					delete req.args.lang;
+				return call(req);
+			},
+		};
+	}
+	return out;
+}
 
 return {
-	'luci.dawnline': {
+	'luci.dawnline': in_lang({
 		...status.methods,
 		...servers.methods,
 		...people.methods,
@@ -24,5 +46,5 @@ return {
 		...home.methods,
 		...maint.methods,
 		...updates.methods,
-	},
+	}),
 };

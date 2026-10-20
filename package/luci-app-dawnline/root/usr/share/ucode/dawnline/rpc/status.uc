@@ -2,6 +2,7 @@
 // people, totals, map, recent activity), the activity log and traffic history.
 
 import { readfile } from 'fs';
+import { _ } from 'dawnline.i18n';
 import { read_json, write_json, ensure_dir, lock, unlock, admin_log, VERSION, RUN_DIR } from 'dawnline.util';
 import * as core from 'dawnline.core';
 import * as live from 'dawnline.live';
@@ -122,7 +123,8 @@ function server_view(m, srv, usage, dmp, rates, days) {
 		mtus: { computer: core.device_mtu(srv, { kind: 'computer' }), phone: core.device_mtu(srv, { kind: 'phone' }) },
 		address: core.server_address(srv), up: !!st.up, uptime: st.uptime ?? 0,
 		// Why the tunnel cannot run (its interface name belongs to another network section), or null.
-		blocked: srv.blocked ?? null,
+		// Why it can't start, as a whole sentence in the admin's language (stored as a code).
+		blocked: awg.blocked_text(srv),
 		// Home networks (interfaces) for the per-person picker.
 		home: map(net.server_net(srv).home, (h) => ({ dev: h.dev, nets: h.nets })),
 		peers, online, obf: srv.obf,
@@ -221,19 +223,19 @@ function logs_clear(a) {
 	let f = {};
 	if (a.person) {
 		if (!m.people[a.person])
-			die('Unknown person.');
+			die(_('Unknown person.'));
 		f.person = a.person;
 	}
 	if (a.device)
 		f.device = a.device;
 	if (a.category) {
 		if (index(live.CATEGORIES, a.category) < 0)
-			die('Unknown category.');
+			die(_('Unknown category.'));
 		f.category = a.category;
 	}
 	if (a.older_days) {
 		if (!match(a.older_days, /^[1-9][0-9]{0,3}$/))
-			die('Older than must be a number of days.');
+			die(_('Older than must be a number of days.'));
 		f.before = time() - +a.older_days * 86400;
 	}
 	let removed = live.clear_events(f);
@@ -252,11 +254,11 @@ function logs_clear(a) {
 function usage_clear(a) {
 	let m = core.load();
 	if (index([ 'all', 'person', 'device' ], a.scope) < 0)
-		die('Unknown scope.');
+		die(_('Unknown scope.'));
 	if (a.scope == 'person' && !m.people[a.id])
-		die('Unknown person.');
+		die(_('Unknown person.'));
 	if (a.scope == 'device' && !m.devices[a.id])
-		die('Unknown device.');
+		die(_('Unknown device.'));
 	let req = { scope: a.scope, id: a.id, ts: time() };
 	ensure_dir(RUN_DIR);
 	let l = lock('usage-reset');

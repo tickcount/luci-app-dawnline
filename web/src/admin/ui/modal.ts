@@ -46,7 +46,7 @@ export function closeModal() {
 }
 
 /** "Cancel" (or another label) that closes the modal. */
-export function cancelButton(label = 'Cancel', danger = false): HTMLElement {
+export function cancelButton(label = _('Cancel'), danger = false): HTMLElement {
   return E(
     'button',
     { class: `cbi-button ${danger ? 'cbi-button-negative' : 'cbi-button-neutral'}`, type: 'button', click: closeModal },
@@ -54,7 +54,7 @@ export function cancelButton(label = 'Cancel', danger = false): HTMLElement {
   );
 }
 
-export function confirmDialog(title: string, body: Child, confirmLabel = 'Confirm', danger = false): Promise<boolean> {
+export function confirmDialog(title: string, body: Child, confirmLabel = _('Confirm'), danger = false): Promise<boolean> {
   return new Promise((resolve) => {
     modal(title, body, [
       cancelButton(),

@@ -10,13 +10,14 @@ import { liveField } from '../../ui/layout';
 import { nameHelp } from '../../netcheck';
 import { inviteCard } from '../../invite';
 import { peopleUrl } from '../../urls';
+import { fmt, plural } from '../../../shared/i18n';
 import type { PersonPage } from './index';
 
 const field = (label: string, el: Node) =>
   E('div', { class: 'cbi-value' }, [E('label', { class: 'cbi-value-title' }, label), E('div', { class: 'cbi-value-field' }, el)]);
 
 export function invite(page: PersonPage) {
-  const server = page.st.servers.find((s) => s.id === page.p.server)?.name ?? 'Home';
+  const server = page.st.servers.find((s) => s.id === page.p.server)?.name ?? _('Home');
   void inviteCard(page.p, server);
 }
 
@@ -32,10 +33,10 @@ export async function newLink(page: PersonPage) {
   const boxes = suspect.map(
     (d) => E('input', { type: 'checkbox', id: `dl-rm-${d.id}`, checked: 'checked', 'data-id': d.id }) as HTMLInputElement,
   );
-  const body: Node[] = [E('p', {}, 'The old link stops working right away.')];
+  const body: Node[] = [E('p', {}, _('The old link stops working right away.'))];
   if (suspect.length)
     body.push(
-      E('p', {}, 'Devices added through the old link keep working until they are removed. Remove them too:'),
+      E('p', {}, _('Devices added through the old link keep working until they are removed. Remove them too:')),
       E(
         'div',
         { class: 'dl-checklist' },
@@ -46,33 +47,35 @@ export async function newLink(page: PersonPage) {
     const remove = boxes.filter((b) => b.checked).map((b) => b.dataset.id as string);
     const r = await attempt(
       () => api.personRegen(p.id, remove),
-      remove.length ? `New link created, ${remove.length} device${remove.length === 1 ? '' : 's'} removed` : 'New link created',
+      remove.length
+        ? plural(remove.length, 'New link created, %s device removed', 'New link created, %s devices removed')
+        : _('New link created'),
     );
     if (!r) return;
     closeModal();
     if (remove.length) await page.refresh();
-    if (r.link) await copyText(r.link, 'New link copied');
+    if (r.link) await copyText(r.link, _('New link copied'));
   };
-  modal('Create a new link?', body, [cancelButton(), ' ', button('Create new link', go, 'negative')]);
+  modal(_('Create a new link?'), body, [cancelButton(), ' ', button(_('Create new link'), go, 'negative')]);
 }
 
 export function editNote(page: PersonPage) {
   const input = E(
     'textarea',
-    { class: 'cbi-input-textarea dl-note-input', rows: 3, maxlength: 500, placeholder: 'Only you see this' },
+    { class: 'cbi-input-textarea dl-note-input', rows: 3, maxlength: 500, placeholder: _('Only you see this') },
     page.p.note ?? '',
   ) as HTMLTextAreaElement;
   modal(
-    'Note',
+    _('Note'),
     [input],
     [
       cancelButton(),
       ' ',
       button(
-        'Save',
+        _('Save'),
         async () => {
           closeModal();
-          await page.patch({ note: input.value.trim() }, input.value.trim() ? 'Note saved' : 'Note removed');
+          await page.patch({ note: input.value.trim() }, input.value.trim() ? _('Note saved') : _('Note removed'));
         },
         'positive',
       ),
@@ -84,9 +87,9 @@ export function editNote(page: PersonPage) {
 export function endSettings(page: PersonPage) {
   const p = page.p;
   const act = E('select', { class: 'cbi-input-select' }, [
-    E('option', { value: 'pause', selected: p.expire_action === 'pause' ? 'selected' : null }, 'Pause access'),
-    E('option', { value: 'notify', selected: p.expire_action === 'notify' ? 'selected' : null }, 'Keep access'),
-    E('option', { value: 'remove', selected: p.expire_action === 'remove' ? 'selected' : null }, 'Remove their devices'),
+    E('option', { value: 'pause', selected: p.expire_action === 'pause' ? 'selected' : null }, _('Pause access')),
+    E('option', { value: 'notify', selected: p.expire_action === 'notify' ? 'selected' : null }, _('Keep access')),
+    E('option', { value: 'remove', selected: p.expire_action === 'remove' ? 'selected' : null }, _('Remove their devices')),
   ]) as HTMLSelectElement;
   const warn = E(
     'select',
@@ -95,19 +98,19 @@ export function endSettings(page: PersonPage) {
       E(
         'option',
         { value: n, selected: p.expire_warn === n ? 'selected' : null },
-        n ? `${n} day${n === 1 ? '' : 's'} before` : 'Don’t warn',
+        n ? plural(n, '%s day before', '%s days before') : _('Don’t warn'),
       ),
     ),
   ) as HTMLSelectElement;
   modal(
-    'When access ends',
+    _('When access ends'),
     [
-      field('Then', act),
+      field(_('Then'), act),
       E('div', { class: 'cbi-value' }, [
-        E('label', { class: 'cbi-value-title' }, 'Warn'),
+        E('label', { class: 'cbi-value-title' }, _('Warn')),
         E('div', { class: 'cbi-value-field' }, [
           warn,
-          E('div', { class: 'cbi-value-description' }, 'Shown in their portal and on the Overview.'),
+          E('div', { class: 'cbi-value-description' }, _('Shown in their portal and on the Overview.')),
         ]),
       ]),
     ],
@@ -115,10 +118,10 @@ export function endSettings(page: PersonPage) {
       cancelButton(),
       ' ',
       button(
-        'Save',
+        _('Save'),
         async () => {
           closeModal();
-          await page.patch({ expire_action: act.value, expire_warn: warn.value }, 'Saved');
+          await page.patch({ expire_action: act.value, expire_warn: warn.value }, _('Saved'));
         },
         'positive',
       ),
@@ -128,15 +131,15 @@ export function endSettings(page: PersonPage) {
 
 export function rename(page: PersonPage) {
   const input = E('input', { type: 'text', class: 'cbi-input-text', value: page.p.name, maxlength: 48 }) as HTMLInputElement;
-  const nameRow = liveField('Name', input, () => nameHelp(input.value, [], 'Shown in their portal and apps.'));
+  const nameRow = liveField(_('Name', 'person'), input, () => nameHelp(input.value, [], _('Shown in their portal and apps.')));
   modal(
-    'Rename',
+    _('Rename'),
     [nameRow],
     [
       cancelButton(),
       ' ',
       button(
-        'Save',
+        _('Save'),
         async () => {
           const h = nameRow.help();
           if (h.bad) {
@@ -144,7 +147,7 @@ export function rename(page: PersonPage) {
             return;
           }
           // The dialog stays open on a refusal, with the name still typed.
-          if (await page.patch({ name: input.value.trim() }, 'Renamed')) closeModal();
+          if (await page.patch({ name: input.value.trim() }, _('Renamed'))) closeModal();
         },
         'positive',
       ),
@@ -160,30 +163,36 @@ export function moveToServer(page: PersonPage) {
   const sel = E(
     'select',
     { class: 'cbi-input-select' },
-    others.map((s) => E('option', { value: s.id }, `${s.name} · ${s.endpoint || 'no address'}:${s.port}`)),
+    others.map((s) => E('option', { value: s.id }, `${s.name} · ${s.endpoint || _('no address')}:${s.port}`)),
   ) as HTMLSelectElement;
   const n = p.devices.length;
   modal(
-    `Move ${p.name} to another server`,
+    fmt(_('Move %s to another server'), p.name),
     [
-      field('Server', sel),
+      field(_('Server'), sel),
       E(
         'p',
         { class: 'dl-muted' },
         n
-          ? `${n} device${n === 1 ? ' gets a new address and stops' : 's get new addresses and stop'} connecting until ${n === 1 ? 'it imports its' : 'they import their'} configuration again (from the personal link or from you). Circles and home networks of the old server are left behind.`
-          : 'They have no devices yet: nothing else changes.',
+          ? plural(
+              n,
+              '%s device gets a new address and stops connecting until it imports its configuration again (from the personal link or from you). Circles and home networks of the old server are left behind.',
+              '%s devices get new addresses and stop connecting until they import their configuration again (from the personal link or from you). Circles and home networks of the old server are left behind.',
+            )
+          : _('They have no devices yet: nothing else changes.'),
       ),
     ],
     [
       cancelButton(),
       ' ',
       button(
-        'Move',
+        _('Move'),
         async () => {
-          if (await page.patch({ server: sel.value }, `Moved to ${others.find((s) => s.id === sel.value)?.name ?? 'the server'}`)) {
+          if (
+            await page.patch({ server: sel.value }, fmt(_('Moved to %s'), others.find((s) => s.id === sel.value)?.name ?? _('the server')))
+          ) {
             closeModal();
-            if (n) notify('Devices are marked “Update config” until they import again.', 'info', 6000);
+            if (n) notify(_('Devices are marked “Update config” until they import again.'), 'info', 6000);
           }
         },
         'positive',
@@ -195,10 +204,14 @@ export function moveToServer(page: PersonPage) {
 export async function remove(page: PersonPage) {
   const p = page.p;
   const ok = await confirmDialog(
-    `Delete ${p.name}?`,
-    `All ${p.devices.length} devices are disconnected immediately and the personal link stops working.`,
-    'Delete',
+    fmt(_('Delete %s?'), p.name),
+    plural(
+      p.devices.length,
+      '%s device is disconnected immediately and the personal link stops working.',
+      'All %s devices are disconnected immediately and the personal link stops working.',
+    ),
+    _('Delete'),
     true,
   );
-  if (ok && (await attempt(() => api.personDelete(p.id), 'Deleted'))) location.href = peopleUrl(p.server);
+  if (ok && (await attempt(() => api.personDelete(p.id), _('Deleted')))) location.href = peopleUrl(p.server);
 }

@@ -87,6 +87,7 @@ export interface Server {
   /** The tunnel core that serves it (see admin/cores); AmneziaWG when absent. */
   core?: string;
   /** Why the tunnel can't run: its interface name is taken by a network section Dawnline didn't make. */
+  /** Why the server can't start: a whole sentence from the router, its name in it. */
   blocked?: string | null;
   ifname: string;
   port: number;

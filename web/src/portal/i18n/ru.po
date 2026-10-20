@@ -1,0 +1,1387 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Dawnline\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: ru\n"
+"Language-Team: Russian\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "\"%s\" already exists."
+msgstr "Устройство «%s» уже есть."
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "\"%s\" is already taken."
+msgstr "Идентификатор «%s» уже занят."
+
+#: web/src/portal/setup.ts
+#: web/src/portal/ui/morph.ts
+msgid "%s (Android: %s)"
+msgstr "%s (на Android: %s)"
+
+#: web/src/portal/page/notices.ts
+msgid "%s (router time)"
+msgstr "%s (по времени роутера)"
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "%s already has %d device. Remove one first to lower the limit to %d."
+msgid_plural "%s already has %d devices. Remove one first to lower the limit to %d."
+msgstr[0] "%s: уже %d устройство. Чтобы снизить лимит до %d, сначала удалите одно из них."
+msgstr[1] "%s: уже %d устройства. Чтобы снизить лимит до %d, сначала удалите одно из них."
+msgstr[2] "%s: уже %d устройств. Чтобы снизить лимит до %d, сначала удалите одно из них."
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "%s can't use the network interface %s: it exists and isn't Dawnline's."
+msgstr "Сервер %s не может использовать сетевой интерфейс %s: он уже существует и создан не Dawnline."
+
+#: web/src/portal/flows/wait.ts
+msgid "%s connected"
+msgstr "Подключено: %s"
+
+#: web/src/shared/format.ts
+msgid "%s d ago"
+msgstr "%s дн. назад"
+
+#: web/src/portal/page/access.ts
+msgid "%s day"
+msgid_plural "%s days"
+msgstr[0] "%s день"
+msgstr[1] "%s дня"
+msgstr[2] "%s дней"
+
+#: web/src/shared/format.ts
+msgid "%s h ago"
+msgstr "%s ч назад"
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "%s has an invalid interface name \"%s\"."
+msgstr "У сервера %s недопустимое имя интерфейса «%s»."
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "%s has no room for every device on %s."
+msgstr "В подсети %s не хватит адресов для всех устройств сервера %s."
+
+#: web/src/shared/format.ts
+msgid "%s in total"
+msgstr "%s всего"
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "%s is kept down."
+msgstr "Сервер %s остановлен."
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "%s is kept down: its disguise needs AmneziaWG %s (installed: %s)."
+msgstr "Сервер %s остановлен: для его маскировки нужен AmneziaWG %s (установлен %s)."
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "%s is kept down: its disguise needs AmneziaWG %s (installed: none)."
+msgstr "Сервер %s остановлен: для его маскировки нужен AmneziaWG %s (не установлен)."
+
+#: web/src/portal/page/access.ts
+msgid "%s left"
+msgstr "осталось %s"
+
+#: web/src/shared/format.ts
+msgid "%s min ago"
+msgstr "%s мин назад"
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "%s must be a number or range"
+msgstr "%s: нужно число или диапазон"
+
+#: web/src/portal/page/devices.ts
+msgid "%s of %s"
+msgstr "%s из %s"
+
+#: web/src/shared/format.ts
+msgid "%s of %s GB"
+msgstr "%s из %s ГБ"
+
+#: web/src/shared/format.ts
+msgid "%s of %s GB this month"
+msgstr "%s из %s ГБ в этом месяце"
+
+#: web/src/portal/page/access.ts
+msgid "%s of %s in total."
+msgstr "Всего %s из %s."
+
+#: web/src/portal/flows/add.ts
+msgid "%s of %s slot free"
+msgid_plural "%s of %s slots free"
+msgstr[0] "Свободно %s из %s места"
+msgstr[1] "Свободно %s из %s мест"
+msgstr[2] "Свободно %s из %s мест"
+
+#: web/src/portal/page/access.ts
+msgid "%s on %s"
+msgstr "%s за %s"
+
+#: web/src/portal/page/devices.ts
+msgid "%s options"
+msgstr "Действия с устройством %s"
+
+#: web/src/shared/format.ts
+msgid "%s this month"
+msgstr "%s в этом месяце"
+
+#: web/src/portal/page/access.ts
+msgid "%s used"
+msgstr "%s использовано"
+
+#: web/src/portal/page/notices.ts
+msgid "%s your time"
+msgstr "%s по вашему времени"
+
+#: web/src/shared/format.ts
+msgid "%sd %sh"
+msgstr "%s д %s ч"
+
+#: web/src/shared/format.ts
+msgid "%sh %sm"
+msgstr "%s ч %s мин"
+
+#: web/src/shared/format.ts
+msgid "%sm"
+msgstr "%s мин"
+
+#: web/src/portal/page/access.ts
+msgid "A total for your whole access, it does not reset."
+msgstr "Считается за весь срок доступа и не обнуляется."
+
+#: web/src/portal/setup.ts
+msgid "APK file on"
+msgstr "APK-файл на"
+
+#: web/src/portal/page/notices.ts
+msgid "Access %s"
+msgstr "Доступ %s"
+
+#: web/src/portal/page/notices.ts
+msgid "Access ended"
+msgstr "Доступ закончился"
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Access must be lan, internet or both."
+msgstr "Доступ должен быть lan, internet или both."
+
+#: web/src/portal/page/notices.ts
+msgid "Access paused"
+msgstr "Доступ на паузе"
+
+#: web/src/portal/page/access.ts
+msgid "Access until"
+msgstr "Доступ до"
+
+#: web/src/shared/format.ts
+msgid "Active"
+msgstr "Активен"
+
+#: web/src/portal/setup.ts
+msgctxt "WireGuard app"
+msgid "Add Tunnel"
+msgstr "Добавить туннель"
+
+#: web/src/portal/flows/add.ts
+msgid "Add a device"
+msgstr "Добавить устройство"
+
+#: web/src/portal/page/devices.ts
+msgid "Add device"
+msgstr "Добавить устройство"
+
+#: web/src/portal/flows/add.ts
+msgid "Add it from the device"
+msgstr "Добавить с самого устройства"
+
+#: web/src/portal/flows/setup-view.ts
+msgid "Add the connection"
+msgstr "Добавьте подключение"
+
+#: web/src/portal/page/devices.ts
+msgid "Add this device"
+msgstr "Добавить это устройство"
+
+#: web/src/portal/page/devices.ts
+msgid "Add this phone"
+msgstr "Добавить этот телефон"
+
+#: web/src/portal/page/devices.ts
+msgid "Add your first device"
+msgstr "Добавьте первое устройство"
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/portal.uc
+msgid "Adding devices isn't available right now: the VPN server isn't ready. Ask whoever sent you this link."
+msgstr "Сейчас добавить устройство нельзя: VPN-сервер не готов. Обратитесь к тому, кто прислал вам эту ссылку."
+
+#: web/src/portal/page/access.ts
+#: web/src/portal/page/devices.ts
+msgid "Address copied"
+msgstr "Адрес скопирован"
+
+#: web/src/portal/flows/setup-view.ts
+msgid "Already has the app"
+msgstr "Приложение уже установлено"
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/devices.uc
+msgid "AmneziaWG is not installed (%s): install it in Dawnline → Components."
+msgstr "AmneziaWG не установлен (%s): установите его в Dawnline → Компоненты."
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/devices.uc
+msgid "AmneziaWG is not installed: install it in Dawnline → Components."
+msgstr "AmneziaWG не установлен: установите его в Dawnline → Компоненты."
+
+#: web/src/portal/flows/add.ts
+msgid "Android phone"
+msgstr "Телефон Android"
+
+#: web/src/portal/flows/add.ts
+msgid "Android tablet"
+msgstr "Планшет Android"
+
+#: web/src/portal/main.ts
+msgid "Ask for a new one."
+msgstr "Попросите новую."
+
+#: web/src/shared/format.ts
+msgid "B"
+msgstr "Б"
+
+#: web/src/portal/ui/sheet.ts
+msgid "Back"
+msgstr "Назад"
+
+#: web/src/portal/page/frame.ts
+msgid "Breadcrumb"
+msgstr "Навигационная цепочка"
+
+#: web/src/portal/flows/device-actions.ts
+msgid "Cancel"
+msgstr "Отмена"
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Circle %s: server %s does not exist."
+msgstr "Круг %s: сервера %s нет."
+
+#: web/src/portal/ui/sheet.ts
+msgid "Close"
+msgstr "Закрыть"
+
+#: web/src/portal/flows/wait.ts
+msgid "Close this and open it again to keep checking."
+msgstr "Закройте окно и откройте его снова, чтобы проверить ещё раз."
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Configuration"
+msgstr "Конфигурация"
+
+#: web/src/portal/flows/setup-parts.ts
+#: web/src/portal/flows/setup-view.ts
+msgid "Configuration copied"
+msgstr "Конфигурация скопирована"
+
+#: web/src/portal/setup.ts
+msgid "Confirm the import and connect"
+msgstr "Подтвердите импорт и подключитесь"
+
+#: web/src/portal/page/devices.ts
+msgid "Connect"
+msgstr "Подключить"
+
+#: web/src/portal/page/devices.ts
+msgid "Connected"
+msgstr "Подключено"
+
+#: web/src/portal/page/devices.ts
+msgid "Connected, no data left"
+msgstr "Подключено, трафик закончился"
+
+#: web/src/portal/page/devices.ts
+msgid "Connected, outside your hours"
+msgstr "Подключено, вне часов доступа"
+
+#: web/src/portal/flows/secure.ts
+msgid "Connection settings only travel encrypted"
+msgstr "Настройки подключения передаются только в зашифрованном виде"
+
+#: web/src/portal/setup.ts
+msgctxt "AmneziaVPN app"
+msgid "Continue"
+msgstr "Продолжить"
+
+#: web/src/portal/flows/setup-parts.ts
+#: web/src/portal/ui/feedback.ts
+msgid "Copied"
+msgstr "Скопировано"
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Copy"
+msgstr "Скопировать"
+
+#: web/src/portal/page/access.ts
+msgid "Copy %s"
+msgstr "Скопировать %s"
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Copy %s config"
+msgstr "Скопировать конфигурацию %s"
+
+#: web/src/portal/page/devices.ts
+msgid "Copy IP address"
+msgstr "Скопировать IP-адрес"
+
+#: web/src/portal/page/devices.ts
+msgid "Copy local address"
+msgstr "Скопировать локальный адрес"
+
+#: web/src/portal/flows/setup-view.ts
+msgid "Copy or save the connection"
+msgstr "Скопировать или сохранить подключение"
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Copy the configuration"
+msgstr "Скопировать конфигурацию"
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Copy the key"
+msgstr "Скопировать ключ"
+
+#: web/src/portal/flows/setup-parts.ts
+msgctxt "in a sentence"
+msgid "Copy the key"
+msgstr "Скопируйте ключ"
+
+#: web/src/portal/ui/codes.ts
+msgid "Copy the link"
+msgstr "Скопировать ссылку"
+
+#: web/src/portal/ui/feedback.ts
+msgid "Copying is blocked here. Select the text and copy it by hand."
+msgstr "Копирование здесь заблокировано. Выделите текст и скопируйте его вручную."
+
+#: web/src/portal/flows/add.ts
+msgid "Create connection"
+msgstr "Создать подключение"
+
+#: web/src/portal/setup.ts
+msgctxt "WireGuard app"
+msgid "Create from QR code"
+msgstr "Создать из QR-кода"
+
+#: web/src/portal/setup.ts
+msgctxt "WireGuard app"
+msgid "Create from file or archive"
+msgstr "Создать из файла или архива"
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/portal.uc
+msgid "Cross-site request refused."
+msgstr "Запрос с другого сайта отклонён."
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Data limit must be a positive number of GB."
+msgstr "Лимит трафика должен быть положительным числом ГБ."
+
+#: web/src/shared/format.ts
+msgid "Data limit reached"
+msgstr "Лимит трафика исчерпан"
+
+#: web/src/portal/page/access.ts
+msgid "Data this month"
+msgstr "Трафик за месяц"
+
+#: web/src/portal/page/access.ts
+msgid "Data used"
+msgstr "Трафик всего"
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Device %s of %s: address %s is also used by device %s of %s."
+msgstr "Устройство %s (%s): адрес %s уже занят устройством %s (%s)."
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Device %s of %s: address %s is not a plain IPv4 address."
+msgstr "Устройство %s (%s): адрес %s не является обычным IPv4-адресом."
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Device %s of %s: address %s is outside %s's tunnel %s."
+msgstr "Устройство %s (%s): адрес %s вне туннеля сервера %s (%s)."
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Device %s of %s: address %s is the router's own address on %s."
+msgstr "Устройство %s (%s): адрес %s принадлежит самому роутеру на сервере %s."
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Device %s of %s: address (none) is not a plain IPv4 address."
+msgstr "Устройство %s (%s): нет IPv4-адреса."
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Device %s of %s: the preshared key is not a key."
+msgstr "Устройство %s (%s): общий ключ (PSK) некорректен."
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Device %s of %s: the private key is not a key."
+msgstr "Устройство %s (%s): приватный ключ некорректен."
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Device %s of %s: the public key is not a key."
+msgstr "Устройство %s (%s): публичный ключ некорректен."
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Device %s: person %s does not exist."
+msgstr "Устройство %s: человека %s нет."
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Device limit must be between 1 and 32."
+msgstr "Лимит устройств: от 1 до 32."
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Device limit reached (%d)."
+msgstr "Достигнут лимит устройств (%d)."
+
+#: web/src/portal/flows/device-actions.ts
+msgid "Device name"
+msgstr "Имя устройства"
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/devices.uc
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/portal.uc
+msgid "Device not found."
+msgstr "Устройство не найдено."
+
+#: web/src/portal/flows/device-actions.ts
+msgid "Device removed"
+msgstr "Устройство удалено"
+
+#: web/src/portal/page/access.ts
+msgid "Devices at home"
+msgstr "Устройства дома"
+
+#: web/src/portal/page/access.ts
+msgid "Devices at home and on this VPN reach yours as %s"
+msgstr "Устройства дома и в этом VPN обращаются к вашим по адресу %s"
+
+#: web/src/portal/page/devices.ts
+msgid "Disabled"
+msgstr "Отключено"
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Download"
+msgstr "Скачать"
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Download %s config"
+msgstr "Скачать конфигурацию %s"
+
+#: web/src/portal/setup.ts
+msgid "Download for Linux"
+msgstr "Скачать для Linux"
+
+#: web/src/portal/setup.ts
+msgid "Download for Mac"
+msgstr "Скачать для Mac"
+
+#: web/src/portal/setup.ts
+msgid "Download for Windows"
+msgstr "Скачать для Windows"
+
+#: web/src/portal/setup.ts
+msgid "Download from"
+msgstr "Скачать с сайта"
+
+#: web/src/portal/setup.ts
+msgid "Download on the"
+msgstr "Загрузите в"
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Download the file"
+msgstr "Скачать файл"
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Download the key"
+msgstr "Скачать ключ"
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "End date must be YYYY-MM-DD."
+msgstr "Дата окончания должна быть в формате ГГГГ-ММ-ДД."
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Endpoint must be a hostname or IP address."
+msgstr "Адрес сервера должен быть именем хоста или IP-адресом."
+
+#: web/src/portal/page/access.ts
+msgid "Ends %s"
+msgstr "Закончится %s"
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Enter a device name (up to 48 characters)."
+msgstr "Введите название устройства (до 48 символов)."
+
+#: web/src/shared/format.ts
+msgid "Expired"
+msgstr "Срок истёк"
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Extra data must be a positive number of GB."
+msgstr "Дополнительный трафик должен быть положительным числом ГБ."
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "For computers and routers"
+msgstr "Для компьютеров и роутеров"
+
+#: web/src/shared/format.ts
+msgid "GB"
+msgstr "ГБ"
+
+#: web/src/shared/format.ts
+msgid "Gbit/s"
+msgstr "Гбит/с"
+
+#: web/src/portal/flows/setup-view.ts
+msgid "Get %s"
+msgstr "Установите %s"
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Get %s on the %s and come back here."
+msgstr "Установите %s на %s и вернитесь сюда."
+
+#: web/src/portal/flows/setup-view.ts
+msgid "Get %s on the router"
+msgstr "Установите %s на роутер"
+
+#: web/src/portal/setup.ts
+msgid "Get it on"
+msgstr "Доступно в"
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Hide key"
+msgstr "Скрыть ключ"
+
+#: web/src/portal/page/access.ts
+#: web/src/shared/format.ts
+msgid "Home network"
+msgstr "Домашняя сеть"
+
+#: web/src/shared/format.ts
+msgid "Home network + Internet"
+msgstr "Домашняя сеть и интернет"
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Hours must look like 07:00-23:00."
+msgstr "Часы доступа указываются так: 07:00-23:00."
+
+#: web/src/portal/page/access.ts
+msgid "Hours, router time"
+msgstr "Часы доступа, время роутера"
+
+#: web/src/portal/page/access.ts
+msgid "Hours, your time"
+msgstr "Часы доступа, ваше время"
+
+#: web/src/portal/page/devices.ts
+msgid "IP address copied"
+msgstr "IP-адрес скопирован"
+
+#: web/src/portal/setup.ts
+msgctxt "WireGuard app"
+msgid "Import Tunnel(s) from File…"
+msgstr "Импорт туннелей из файла…"
+
+#: web/src/portal/setup.ts
+msgctxt "WireGuard app"
+msgid "Import from file or archive"
+msgstr "Импорт из файла или архива"
+
+#: web/src/portal/flows/setup-view.ts
+msgid "Import the configuration"
+msgstr "Импортируйте конфигурацию"
+
+#: web/src/portal/setup.ts
+msgctxt "WireGuard app"
+msgid "Import tunnel(s) from file…"
+msgstr "Импорт туннелей из файла…"
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "In %s:"
+msgstr "В %s:"
+
+#: web/src/portal/page/access.ts
+msgid "Included"
+msgstr "Есть доступ"
+
+#: web/src/portal/setup.ts
+msgctxt "AmneziaVPN app"
+msgid "Insert"
+msgstr "Вставить"
+
+#: web/src/portal/setup.ts
+msgid "Install from"
+msgstr "Установить с сайта"
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Interface name: 1-12 lowercase letters, digits or _."
+msgstr "Имя интерфейса: 1–12 строчных латинских букв, цифр или _."
+
+#: web/src/portal/page/access.ts
+#: web/src/shared/format.ts
+msgid "Internet"
+msgstr "Интернет"
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/portal.uc
+msgid "Invalid JSON."
+msgstr "Некорректный JSON."
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "Invalid public key."
+msgstr "Недопустимый публичный ключ."
+
+#: web/src/portal/page/access.ts
+msgid "It ended on %s."
+msgstr "Доступ закончился %s."
+
+#: web/src/portal/flows/device-actions.ts
+msgid "It gets new keys and its current settings stop working. Set it up again with the new ones that open next."
+msgstr "Устройство получит новые ключи, а текущие настройки перестанут работать. Настройте его заново с новыми - они откроются следом."
+
+#: web/src/portal/flows/device-actions.ts
+msgid "It gets new keys. This device is connected through its current settings: it disconnects a few seconds after you confirm. Add the new ones that open next."
+msgstr "Устройство получит новые ключи. Сейчас вы подключены через его текущие настройки: через несколько секунд после подтверждения связь прервётся. Добавьте новые - они откроются следом."
+
+#: web/src/portal/flows/device-actions.ts
+msgid "Its connection stops working at once. You can add it again later."
+msgstr "Подключение сразу перестанет работать. Устройство можно будет добавить снова."
+
+#: web/src/portal/page/devices.ts
+msgid "Its settings changed: update the connection"
+msgstr "Настройки изменились: обновите подключение"
+
+#: web/src/shared/format.ts
+msgid "KB"
+msgstr "КБ"
+
+#: web/src/portal/flows/setup-parts.ts
+#: web/src/portal/flows/setup-view.ts
+msgid "Key copied"
+msgstr "Ключ скопирован"
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Key generation failed (is amneziawg-tools installed?)."
+msgstr "Не удалось создать ключ (установлен ли amneziawg-tools?)."
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "Key generation failed (no random data)."
+msgstr "Не удалось создать ключ (нет случайных данных)."
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Key generation failed."
+msgstr "Не удалось создать ключ."
+
+#: web/src/portal/page/frame.ts
+msgid "Language"
+msgstr "Язык"
+
+#: web/src/portal/page/devices.ts
+msgid "Last 7 days"
+msgstr "За 7 дней"
+
+#: web/src/portal/page/devices.ts
+msgid "Last connected %s"
+msgstr "В сети %s"
+
+#: web/src/portal/ui/codes.ts
+msgid "Link copied"
+msgstr "Ссылка скопирована"
+
+#: web/src/portal/flows/add.ts
+msgid "Linux PC"
+msgstr "Компьютер с Linux"
+
+#: web/src/shared/format.ts
+msgid "MB"
+msgstr "МБ"
+
+#: web/src/shared/format.ts
+msgid "Mbit/s"
+msgstr "Мбит/с"
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/portal.uc
+msgid "Method not allowed."
+msgstr "Метод не поддерживается."
+
+#: web/src/portal/flows/add.ts
+msgid "Mobile"
+msgstr "Мобильный"
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Monthly data must be a positive number of GB."
+msgstr "Месячный лимит трафика должен быть положительным числом ГБ."
+
+#: web/src/portal/flows/add.ts
+msgid "Name"
+msgstr "Имя"
+
+#: web/src/portal/flows/wait.ts
+msgid "No connection yet"
+msgstr "Подключения пока нет"
+
+#: web/src/portal/page/access.ts
+msgid "No data limit. The count starts again on the 1st."
+msgstr "Лимита трафика нет. Счёт начинается заново 1-го числа."
+
+#: web/src/portal/page/access.ts
+msgid "No end date"
+msgstr "Бессрочно"
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "No free address left on %s."
+msgstr "На сервере %s не осталось свободных адресов."
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "No free addresses left in the server subnet."
+msgstr "В подсети сервера не осталось свободных адресов."
+
+#: web/src/portal/page/access.ts
+msgid "No limit"
+msgstr "Без лимита"
+
+#: web/src/shared/format.ts
+msgid "No server"
+msgstr "Нет сервера"
+
+#: web/src/portal/page/notices.ts
+msgid "No server yet"
+msgstr "Сервера пока нет"
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/portal.uc
+msgid "Not found."
+msgstr "Не найден."
+
+#: web/src/portal/page/access.ts
+msgid "Not included"
+msgstr "Нет доступа"
+
+#: web/src/portal/flows/setup-view.ts
+msgid "Not on the %s right now?"
+msgstr "Открыли на другом %s?"
+
+#: web/src/portal/page/devices.ts
+msgid "Not set up yet"
+msgstr "Ещё не настроено"
+
+#: web/src/portal/page/notices.ts
+msgid "Nothing gets through until it resets."
+msgstr "Ничего не проходит, пока лимит не обнулится."
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Nothing opened? %s and add it in the app."
+msgstr "Ничего не открылось? %s и добавьте его в приложении."
+
+#: web/src/portal/page/access.ts
+msgid "Now, %s"
+msgstr "Сейчас %s"
+
+#: web/src/portal/flows/add.ts
+msgid "OR"
+msgstr "ИЛИ"
+
+#: web/src/portal/setup.ts
+msgid "Official release on GitHub"
+msgstr "Официальная версия на GitHub"
+
+#: web/src/portal/page/notices.ts
+msgid "On %s."
+msgstr "Дата окончания - %s."
+
+#: web/src/portal/setup.ts
+msgid "On GitHub"
+msgstr "На GitHub"
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/devices.uc
+msgid "Only the admin can turn devices off."
+msgstr "Отключать устройства может только администратор."
+
+#: web/src/portal/flows/setup-parts.ts
+#: web/src/portal/setup.ts
+msgctxt "step"
+msgid "Open %s"
+msgstr "Откройте %s"
+
+#: web/src/portal/page/notices.ts
+msgid "Open %s."
+msgstr "Доступ открыт %s."
+
+#: web/src/portal/setup.ts
+msgid "Open a terminal in the folder with the file"
+msgstr "Откройте терминал в папке с файлом"
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Open in AmneziaVPN"
+msgstr "Открыть в AmneziaVPN"
+
+#: web/src/portal/flows/page-code.ts
+#: web/src/portal/page/frame.ts
+msgid "Open on another device"
+msgstr "Открыть на другом устройстве"
+
+#: web/src/portal/flows/add.ts
+msgid "Open on the device"
+msgstr "Открыть на устройстве"
+
+#: web/src/portal/flows/secure.ts
+msgid "Open securely"
+msgstr "Открыть по HTTPS"
+
+#: web/src/portal/flows/secure.ts
+msgid "Open the link securely"
+msgstr "Откройте защищённую ссылку"
+
+#: web/src/portal/flows/setup-view.ts
+msgid "Open this link on the %s to set it up there."
+msgstr "Откройте эту ссылку на %s, чтобы настроить его там."
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/portal.uc
+msgid "Open this link over HTTPS to get the connection settings."
+msgstr "Чтобы получить настройки подключения, откройте эту ссылку по HTTPS."
+
+#: web/src/portal/flows/setup-view.ts
+msgid "Open this page in Safari or Chrome: the store opens from here, but the app handoff does not."
+msgstr "Откройте эту страницу в Safari или Chrome: магазин отсюда откроется, а передача в приложение - нет."
+
+#: web/src/portal/flows/setup-view.ts
+msgid "Open your link on the %s"
+msgstr "Откройте свою ссылку на %s"
+
+#: web/src/portal/setup.ts
+msgid "OpenWrt packages"
+msgstr "Пакеты OpenWrt"
+
+#: web/src/portal/setup.ts
+msgid "OpenWrt packages + kmod"
+msgstr "Пакеты OpenWrt + kmod"
+
+#: web/src/shared/format.ts
+msgid "Other"
+msgstr "Другое"
+
+#: web/src/portal/page/access.ts
+msgid "Other devices at home reach yours as %s"
+msgstr "Другие устройства дома обращаются к вашим по адресу %s"
+
+#: web/src/portal/page/notices.ts
+msgid "Out of data"
+msgstr "Трафик закончился"
+
+#: web/src/shared/format.ts
+msgid "Outside allowed hours"
+msgstr "Вне часов доступа"
+
+#: web/src/portal/page/notices.ts
+msgid "Outside your hours"
+msgstr "Вне часов доступа"
+
+#: web/src/shared/format.ts
+msgid "PC"
+msgstr "Компьютер"
+
+#: web/src/shared/format.ts
+msgid "Paused"
+msgstr "На паузе"
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Person %s: circle %s does not exist."
+msgstr "Человек %s: круга %s нет."
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Person %s: has the same personal link as %s."
+msgstr "Человек %s: личная ссылка совпадает со ссылкой человека %s."
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Person %s: home service %s does not exist."
+msgstr "Человек %s: домашнего сервиса %s нет."
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Person %s: server %s does not exist."
+msgstr "Человек %s: сервера %s нет."
+
+#: web/src/shared/format.ts
+msgid "Phone"
+msgstr "Телефон"
+
+#: web/src/portal/flows/add.ts
+msgid "Phones and tablets get a smaller packet size that suits mobile networks."
+msgstr "У телефонов и планшетов пакеты меньше - так лучше для мобильных сетей."
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Pick AmneziaVPN in the share sheet. Not there? %s and add it in the app."
+msgstr "Выберите AmneziaVPN в меню «Поделиться». Его там нет? %s и добавьте его в приложении."
+
+#: web/src/portal/setup.ts
+msgid "Pick the file and connect"
+msgstr "Выберите файл и подключитесь"
+
+#: web/src/portal/flows/setup-view.ts
+msgid "Point its camera at the code: the link opens there."
+msgstr "Наведите камеру устройства на код - ссылка откроется на нём."
+
+#: web/src/portal/flows/page-code.ts
+msgid "Point its camera at the code: this page opens there."
+msgstr "Наведите камеру устройства на код - там откроется эта страница."
+
+#: web/src/portal/flows/add.ts
+msgid "Point its camera at the code: your page opens there with this device ready to add."
+msgstr "Наведите камеру устройства на код - там откроется ваша страница, и его можно будет сразу добавить."
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Port must be 1-65535."
+msgstr "Порт: от 1 до 65535."
+
+#: web/src/shared/qr.ts
+msgid "QR code"
+msgstr "QR-код"
+
+#: web/src/portal/setup.ts
+msgctxt "AmneziaVPN app"
+msgid "QR code"
+msgstr "QR-код"
+
+#: web/src/portal/flows/device-actions.ts
+#: web/src/portal/page/devices.ts
+msgid "Reconnect"
+msgstr "Переподключить"
+
+#: web/src/portal/flows/device-actions.ts
+msgid "Reconnect %s?"
+msgstr "Переподключить «%s»?"
+
+#: web/src/portal/flows/device-actions.ts
+#: web/src/portal/page/devices.ts
+msgid "Remove"
+msgstr "Удалить"
+
+#: web/src/portal/flows/device-actions.ts
+msgid "Remove %s?"
+msgstr "Удалить «%s»?"
+
+#: web/src/portal/page/devices.ts
+msgid "Rename"
+msgstr "Переименовать"
+
+#: web/src/portal/flows/device-actions.ts
+msgid "Rename %s"
+msgstr "Переименовать «%s»"
+
+#: web/src/portal/flows/device-actions.ts
+msgid "Renamed"
+msgstr "Переименовано"
+
+#: web/src/portal/api.ts
+msgid "Request failed (%s)"
+msgstr "Не удалось выполнить запрос (%s)"
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/portal.uc
+msgid "Request too large."
+msgstr "Слишком большой запрос."
+
+#: web/src/portal/page/access.ts
+msgid "Resets on the 1st."
+msgstr "Обнуляется 1-го числа."
+
+#: web/src/shared/format.ts
+msgid "Router"
+msgstr "Роутер"
+
+#: web/src/portal/setup.ts
+msgid "Run"
+msgstr "Выполните"
+
+#: web/src/portal/flows/device-actions.ts
+msgid "Save"
+msgstr "Сохранить"
+
+#: web/src/portal/setup.ts
+msgctxt "WireGuard app"
+msgid "Scan from QR code"
+msgstr "Сканировать QR-код"
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Send it to the %s"
+msgstr "Отправить на %s"
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Send it to the %s in a message or a note, then in AmneziaVPN: %s."
+msgstr "Отправьте его на %s в сообщении или заметке, затем в AmneziaVPN: %s."
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Send it to the %s, then import %s in %s."
+msgstr "Отправьте его на %s, затем импортируйте %s в %s."
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Send to AmneziaVPN"
+msgstr "Отправить в AmneziaVPN"
+
+#: web/src/portal/page/notices.ts
+msgid "Server is disabled"
+msgstr "Сервер выключен"
+
+#: web/src/shared/format.ts
+msgid "Server is turned off"
+msgstr "Сервер выключен"
+
+#: web/src/portal/flows/setup-view.ts
+#: web/src/portal/page/devices.ts
+msgid "Set up %s"
+msgstr "Настроить %s"
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Set up a server first."
+msgstr "Сначала настройте сервер."
+
+#: web/src/portal/page/devices.ts
+msgid "Settings changed"
+msgstr "Настройки изменились"
+
+#: web/src/portal/page/devices.ts
+msgid "Settings changed, update needed"
+msgstr "Настройки изменились, нужно обновить"
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Share as a file"
+msgstr "Поделиться файлом"
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Share file"
+msgstr "Поделиться файлом"
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Share the file"
+msgstr "Поделиться файлом"
+
+#: web/src/portal/ui/codes.ts
+msgid "Share the link"
+msgstr "Поделиться ссылкой"
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Show key"
+msgstr "Показать ключ"
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Straight into %s"
+msgstr "Сразу в %s"
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Subnet must look like 10.77.0.0/24."
+msgstr "Подсеть указывается так: 10.77.0.0/24."
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Subnet overlaps %s."
+msgstr "Подсеть пересекается с %s."
+
+#: web/src/shared/format.ts
+msgid "TB"
+msgstr "ТБ"
+
+#: web/src/shared/format.ts
+msgid "Tablet"
+msgstr "Планшет"
+
+#: web/src/portal/setup.ts
+msgid "Tap “%s” and connect"
+msgstr "Нажмите «%s» и подключитесь"
+
+#: web/src/portal/setup.ts
+msgid "The APK is for phones without Google Play, or where the store hides the app."
+msgstr "APK - для телефонов без Google Play или если магазин скрывает приложение."
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/devices.uc
+msgid "The admin has turned this device off."
+msgstr "Администратор отключил это устройство."
+
+#: web/src/portal/flows/setup-view.ts
+msgid "The app goes on the %s."
+msgstr "Приложение ставится на %s."
+
+#: web/src/portal/flows/secure.ts
+msgid "The browser may warn that the certificate is not trusted: it is this router’s own. Choose to continue (“Advanced” → “Proceed”)."
+msgstr "Браузер может предупредить, что сертификату нельзя доверять: это собственный сертификат роутера. Продолжите переход («Дополнительные» → «Перейти на сайт»)."
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "The connection"
+msgstr "Подключение"
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "The connection as one key"
+msgstr "Подключение одним ключом"
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "The id may use lowercase letters, digits and underscores."
+msgstr "В идентификаторе можно использовать строчные латинские буквы, цифры и подчёркивания."
+
+#: web/src/portal/flows/setup-view.ts
+msgid "The packages and the file for OpenWrt"
+msgstr "Пакеты и файл для OpenWrt"
+
+#: web/src/portal/main.ts
+msgid "The page could not load"
+msgstr "Не удалось загрузить страницу"
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "The person has no server."
+msgstr "У человека нет сервера."
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Then come back here and tap"
+msgstr "Затем вернитесь сюда и нажмите"
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Then import it in the app"
+msgstr "Затем импортируйте его в приложении"
+
+#: web/src/portal/page/devices.ts
+msgid "This device"
+msgstr "Это устройство"
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "This key is already in use."
+msgstr "Этот ключ уже используется."
+
+#: web/src/portal/main.ts
+msgid "This link no longer works"
+msgstr "Эта ссылка больше не работает"
+
+#: web/src/portal/flows/secure.ts
+msgid "This page is open without encryption. To add or set up a device, open the same link over HTTPS:"
+msgstr "Эта страница открыта без шифрования. Чтобы добавить или настроить устройство, откройте ту же ссылку по HTTPS:"
+
+#: web/src/portal/page/access.ts
+msgid "Through the router"
+msgstr "Через роутер"
+
+#: web/src/portal/page/access.ts
+#: web/src/portal/page/devices.ts
+msgid "Today"
+msgstr "Сегодня"
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/portal.uc
+msgid "Too many changes in a short time. Try again in a few minutes."
+msgstr "Слишком много изменений за короткое время. Попробуйте ещё раз через несколько минут."
+
+#: web/src/portal/flows/setup-view.ts
+msgid "Two steps, about a minute"
+msgstr "Два шага, около минуты"
+
+#: web/src/portal/page/devices.ts
+msgid "Two steps, about a minute: get the app, then add the connection."
+msgstr "Два шага, около минуты: установите приложение, затем добавьте подключение."
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Unknown DNS choice."
+msgstr "Неизвестный вариант DNS."
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/portal.uc
+msgid "Unknown action."
+msgstr "Неизвестное действие."
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Unknown circle."
+msgstr "Неизвестный круг."
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/devices.uc
+msgid "Unknown device."
+msgstr "Неизвестное устройство."
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Unknown end action."
+msgstr "Неизвестное действие по окончании доступа."
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Unknown person."
+msgstr "Неизвестный человек."
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Unknown server."
+msgstr "Неизвестный сервер."
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Unknown service %s."
+msgstr "Неизвестный сервис %s."
+
+#: web/src/portal/page/devices.ts
+msgid "Update"
+msgstr "Обновить"
+
+#: web/src/portal/page/devices.ts
+msgid "Update the connection"
+msgstr "Обновить подключение"
+
+#: web/src/portal/flows/wait.ts
+msgid "Waiting for the connection"
+msgstr "Ждём подключения"
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Warning must be 0-60 days."
+msgstr "Предупреждать можно за 0–60 дней."
+
+#: web/src/portal/flows/add.ts
+msgid "What is it?"
+msgstr "Что это за устройство?"
+
+#: web/src/portal/flows/add.ts
+msgid "Windows PC"
+msgstr "Компьютер с Windows"
+
+#: web/src/portal/page/devices.ts
+msgid "Yesterday"
+msgstr "Вчера"
+
+#: web/src/portal/flows/add.ts
+msgid "You already have a device with this name."
+msgstr "У вас уже есть устройство с таким именем."
+
+#: web/src/portal/flows/add.ts
+msgid "You have reached your limit of %s device"
+msgid_plural "You have reached your limit of %s devices"
+msgstr[0] "Достигнут лимит - %s устройство"
+msgstr[1] "Достигнут лимит - %s устройства"
+msgstr[2] "Достигнут лимит - %s устройств"
+
+#: web/src/portal/page/devices.ts
+msgid "You have reached your limit of %s device. Remove one to add another."
+msgid_plural "You have reached your limit of %s devices. Remove one to add another."
+msgstr[0] "Достигнут лимит - %s устройство. Удалите одно, чтобы добавить новое."
+msgstr[1] "Достигнут лимит - %s устройства. Удалите одно, чтобы добавить новое."
+msgstr[2] "Достигнут лимит - %s устройств. Удалите одно, чтобы добавить новое."
+
+#: web/src/portal/page/notices.ts
+msgid "You haven’t been added to one."
+msgstr "Вас ещё не добавили ни на один сервер."
+
+#: web/src/portal/page/access.ts
+msgid "Your access"
+msgstr "Ваш доступ"
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/portal.uc
+msgid "Your access has ended."
+msgstr "Ваш доступ закончился."
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/portal.uc
+msgid "Your access is paused."
+msgstr "Ваш доступ на паузе."
+
+#: web/src/portal/page/devices.ts
+msgid "Your devices"
+msgstr "Ваши устройства"
+
+#: web/src/portal/page/notices.ts
+msgid "Your devices can’t connect until it’s enabled again."
+msgstr "Ваши устройства не подключатся, пока его снова не включат."
+
+#: web/src/portal/page/notices.ts
+msgid "Your devices can’t connect until it’s extended."
+msgstr "Ваши устройства не подключатся, пока доступ не продлят."
+
+#: web/src/portal/page/notices.ts
+msgid "Your devices can’t connect until it’s resumed."
+msgstr "Ваши устройства не подключатся, пока доступ не возобновят."
+
+#: web/src/shared/format.ts
+msgid "bit/s"
+msgstr "бит/с"
+
+#: web/src/portal/setup.ts
+msgid "computer"
+msgstr "компьютер"
+
+#: web/src/portal/setup.ts
+msgctxt "on the"
+msgid "computer"
+msgstr "компьютере"
+
+#: web/src/portal/page/access.ts
+msgid "day left"
+msgid_plural "days left"
+msgstr[0] "день остался"
+msgstr[1] "дня осталось"
+msgstr[2] "дней осталось"
+
+#: web/src/portal/setup.ts
+msgid "device"
+msgstr "устройство"
+
+#: web/src/portal/setup.ts
+msgctxt "on the"
+msgid "device"
+msgstr "устройстве"
+
+#: web/src/portal/page/access.ts
+msgid "ended"
+msgstr "закончился"
+
+#: web/src/shared/format.ts
+msgid "ends in %s day"
+msgid_plural "ends in %s days"
+msgstr[0] "закончится через %s день"
+msgstr[1] "закончится через %s дня"
+msgstr[2] "закончится через %s дней"
+
+#: web/src/shared/format.ts
+msgid "ends today"
+msgstr "закончится сегодня"
+
+#: web/src/shared/format.ts
+msgid "ends tomorrow"
+msgstr "закончится завтра"
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "h1-h4 must be distinct"
+msgstr "h1-h4 должны быть разными"
+
+#: web/src/shared/format.ts
+msgid "just now"
+msgstr "только что"
+
+#: web/src/shared/format.ts
+msgid "kbit/s"
+msgstr "кбит/с"
+
+#: web/src/portal/page/access.ts
+msgid "name"
+msgstr "имя"
+
+#: web/src/shared/format.ts
+msgid "never"
+msgstr "никогда"
+
+#: web/src/portal/page/access.ts
+msgid "no limit"
+msgstr "без лимита"
+
+#: web/src/portal/setup.ts
+msgid "phone"
+msgstr "телефон"
+
+#: web/src/portal/setup.ts
+msgctxt "on the"
+msgid "phone"
+msgstr "телефоне"
+
+#: web/src/portal/setup.ts
+msgid "router"
+msgstr "роутер"
+
+#: web/src/portal/setup.ts
+msgctxt "on the"
+msgid "router"
+msgstr "роутере"
+
+#: web/src/portal/setup.ts
+msgid "tablet"
+msgstr "планшет"
+
+#: web/src/portal/setup.ts
+msgctxt "on the"
+msgid "tablet"
+msgstr "планшете"
+
+#: web/src/portal/setup.ts
+msgid "this device"
+msgstr "это устройство"

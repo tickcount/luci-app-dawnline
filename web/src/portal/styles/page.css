@@ -81,6 +81,44 @@ body.scrolled .edge-fade.top {
   width: 14px;
   height: 14px;
 }
+/* The language: a pill as high as the QR knob beside it, its code and a chevron that turns up while
+   the menu is open. */
+.cr-lang {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  padding: 0 8px 0 12px;
+  border-radius: 999px;
+  background: var(--knob);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  flex: none;
+  transition:
+    transform 150ms var(--ease-out),
+    background-color 150ms;
+}
+.cr-lang:hover {
+  background: color-mix(in srgb, var(--knob), var(--text) 6%);
+}
+.cr-lang:active {
+  transform: scale(0.94);
+}
+.cr-lang[aria-expanded='true'] {
+  background: color-mix(in srgb, var(--knob), var(--text) 10%);
+}
+.cr-down {
+  width: 14px;
+  height: 14px;
+  color: var(--text-2);
+  transform: rotate(90deg);
+  transition: transform 200ms var(--ease-out);
+}
+.cr-lang[aria-expanded='true'] .cr-down {
+  transform: rotate(-90deg);
+}
 
 /* Phones: one column, access first. From 960px: devices left, access right and sticky. The foot
    clears the bottom fade at the end of the scroll. */

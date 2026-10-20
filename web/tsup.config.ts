@@ -2,6 +2,7 @@ import { defineConfig } from 'tsup';
 import { build, transform, type Plugin } from 'esbuild';
 import fs from 'node:fs';
 import path from 'node:path';
+import { catalogOf, parsePo } from './i18n/po.ts';
 
 const PKG = '../package/luci-app-dawnline';
 const ADMIN_OUT = `${PKG}/htdocs/luci-static/resources/dawnline`;
@@ -47,6 +48,17 @@ async function portalCss(): Promise<string> {
   });
   return r.outputFiles[0].text.trim();
 }
+
+/** The portal's translations: a .po it imports becomes its lookup table (i18n/po.ts). */
+export const poCatalog: Plugin = {
+  name: 'po-catalog',
+  setup(build) {
+    build.onLoad({ filter: /\.po$/ }, (args) => ({
+      contents: JSON.stringify(catalogOf(parsePo(fs.readFileSync(args.path, 'utf8')))),
+      loader: 'json',
+    }));
+  },
+};
 
 // The admin styles are plain .css files under src/admin/styles, imported as
 // text and joined in styles/index.ts (rendered inside each view): each is
@@ -107,6 +119,7 @@ export default defineConfig([
     sourcemap: false,
     minify: true,
     noExternal: ['qrcode-generator'],
+    esbuildPlugins: [poCatalog],
     esbuildOptions(o) {
       o.legalComments = 'none';
       o.charset = 'utf8';

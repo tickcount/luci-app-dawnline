@@ -12,6 +12,9 @@ KEEP=/etc/dawnline/keep/app
 to="${1:-?}"
 
 sleep 2
+# LuCI reads a language's catalogs once per web server: a replaced translation
+# needs a fresh one, before the new version answers and the page reloads.
+ls /usr/lib/lua/luci/i18n/dawnline.*.lmo >/dev/null 2>&1 && /etc/init.d/uhttpd restart >/dev/null 2>&1
 /etc/init.d/rpcd reload >/dev/null 2>&1
 /etc/init.d/dawnline restart >/dev/null 2>&1
 

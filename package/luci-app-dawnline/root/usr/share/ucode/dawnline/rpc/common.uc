@@ -6,6 +6,7 @@ import * as awg from 'dawnline.awg';
 import * as health from 'dawnline.health';
 import * as schema from 'dawnline.schema';
 import { uniq } from 'dawnline.util';
+import { _ } from 'dawnline.i18n';
 
 /**
  * An rpcd handler from fn(args): an object result is passed on, anything else
@@ -45,16 +46,16 @@ export function default_method() {
 /** A disguise method the installed AmneziaWG can run. */
 export function check_method(name) {
 	if (index(METHODS, name) < 0)
-		die('Unknown disguise method.');
+		die(_('Unknown disguise method.'));
 	let c = awg.caps();
 	if (name == 'max' && !c.v3)
 		die(awg.installed()
-			? 'Maximum needs AmneziaWG 3.1 on the router (kmod-amneziawg, amneziawg-tools 3.1): install a 3.1 build in Dawnline → Components.'
-			: 'AmneziaWG is not installed: install it in Dawnline → Components, then choose Maximum.');
+			? _('Maximum needs AmneziaWG 3.1 on the router (kmod-amneziawg, amneziawg-tools 3.1): install a 3.1 build in Dawnline → Components.')
+			: _('AmneziaWG is not installed: install it in Dawnline → Components, then choose Maximum.'));
 	if (name == 'balanced' && !c.v2)
 		die(awg.installed()
-			? 'Balanced needs AmneziaWG 2.0 or newer on the router: install a current build in Dawnline → Components.'
-			: 'AmneziaWG is not installed: install it in Dawnline → Components, then choose Balanced.');
+			? _('Balanced needs AmneziaWG 2.0 or newer on the router: install a current build in Dawnline → Components.')
+			: _('AmneziaWG is not installed: install it in Dawnline → Components, then choose Balanced.'));
 	return name;
 };
 
@@ -75,6 +76,7 @@ function tcp_forwards(m) {
 /**
  * TCP ports the portal can't take, and who holds them: [{ from, to, who }].
  * The router's own (22, 53, 80, 443), other programs and port forwards from WAN.
+ * `who` is shown in the admin's language ("Used by %s.").
  */
 export function tcp_taken(m) {
 	let out = [];
@@ -86,11 +88,11 @@ export function tcp_taken(m) {
 		}
 	};
 	for (let p in schema.RESERVED_PORTS)
-		hold(p, 'the router itself');
+		hold(p, _('the router itself'));
 	for (let p, name in health.tcp_port_programs())
-		hold(+p, `${name} on this router`);
+		hold(+p, sprintf(_('%s on this router'), name));
 	for (let f in tcp_forwards(m))
-		push(out, { from: f.from, to: f.to, who: `port forward “${f.name}”` });
+		push(out, { from: f.from, to: f.to, who: sprintf(_('port forward “%s”'), f.name) });
 	return out;
 };
 
@@ -100,12 +102,12 @@ export function check_portal(m, was) {
 		return;
 	let port = s.portal_port;
 	if (!schema.valid_port(port) || index(schema.RESERVED_PORTS, port) >= 0)
-		die('Choose a free port between 1 and 65535 (not 22, 53, 80 or 443).');
+		die(_('Choose a free port between 1 and 65535 (not 22, 53, 80 or 443).'));
 	let ports = [ port ];
 	if (core.portal_http(m)) {
 		let hp = core.portal_http_port(m);
 		if (!schema.valid_port(hp) || index(schema.RESERVED_PORTS, hp) >= 0)
-			die(`Links on IP addresses use plain HTTP on the next port (${hp}), which the portal cannot take. Choose another portal port.`);
+			die(sprintf(_('Links on IP addresses use plain HTTP on the next port (%d), which the portal cannot take. Choose another portal port.'), hp));
 		push(ports, hp);
 	}
 	// Only ports the portal does not hold already: our own uhttpd is not an owner anyway.
@@ -120,11 +122,13 @@ export function check_portal(m, was) {
 			continue;
 		let owners = health.tcp_port_owners(p);
 		if (length(owners))
-			die(`TCP ${p} is already used by ${join(', ', owners)}.${p != port ? ' Links on IP addresses use plain HTTP on the port after the portal\'s.' : ''} Choose another portal port.`);
+			die(sprintf(p != port
+				? _("TCP %d is already used by %s. Links on IP addresses use plain HTTP on the port after the portal's. Choose another portal port.")
+				: _('TCP %d is already used by %s. Choose another portal port.'), p, join(', ', owners)));
 	}
 	// A forwarded port never reaches the router: the portal would be unreachable.
 	for (let p in ports)
 		for (let f in tcp_forwards(m))
 			if (f.from <= p && p <= f.to)
-				die(`TCP ${p} is sent on by port forward “${f.name}”. Choose another portal port.`);
+				die(sprintf(_('TCP %d is sent on by port forward “%s”. Choose another portal port.'), p, f.name));
 };

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Build the release packages with the OpenWrt SDK in Docker (as CI does):
 #   scripts/build-packages.sh [ipk|apk|all]
-# Output: dist/luci-app-dawnline-<version>.{ipk,apk} and dist/sha256sums.txt
+# Output: dist/luci-app-dawnline-<version>.{ipk,apk}, a translation package per
+# po/<lang> (dist/luci-i18n-dawnline-<lang>-<version>.{ipk,apk}) and dist/sha256sums.txt
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -25,13 +26,29 @@ build() {
 	rm -rf "$OUT/.$type" && mkdir -p "$OUT/.$type"
 	docker cp "$id:/builder/out/." "$OUT/.$type/"
 	docker rm "$id" >/dev/null
-	local f
-	f="$(find "$OUT/.$type" -type f -name "*.$type" | head -n1)"
-	[ -n "$f" ] || { echo "no .$type built" >&2; exit 1; }
-	# ipk names use underscores (luci-app-dawnline_0.1.0-r1_all.ipk): one stable name for both.
-	mv "$f" "$OUT/luci-app-dawnline-$VERSION.$type"
+	local f name
+	for f in "$OUT/.$type"/*."$type"; do
+		[ -f "$f" ] || continue
+		# ipk names use underscores (luci-app-dawnline_0.1.0-r1_all.ipk), apk names
+		# dashes: one stable name per package for both, its name and the version.
+		name="$(basename "$f")"
+		name="${name%%[_-][0-9]*}"
+		mv "$f" "$OUT/$name-$VERSION.$type"
+		echo "$OUT/$name-$VERSION.$type"
+	done
 	rm -rf "$OUT/.$type"
-	echo "$OUT/luci-app-dawnline-$VERSION.$type"
+	for name in luci-app-dawnline $(i18n_packages); do
+		[ -f "$OUT/$name-$VERSION.$type" ] || { echo "no $name .$type built" >&2; exit 1; }
+	done
+}
+
+# The translation packages luci.mk makes: one per po/<lang>.
+i18n_packages() {
+	local d
+	for d in "$APP"/po/*/; do
+		d="$(basename "$d")"
+		[ "$d" = templates ] || printf 'luci-i18n-dawnline-%s\n' "$d"
+	done
 }
 
 case "$WHAT" in
@@ -43,9 +60,10 @@ esac
 
 (
 	cd "$OUT"
-	set -- luci-app-dawnline-"$VERSION".ipk luci-app-dawnline-"$VERSION".apk
 	files=""
-	for f in "$@"; do [ -f "$f" ] && files="$files $f"; done
+	for name in luci-app-dawnline $(i18n_packages); do
+		for f in "$name-$VERSION".ipk "$name-$VERSION".apk; do [ -f "$f" ] && files="$files $f"; done
+	done
 	# shellcheck disable=SC2086
 	if command -v sha256sum >/dev/null; then sha256sum $files; else shasum -a 256 $files; fi > sha256sums.txt
 )

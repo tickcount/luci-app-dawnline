@@ -26,6 +26,7 @@ import * as net from 'dawnline.net';
 import * as store from 'dawnline.store';
 import * as upd from 'dawnline.updates';
 import * as awg from 'dawnline.awg';
+import { L_ } from 'dawnline.i18n';
 
 const TICK = 60 * 1000;
 const WATCH = 1000;
@@ -423,7 +424,7 @@ function check_cert(m) {
 	let c = pc.portal_cert(m.settings);
 	let mt = stat(c.cert)?.mtime;
 	if (cert_mtime != null && mt != null && mt != cert_mtime) {
-		slog('portal', 'up', `certificate renewed · valid until ${cert_end(c.cert) ?? '?'}`, null, 'Personal portal');
+		slog('portal', 'up', sprintf(L_('certificate renewed · valid until %s'), cert_end(c.cert) ?? '?'), null, L_('Personal portal'));
 		system('/etc/init.d/dawnline reload >/dev/null 2>&1 &');
 	}
 	cert_mtime = mt;
@@ -432,8 +433,9 @@ function check_cert(m) {
 		return;
 	last_cert_check = time();
 	if (notes.cert_warned != mt && system(`openssl x509 -checkend 604800 -noout -in ${q(c.cert)} >/dev/null 2>&1`) != 0) {
-		slog('portal', 'error', `certificate expires ${cert_end(c.cert) ?? 'within 7 days'}`,
-			'Browsers will refuse the portal after that. Renew it with ACME, or choose another certificate in Settings.', 'Personal portal');
+		let end = cert_end(c.cert);
+		slog('portal', 'error', end ? sprintf(L_('certificate expires %s'), end) : L_('certificate expires within 7 days'),
+			L_('Browsers will refuse the portal after that. Renew it with ACME, or choose another certificate in Settings.'), L_('Personal portal'));
 		note('cert_warned', mt);
 	}
 }
@@ -454,10 +456,13 @@ function check_wan(m) {
 		return;
 	let stuck = map(filter(values(m.servers), (x) => core.endpoint_host(m, x) == was), (x) => x.name);
 	if (length(stuck))
-		slog('dawnline', 'error', `public address changed · ${was} → ${ip}`,
-			`${join(', ', stuck)} still give${length(stuck) == 1 ? 's' : ''} devices the old address: set the public address in the server settings (a DDNS name keeps working), then devices need new configurations.`, 'Router');
+		slog('dawnline', 'error', sprintf(L_('public address changed · %s → %s'), was, ip),
+			sprintf(length(stuck) == 1
+				? L_('%s still gives devices the old address: set the public address in the server settings (a DDNS name keeps working), then devices need new configurations.')
+				: L_('%s still give devices the old address: set the public address in the server settings (a DDNS name keeps working), then devices need new configurations.'),
+				join(', ', stuck)), L_('Router'));
 	else
-		slog('dawnline', 'info', `public address changed · ${was} → ${ip}`, null, 'Router');
+		slog('dawnline', 'info', sprintf(L_('public address changed · %s → %s'), was, ip), null, L_('Router'));
 }
 
 let last_backup_day = null;
@@ -476,7 +481,7 @@ function nightly_backup() {
 		}
 		catch (e) {
 			// Tried again tomorrow; meanwhile the admin should know (a full flash, mostly).
-			slog('dawnline', 'error', `nightly backup failed: ${e.message}`, null, 'Backup');
+			slog('dawnline', 'error', sprintf(L_('nightly backup failed: %s'), e.message), null, L_('Backup'));
 		}
 	}
 }
@@ -545,7 +550,7 @@ function check_network(t) {
 		return;
 	}
 	pending_net = null;
-	slog('dawnline', 'info', 'network changed — Dawnline set itself up again', null, 'Router');
+	slog('dawnline', 'info', L_('network changed - Dawnline set itself up again'), null, L_('Router'));
 	apply.apply();
 	base_net = readfile(apply.NET_SIG) ?? apply.net_signature(core.load());
 }
@@ -561,33 +566,33 @@ const STEPS = [
 		t.m = core.load();
 		t.pol = live.policy(t.m.settings.retention);
 	} },
-	{ who: 'Traffic', run: (t) => {
+	{ who: L_('Traffic'), run: (t) => {
 		t.reset = check_usage_reset(t.m);
 		live.collect(t.m, usage, live.dump(t.m));
 	} },
-	{ who: 'Speed', quiet: true, run: (t) => record_rate(t.m) },
-	{ who: 'People', run: (t) => {
+	{ who: L_('Speed'), quiet: true, run: (t) => record_rate(t.m) },
+	{ who: L_('People'), run: (t) => {
 		t.states = apply.states_for(t.m, usage);
 		check_people(t.m, t.states, t.events);
 		check_expiry(t.m, t.events);
 	} },
-	{ who: 'Access rules', run: (t) => {
+	{ who: L_('Access rules'), run: (t) => {
 		if (t.states)
 			sync_runtime(t);
 	} },
 	// Tunnels going down and up are in the service log (hotplug, watchdog), with names and reasons.
-	{ who: 'Activity', run: (t) => {
+	{ who: L_('Activity'), run: (t) => {
 		live.add_events(t.events, t.pol);
 		// Pauses and resumes on their own: the UI shows them without waiting for its next poll.
 		if (length(t.events))
 			save_presence(uniq(map(filter(t.events, (e) => e.person), (e) => e.person)));
 	} },
-	{ who: 'Internet like a home device', run: (t) => apply.sync_loop(t.m, usage) },
-	{ who: 'Router', run: check_network },
-	{ who: 'Watchdog', run: (t) => watchdog.run(core.load()) },
-	{ who: 'Personal portal', run: (t) => check_cert(t.m) },
-	{ who: 'Router', quiet: true, run: (t) => check_wan(t.m) },
-	{ who: 'Backup', run: (t) => nightly_backup() },
+	{ who: L_('Internet like a home device'), run: (t) => apply.sync_loop(t.m, usage) },
+	{ who: L_('Router'), run: check_network },
+	{ who: L_('Watchdog'), run: (t) => watchdog.run(core.load()) },
+	{ who: L_('Personal portal'), run: (t) => check_cert(t.m) },
+	{ who: L_('Router'), quiet: true, run: (t) => check_wan(t.m) },
+	{ who: L_('Backup'), run: (t) => nightly_backup() },
 	{ who: 'updates', quiet: true, run: (t) => check_updates(t.m) },
 	{ who: 'geo', quiet: true, run: (t) => check_geo(t.m) },
 ];
@@ -603,7 +608,7 @@ function step(i, s, fn) {
 	catch (e) {
 		system(`logger -t dawnline-agent ${q(`${s.who}: ${e.message}`)}`);
 		if (!s.quiet && step_err[i] != e.message)
-			slog('dawnline', 'error', `failed: ${e.message}`, e.stacktrace?.[0]?.context, s.who);
+			slog('dawnline', 'error', sprintf(L_('failed: %s'), e.message), e.stacktrace?.[0]?.context, s.who);
 		step_err[i] = e.message;
 	}
 }
@@ -625,7 +630,7 @@ function tick() {
 			step(i, s, () => s.run(t));
 
 	let persist = t.reset || time() - last_flush >= FLUSH_EVERY;
-	step('save', { who: 'Traffic' }, () => {
+	step('save', { who: L_('Traffic') }, () => {
 		live.save_usage(usage, persist);
 		if (persist) {
 			last_flush = time();
@@ -633,7 +638,7 @@ function tick() {
 		}
 	});
 	step('slog', { who: 'Dawnline', quiet: true }, () => slog_trim(persist));
-	step('events', { who: 'Activity' }, () => {
+	step('events', { who: L_('Activity') }, () => {
 		let pol = t.pol ?? live.policy();
 		if (pol.persist == 'off' || time() - last_log_flush >= LOG_FLUSH[pol.persist]) {
 			live.persist_events(pol);
@@ -667,20 +672,20 @@ slog_restore();
 let rolled = trim(readfile(`${RUN_DIR}/update-rolled-back`) ?? '');
 unlink(`${RUN_DIR}/update-rolled-back`);
 if (rolled)
-	slog('dawnline', 'error', `update to ${rolled} failed its check — rolled back to ${VERSION}`,
-		'The new version did not answer in LuCI or its agent did not start. Try again from Components, or install it with install.sh to see why.', 'Dawnline');
+	slog('dawnline', 'error', sprintf(L_('update to %s failed its check - rolled back to %s'), rolled, VERSION),
+		L_('The new version did not answer in LuCI or its agent did not start. Try again from Components, or install it with install.sh to see why.'), 'Dawnline');
 else if (was && was != VERSION)
-	slog('dawnline', 'up', `updated · ${was} → ${VERSION}`, null, 'Dawnline');
+	slog('dawnline', 'up', sprintf(L_('updated · %s → %s'), was, VERSION), null, 'Dawnline');
 else if (crashed)
-	slog('dawnline', 'repair', 'stopped unexpectedly — started again',
+	slog('dawnline', 'repair', L_('stopped unexpectedly - started again'),
 		// Why, when syslog knows: procd, the kernel (out of memory, segfault), ucode errors.
 		sh_out('logread -l 400 2>/dev/null | grep -iE "kernel:.*(out of memory|killed process|oom-kill|segfault)|procd:.*dawnline|dawnline/agent" | tail -n 6'), 'Dawnline');
 else if (stopped && time() - stopped < 300)
-	slog('dawnline', 'info', `restarted · version ${VERSION}`, null, 'Dawnline');
+	slog('dawnline', 'info', sprintf(L_('restarted · version %s'), VERSION), null, 'Dawnline');
 else if (live.uptime() < 600)
-	slog('dawnline', 'info', `started with the router · version ${VERSION}`, null, 'Dawnline');
+	slog('dawnline', 'info', sprintf(L_('started with the router · version %s'), VERSION), null, 'Dawnline');
 else
-	slog('dawnline', 'info', `started · version ${VERSION}`, null, 'Dawnline');
+	slog('dawnline', 'info', sprintf(L_('started · version %s'), VERSION), null, 'Dawnline');
 
 uloop.init();
 
@@ -690,14 +695,14 @@ timer = uloop.timer(1000, function() {
 		tick();
 	}
 	catch (e) {
-		slog('dawnline', 'error', `background check failed: ${e.message}`, e.stacktrace?.[0]?.context, 'Dawnline');
+		slog('dawnline', 'error', sprintf(L_('background check failed: %s'), e.message), e.stacktrace?.[0]?.context, 'Dawnline');
 	}
 	timer.set(TICK);
 });
 
 let watcher;
 watcher = uloop.timer(WATCH, function() {
-	step('watch', { who: 'Connections' }, watch);
+	step('watch', { who: L_('Connections') }, watch);
 	watcher.set(WATCH);
 });
 

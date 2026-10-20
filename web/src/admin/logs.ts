@@ -8,8 +8,9 @@ import { button } from './ui/button';
 import { cancelButton, closeModal, modal } from './ui/modal';
 import { downloadFile } from './ui/files';
 import { attempt, errorText, notify } from './ui/toast';
-import { CATEGORIES, CATEGORY_LABEL, SYSTEM_SOURCE, categoryOf, eventBy } from './events/model';
+import { CATEGORIES, categoryLabel, categoryOf, eventBy, sourceName } from './events/model';
 import { toCsv } from './events/csv';
+import { fmt, plural } from '../shared/i18n';
 
 function names(st: Pick<Status, 'people'>) {
   const people = new Map(st.people.map((p) => [p.id, p.name]));
@@ -44,7 +45,7 @@ export function exportEvents(
       person: '',
       device: '',
       detail: `${e.who ? `${e.who} ` : ''}${e.msg}${e.detail ? `\n${e.detail}` : ''}`,
-      where: SYSTEM_SOURCE[e.src] ?? e.src,
+      where: sourceName(e.src),
       by: '',
     })),
   ]
@@ -57,17 +58,26 @@ export function exportEvents(
     return;
   }
   const cols = ['time', 'category', 'type', 'person', 'device', 'detail', 'where', 'by'] as const;
-  downloadFile(name, toCsv(cols, rows), 'text/csv');
+  // The header row in the page's language; the cells are the log's ids, names and details.
+  const head = {
+    time: _('Time'),
+    category: _('Category'),
+    type: _('Type'),
+    person: _('Person'),
+    device: _('Device'),
+    detail: _('Detail'),
+    where: _('Where'),
+    by: _('By'),
+  };
+  downloadFile(name, toCsv(cols, rows, head), 'text/csv');
 }
 
-const AGES: [string, string][] = [
-  ['', 'Everything'],
-  ['7', 'Older than 7 days'],
-  ['30', 'Older than 30 days'],
-  ['90', 'Older than 90 days'],
-];
+/** The ages the dialog offers, in days ('' = everything). */
+const AGES = ['', '7', '30', '90'];
 
-const removed = (n: number) => (n ? `${n} event${n === 1 ? '' : 's'} removed` : 'Nothing matched');
+const ageLabel = (v: string) => (v ? plural(Number(v), 'Older than %s day', 'Older than %s days') : _('Everything'));
+
+const removed = (n: number) => (n ? plural(n, '%s event removed', '%s events removed') : _('Nothing matched'));
 
 /**
  * Ask what to clear and do it. `base` pins person/device; the dialog lets you
@@ -82,27 +92,27 @@ export function clearLogDialog(
   withSystem = false,
 ) {
   const cat = E('select', { class: 'cbi-input-select' }, [
-    E('option', { value: '' }, 'All categories'),
-    ...CATEGORIES.map((c) => E('option', { value: c, selected: c === category ? 'selected' : null }, CATEGORY_LABEL[c])),
-    withSystem ? E('option', { value: 'system', selected: category === 'system' ? 'selected' : null }, 'System') : '',
+    E('option', { value: '' }, _('All categories')),
+    ...CATEGORIES.map((c) => E('option', { value: c, selected: c === category ? 'selected' : null }, categoryLabel(c))),
+    withSystem ? E('option', { value: 'system', selected: category === 'system' ? 'selected' : null }, _('System')) : '',
   ]) as HTMLSelectElement;
   const age = E(
     'select',
     { class: 'cbi-input-select' },
-    AGES.map(([v, t]) => E('option', { value: v }, t)),
+    AGES.map((v) => E('option', { value: v }, ageLabel(v))),
   ) as HTMLSelectElement;
   modal(
     title,
     [
-      E('p', { class: 'dl-muted' }, `${what} This cannot be undone; export first if you want a copy.`),
-      E('label', { class: 'dl-fld' }, [E('span', { class: 'dl-fld-label' }, 'Category'), cat]),
-      E('label', { class: 'dl-fld' }, [E('span', { class: 'dl-fld-label' }, 'Which events'), age]),
+      E('p', { class: 'dl-muted' }, `${what} ${_('This cannot be undone; export first if you want a copy.')}`),
+      E('label', { class: 'dl-fld' }, [E('span', { class: 'dl-fld-label' }, _('Category')), cat]),
+      E('label', { class: 'dl-fld' }, [E('span', { class: 'dl-fld-label' }, _('Which events')), age]),
     ],
     [
       cancelButton(),
       ' ',
       button(
-        'Clear',
+        _('Clear'),
         async () => {
           // The activity log first, then the service log ("System"; "All categories"
           // clears it too where it is shown). Each result is reported on its own.
@@ -120,11 +130,9 @@ export function clearLogDialog(
               n += (await api.serviceLogClear(age.value)).removed;
             } catch (e) {
               closeModal();
-              notify(
-                `${cat.value === 'system' ? '' : `Activity: ${removed(n).toLowerCase()}. `}The service log was not cleared: ${errorText(e)}`,
-                'error',
-                10000,
-              );
+              // The router's reason last, as it came.
+              const failed = fmt(_('The service log was not cleared: %s'), errorText(e));
+              notify(cat.value === 'system' ? failed : `${fmt(_('Activity: %s.'), removed(n).toLowerCase())} ${failed}`, 'error', 10000);
               done();
               return;
             }
@@ -143,20 +151,20 @@ export function clearLogDialog(
 export function resetUsageDialog(scope: 'all' | 'person' | 'device', id: string, label: string, done: () => unknown) {
   const body =
     scope === 'device'
-      ? `Clears ${label}'s daily and monthly traffic history. Their person's totals and data limit are not changed.`
+      ? fmt(_("Clears %s's daily and monthly traffic history. Their person's totals and data limit are not changed."), label)
       : scope === 'person'
-        ? `Clears ${label}'s traffic history and that of their devices. Their data limit starts again from zero.`
-        : 'Clears traffic history for everyone. Data limits start again from zero.';
+        ? fmt(_("Clears %s's traffic history and that of their devices. Their data limit starts again from zero."), label)
+        : _('Clears traffic history for everyone. Data limits start again from zero.');
   modal(
-    scope === 'all' ? 'Reset all traffic history?' : `Reset traffic history for ${label}?`,
+    scope === 'all' ? _('Reset all traffic history?') : fmt(_('Reset traffic history for %s?'), label),
     [E('p', { class: 'dl-muted' }, body)],
     [
       cancelButton(),
       ' ',
       button(
-        'Reset',
+        _('Reset'),
         async () => {
-          if (!(await attempt(() => api.usageClear(scope, id), 'Traffic history reset'))) return;
+          if (!(await attempt(() => api.usageClear(scope, id), _('Traffic history reset')))) return;
           closeModal();
           done();
         },

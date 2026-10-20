@@ -20,6 +20,8 @@
 
 [**Quick start**](#-quick-start) &nbsp;·&nbsp; [**Live demo**](https://dawnline-demo.vercel.app) &nbsp;·&nbsp; [Features](#-features) &nbsp;·&nbsp; [How it works](#-how-it-works) &nbsp;·&nbsp; [Screenshots](#-a-closer-look) &nbsp;·&nbsp; [FAQ](#-faq) &nbsp;·&nbsp; [Development](#-development)
 
+**English** &nbsp;·&nbsp; [Русский](README_ru.md)
+
 </div>
 
 <br>
@@ -124,6 +126,13 @@ follows a modern design.
       <p>Dawnline and AmneziaWG built for your firmware in one place; nightly backups, and export and import to move to another router.</p>
     </td>
   </tr>
+  <tr>
+    <td valign="top">
+      <h3>🌐 English and Russian</h3>
+      <p>The portal follows the visitor's language and switches in its header. The admin pages and the router's messages come in Russian with the <code>luci-i18n-dawnline-ru</code> package.</p>
+    </td>
+    <td valign="top"></td>
+  </tr>
 </table>
 
 ## 🧩 How it works
@@ -187,7 +196,8 @@ The installer checks the firmware, the clock, free space and DNS, lets you pick
 a release (the latest is the default), shows the plan and asks before it
 changes anything. It downloads the package for your package manager, checks it
 against `sha256sums.txt`, installs AmneziaWG built for your firmware if it is
-missing, then installs Dawnline and checks that LuCI can reach it.
+missing, then installs Dawnline (with its Russian translation when LuCI is in
+Russian) and checks that LuCI can reach it.
 
 > [!NOTE]
 > Before changing anything it saves `/etc/config/{dawnline,network,firewall,dhcp,uhttpd}`
@@ -208,6 +218,7 @@ wget -O /tmp/dawnline-install.sh https://raw.githubusercontent.com/tickcount/luc
 sh /tmp/dawnline-install.sh --dry-run             # check everything, change nothing
 sh /tmp/dawnline-install.sh -y --tag 0.3.1        # a given release, no questions
 sh /tmp/dawnline-install.sh --awg grey            # AmneziaWG from 2Grey
+sh /tmp/dawnline-install.sh --lang ru             # with the admin's Russian translation
 ```
 
 | Option | |
@@ -216,8 +227,9 @@ sh /tmp/dawnline-install.sh --awg grey            # AmneziaWG from 2Grey
 | `-n`, `--dry-run` | Check the system, resolve, download and verify the release; change nothing |
 | `-v`, `--verbose` / `-q`, `--quiet` | More detail / only warnings and errors |
 | `--tag X.Y.Z` | A given release (`sh install.sh 0.3.1` works too) |
-| `--awg auto\|slava\|grey\|skip` | Where AmneziaWG comes from when it is missing: [Slava-Shchipunov], then [2Grey] (`auto`, the default), only one of them, or not at all (install it later from **Dawnline → Updates**). `DAWNLINE_AWG` does the same |
+| `--awg auto\|slava\|grey\|skip` | Where AmneziaWG comes from when it is missing: [Slava-Shchipunov], then [2Grey] (`auto`, the default), only one of them, or not at all (install it later from **Dawnline → Components**). `DAWNLINE_AWG` does the same |
 | `--no-awg` | Same as `--awg skip` |
+| `--lang auto\|ru\|none` | The admin's translation, `luci-i18n-dawnline-<lang>`: `auto` (the default) adds it when LuCI is set to that language or has its LuCI translation; `none` adds none. An installed one is always kept up to date. Later: **Dawnline → Components → Translation**. `DAWNLINE_LANG` does the same |
 
 </details>
 
@@ -248,9 +260,12 @@ opkg update && opkg install ./luci-app-dawnline-0.1.0.ipk                 # Open
 apk update && apk add --allow-untrusted ./luci-app-dawnline-0.1.0.apk     # OpenWrt 25.12
 ```
 
+The Russian translation is `luci-i18n-dawnline-ru-<version>` from the same
+release, installed the same way after the app (then `/etc/init.d/uhttpd restart`).
+
 </details>
 
-**Upgrade** from <kbd>Dawnline</kbd> › <kbd>Updates</kbd>, or run the installer
+**Upgrade** from <kbd>Dawnline</kbd> › <kbd>Components</kbd>, or run the installer
 again. Settings, keys and history are kept, and a backup is made first.
 
 ### Remove
@@ -374,7 +389,9 @@ package/luci-app-dawnline/
   root/usr/share/dawnline/portal/  portal CGI wrapper and its (minified) assets
   root/usr/bin/dawnline            command line (`dawnline help`)
   htdocs/                          LuCI views and the generated module dawnline/app.js
+  po/                              the admin's string catalog (dawnline.pot, ru/dawnline.po)
 web/                               TypeScript sources of the admin UI and the portal
+web/i18n/                          catalog tools: collect strings, merge .po files, compile .lmo
 build/Dockerfile                   package build with the OpenWrt SDK
 scripts/                           build, deploy and check scripts
 ```
@@ -383,7 +400,8 @@ scripts/                           build, deploy and check scripts
 cd web
 npm ci
 npm run format        # Prettier
-npm run ci            # format check, types, tests, minified bundles
+npm run ci            # format check, types, catalogs, tests, minified bundles
+npm run i18n          # collect new strings into the catalogs (then translate them in ru.po)
 
 scripts/lint-ucode.py                    # static ucode checks
 scripts/check-ucode.sh root@router       # compile every ucode file on a router
@@ -393,9 +411,10 @@ scripts/capture-screenshots.mjs --demo   # README screenshots from a router, a d
 scripts/frame-screenshots.py             # frame them for this README
 ```
 
-The web bundles are committed: CI fails when they are out of date. Pushing a
-tag `vX.Y.Z` (matching `PKG_VERSION`) builds both packages with the OpenWrt SDK
-and publishes a release with `sha256sums.txt`.
+The web bundles and the catalogs are committed: CI fails when they are out of
+date or a string is untranslated (`rules/i18n.md`). Pushing a tag `vX.Y.Z`
+(matching `PKG_VERSION`) builds the packages and their translations with the
+OpenWrt SDK and publishes a release with `sha256sums.txt`.
 
 ---
 

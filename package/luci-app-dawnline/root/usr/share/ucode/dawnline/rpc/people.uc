@@ -9,6 +9,7 @@ import * as awg from 'dawnline.awg';
 import * as store from 'dawnline.store';
 import * as devices from 'dawnline.devices';
 import { wrap, str, clamp_days } from 'dawnline.rpc.common';
+import { _ } from 'dawnline.i18n';
 
 const PERSON_FIELDS = [ 'name', 'access', 'device_limit', 'expires', 'expire_action', 'expire_warn', 'quota_gb', 'quota_period',
 	'bonus_gb', 'hours', 'note', 'dns_mode', 'server' ];
@@ -61,7 +62,7 @@ function person_update(a) {
 function person_pause(a) {
 	store.transact((c, m) => {
 		if (!m.people[a.id])
-			die('Unknown person.');
+			die(_('Unknown person.'));
 		if (a.paused)
 			c.set(core.CONFIG, a.id, 'paused', '1');
 		else
@@ -79,7 +80,7 @@ function person_pause(a) {
 function person_regen(a) {
 	let gone = store.transact((c, m) => {
 		if (!m.people[a.id])
-			die('Unknown person.');
+			die(_('Unknown person.'));
 		c.set(core.CONFIG, a.id, 'code', core.new_code());
 		c.set(core.CONFIG, a.id, 'code_set', `${time()}`);
 		let gone = [];
@@ -106,7 +107,7 @@ function person_links(a) {
 	let m = core.load();
 	let p = m.people[a.id];
 	if (!p)
-		die('Unknown person.');
+		die(_('Unknown person.'));
 	return { code: p.code, link: core.portal_url(m, p), links: core.portal_urls(m, p) };
 }
 
@@ -125,7 +126,7 @@ function person_usage(a) {
 	let m = core.load();
 	let p = m.people[a.id];
 	if (!p)
-		die('Unknown person.');
+		die(_('Unknown person.'));
 	let days = clamp_days(a.days);
 	let devs = {};
 	for (let d in p.devices)
@@ -144,7 +145,7 @@ function device_config(a) {
 	let m = core.load();
 	let d = m.devices[a.id];
 	if (!d)
-		die('Unknown device.');
+		die(_('Unknown device.'));
 	awg.mark_issued(m, d.id);
 	return awg.client_config(m, d);
 }

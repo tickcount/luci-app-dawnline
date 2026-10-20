@@ -2,6 +2,8 @@
 // them (rpc/servers.uc) and said in plain words for the setup wizard. The
 // addresses are three numbers ("10.77.0"): the tunnel is that /24.
 
+import { fmt, locale, num, plural } from '../shared/i18n';
+
 /** A network on the router, by name: an interface ("lan") or a server ("Home"). */
 export interface Network {
   name: string;
@@ -56,19 +58,19 @@ export function subnetOf(range: string): string {
 export function rangeHelp(range: string, nets: Network[], suggest: string): Help {
   const r = range.trim();
   const c = /^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(r) ? parseCidr(subnetOf(r)) : null;
-  if (!c) return { text: 'Three numbers, like 10.77.0.', bad: true };
+  if (!c) return { text: _('Three numbers, like 10.77.0.'), bad: true };
   if (!PRIVATE.some((p) => c.net >= p.net && c.net + c.size <= p.net + p.size))
-    return { text: 'Use a private range: 10.x.x, 172.16–31.x or 192.168.x.', bad: true };
+    return { text: _('Use a private range: 10.x.x, 172.16–31.x or 192.168.x.'), bad: true };
   const hit = nets.find((n) => {
     const o = parseCidr(n.cidr);
     return o != null && overlaps(c, o);
   });
   if (hit) {
     const used = hit.cidr.endsWith('/24') ? `${rangeOf(hit.cidr)}.x` : hit.cidr;
-    const other = suggest && suggest !== r ? ` Try ${suggest}.` : '';
-    return { text: `${hit.name} already uses ${used}.${other}`, bad: true };
+    const uses = fmt(_('%s already uses %s.'), hit.name, used);
+    return { text: suggest && suggest !== r ? `${uses} ${fmt(_('Try %s.'), suggest)}` : uses, bad: true };
   }
-  return { text: `Devices get ${r}.2 – ${r}.254, the router ${r}.1.`, bad: false };
+  return { text: fmt(_('Devices get %s – %s, the router %s.'), `${r}.2`, `${r}.254`, `${r}.1`), bad: false };
 }
 
 const holder = (port: number, taken: PortHold[]): string | null => taken.find((t) => t.from <= port && port <= t.to)?.who ?? null;
@@ -77,19 +79,21 @@ const validPort = (port: number): boolean => Number.isInteger(port) && port >= 1
 
 /** A port: `free` when nobody holds it, or who does. */
 export function portHelp(port: number, taken: PortHold[], free: string): Help {
-  if (!validPort(port)) return { text: 'Use a port from 1 to 65535.', bad: true };
+  if (!validPort(port)) return { text: _('Use a port from 1 to 65535.'), bad: true };
   const who = holder(port, taken);
-  return who ? { text: `Used by ${who}. Choose another port.`, bad: true } : { text: free, bad: false };
+  return who ? { text: fmt(_('Used by %s. Choose another port.'), who), bad: true } : { text: free, bad: false };
 }
 
 /** The portal's TCP port; links on IP addresses (`ipLinks`) use plain HTTP on the next one too. */
 export function portalPortHelp(port: number, taken: PortHold[], ipLinks: boolean): Help {
-  const free = ipLinks ? `HTTPS here, plain HTTP for links on IP addresses on ${port + 1}.` : 'HTTPS on this port, opened on WAN.';
+  const free = ipLinks
+    ? fmt(_('HTTPS here, plain HTTP for links on IP addresses on %s.'), port + 1)
+    : _('HTTPS on this port, opened on WAN.');
   const h = portHelp(port, taken, free);
   if (h.bad || !ipLinks) return h;
-  if (port === 65535) return { text: 'Links on IP addresses also need the next port: choose a lower one.', bad: true };
+  if (port === 65535) return { text: _('Links on IP addresses also need the next port: choose a lower one.'), bad: true };
   const who = holder(port + 1, taken);
-  return who ? { text: `Links on IP addresses also need ${port + 1}, used by ${who}. Choose another port.`, bad: true } : h;
+  return who ? { text: fmt(_('Links on IP addresses also need %s, used by %s. Choose another port.'), port + 1, who), bad: true } : h;
 }
 
 /* ---------- other fields, mirroring the router's rules (dawnline.util, schema, core) ---------- */
@@ -100,23 +104,28 @@ export const chars = (s: string): number => Array.from(s).length;
 const NAME_MAX = 48;
 const BAD_NAME = /[<>"\\\u0000-\u001f\u007f]/;
 
+/** "Up to 48 characters (50 now).": a name over its limit. */
+const tooLong = (max: number, s: string): string =>
+  fmt(N_(max, 'Up to %s character (%s now).', 'Up to %s characters (%s now).'), num(max), num(chars(s)));
+
 /**
  * A name people see (util.valid_name): 1–48 characters, none of < > " \.
  * `taken` are names already used where it must be unique (case-insensitive).
  */
 export function nameHelp(s: string, taken: string[] = [], good = ''): Help {
   const t = s.trim();
-  if (!t) return { text: 'Enter a name.', bad: true };
-  if (chars(s) > NAME_MAX) return { text: `Up to ${NAME_MAX} characters (${chars(s)} now).`, bad: true };
-  if (BAD_NAME.test(s)) return { text: 'Names can’t contain < > " or \\.', bad: true };
-  if (taken.some((x) => x.toLowerCase() === t.toLowerCase())) return { text: `“${t}” already exists — pick another name.`, bad: true };
+  if (!t) return { text: _('Enter a name.'), bad: true };
+  if (chars(s) > NAME_MAX) return { text: tooLong(NAME_MAX, s), bad: true };
+  if (BAD_NAME.test(s)) return { text: _('Names can’t contain < > " or \\.'), bad: true };
+  if (taken.some((x) => x.toLowerCase() === t.toLowerCase()))
+    return { text: fmt(_('“%s” already exists - pick another name.'), t), bad: true };
   return { text: good, bad: false };
 }
 
 /** A circle's name: like a name, up to 32 characters. */
 export function circleNameHelp(s: string, taken: string[] = []): Help {
-  if (chars(s) > 32) return { text: `Up to 32 characters (${chars(s)} now).`, bad: true };
-  return nameHelp(s, taken, 'Shown on the person cards.');
+  if (chars(s) > 32) return { text: tooLong(32, s), bad: true };
+  return nameHelp(s, taken, _('Shown on the person cards.'));
 }
 
 const HOSTNAME = /^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$/;
@@ -138,24 +147,28 @@ export function isIpv6(s: string): boolean {
  */
 export function hostHelp(s: string, port?: number, empty: string | null = null): Help {
   const t = s.trim();
-  if (!t) return empty != null ? { text: empty, bad: false } : { text: 'Enter a hostname or IP address.', bad: true };
-  if (/^[a-z]+:\/\//i.test(t)) return { text: 'Leave out https:// — just the name.', bad: true };
-  if (/\/.*/.test(t)) return { text: 'Just the name, without a path.', bad: true };
-  if (/^[^:\[]+:\d+$/.test(t)) return { text: 'Just the name, without a port (the port is on AmneziaWG).', bad: true };
-  if (/\s/.test(t)) return { text: 'A hostname has no spaces.', bad: true };
-  if (t.length > 253 || !(HOSTNAME.test(t) || isIpv4(t) || isIpv6(t))) return { text: 'Use a hostname or an IP address.', bad: true };
+  if (!t) return empty != null ? { text: empty, bad: false } : { text: _('Enter a hostname or IP address.'), bad: true };
+  if (/^[a-z]+:\/\//i.test(t)) return { text: _('Leave out https:// - just the name.'), bad: true };
+  if (/\/.*/.test(t)) return { text: _('Just the name, without a path.'), bad: true };
+  if (/^[^:\[]+:\d+$/.test(t)) return { text: _('Just the name, without a port (the port is on AmneziaWG).'), bad: true };
+  if (/\s/.test(t)) return { text: _('A hostname has no spaces.'), bad: true };
+  if (t.length > 253 || !(HOSTNAME.test(t) || isIpv4(t) || isIpv6(t))) return { text: _('Use a hostname or an IP address.'), bad: true };
   const shown = isIpv6(t) ? `[${t}]` : t;
-  return { text: port ? `Devices connect to ${shown}:${port}.` : `Links use ${shown}.`, bad: false };
+  return { text: port ? fmt(_('Devices connect to %s.'), `${shown}:${port}`) : fmt(_('Links use %s.'), shown), bad: false };
 }
 
 /** The DNS list a server hands to devices (rpc/servers.uc dns_list): IPs, comma-separated; empty = this router. */
 export function dnsHelp(s: string, routerAddr: string): Help {
   const items = s.split(/[ ,]+/).filter(Boolean);
   if (!items.length)
-    return { text: `This router (${routerAddr}): queries go where your home network sends them, and home names work.`, bad: false };
+    return {
+      text: fmt(_('This router (%s): queries go where your home network sends them, and home names work.'), routerAddr),
+      bad: false,
+    };
   const bad = items.find((x) => !isIpv4(x) && !isIpv6(x));
-  if (bad) return { text: `“${bad}” is not an IP address. Separate several with commas.`, bad: true };
-  return { text: `Devices use ${items.join(' and ')} — home names and your LAN’s DNS filters no longer apply to them.`, bad: false };
+  if (bad) return { text: fmt(_('“%s” is not an IP address. Separate several with commas.'), bad), bad: true };
+  const list = new Intl.ListFormat(locale(), { type: 'conjunction' }).format(items);
+  return { text: fmt(_('Devices use %s - home names and your LAN’s DNS filters no longer apply to them.'), list), bad: false };
 }
 
 /** MTU (rpc/servers.uc check_mtu): empty = automatic, else 1280–1500. */
@@ -163,42 +176,66 @@ export function mtuHelp(s: string, mtus: { computer: number; phone: number }): H
   const t = s.trim();
   if (!t)
     return {
-      text: `Automatic by device type and disguise: ${mtus.computer} for computers and routers, ${mtus.phone} for phones and tablets.`,
+      text: fmt(
+        _('Automatic by device type and disguise: %s for computers and routers, %s for phones and tablets.'),
+        mtus.computer,
+        mtus.phone,
+      ),
       bad: false,
     };
   if (!/^\d{1,4}$/.test(t) || Number(t) < 1280 || Number(t) > 1500)
-    return { text: 'MTU must be 1280–1500, or empty for automatic.', bad: true };
+    return { text: _('MTU must be 1280–1500, or empty for automatic.'), bad: true };
   const n = Number(t);
-  return { text: `Computers and routers get ${n}, phones and tablets ${Math.min(n, 1280)}.`, bad: false };
+  return { text: fmt(_('Computers and routers get %s, phones and tablets %s.'), n, Math.min(n, 1280)), bad: false };
 }
 
 /** Keep-alive (rpc/servers.uc): 0–600 s; empty = 25. */
 export function keepaliveHelp(s: string): Help {
   const t = s.trim();
-  if (!t) return { text: 'Default: a packet every 25 s keeps NAT open and “Connected” accurate.', bad: false };
-  if (!/^\d{1,3}$/.test(t) || Number(t) > 600) return { text: 'Use 0–600 seconds.', bad: true };
-  if (Number(t) === 0) return { text: 'Off: NAT may close the tunnel when idle, and “Connected” lags.', bad: false };
-  return { text: `Devices send a packet every ${t} s to keep NAT open (a little battery on phones).`, bad: false };
+  if (!t) return { text: _('Default: a packet every 25 s keeps NAT open and “Connected” accurate.'), bad: false };
+  if (!/^\d{1,3}$/.test(t) || Number(t) > 600) return { text: _('Use 0–600 seconds.'), bad: true };
+  if (Number(t) === 0) return { text: _('Off: NAT may close the tunnel when idle, and “Connected” lags.'), bad: false };
+  return { text: fmt(_('Devices send a packet every %s s to keep NAT open (a little battery on phones).'), t), bad: false };
 }
 
 /** Device limit (core.create_person): 1–32; `have` is how many they have now (an edit). */
 export function limitHelp(s: string, have = 0): Help {
   const t = s.trim();
-  if (!/^\d{1,2}$/.test(t) || Number(t) < 1 || Number(t) > 32) return { text: 'Use 1–32.', bad: true };
+  if (!/^\d{1,2}$/.test(t) || Number(t) < 1 || Number(t) > 32) return { text: _('Use 1–32.'), bad: true };
   const n = Number(t);
   if (have > n)
-    return { text: `Already has ${have} devices: remove ${have - n === 1 ? 'one' : `${have - n}`} first, or allow more.`, bad: true };
-  return { text: `They can add ${n} device${n === 1 ? '' : 's'} themselves.`, bad: false };
+    return {
+      text:
+        have - n === 1
+          ? fmt(
+              N_(
+                have,
+                'Already has %s device: remove one first, or allow more.',
+                'Already has %s devices: remove one first, or allow more.',
+              ),
+              num(have),
+            )
+          : fmt(
+              N_(have, 'Already has %s device: remove %s first, or allow more.', 'Already has %s devices: remove %s first, or allow more.'),
+              num(have),
+              num(have - n),
+            ),
+      bad: true,
+    };
+  return { text: plural(n, 'They can add %s device themselves.', 'They can add %s devices themselves.'), bad: false };
 }
 
 /** Monthly data in GB (core.create_person): empty = unlimited, else 0–100000. */
 export function quotaHelp(s: string, monthly = true): Help {
   const t = s.trim();
-  if (!t) return { text: 'Optional. No data limit.', bad: false };
+  if (!t) return { text: _('Optional. No data limit.'), bad: false };
   const n = Number(t);
-  if (!/^\d+(\.\d+)?$/.test(t) || n < 0 || n > 100000) return { text: 'A number of GB, up to 100000.', bad: true };
-  if (n === 0) return { text: 'Optional. No data limit.', bad: false };
-  return { text: monthly ? `Paused after ${t} GB this month, resumed on the 1st.` : `Paused after ${t} GB in total.`, bad: false };
+  if (!/^\d+(\.\d+)?$/.test(t) || n < 0 || n > 100000) return { text: _('A number of GB, up to 100000.'), bad: true };
+  if (n === 0) return { text: _('Optional. No data limit.'), bad: false };
+  return {
+    text: fmt(monthly ? _('Paused after %s GB this month, resumed on the 1st.') : _('Paused after %s GB in total.'), num(n)),
+    bad: false,
+  };
 }
 
 /** An end date (YYYY-MM-DD) against the router's day; empty = none. */
@@ -209,64 +246,70 @@ export function expiresHelp(
   date: (d: string) => string,
 ): Help {
   const t = s.trim();
-  if (!t) return { text: 'Optional. No end date.', bad: false };
+  if (!t) return { text: _('Optional. No end date.'), bad: false };
   const left = daysLeft(t, today);
-  if (left == null) return { text: 'Use a date.', bad: true };
-  if (left < 0) return { text: 'That date has passed: access would end at once.', bad: true };
-  return { text: left === 1 ? `Access ends today (${date(t)}).` : `Access ends in ${left} days (${date(t)}).`, bad: false };
+  if (left == null) return { text: _('Use a date.'), bad: true };
+  if (left < 0) return { text: _('That date has passed: access would end at once.'), bad: true };
+  return {
+    text:
+      left === 1
+        ? fmt(_('Access ends today (%s).'), date(t))
+        : fmt(N_(left, 'Access ends in %s day (%s).', 'Access ends in %s days (%s).'), num(left), date(t)),
+    bad: false,
+  };
 }
 
 /** A home service's address (rpc/home.uc): IPv4; `homeNets` warn when it is outside every home network. */
 export function ipv4Help(s: string, inHome: ((ip: string) => boolean) | null = null): Help {
   const t = s.trim();
-  if (!t) return { text: 'The device’s address at home.', bad: true };
-  if (!isIpv4(t)) return { text: 'Use an IPv4 address, like 192.168.1.10.', bad: true };
-  if (inHome && !inHome(t)) return { text: `${t} is not in any home network of this server: nobody would reach it.`, bad: false };
+  if (!t) return { text: _('The device’s address at home.'), bad: true };
+  if (!isIpv4(t)) return { text: _('Use an IPv4 address, like 192.168.1.10.'), bad: true };
+  if (inHome && !inHome(t)) return { text: fmt(_('%s is not in any home network of this server: nobody would reach it.'), t), bad: false };
   return { text: '', bad: false };
 }
 
 /** A service's ports: empty = all, else numbers 1–65535. */
 export function portsHelp(s: string): Help {
   const items = s.split(/[ ,]+/).filter(Boolean);
-  if (!items.length) return { text: 'All ports.', bad: false };
+  if (!items.length) return { text: _('All ports.'), bad: false };
   const bad = items.find((x) => !/^\d{1,5}$/.test(x) || Number(x) < 1 || Number(x) > 65535);
-  if (bad) return { text: `“${bad}” is not a port (1–65535).`, bad: true };
-  return { text: `Port${items.length === 1 ? '' : 's'} ${items.join(', ')}.`, bad: false };
+  if (bad) return { text: fmt(_('“%s” is not a port (1–65535).'), bad), bad: true };
+  return { text: fmt(N_(items.length, 'Port %s.', 'Ports %s.'), items.join(', ')), bad: false };
 }
 
 /** The portal's redirect for unknown links (schema portal_redirect): a full http(s) URL, or empty. */
 export function urlHelp(s: string): Help {
   const t = s.trim();
-  if (!t) return { text: 'Wrong links get a bare “Not found”.', bad: false };
-  if (!/^https?:\/\//i.test(t)) return { text: 'Must start with http:// or https://.', bad: true };
+  if (!t) return { text: _('Wrong links get a bare “Not found”.'), bad: false };
+  if (!/^https?:\/\//i.test(t)) return { text: _('Must start with http:// or https://.'), bad: true };
   if (t.length > 300 || !/^https?:\/\/[A-Za-z0-9.-]+(:[0-9]+)?(\/[^\s"'<>]*)?$/.test(t))
-    return { text: 'Not a usable address (no spaces or quotes).', bad: true };
-  return { text: 'Wrong links are sent there instead of a “Not found”.', bad: false };
+    return { text: _('Not a usable address (no spaces or quotes).'), bad: true };
+  return { text: _('Wrong links are sent there instead of a “Not found”.'), bad: false };
 }
 
 /** The home domain for device hostnames (schema domain): lowercase letters, digits, dashes, dots. */
 export function domainHelp(s: string, example = 'phone.myata'): Help {
   const t = s.trim();
   // Empty keeps the default (the router stores nothing then).
-  if (!t) return { text: `The default, lan: devices get names like ${example}.lan.`, bad: false };
+  if (!t) return { text: fmt(_('The default, lan: devices get names like %s.'), `${example}.lan`), bad: false };
   if (!/^[a-z0-9-]{1,32}(\.[a-z0-9-]{1,32})*$/.test(t))
-    return { text: /[A-Z]/.test(t) ? 'Lowercase only.' : 'Lowercase letters, digits, dashes and dots.', bad: true };
-  return { text: `Devices get names like ${example}.${t}.`, bad: false };
+    return { text: /[A-Z]/.test(t) ? _('Lowercase only.') : _('Lowercase letters, digits, dashes and dots.'), bad: true };
+  return { text: fmt(_('Devices get names like %s.'), `${example}.${t}`), bad: false };
 }
 
 /** The fallback DNS for home-names devices: an IPv4 address, or empty for none. */
 export function fallbackDnsHelp(s: string): Help {
   const t = s.trim();
-  if (!t) return { text: 'None: without the tunnel those devices have no DNS.', bad: false };
-  if (!isIpv4(t)) return { text: 'Use an IPv4 address, or leave it empty.', bad: true };
-  return { text: `${t} takes over when the tunnel is down.`, bad: false };
+  if (!t) return { text: _('None: without the tunnel those devices have no DNS.'), bad: false };
+  if (!isIpv4(t)) return { text: _('Use an IPv4 address, or leave it empty.'), bad: true };
+  return { text: fmt(_('%s takes over when the tunnel is down.'), t), bad: false };
 }
 
 /** The daily update time (schema update_time): HH:MM. */
 export function timeHelp(s: string): Help {
   const t = s.trim();
-  if (!/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(t)) return { text: 'Use HH:MM, 00:00–23:59.', bad: true };
-  return { text: `Runs within an hour after ${t} (router time).`, bad: false };
+  if (!/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(t)) return { text: _('Use HH:MM, 00:00–23:59.'), bad: true };
+  return { text: fmt(_('Runs within an hour after %s (router time).'), t), bad: false };
 }
 
 /**
@@ -310,7 +353,7 @@ export function endpointProbe(
     if (h.bad || !host.trim()) return h;
     if (result && result.host === host.trim()) return { text: result.text, bad: result.bad };
     const idle = opts.idle?.();
-    return { text: idle ? `${idle} Checking where it points…` : `${h.text} Checking where it points…`, bad: false };
+    return { text: `${idle || h.text} ${_('Checking where it points…')}`, bad: false };
   };
   return { help, schedule };
 }

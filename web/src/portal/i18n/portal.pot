@@ -1,0 +1,1378 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Dawnline\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "\"%s\" already exists."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "\"%s\" is already taken."
+msgstr ""
+
+#: web/src/portal/setup.ts
+#: web/src/portal/ui/morph.ts
+msgid "%s (Android: %s)"
+msgstr ""
+
+#: web/src/portal/page/notices.ts
+msgid "%s (router time)"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "%s already has %d device. Remove one first to lower the limit to %d."
+msgid_plural "%s already has %d devices. Remove one first to lower the limit to %d."
+msgstr[0] ""
+msgstr[1] ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "%s can't use the network interface %s: it exists and isn't Dawnline's."
+msgstr ""
+
+#: web/src/portal/flows/wait.ts
+msgid "%s connected"
+msgstr ""
+
+#: web/src/shared/format.ts
+msgid "%s d ago"
+msgstr ""
+
+#: web/src/portal/page/access.ts
+msgid "%s day"
+msgid_plural "%s days"
+msgstr[0] ""
+msgstr[1] ""
+
+#: web/src/shared/format.ts
+msgid "%s h ago"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "%s has an invalid interface name \"%s\"."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "%s has no room for every device on %s."
+msgstr ""
+
+#: web/src/shared/format.ts
+msgid "%s in total"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "%s is kept down."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "%s is kept down: its disguise needs AmneziaWG %s (installed: %s)."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "%s is kept down: its disguise needs AmneziaWG %s (installed: none)."
+msgstr ""
+
+#: web/src/portal/page/access.ts
+msgid "%s left"
+msgstr ""
+
+#: web/src/shared/format.ts
+msgid "%s min ago"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "%s must be a number or range"
+msgstr ""
+
+#: web/src/portal/page/devices.ts
+msgid "%s of %s"
+msgstr ""
+
+#: web/src/shared/format.ts
+msgid "%s of %s GB"
+msgstr ""
+
+#: web/src/shared/format.ts
+msgid "%s of %s GB this month"
+msgstr ""
+
+#: web/src/portal/page/access.ts
+msgid "%s of %s in total."
+msgstr ""
+
+#: web/src/portal/flows/add.ts
+msgid "%s of %s slot free"
+msgid_plural "%s of %s slots free"
+msgstr[0] ""
+msgstr[1] ""
+
+#: web/src/portal/page/access.ts
+msgid "%s on %s"
+msgstr ""
+
+#: web/src/portal/page/devices.ts
+msgid "%s options"
+msgstr ""
+
+#: web/src/shared/format.ts
+msgid "%s this month"
+msgstr ""
+
+#: web/src/portal/page/access.ts
+msgid "%s used"
+msgstr ""
+
+#: web/src/portal/page/notices.ts
+msgid "%s your time"
+msgstr ""
+
+#: web/src/shared/format.ts
+msgid "%sd %sh"
+msgstr ""
+
+#: web/src/shared/format.ts
+msgid "%sh %sm"
+msgstr ""
+
+#: web/src/shared/format.ts
+msgid "%sm"
+msgstr ""
+
+#: web/src/portal/page/access.ts
+msgid "A total for your whole access, it does not reset."
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgid "APK file on"
+msgstr ""
+
+#: web/src/portal/page/notices.ts
+msgid "Access %s"
+msgstr ""
+
+#: web/src/portal/page/notices.ts
+msgid "Access ended"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Access must be lan, internet or both."
+msgstr ""
+
+#: web/src/portal/page/notices.ts
+msgid "Access paused"
+msgstr ""
+
+#: web/src/portal/page/access.ts
+msgid "Access until"
+msgstr ""
+
+#: web/src/shared/format.ts
+msgid "Active"
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgctxt "WireGuard app"
+msgid "Add Tunnel"
+msgstr ""
+
+#: web/src/portal/flows/add.ts
+msgid "Add a device"
+msgstr ""
+
+#: web/src/portal/page/devices.ts
+msgid "Add device"
+msgstr ""
+
+#: web/src/portal/flows/add.ts
+msgid "Add it from the device"
+msgstr ""
+
+#: web/src/portal/flows/setup-view.ts
+msgid "Add the connection"
+msgstr ""
+
+#: web/src/portal/page/devices.ts
+msgid "Add this device"
+msgstr ""
+
+#: web/src/portal/page/devices.ts
+msgid "Add this phone"
+msgstr ""
+
+#: web/src/portal/page/devices.ts
+msgid "Add your first device"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/portal.uc
+msgid "Adding devices isn't available right now: the VPN server isn't ready. Ask whoever sent you this link."
+msgstr ""
+
+#: web/src/portal/page/access.ts
+#: web/src/portal/page/devices.ts
+msgid "Address copied"
+msgstr ""
+
+#: web/src/portal/flows/setup-view.ts
+msgid "Already has the app"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/devices.uc
+msgid "AmneziaWG is not installed (%s): install it in Dawnline → Components."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/devices.uc
+msgid "AmneziaWG is not installed: install it in Dawnline → Components."
+msgstr ""
+
+#: web/src/portal/flows/add.ts
+msgid "Android phone"
+msgstr ""
+
+#: web/src/portal/flows/add.ts
+msgid "Android tablet"
+msgstr ""
+
+#: web/src/portal/main.ts
+msgid "Ask for a new one."
+msgstr ""
+
+#: web/src/shared/format.ts
+msgid "B"
+msgstr ""
+
+#: web/src/portal/ui/sheet.ts
+msgid "Back"
+msgstr ""
+
+#: web/src/portal/page/frame.ts
+msgid "Breadcrumb"
+msgstr ""
+
+#: web/src/portal/flows/device-actions.ts
+msgid "Cancel"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Circle %s: server %s does not exist."
+msgstr ""
+
+#: web/src/portal/ui/sheet.ts
+msgid "Close"
+msgstr ""
+
+#: web/src/portal/flows/wait.ts
+msgid "Close this and open it again to keep checking."
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Configuration"
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+#: web/src/portal/flows/setup-view.ts
+msgid "Configuration copied"
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgid "Confirm the import and connect"
+msgstr ""
+
+#: web/src/portal/page/devices.ts
+msgid "Connect"
+msgstr ""
+
+#: web/src/portal/page/devices.ts
+msgid "Connected"
+msgstr ""
+
+#: web/src/portal/page/devices.ts
+msgid "Connected, no data left"
+msgstr ""
+
+#: web/src/portal/page/devices.ts
+msgid "Connected, outside your hours"
+msgstr ""
+
+#: web/src/portal/flows/secure.ts
+msgid "Connection settings only travel encrypted"
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgctxt "AmneziaVPN app"
+msgid "Continue"
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+#: web/src/portal/ui/feedback.ts
+msgid "Copied"
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Copy"
+msgstr ""
+
+#: web/src/portal/page/access.ts
+msgid "Copy %s"
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Copy %s config"
+msgstr ""
+
+#: web/src/portal/page/devices.ts
+msgid "Copy IP address"
+msgstr ""
+
+#: web/src/portal/page/devices.ts
+msgid "Copy local address"
+msgstr ""
+
+#: web/src/portal/flows/setup-view.ts
+msgid "Copy or save the connection"
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Copy the configuration"
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Copy the key"
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+msgctxt "in a sentence"
+msgid "Copy the key"
+msgstr ""
+
+#: web/src/portal/ui/codes.ts
+msgid "Copy the link"
+msgstr ""
+
+#: web/src/portal/ui/feedback.ts
+msgid "Copying is blocked here. Select the text and copy it by hand."
+msgstr ""
+
+#: web/src/portal/flows/add.ts
+msgid "Create connection"
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgctxt "WireGuard app"
+msgid "Create from QR code"
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgctxt "WireGuard app"
+msgid "Create from file or archive"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/portal.uc
+msgid "Cross-site request refused."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Data limit must be a positive number of GB."
+msgstr ""
+
+#: web/src/shared/format.ts
+msgid "Data limit reached"
+msgstr ""
+
+#: web/src/portal/page/access.ts
+msgid "Data this month"
+msgstr ""
+
+#: web/src/portal/page/access.ts
+msgid "Data used"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Device %s of %s: address %s is also used by device %s of %s."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Device %s of %s: address %s is not a plain IPv4 address."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Device %s of %s: address %s is outside %s's tunnel %s."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Device %s of %s: address %s is the router's own address on %s."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Device %s of %s: address (none) is not a plain IPv4 address."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Device %s of %s: the preshared key is not a key."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Device %s of %s: the private key is not a key."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Device %s of %s: the public key is not a key."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Device %s: person %s does not exist."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Device limit must be between 1 and 32."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Device limit reached (%d)."
+msgstr ""
+
+#: web/src/portal/flows/device-actions.ts
+msgid "Device name"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/devices.uc
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/portal.uc
+msgid "Device not found."
+msgstr ""
+
+#: web/src/portal/flows/device-actions.ts
+msgid "Device removed"
+msgstr ""
+
+#: web/src/portal/page/access.ts
+msgid "Devices at home"
+msgstr ""
+
+#: web/src/portal/page/access.ts
+msgid "Devices at home and on this VPN reach yours as %s"
+msgstr ""
+
+#: web/src/portal/page/devices.ts
+msgid "Disabled"
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Download"
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Download %s config"
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgid "Download for Linux"
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgid "Download for Mac"
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgid "Download for Windows"
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgid "Download from"
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgid "Download on the"
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Download the file"
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Download the key"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "End date must be YYYY-MM-DD."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Endpoint must be a hostname or IP address."
+msgstr ""
+
+#: web/src/portal/page/access.ts
+msgid "Ends %s"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Enter a device name (up to 48 characters)."
+msgstr ""
+
+#: web/src/shared/format.ts
+msgid "Expired"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Extra data must be a positive number of GB."
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "For computers and routers"
+msgstr ""
+
+#: web/src/shared/format.ts
+msgid "GB"
+msgstr ""
+
+#: web/src/shared/format.ts
+msgid "Gbit/s"
+msgstr ""
+
+#: web/src/portal/flows/setup-view.ts
+msgid "Get %s"
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Get %s on the %s and come back here."
+msgstr ""
+
+#: web/src/portal/flows/setup-view.ts
+msgid "Get %s on the router"
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgid "Get it on"
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Hide key"
+msgstr ""
+
+#: web/src/portal/page/access.ts
+#: web/src/shared/format.ts
+msgid "Home network"
+msgstr ""
+
+#: web/src/shared/format.ts
+msgid "Home network + Internet"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Hours must look like 07:00-23:00."
+msgstr ""
+
+#: web/src/portal/page/access.ts
+msgid "Hours, router time"
+msgstr ""
+
+#: web/src/portal/page/access.ts
+msgid "Hours, your time"
+msgstr ""
+
+#: web/src/portal/page/devices.ts
+msgid "IP address copied"
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgctxt "WireGuard app"
+msgid "Import Tunnel(s) from File…"
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgctxt "WireGuard app"
+msgid "Import from file or archive"
+msgstr ""
+
+#: web/src/portal/flows/setup-view.ts
+msgid "Import the configuration"
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgctxt "WireGuard app"
+msgid "Import tunnel(s) from file…"
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "In %s:"
+msgstr ""
+
+#: web/src/portal/page/access.ts
+msgid "Included"
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgctxt "AmneziaVPN app"
+msgid "Insert"
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgid "Install from"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Interface name: 1-12 lowercase letters, digits or _."
+msgstr ""
+
+#: web/src/portal/page/access.ts
+#: web/src/shared/format.ts
+msgid "Internet"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/portal.uc
+msgid "Invalid JSON."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "Invalid public key."
+msgstr ""
+
+#: web/src/portal/page/access.ts
+msgid "It ended on %s."
+msgstr ""
+
+#: web/src/portal/flows/device-actions.ts
+msgid "It gets new keys and its current settings stop working. Set it up again with the new ones that open next."
+msgstr ""
+
+#: web/src/portal/flows/device-actions.ts
+msgid "It gets new keys. This device is connected through its current settings: it disconnects a few seconds after you confirm. Add the new ones that open next."
+msgstr ""
+
+#: web/src/portal/flows/device-actions.ts
+msgid "Its connection stops working at once. You can add it again later."
+msgstr ""
+
+#: web/src/portal/page/devices.ts
+msgid "Its settings changed: update the connection"
+msgstr ""
+
+#: web/src/shared/format.ts
+msgid "KB"
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+#: web/src/portal/flows/setup-view.ts
+msgid "Key copied"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Key generation failed (is amneziawg-tools installed?)."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "Key generation failed (no random data)."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Key generation failed."
+msgstr ""
+
+#: web/src/portal/page/frame.ts
+msgid "Language"
+msgstr ""
+
+#: web/src/portal/page/devices.ts
+msgid "Last 7 days"
+msgstr ""
+
+#: web/src/portal/page/devices.ts
+msgid "Last connected %s"
+msgstr ""
+
+#: web/src/portal/ui/codes.ts
+msgid "Link copied"
+msgstr ""
+
+#: web/src/portal/flows/add.ts
+msgid "Linux PC"
+msgstr ""
+
+#: web/src/shared/format.ts
+msgid "MB"
+msgstr ""
+
+#: web/src/shared/format.ts
+msgid "Mbit/s"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/portal.uc
+msgid "Method not allowed."
+msgstr ""
+
+#: web/src/portal/flows/add.ts
+msgid "Mobile"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Monthly data must be a positive number of GB."
+msgstr ""
+
+#: web/src/portal/flows/add.ts
+msgid "Name"
+msgstr ""
+
+#: web/src/portal/flows/wait.ts
+msgid "No connection yet"
+msgstr ""
+
+#: web/src/portal/page/access.ts
+msgid "No data limit. The count starts again on the 1st."
+msgstr ""
+
+#: web/src/portal/page/access.ts
+msgid "No end date"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "No free address left on %s."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "No free addresses left in the server subnet."
+msgstr ""
+
+#: web/src/portal/page/access.ts
+msgid "No limit"
+msgstr ""
+
+#: web/src/shared/format.ts
+msgid "No server"
+msgstr ""
+
+#: web/src/portal/page/notices.ts
+msgid "No server yet"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/portal.uc
+msgid "Not found."
+msgstr ""
+
+#: web/src/portal/page/access.ts
+msgid "Not included"
+msgstr ""
+
+#: web/src/portal/flows/setup-view.ts
+msgid "Not on the %s right now?"
+msgstr ""
+
+#: web/src/portal/page/devices.ts
+msgid "Not set up yet"
+msgstr ""
+
+#: web/src/portal/page/notices.ts
+msgid "Nothing gets through until it resets."
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Nothing opened? %s and add it in the app."
+msgstr ""
+
+#: web/src/portal/page/access.ts
+msgid "Now, %s"
+msgstr ""
+
+#: web/src/portal/flows/add.ts
+msgid "OR"
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgid "Official release on GitHub"
+msgstr ""
+
+#: web/src/portal/page/notices.ts
+msgid "On %s."
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgid "On GitHub"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/devices.uc
+msgid "Only the admin can turn devices off."
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+#: web/src/portal/setup.ts
+msgctxt "step"
+msgid "Open %s"
+msgstr ""
+
+#: web/src/portal/page/notices.ts
+msgid "Open %s."
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgid "Open a terminal in the folder with the file"
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Open in AmneziaVPN"
+msgstr ""
+
+#: web/src/portal/flows/page-code.ts
+#: web/src/portal/page/frame.ts
+msgid "Open on another device"
+msgstr ""
+
+#: web/src/portal/flows/add.ts
+msgid "Open on the device"
+msgstr ""
+
+#: web/src/portal/flows/secure.ts
+msgid "Open securely"
+msgstr ""
+
+#: web/src/portal/flows/secure.ts
+msgid "Open the link securely"
+msgstr ""
+
+#: web/src/portal/flows/setup-view.ts
+msgid "Open this link on the %s to set it up there."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/portal.uc
+msgid "Open this link over HTTPS to get the connection settings."
+msgstr ""
+
+#: web/src/portal/flows/setup-view.ts
+msgid "Open this page in Safari or Chrome: the store opens from here, but the app handoff does not."
+msgstr ""
+
+#: web/src/portal/flows/setup-view.ts
+msgid "Open your link on the %s"
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgid "OpenWrt packages"
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgid "OpenWrt packages + kmod"
+msgstr ""
+
+#: web/src/shared/format.ts
+msgid "Other"
+msgstr ""
+
+#: web/src/portal/page/access.ts
+msgid "Other devices at home reach yours as %s"
+msgstr ""
+
+#: web/src/portal/page/notices.ts
+msgid "Out of data"
+msgstr ""
+
+#: web/src/shared/format.ts
+msgid "Outside allowed hours"
+msgstr ""
+
+#: web/src/portal/page/notices.ts
+msgid "Outside your hours"
+msgstr ""
+
+#: web/src/shared/format.ts
+msgid "PC"
+msgstr ""
+
+#: web/src/shared/format.ts
+msgid "Paused"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Person %s: circle %s does not exist."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Person %s: has the same personal link as %s."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Person %s: home service %s does not exist."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Person %s: server %s does not exist."
+msgstr ""
+
+#: web/src/shared/format.ts
+msgid "Phone"
+msgstr ""
+
+#: web/src/portal/flows/add.ts
+msgid "Phones and tablets get a smaller packet size that suits mobile networks."
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Pick AmneziaVPN in the share sheet. Not there? %s and add it in the app."
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgid "Pick the file and connect"
+msgstr ""
+
+#: web/src/portal/flows/setup-view.ts
+msgid "Point its camera at the code: the link opens there."
+msgstr ""
+
+#: web/src/portal/flows/page-code.ts
+msgid "Point its camera at the code: this page opens there."
+msgstr ""
+
+#: web/src/portal/flows/add.ts
+msgid "Point its camera at the code: your page opens there with this device ready to add."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Port must be 1-65535."
+msgstr ""
+
+#: web/src/shared/qr.ts
+msgid "QR code"
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgctxt "AmneziaVPN app"
+msgid "QR code"
+msgstr ""
+
+#: web/src/portal/flows/device-actions.ts
+#: web/src/portal/page/devices.ts
+msgid "Reconnect"
+msgstr ""
+
+#: web/src/portal/flows/device-actions.ts
+msgid "Reconnect %s?"
+msgstr ""
+
+#: web/src/portal/flows/device-actions.ts
+#: web/src/portal/page/devices.ts
+msgid "Remove"
+msgstr ""
+
+#: web/src/portal/flows/device-actions.ts
+msgid "Remove %s?"
+msgstr ""
+
+#: web/src/portal/page/devices.ts
+msgid "Rename"
+msgstr ""
+
+#: web/src/portal/flows/device-actions.ts
+msgid "Rename %s"
+msgstr ""
+
+#: web/src/portal/flows/device-actions.ts
+msgid "Renamed"
+msgstr ""
+
+#: web/src/portal/api.ts
+msgid "Request failed (%s)"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/portal.uc
+msgid "Request too large."
+msgstr ""
+
+#: web/src/portal/page/access.ts
+msgid "Resets on the 1st."
+msgstr ""
+
+#: web/src/shared/format.ts
+msgid "Router"
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgid "Run"
+msgstr ""
+
+#: web/src/portal/flows/device-actions.ts
+msgid "Save"
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgctxt "WireGuard app"
+msgid "Scan from QR code"
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Send it to the %s"
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Send it to the %s in a message or a note, then in AmneziaVPN: %s."
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Send it to the %s, then import %s in %s."
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Send to AmneziaVPN"
+msgstr ""
+
+#: web/src/portal/page/notices.ts
+msgid "Server is disabled"
+msgstr ""
+
+#: web/src/shared/format.ts
+msgid "Server is turned off"
+msgstr ""
+
+#: web/src/portal/flows/setup-view.ts
+#: web/src/portal/page/devices.ts
+msgid "Set up %s"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Set up a server first."
+msgstr ""
+
+#: web/src/portal/page/devices.ts
+msgid "Settings changed"
+msgstr ""
+
+#: web/src/portal/page/devices.ts
+msgid "Settings changed, update needed"
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Share as a file"
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Share file"
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Share the file"
+msgstr ""
+
+#: web/src/portal/ui/codes.ts
+msgid "Share the link"
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Show key"
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Straight into %s"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Subnet must look like 10.77.0.0/24."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Subnet overlaps %s."
+msgstr ""
+
+#: web/src/shared/format.ts
+msgid "TB"
+msgstr ""
+
+#: web/src/shared/format.ts
+msgid "Tablet"
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgid "Tap “%s” and connect"
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgid "The APK is for phones without Google Play, or where the store hides the app."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/devices.uc
+msgid "The admin has turned this device off."
+msgstr ""
+
+#: web/src/portal/flows/setup-view.ts
+msgid "The app goes on the %s."
+msgstr ""
+
+#: web/src/portal/flows/secure.ts
+msgid "The browser may warn that the certificate is not trusted: it is this router’s own. Choose to continue (“Advanced” → “Proceed”)."
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "The connection"
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "The connection as one key"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "The id may use lowercase letters, digits and underscores."
+msgstr ""
+
+#: web/src/portal/flows/setup-view.ts
+msgid "The packages and the file for OpenWrt"
+msgstr ""
+
+#: web/src/portal/main.ts
+msgid "The page could not load"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "The person has no server."
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Then come back here and tap"
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "Then import it in the app"
+msgstr ""
+
+#: web/src/portal/page/devices.ts
+msgid "This device"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "This key is already in use."
+msgstr ""
+
+#: web/src/portal/main.ts
+msgid "This link no longer works"
+msgstr ""
+
+#: web/src/portal/flows/secure.ts
+msgid "This page is open without encryption. To add or set up a device, open the same link over HTTPS:"
+msgstr ""
+
+#: web/src/portal/page/access.ts
+msgid "Through the router"
+msgstr ""
+
+#: web/src/portal/page/access.ts
+#: web/src/portal/page/devices.ts
+msgid "Today"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/portal.uc
+msgid "Too many changes in a short time. Try again in a few minutes."
+msgstr ""
+
+#: web/src/portal/flows/setup-view.ts
+msgid "Two steps, about a minute"
+msgstr ""
+
+#: web/src/portal/page/devices.ts
+msgid "Two steps, about a minute: get the app, then add the connection."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Unknown DNS choice."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/portal.uc
+msgid "Unknown action."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Unknown circle."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/devices.uc
+msgid "Unknown device."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Unknown end action."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Unknown person."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Unknown server."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Unknown service %s."
+msgstr ""
+
+#: web/src/portal/page/devices.ts
+msgid "Update"
+msgstr ""
+
+#: web/src/portal/page/devices.ts
+msgid "Update the connection"
+msgstr ""
+
+#: web/src/portal/flows/wait.ts
+msgid "Waiting for the connection"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Warning must be 0-60 days."
+msgstr ""
+
+#: web/src/portal/flows/add.ts
+msgid "What is it?"
+msgstr ""
+
+#: web/src/portal/flows/add.ts
+msgid "Windows PC"
+msgstr ""
+
+#: web/src/portal/page/devices.ts
+msgid "Yesterday"
+msgstr ""
+
+#: web/src/portal/flows/add.ts
+msgid "You already have a device with this name."
+msgstr ""
+
+#: web/src/portal/flows/add.ts
+msgid "You have reached your limit of %s device"
+msgid_plural "You have reached your limit of %s devices"
+msgstr[0] ""
+msgstr[1] ""
+
+#: web/src/portal/page/devices.ts
+msgid "You have reached your limit of %s device. Remove one to add another."
+msgid_plural "You have reached your limit of %s devices. Remove one to add another."
+msgstr[0] ""
+msgstr[1] ""
+
+#: web/src/portal/page/notices.ts
+msgid "You haven’t been added to one."
+msgstr ""
+
+#: web/src/portal/page/access.ts
+msgid "Your access"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/portal.uc
+msgid "Your access has ended."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/portal.uc
+msgid "Your access is paused."
+msgstr ""
+
+#: web/src/portal/page/devices.ts
+msgid "Your devices"
+msgstr ""
+
+#: web/src/portal/page/notices.ts
+msgid "Your devices can’t connect until it’s enabled again."
+msgstr ""
+
+#: web/src/portal/page/notices.ts
+msgid "Your devices can’t connect until it’s extended."
+msgstr ""
+
+#: web/src/portal/page/notices.ts
+msgid "Your devices can’t connect until it’s resumed."
+msgstr ""
+
+#: web/src/shared/format.ts
+msgid "bit/s"
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgid "computer"
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgctxt "on the"
+msgid "computer"
+msgstr ""
+
+#: web/src/portal/page/access.ts
+msgid "day left"
+msgid_plural "days left"
+msgstr[0] ""
+msgstr[1] ""
+
+#: web/src/portal/setup.ts
+msgid "device"
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgctxt "on the"
+msgid "device"
+msgstr ""
+
+#: web/src/portal/page/access.ts
+msgid "ended"
+msgstr ""
+
+#: web/src/shared/format.ts
+msgid "ends in %s day"
+msgid_plural "ends in %s days"
+msgstr[0] ""
+msgstr[1] ""
+
+#: web/src/shared/format.ts
+msgid "ends today"
+msgstr ""
+
+#: web/src/shared/format.ts
+msgid "ends tomorrow"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "h1-h4 must be distinct"
+msgstr ""
+
+#: web/src/shared/format.ts
+msgid "just now"
+msgstr ""
+
+#: web/src/shared/format.ts
+msgid "kbit/s"
+msgstr ""
+
+#: web/src/portal/page/access.ts
+msgid "name"
+msgstr ""
+
+#: web/src/shared/format.ts
+msgid "never"
+msgstr ""
+
+#: web/src/portal/page/access.ts
+msgid "no limit"
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgid "phone"
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgctxt "on the"
+msgid "phone"
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgid "router"
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgctxt "on the"
+msgid "router"
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgid "tablet"
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgctxt "on the"
+msgid "tablet"
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgid "this device"
+msgstr ""

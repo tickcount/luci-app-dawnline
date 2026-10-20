@@ -1,14 +1,18 @@
 // The ⋯ menu: a small panel under (or over) its button, items with an icon,
 // a highlight that glides after the pointer and takes the item's colour
-// (orange for Reconnect, red for Remove). One at a time; it closes on a press
-// outside, on scroll, on Escape and when its button is pressed again.
+// (orange for Reconnect, red for Remove). A choice among options (the
+// language) marks the current one with a check instead of icons. One at a
+// time; it closes on a press outside, on scroll, on Escape and when its button
+// is pressed again.
 
 import { h, ic } from '../dom';
 import { EASE_IN, POP, play } from '../motion';
 
 export interface MenuItem {
   label: string;
-  icon: string;
+  /** An action's icon; an option (`checked` set) shows a check in its place, on the current one only. */
+  icon?: string;
+  checked?: boolean;
   tone?: 'warn' | 'bad';
   run: () => unknown;
 }
@@ -53,14 +57,15 @@ export function openMenu(anchor: HTMLElement, all: (MenuItem | null)[]) {
       'button',
       {
         type: 'button',
-        role: 'menuitem',
+        role: it.checked === undefined ? 'menuitem' : 'menuitemradio',
+        'aria-checked': it.checked === undefined ? null : String(it.checked),
         class: `mi ${it.tone ?? ''}`,
         onclick: () => {
           closeMenu();
           it.run();
         },
       },
-      ic(it.icon),
+      it.checked === undefined ? ic(it.icon ?? '') : ic('check', it.checked ? 'i' : 'i off'),
       h('span', {}, it.label),
     );
     // The highlight comes in where the pointer is, then glides from item to item.

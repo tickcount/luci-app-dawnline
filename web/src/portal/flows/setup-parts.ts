@@ -5,16 +5,19 @@
 // where an app scans a code. The rules behind them are setup.ts.
 
 import type { ClientConfig, Device } from '../../shared/types';
+import { fill, fmt } from '../../shared/i18n';
 import { h, ic, type Kid } from '../dom';
 import { EASE_OUT, POP, SMOOTH, play } from '../motion';
 import {
   APP_NAME,
-  PLATFORM_LABEL,
+  importPath,
   importSteps,
   keyFileName,
   opensKeyLinks,
+  platformLabel,
   routerStore,
   scanPath,
+  vpnContinue,
   storeFor,
   type AppId,
   type Platform,
@@ -83,7 +86,7 @@ export function badge(
 /** Where the app comes from: the store (and, on Android, the APK beside it), or a line to go and get it. */
 export function storeBlock(app: AppId, os: Platform, router: boolean): Kid[] {
   const st: Store | null = router ? routerStore(app) : storeFor(app, os);
-  if (!st) return [hint(`Get ${APP_NAME[app]} on the ${PLATFORM_LABEL[os]} and come back here.`)];
+  if (!st) return [hint(fmt(_('Get %s on the %s and come back here.'), APP_NAME[app], platformLabel(os)))];
   // Android: the store can fail (no Google Play, or it hides the app), so the APK sits beside it.
   if (st.alt) return [h('div', { class: 'badges2' }, badge(st), badge(st.alt)), hint(st.alt.why)];
   return [badge(st)];
@@ -106,35 +109,40 @@ export function connectKids(c: SetupCtx): Kid[] {
   // On the phone being set up, a link opens AmneziaVPN only on Android; an
   // iPhone takes the key as a .vpn file from the share sheet.
   const inHand = c.same() && hereHandheld;
-  const copyKey = (ev: Event) => copy(c.key, 'Key copied', ev.currentTarget);
+  const copyKey = (ev: Event) => copy(c.key, _('Key copied'), ev.currentTarget);
   const send = app === 'vpn' && inHand && !opensKeyLinks(c.pf) ? shareFile(keyFileName(c.cfg.filename), c.key) : null;
   if (app === 'vpn' && inHand && (opensKeyLinks(c.pf) || send))
     return [
       send
-        ? badge({ top: 'Then come back here and tap', main: 'Send to AmneziaVPN', mark: 'amnezia', onclick: () => void send() }, true)
-        : badge({ href: c.key, top: 'Then come back here and tap', main: 'Open in AmneziaVPN', mark: 'amnezia' }, true),
+        ? badge({ top: _('Then come back here and tap'), main: _('Send to AmneziaVPN'), mark: 'amnezia', onclick: () => void send() }, true)
+        : badge({ href: c.key, top: _('Then come back here and tap'), main: _('Open in AmneziaVPN'), mark: 'amnezia' }, true),
       hint(
-        send ? 'Pick AmneziaVPN in the share sheet. Not there? ' : 'Nothing opened? ',
-        linkBtn('Copy the key', copyKey),
-        ' and add it in the app.',
+        ...fill(
+          send
+            ? _('Pick AmneziaVPN in the share sheet. Not there? %s and add it in the app.')
+            : _('Nothing opened? %s and add it in the app.'),
+          linkBtn(_('Copy the key', 'in a sentence'), copyKey),
+        ),
       ),
     ];
-  if (app === 'vpn')
+  if (app === 'vpn') {
+    const path = importPath('vpn');
     return [
-      badge({ top: 'The connection as one key', main: 'Copy the key', mark: 'copy', onclick: copyKey }, true),
+      badge({ top: _('The connection as one key'), main: _('Copy the key'), mark: 'copy', onclick: copyKey }, true),
       howto([
-        ['Open AmneziaVPN', ''],
-        ['Add server › ', 'Insert key'],
-        ['Paste the key and connect', ''],
+        [fmt(_('Open %s', 'step'), name), ''],
+        [path.replace(/ → [^→]*$/, ' → '), path.replace(/^.* → /, '')],
+        [vpnContinue(), ''],
       ]),
     ];
+  }
   const share = hereHandheld ? shareFile(c.cfg.filename, c.cfg.conf) : null;
   return [
     share
       ? badge(
           {
-            top: c.same() ? `Straight into ${name}` : `Send it to the ${c.there}`,
-            main: 'Share the file',
+            top: c.same() ? fmt(_('Straight into %s'), name) : fmt(_('Send it to the %s'), c.there),
+            main: _('Share the file'),
             mark: 'share',
             onclick: () => void share(),
           },
@@ -142,8 +150,8 @@ export function connectKids(c: SetupCtx): Kid[] {
         )
       : badge(
           {
-            top: 'Then import it in the app',
-            main: 'Download the file',
+            top: _('Then import it in the app'),
+            main: _('Download the file'),
             mark: 'download',
             onclick: () => download(c.cfg.filename, c.cfg.conf),
           },
@@ -163,23 +171,31 @@ export function sendKids(c: SetupCtx): Kid[] {
     const file = keyFileName(c.cfg.filename);
     const share = !!shareFile(file, c.key);
     return [
-      h('p', { class: 'desc' }, `Send it to the ${c.there} in a message or a note, then in AmneziaVPN: Add server › Insert key.`),
+      h(
+        'p',
+        { class: 'desc' },
+        fmt(_('Send it to the %s in a message or a note, then in AmneziaVPN: %s.'), c.there, importPath('vpn').replace(/ → /g, ' › ')),
+      ),
       h(
         'div',
         { class: 'btnrow2' },
-        btn('copy', 'Copy the key', (ev) => copy(c.key, 'Key copied', ev.currentTarget)),
-        btn(share ? 'share' : 'download', share ? 'Share as a file' : 'Download the key', () => sendFile(file, c.key)),
+        btn('copy', _('Copy the key'), (ev) => copy(c.key, _('Key copied'), ev.currentTarget)),
+        btn(share ? 'share' : 'download', share ? _('Share as a file') : _('Download the key'), () => sendFile(file, c.key)),
       ),
     ];
   }
   const share = !!shareFile(c.cfg.filename, c.cfg.conf);
   return [
-    h('p', { class: 'desc' }, `Send it to the ${c.there}, then import `, h('b', {}, c.cfg.filename), ` in ${APP_NAME[app]}.`),
+    h(
+      'p',
+      { class: 'desc' },
+      ...fill<Node | string>(_('Send it to the %s, then import %s in %s.'), c.there, h('b', {}, c.cfg.filename), APP_NAME[app]),
+    ),
     h(
       'div',
       { class: 'btnrow2' },
-      btn(share ? 'share' : 'download', share ? 'Share the file' : 'Download the file', () => sendFile(c.cfg.filename, c.cfg.conf)),
-      btn('copy', 'Copy the configuration', (ev) => copy(c.cfg.conf, 'Configuration copied', ev.currentTarget)),
+      btn(share ? 'share' : 'download', share ? _('Share the file') : _('Download the file'), () => sendFile(c.cfg.filename, c.cfg.conf)),
+      btn('copy', _('Copy the configuration'), (ev) => copy(c.cfg.conf, _('Configuration copied'), ev.currentTarget)),
     ),
   ];
 }
@@ -208,7 +224,7 @@ export function filePane(cfg: ClientConfig): HTMLElement {
       class: 'btn soft sm',
       onclick: () => {
         reveal = !reveal;
-        eye.replaceChildren(ic(reveal ? 'x' : 'key'), h('span', {}, reveal ? 'Hide key' : 'Show key'));
+        eye.replaceChildren(ic(reveal ? 'x' : 'key'), h('span', {}, reveal ? _('Hide key') : _('Show key')));
         paint();
         // A key shown comes into focus out of a blur; hidden again, the mask fades back.
         pre.querySelectorAll('.mask, .k').forEach((x) =>
@@ -224,13 +240,13 @@ export function filePane(cfg: ClientConfig): HTMLElement {
       },
     },
     ic('key'),
-    h('span', {}, 'Show key'),
+    h('span', {}, _('Show key')),
   );
   const cp = h(
     'button',
-    { type: 'button', class: 'btn soft sm', onclick: (ev: Event) => copy(cfg.conf, 'Configuration copied', ev.currentTarget) },
+    { type: 'button', class: 'btn soft sm', onclick: (ev: Event) => copy(cfg.conf, _('Configuration copied'), ev.currentTarget) },
     ic('copy'),
-    h('span', { class: 'lbl' }, 'Copy'),
+    h('span', { class: 'lbl' }, _('Copy')),
   );
   const card = h(
     'div',
@@ -239,16 +255,16 @@ export function filePane(cfg: ClientConfig): HTMLElement {
       'div',
       { class: 'fc-row' },
       h('span', { class: 'filecard-ic' }, '.conf'),
-      h('span', { class: 't' }, h('span', { class: 'mono' }, cfg.filename), h('span', {}, 'For computers and routers')),
+      h('span', { class: 't' }, h('span', { class: 'mono' }, cfg.filename), h('span', {}, _('For computers and routers'))),
     ),
     h(
       'button',
       { type: 'button', class: 'btn accent sm block', onclick: () => sendFile(cfg.filename, cfg.conf) },
       ic(share ? 'open' : 'download'),
-      h('span', {}, share ? 'Share file' : 'Download'),
+      h('span', {}, share ? _('Share file') : _('Download')),
     ),
   );
-  const conf = accordion([{ icon: glass('file'), title: 'Configuration', body: [h('div', { class: 'confbar' }, eye, cp), pre] }], {
+  const conf = accordion([{ icon: glass('file'), title: _('Configuration'), body: [h('div', { class: 'confbar' }, eye, cp), pre] }], {
     inset: true,
   });
   return h('div', { class: 'step-box' }, card, conf.el);
@@ -265,7 +281,7 @@ export function scanLine(app: AppId): ScanLine {
   const name = h('span', { class: 'osm-p' }, APP_NAME[app]);
   const path = menuLine(scanPath(app, 'ios'), scanPath(app, 'android'));
   return {
-    el: h('span', { class: 'scanline' }, h('span', {}, 'In ', name, ':'), path.el),
+    el: h('span', { class: 'scanline' }, h('span', {}, ...fill(_('In %s:'), name)), path.el),
     set(a) {
       morphText(name, APP_NAME[a], undefined, { whole: true });
       path.set(scanPath(a, 'ios'), scanPath(a, 'android'));
@@ -291,12 +307,12 @@ export function connPill(get: () => { text: string; msg: string; file: string; a
   const tip = h('span', { class: 'hp-tip', 'aria-hidden': 'true' }, tt, tm);
   const dl = h('button', { type: 'button', class: 'hp-b', onclick: () => sendFile(get().file, get().text) }, ic('download'));
   const cp = h('button', { type: 'button', class: 'hp-b' }, ic('copy'));
-  const el = h('div', { class: 'hpill', role: 'group', 'aria-label': 'The connection', 'data-key': 'conn' }, dl, cp, tip);
+  const el = h('div', { class: 'hpill', role: 'group', 'aria-label': _('The connection'), 'data-key': 'conn' }, dl, cp, tip);
 
   let tipFor: HTMLElement | null = null;
   let tipT = 0;
   let warmUntil = 0;
-  const words = (b: HTMLElement) => (b === cp && cp.classList.contains('done') ? 'Copied' : (b.getAttribute('aria-label') ?? ''));
+  const words = (b: HTMLElement) => (b === cp && cp.classList.contains('done') ? _('Copied') : (b.getAttribute('aria-label') ?? ''));
   // Centred under its key, but never past the sheet's edge (× and its margin to the right).
   const centre = (b: HTMLElement, t: string) => {
     tm.textContent = t;
@@ -401,8 +417,8 @@ export function connPill(get: () => { text: string; msg: string; file: string; a
     el,
     sync() {
       const app = get().app;
-      dl.setAttribute('aria-label', `Download ${app} config`);
-      cp.setAttribute('aria-label', `Copy ${app} config`);
+      dl.setAttribute('aria-label', fmt(_('Download %s config'), app));
+      cp.setAttribute('aria-label', fmt(_('Copy %s config'), app));
     },
   };
 }

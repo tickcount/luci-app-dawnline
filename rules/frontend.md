@@ -1,6 +1,6 @@
 # Frontend (TypeScript: admin UI and portal)
 
-Read with `code-standards.md` and, for anything visible, `ui-design.md`.
+Read with `code-standards.md` and, for anything visible, `ui-design.md` and `i18n.md` (every visible string goes through `_()`).
 
 ## Code
 
@@ -16,4 +16,4 @@ Read with `code-standards.md` and, for anything visible, `ui-design.md`.
 
 ## Checks
 
-- In `web/`: `npm run format:check`, `npm run typecheck`, `npm test`, `npm run build`; the rebuilt bundles under `package/` are committed (CI fails otherwise).
+- In `web/`: `npm run format:check`, `npm run typecheck`, `npm run i18n:check`, `npm test`, `npm run build`; the rebuilt bundles under `package/` and the catalogs are committed (CI fails otherwise).

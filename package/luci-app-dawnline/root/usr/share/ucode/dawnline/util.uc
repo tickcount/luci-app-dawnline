@@ -3,8 +3,9 @@
 // helpers work on a cursor the caller owns).
 
 import { open, readfile, writefile, rename, mkdir, stat, unlink, popen, lsdir } from 'fs';
+import { _ } from 'dawnline.i18n';
 
-export const VERSION = '0.10.0';
+export const VERSION = '0.11.0';
 /** GitHub repository with Dawnline releases (updates and the installer). */
 export const REPO = 'tickcount/luci-app-dawnline';
 export const RUN_DIR = '/var/run/dawnline';
@@ -543,8 +544,10 @@ export function valid_name(s) {
 	return type(s) == 'string' && ulength(trim(s)) > 0 && ulength(s) <= 48 && match(s, /[<>"\\[:cntrl:]]/) == null;
 };
 
-/** What valid_name wants, for the admin. */
-export const NAME_RULE = 'Enter a name: up to 48 characters, without < > " or \\.';
+/** What valid_name wants, for the admin (in the admin's language). */
+export function name_rule() {
+	return _('Enter a name: up to 48 characters, without < > " or \\.');
+};
 
 export function valid_key(s) {
 	return type(s) == 'string' && match(s, /^[A-Za-z0-9+\/]{42}[AEIMQUYcgkosw048]=$/) != null;

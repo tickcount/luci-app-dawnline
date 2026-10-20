@@ -10,6 +10,7 @@ import { firstBad, group, liveRow, needRow, row } from '../../ui/layout';
 import { hostHelp, portalPortHelp, urlHelp } from '../../netcheck';
 import { icon } from '../../../shared/icons';
 import { fmtDay } from '../../../shared/format';
+import { fmt, locale, num, plural } from '../../../shared/i18n';
 import { installMissing } from '../../pkgs';
 import { notify } from '../../ui/toast';
 import { section, type SettingsHost } from './common';
@@ -27,10 +28,10 @@ export function portalCard(host: SettingsHost): HTMLElement {
   const s = host.d.settings;
   const eff = host.d.effective as Record<string, any>;
   const c = host.d.cert;
-  const pOn = sw(eff.portal_enabled, 'Enable portal');
+  const pOn = sw(eff.portal_enabled, _('Enable portal'));
   const port = input(s.portal_port, { placeholder: '8443', inputmode: 'numeric', class: 'cbi-input-text dl-w-port' });
-  const redirect = input(s.portal_redirect, { placeholder: 'Show “Not found”', class: 'cbi-input-text dl-mono' });
-  const other = input('', { placeholder: 'vpn.example.com or an IP', 'aria-label': 'Other address' });
+  const redirect = input(s.portal_redirect, { placeholder: _('Show “Not found”'), class: 'cbi-input-text dl-mono' });
+  const other = input('', { placeholder: _('vpn.example.com or an IP'), 'aria-label': _('Other address') });
   const isIp = (h: string) => /^\d{1,3}(\.\d{1,3}){3}$/.test(h);
   // Chosen addresses, the main one first; custom ones join the list of options.
   let picked: string[] = [eff.portal_host, ...(eff.portal_alt ?? [])].filter(
@@ -53,21 +54,23 @@ export function portalCard(host: SettingsHost): HTMLElement {
 
   const note = (x: PortalInfo['candidates'][number]): Node =>
     x.kind === 'ip'
-      ? E('span', { class: 'dl-addr-warn' }, [icon('alert'), 'Plain HTTP: the link and VPN keys travel unencrypted'])
+      ? E('span', { class: 'dl-addr-warn' }, [icon('alert'), _('Plain HTTP: the link and VPN keys travel unencrypted')])
       : E(
           'span',
           { class: 'dl-sub' },
           x.cloudflare
-            ? 'Behind Cloudflare · often stalls in Russia'
+            ? _('Behind Cloudflare · often stalls in Russia')
             : !x.ips.length
               ? found
-                ? 'Your address'
-                : 'Checking where it points…'
+                ? _('Your address')
+                : _('Checking where it points…')
               : x.here
-                ? `Points at this router${x.cert ? ' · Let’s Encrypt certificate' : ' · no certificate yet'}`
-                : `Points at ${x.ips.join(', ')}, not this router`,
+                ? x.cert
+                  ? _('Points at this router · Let’s Encrypt certificate')
+                  : _('Points at this router · no certificate yet')
+                : fmt(_('Points at %s, not this router'), x.ips.join(', ')),
         );
-  const opts = E('div', { class: 'dl-addr-opts', role: 'group', 'aria-label': 'Portal addresses' });
+  const opts = E('div', { class: 'dl-addr-opts', role: 'group', 'aria-label': _('Portal addresses') });
   const toggle = (h: string) => {
     if (picked.includes(h)) {
       if (picked.length > 1) picked = picked.filter((x) => x !== h);
@@ -99,7 +102,7 @@ export function portalCard(host: SettingsHost): HTMLElement {
             E('i', { class: 'dl-addr-check' }, on ? icon('check') : ''),
             E('span', { class: 'dl-stack' }, [E('span', { class: 'dl-mono' }, x.host), note(x)]),
             main
-              ? E('span', { class: 'dl-pill info' }, 'Main')
+              ? E('span', { class: 'dl-pill info' }, _('Main'))
               : on
                 ? E(
                     'button',
@@ -113,14 +116,14 @@ export function portalCard(host: SettingsHost): HTMLElement {
                         paintLinks();
                       },
                     },
-                    'Make main',
+                    _('Make main'),
                   )
                 : x.cloudflare
                   ? E('span', { class: 'dl-pill warn' }, 'Cloudflare')
                   : x.kind === 'ip'
                     ? E('span', { class: 'dl-pill' }, 'IP')
                     : x.here && x.cert
-                      ? E('span', { class: 'dl-pill ok' }, 'Recommended')
+                      ? E('span', { class: 'dl-pill ok' }, _('Recommended'))
                       : '',
           ],
         );
@@ -128,7 +131,7 @@ export function portalCard(host: SettingsHost): HTMLElement {
       E('div', { class: 'dl-addr-opt other' }, [
         E('i', { class: 'dl-addr-check' }, icon('plus')),
         other,
-        button('Add', () => {
+        button(_('Add'), () => {
           const h = other.value.trim().toLowerCase();
           if (!h) return;
           // The router would refuse it on Save: say so here.
@@ -169,7 +172,7 @@ export function portalCard(host: SettingsHost): HTMLElement {
         return E('div', { class: 'dl-link-row' }, [
           E('span', { class: `dl-link-ic ${ip ? 'warn' : 'ok'}` }, icon(ip ? 'alert' : 'lock')),
           E('span', { class: 'dl-mono dl-link-url' }, [base, E('b', {}, 'kamiro-telosu-bavine')]),
-          i === 0 ? E('span', { class: 'dl-pill info' }, 'Main') : ip ? E('span', { class: 'dl-pill warn' }, 'HTTP') : '',
+          i === 0 ? E('span', { class: 'dl-pill info' }, _('Main')) : ip ? E('span', { class: 'dl-pill warn' }, 'HTTP') : '',
         ]);
       }),
     );
@@ -180,18 +183,18 @@ export function portalCard(host: SettingsHost): HTMLElement {
 
   // Readiness: one summary line, the checks as chips, details on demand.
   const SHORT: Record<string, string> = {
-    portal: 'Portal running',
-    portal_dns: 'Points here',
-    portal_reply: 'Answers reach visitors',
-    portal_http: 'Plain HTTP',
-    cert: 'Certificate',
+    portal: _('Portal running'),
+    portal_dns: _('Points here'),
+    portal_reply: _('Answers reach visitors'),
+    portal_http: _('Plain HTTP'),
+    cert: _('Certificate'),
   };
   const need = host.d.needs ?? { https: [], acme: [], home: [] };
   const readyGroup = (checks: PortalInfo['checks'] | null): HTMLElement => {
     if (!eff.portal_enabled) return E('div', { hidden: true });
     if (!checks)
-      return group('check', 'Ready to share', 'The portal’s checks from Health', [
-        E('p', { class: 'dl-muted dl-loading' }, 'Running checks…'),
+      return group('check', _('Ready to share'), _('The portal’s checks from Health'), [
+        E('p', { class: 'dl-muted dl-loading' }, _('Running checks…')),
       ]);
     const shown = checks.filter((x) => x.status !== 'skip');
     if (!shown.length) return E('div', { hidden: true });
@@ -213,11 +216,13 @@ export function portalCard(host: SettingsHost): HTMLElement {
           E(
             'b',
             {},
-            worst === 'ok' ? `All ${shown.length} checks passed` : `${shown.length - bad.length} of ${shown.length} checks passed`,
+            worst === 'ok'
+              ? plural(shown.length, 'All %s check passed', 'All %s checks passed')
+              : fmt(N_(shown.length, '%s of %s check passed', '%s of %s checks passed'), num(shown.length - bad.length), num(shown.length)),
           ),
           bad.length
             ? E('span', { class: 'dl-sub' }, bad.map((x) => x.detail).join(' '))
-            : E('span', { class: 'dl-sub' }, 'Links will open for the people you send them to.'),
+            : E('span', { class: 'dl-sub' }, _('Links will open for the people you send them to.')),
         ]),
         E(
           'button',
@@ -226,10 +231,10 @@ export function portalCard(host: SettingsHost): HTMLElement {
             class: 'dl-linkbtn',
             click: (ev: Event) => {
               details.hidden = !details.hidden;
-              (ev.currentTarget as HTMLElement).textContent = details.hidden ? 'Details' : 'Hide';
+              (ev.currentTarget as HTMLElement).textContent = details.hidden ? _('Details') : _('Hide');
             },
           },
-          'Details',
+          _('Details'),
         ),
       ]),
       E(
@@ -244,17 +249,17 @@ export function portalCard(host: SettingsHost): HTMLElement {
       ),
       details,
     ]);
-    return group('check', 'Ready to share', 'The portal’s checks from Health', [ready]);
+    return group('check', _('Ready to share'), _('The portal’s checks from Health'), [ready]);
   };
   // The state pill next to the switch: none until the checks are in.
   const readyPill = (checks: PortalInfo['checks'] | null): HTMLElement => {
     if (!eff.portal_enabled || (!checks && !need.https.length)) return E('span', { hidden: true });
-    if (need.https.length) return E('span', { class: 'dl-pill bad' }, 'Can’t start');
+    if (need.https.length) return E('span', { class: 'dl-pill bad' }, _('Can’t start'));
     const { worst } = verdict(checks!);
     return E(
       'span',
       { class: `dl-pill ${worst === 'ok' ? 'ok' : worst === 'error' ? 'bad' : 'warn'}` },
-      worst === 'error' ? 'Needs attention' : 'Ready',
+      worst === 'error' ? _('Needs attention') : _('Ready'),
     );
   };
   let readyEl = readyGroup(host.portal?.checks ?? null);
@@ -274,31 +279,31 @@ export function portalCard(host: SettingsHost): HTMLElement {
 
   const until = c && !c.self_signed && c.expires ? fmtDay(c.expires) : '';
   // Who holds the port (our own portal doesn't count), and the next one while links use an IP address.
-  const listenRow = liveRow('Listening port', port, () =>
+  const listenRow = liveRow(_('Listening port'), port, () =>
     portalPortHelp(port.value.trim() === '' ? eff.portal_port : Number(port.value), host.d.tcp_taken ?? [], picked.some(isIp)),
   );
   refreshPort = listenRow.refresh;
-  const redirectRow = liveRow('Unknown links', redirect, () => urlHelp(redirect.value));
+  const redirectRow = liveRow(_('Unknown links'), redirect, () => urlHelp(redirect.value));
   const custom = !!(s.portal_cert && s.portal_key);
-  const kind = !c ? 'Portal is off' : custom ? 'Your files' : c.self_signed ? 'Self-signed' : 'Let’s Encrypt';
+  const kind = !c ? _('Portal is off') : custom ? _('Your files') : c.self_signed ? _('Self-signed') : 'Let’s Encrypt';
   const certFiles = () => {
     const fc = input(s.portal_cert, { placeholder: '/etc/ssl/…/fullchain.crt' });
     const fk = input(s.portal_key, { placeholder: '/etc/ssl/…/key' });
     modal(
-      'Use your own certificate',
+      _('Use your own certificate'),
       [
-        E('p', { class: 'dl-muted' }, 'Paths on the router. Leave both empty to pick a certificate automatically.'),
-        row('Certificate file', fc),
-        row('Key file', fk),
+        E('p', { class: 'dl-muted' }, _('Paths on the router. Leave both empty to pick a certificate automatically.')),
+        row(_('Certificate file'), fc),
+        row(_('Key file'), fk),
       ],
       [
         cancelButton(),
         ' ',
         button(
-          'Save',
+          _('Save'),
           () => {
             closeModal();
-            void host.save({ portal_cert: fc.value.trim(), portal_key: fk.value.trim() }, 'Certificate saved', 'portal');
+            void host.save({ portal_cert: fc.value.trim(), portal_key: fk.value.trim() }, _('Certificate saved'), 'portal');
           },
           'positive',
         ),
@@ -317,10 +322,13 @@ export function portalCard(host: SettingsHost): HTMLElement {
     ? missingRow(
         'lock',
         'bad',
-        'HTTPS isn’t available on this router',
-        `The portal needs ${need.https.join(' and ')}. It can’t start without them.`,
+        _('HTTPS isn’t available on this router'),
+        fmt(
+          _('The portal needs %s. It can’t start without them.'),
+          new Intl.ListFormat(locale(), { type: 'conjunction' }).format(need.https),
+        ),
         'https',
-        'Install',
+        _('Install'),
       )
     : '';
   const acmeRow =
@@ -328,62 +336,70 @@ export function portalCard(host: SettingsHost): HTMLElement {
       ? missingRow(
           'lock',
           '',
-          'Free certificate from Let’s Encrypt',
-          `ACME isn’t installed. With it the router gets a certificate${s.portal_host ? ` for ${s.portal_host}` : ''} and browsers stop warning.`,
+          _('Free certificate from Let’s Encrypt'),
+          s.portal_host
+            ? fmt(_('ACME isn’t installed. With it the router gets a certificate for %s and browsers stop warning.'), s.portal_host)
+            : _('ACME isn’t installed. With it the router gets a certificate and browsers stop warning.'),
           'acme',
-          'Install ACME',
+          _('Install ACME'),
         )
       : '';
   const certRows = [
     E('div', { class: 'dl-row' }, [
       icon('lock'),
       E('span', { class: 'dl-row-main dl-stack' }, [
-        E('b', {}, [kind, until ? E('span', { class: 'dl-faint' }, ` · until ${until}`) : '']),
+        E('b', {}, [kind, until ? E('span', { class: 'dl-faint' }, ` · ${fmt(_('until %s'), until)}`) : '']),
         E(
           'span',
           { class: 'dl-sub dl-ellipsis', title: c?.path ?? '' },
           !c
-            ? 'Turn the portal on to see its certificate.'
+            ? _('Turn the portal on to see its certificate.')
             : c.self_signed
-              ? 'Made by the router: browsers warn until a certificate covers the address.'
-              : `${custom ? 'Your files' : 'Found automatically'} · ${c.path}`,
+              ? _('Made by the router: browsers warn until a certificate covers the address.')
+              : `${custom ? _('Your files') : _('Found automatically')} · ${c.path}`,
         ),
       ]),
     ]),
     E('div', { class: 'dl-row' }, [
       icon('file'),
       E('span', { class: 'dl-row-main dl-stack' }, [
-        E('b', {}, 'Your own files'),
-        E('span', { class: 'dl-sub' }, custom ? `${s.portal_cert} · ${s.portal_key}` : 'Not set: the certificate is picked automatically.'),
+        E('b', {}, _('Your own files')),
+        E(
+          'span',
+          { class: 'dl-sub' },
+          custom ? `${s.portal_cert} · ${s.portal_key}` : _('Not set: the certificate is picked automatically.'),
+        ),
       ]),
-      custom ? button('Reset', () => host.save({ portal_cert: '', portal_key: '' }, 'Automatic certificate', 'portal'), 'negative') : '',
-      button(custom ? 'Change' : 'Use files', certFiles),
+      custom
+        ? button(_('Reset'), () => host.save({ portal_cert: '', portal_key: '' }, _('Automatic certificate'), 'portal'), 'negative')
+        : '',
+      button(custom ? _('Change') : _('Use files'), certFiles),
     ]),
     acmeRow,
   ];
 
   return section(
     'portal',
-    'Personal portal',
+    _('Personal portal'),
     [
-      E('span', { class: 'dl-muted' }, 'A page where each person adds and manages their devices with their personal link.'),
+      E('span', { class: 'dl-muted' }, _('A page where each person adds and manages their devices with their personal link.')),
       httpsRow ? E('div', { class: 'dl-list' }, [httpsRow]) : '',
-      group('network', 'Port', 'How the portal listens (80 and 443 stay free)', [listenRow]),
-      group('edit', 'Appearance', 'What people see', [redirectRow]),
-      group('link', 'Addresses', 'Pick one or more; the first is the main link', [
+      group('network', _('Port'), _('How the portal listens (80 and 443 stay free)'), [listenRow]),
+      group('edit', _('Appearance'), _('What people see'), [redirectRow]),
+      group('link', _('Addresses'), _('Pick one or more; the first is the main link'), [
         opts,
         E('div', { class: 'dl-stack gap8' }, [
           links,
-          E('span', { class: 'dl-sub' }, 'Example code; each person gets their own three words.'),
+          E('span', { class: 'dl-sub' }, _('Example code; each person gets their own three words.')),
         ]),
       ]),
-      group('lock', 'Certificate', 'Used for HTTPS links', certRows),
+      group('lock', _('Certificate'), _('Used for HTTPS links'), certRows),
       readyEl,
     ],
     [
       E('span'),
       button(
-        'Save',
+        _('Save'),
         () => {
           // The help lines already say what is wrong: do not send it anyway.
           const bad = firstBad([listenRow, redirectRow]);
@@ -399,7 +415,7 @@ export function portalCard(host: SettingsHost): HTMLElement {
               portal_port: port.value,
               portal_redirect: redirect.value.trim(),
             },
-            'Saved',
+            _('Saved'),
             'portal',
           );
         },

@@ -19,35 +19,31 @@ export interface Scenario {
   about: string;
 }
 
-/** What can be tried, in the picker's groups. */
-export const GROUPS: { title: string; items: Scenario[] }[] = [
-  {
-    title: 'Your page',
-    items: [
-      { id: 'normal', label: 'Everything works', about: 'Three devices: one online, one waiting to be set up.' },
-      { id: 'first', label: 'First visit', about: 'A fresh link with no devices yet.' },
-      { id: 'stale', label: 'Settings changed', about: 'The admin changed something: a device needs an update.' },
-    ],
-  },
-  {
-    title: 'Stopped by the admin',
-    items: [
-      { id: 'quota', label: 'Out of data', about: 'The month’s limit is used up.' },
-      { id: 'hours', label: 'Outside allowed hours', about: 'Access only at certain hours of the day.' },
-      { id: 'paused', label: 'Paused by the admin', about: 'The page turns into one card.' },
-      { id: 'expired', label: 'Access ended', about: 'The end date has passed.' },
-    ],
-  },
-  {
-    title: 'Other cases',
-    items: [
-      { id: 'http', label: 'Opened over plain HTTP', about: 'Settings only travel over HTTPS.' },
-      { id: 'plain', label: 'Plain WireGuard', about: 'Disguise off: any WireGuard app connects.' },
-      { id: 'full', label: 'No free slots', about: 'Every device slot is taken.' },
-    ],
-  },
+/** What can be tried, in the picker's groups (their words are groups()). */
+const GROUPS: ScenarioId[][] = [
+  ['normal', 'first', 'stale'],
+  ['quota', 'hours', 'paused', 'expired'],
+  ['http', 'plain', 'full'],
 ];
-export const SCENARIOS: Scenario[] = GROUPS.flatMap((g) => g.items);
+export const SCENARIOS: { id: ScenarioId }[] = GROUPS.flat().map((id) => ({ id }));
+
+/** The picker's groups in the page's language: made when it draws (the language changes in place). */
+export function groups(): { title: string; items: Scenario[] }[] {
+  const titles = [_('Your page'), _('Stopped by the admin'), _('Other cases')];
+  const words: Record<ScenarioId, [label: string, about: string]> = {
+    normal: [_('Everything works'), _('Three devices: one online, one waiting to be set up.')],
+    first: [_('First visit'), _('A fresh link with no devices yet.')],
+    stale: [_('Settings changed'), _('The admin changed something: a device needs an update.')],
+    quota: [_('Out of data'), _('The month’s limit is used up.')],
+    hours: [_('Outside allowed hours'), _('Access only at certain hours of the day.')],
+    paused: [_('Paused by the admin'), _('The page turns into one card.')],
+    expired: [_('Access ended'), _('The end date has passed.')],
+    http: [_('Opened over plain HTTP'), _('Settings only travel over HTTPS.')],
+    plain: [_('Plain WireGuard'), _('Disguise off: any WireGuard app connects.')],
+    full: [_('No free slots'), _('Every device slot is taken.')],
+  };
+  return GROUPS.map((ids, i) => ({ title: titles[i], items: ids.map((id) => ({ id, label: words[id][0], about: words[id][1] })) }));
+}
 export const isScenario = (id: unknown): id is ScenarioId => SCENARIOS.some((s) => s.id === id);
 
 /** A device as the demo keeps it; the page's Device is made from it on every answer. */

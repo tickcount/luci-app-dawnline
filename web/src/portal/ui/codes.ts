@@ -98,7 +98,12 @@ export function linkRow(url: string): HTMLElement {
     h('span', { class: 'mono' }, url.replace(/^https?:\/\//, '')),
     h(
       'button',
-      { type: 'button', class: 'knob', 'aria-label': 'Copy the link', onclick: (ev: Event) => copy(url, 'Link copied', ev.currentTarget) },
+      {
+        type: 'button',
+        class: 'knob',
+        'aria-label': _('Copy the link'),
+        onclick: (ev: Event) => copy(url, _('Link copied'), ev.currentTarget),
+      },
       ic('copy'),
     ),
     share
@@ -107,7 +112,7 @@ export function linkRow(url: string): HTMLElement {
           {
             type: 'button',
             class: 'knob',
-            'aria-label': 'Share the link',
+            'aria-label': _('Share the link'),
             onclick: () => navigator.share({ url, title: placeName() }).catch(() => undefined),
           },
           ic('share'),

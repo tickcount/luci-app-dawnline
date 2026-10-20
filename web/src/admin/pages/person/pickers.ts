@@ -8,6 +8,7 @@ import { dropdown } from '../../ui/menu';
 import { attachTip } from '../../ui/tooltip';
 import { icon } from '../../../shared/icons';
 import { ago, initials } from '../../../shared/format';
+import { fill, fmt, plural } from '../../../shared/i18n';
 import { circleDialog, circleDot, homeAccess } from '../../access';
 import type { PersonPage } from './index';
 
@@ -19,8 +20,8 @@ export function dnsPicker(page: PersonPage): HTMLElement {
   const p = page.p;
   const choice = seg(
     [
-      ['device', 'Device’s own DNS'],
-      ['home', 'Home names'],
+      ['device', _('Device’s own DNS')],
+      ['home', _('Home names')],
     ],
     p.dns_mode,
     {
@@ -30,7 +31,9 @@ export function dnsPicker(page: PersonPage): HTMLElement {
       onChange: (v) =>
         page.patch(
           { dns_mode: v },
-          v === 'home' ? 'Home names on — devices need their configuration again' : 'Device DNS — devices need their configuration again',
+          v === 'home'
+            ? _('Home names on - devices need their configuration again')
+            : _('Device DNS - devices need their configuration again'),
         ),
     },
   );
@@ -41,15 +44,19 @@ export function dnsPicker(page: PersonPage): HTMLElement {
       'span',
       { class: 'dl-sub' },
       p.dns_mode === 'home'
-        ? [
-            'Names like ',
-            E('span', { class: 'dl-mono' }, `nas.${page.st.settings.domain}`),
-            ' work. Internet names are resolved at home, so they depend on the tunnel',
-            fb
-              ? [' (', E('span', { class: 'dl-mono' }, fb), ' takes over when it is down).']
-              : ' — with no fallback set, they stop when it is down.',
-          ]
-        : 'Internet keeps working exactly as without the VPN. Reach home devices by IP address.',
+        ? fb
+          ? fill(
+              _('Names like %s work. Internet names are resolved at home, so they depend on the tunnel (%s takes over when it is down).'),
+              E('span', { class: 'dl-mono' }, `nas.${page.st.settings.domain}`),
+              E('span', { class: 'dl-mono' }, fb),
+            )
+          : fill(
+              _(
+                'Names like %s work. Internet names are resolved at home, so they depend on the tunnel - with no fallback set, they stop when it is down.',
+              ),
+              E('span', { class: 'dl-mono' }, `nas.${page.st.settings.domain}`),
+            )
+        : _('Internet keeps working exactly as without the VPN. Reach home devices by IP address.'),
     ),
   ]);
 }
@@ -72,11 +79,11 @@ export function netsPicker(page: PersonPage): HTMLElement | '' {
           () => {
             const next = new Set(picked);
             if (!next.delete(h.dev)) next.add(h.dev);
-            if (!next.size) return notify('Keep at least one network, or choose Internet only.', 'warning', 5000);
+            if (!next.size) return notify(_('Keep at least one network, or choose Internet only.'), 'warning', 5000);
             const list = next.size === all.length ? [] : [...next];
             void page.patch(
               { home_nets: list },
-              list.length ? `${p.name} reaches ${list.join(', ')}` : `${p.name} reaches every home network`,
+              list.length ? fmt(_('%s reaches %s'), p.name, list.join(', ')) : fmt(_('%s reaches every home network'), p.name),
             );
           },
           { title: h.nets.join(', ') },
@@ -87,8 +94,8 @@ export function netsPicker(page: PersonPage): HTMLElement | '' {
       'span',
       { class: 'dl-sub' },
       p.home_nets?.length
-        ? `Home networks ${p.name} reaches. Networks added to the server later stay out.`
-        : `Home networks ${p.name} reaches: all of them. Untick one to keep ${p.name} out of it.`,
+        ? fmt(_('Home networks %s reaches. Networks added to the server later stay out.'), p.name)
+        : fmt(_('Home networks %s reaches: all of them. Untick one to keep %s out of it.'), p.name, p.name),
     ),
   ]);
 }
@@ -108,7 +115,7 @@ export function servicesPicker(page: PersonPage): HTMLElement {
             // A copy: the chips show the saved choice until the router has it (a failed save changes nothing).
             const next = new Set(chosen);
             if (!next.delete(sv.id)) next.add(sv.id);
-            void page.patch({ services: [...next] }, next.size ? 'Home services updated' : 'Whole home network');
+            void page.patch({ services: [...next] }, next.size ? _('Home services updated') : _('Whole home network'));
           },
           { title: `${sv.address}${sv.ports.length ? ` · ${sv.ports.join(', ')}` : ''}` },
         ),
@@ -117,7 +124,7 @@ export function servicesPicker(page: PersonPage): HTMLElement {
     E(
       'span',
       { class: 'dl-sub' },
-      chosen.size ? 'Only the selected services at home.' : 'Whole home network. Pick services to narrow it down.',
+      chosen.size ? _('Only the selected services at home.') : _('Whole home network. Pick services to narrow it down.'),
     ),
   ]);
 }
@@ -141,20 +148,22 @@ export function circleTile(page: PersonPage): HTMLElement | '' {
           ...circles.map((c) => ({
             label: c.name,
             icon: circleDot(c),
-            run: () => c.id !== p.circle && page.patch({ circle: c.id }, `${p.name} is in ${c.name}`),
+            run: () => c.id !== p.circle && page.patch({ circle: c.id }, fmt(_('%s is in %s'), p.name, c.name)),
           })),
-          p.circle ? { label: 'No circle', icon: icon('x'), run: () => page.patch({ circle: '' }, `${p.name} is in no circle`) } : null,
-          { label: 'New circle', icon: icon('plus'), run: () => circleDialog(st, p.server, null, () => page.refresh()) },
+          p.circle
+            ? { label: _('No circle'), icon: icon('x'), run: () => page.patch({ circle: '' }, fmt(_('%s is in no circle'), p.name)) }
+            : null,
+          { label: _('New circle'), icon: icon('plus'), run: () => circleDialog(st, p.server, null, () => page.refresh()) },
         ]),
     },
-    'Change',
+    _('Change'),
   );
   // As the other tiles: the name is the value; who is in it as avatars.
   const people = ci ? st.people.filter((x) => x.circle === ci.id && homeAccess(x)) : [p];
   return E('div', { class: 'dl-tile2' }, [
-    E('div', { class: 'dl-tile2-label' }, [E('span', {}, 'Devices see each other'), change]),
+    E('div', { class: 'dl-tile2-label' }, [E('span', {}, _('Devices see each other')), change]),
     E('div', { class: 'dl-tile2-row' }, [
-      E('span', { class: 'dl-tile2-value' }, ci ? ci.name : 'No circle'),
+      E('span', { class: 'dl-tile2-value' }, ci ? ci.name : _('No circle')),
       E(
         'span',
         { class: 'dl-avstack', title: people.map((x) => x.name).join(', ') },
@@ -164,7 +173,11 @@ export function circleTile(page: PersonPage): HTMLElement | '' {
     E(
       'span',
       { class: 'dl-sub' },
-      !ci ? `Only ${p.name}'s own devices` : mates.length ? [p.name, ...mates].join(', ') : `Nobody else in ${ci.name} yet`,
+      !ci
+        ? fmt(_("Only %s's own devices"), p.name)
+        : mates.length
+          ? [p.name, ...mates].join(', ')
+          : fmt(_('Nobody else in %s yet'), ci.name),
     ),
   ]);
 }
@@ -180,11 +193,17 @@ export function devTile(page: PersonPage): HTMLElement {
     const over = i >= p.device_limit;
     const slot = E('i', { class: over ? 'over' : d ? 'used' : '' });
     attachTip(slot, () => [
-      E('div', { class: 'dl-tip-title' }, d ? `${d.name}${over ? ' · over the limit' : ''}` : 'Free slot'),
+      E('div', { class: 'dl-tip-title' }, d ? `${d.name}${over ? ` · ${_('over the limit')}` : ''}` : _('Free slot')),
       E(
         'div',
         { class: 'dl-muted' },
-        d ? (d.online ? 'Connected' : d.handshake ? `Last seen ${ago(d.handshake, now)}` : 'Not set up yet') : 'They can add a device here',
+        d
+          ? d.online
+            ? _('Connected')
+            : d.handshake
+              ? fmt(_('Last seen %s'), ago(d.handshake, now))
+              : _('Not set up yet')
+          : _('They can add a device here'),
       ),
     ]);
     slots.appendChild(slot);
@@ -194,7 +213,7 @@ export function devTile(page: PersonPage): HTMLElement {
     'button',
     {
       type: 'button',
-      'aria-label': 'Allow fewer devices',
+      'aria-label': _('Allow fewer devices'),
       disabled: p.device_limit <= floor ? 'disabled' : null,
       click: () => page.patch({ device_limit: String(p.device_limit - 1) }),
     },
@@ -202,11 +221,11 @@ export function devTile(page: PersonPage): HTMLElement {
   );
   if (p.device_limit <= floor && p.devices.length > 1)
     attachTip(minus, () => [
-      E('div', { class: 'dl-tip-title' }, `${p.devices.length} devices in use`),
-      E('div', { class: 'dl-muted' }, 'Remove a device first to lower the limit'),
+      E('div', { class: 'dl-tip-title' }, plural(p.devices.length, '%s device in use', '%s devices in use')),
+      E('div', { class: 'dl-muted' }, _('Remove a device first to lower the limit')),
     ]);
   return E('div', { class: 'dl-tile2' }, [
-    E('div', { class: 'dl-tile2-label' }, 'Devices'),
+    E('div', { class: 'dl-tile2-label' }, _('Devices')),
     E('div', { class: 'dl-tile2-row' }, [
       E('span', { class: 'dl-tile2-value' }, [String(p.devices.length), E('span', { class: 'dl-faint' }, ` / ${p.device_limit}`)]),
       E('div', { class: 'dl-stepper' }, [
@@ -215,7 +234,7 @@ export function devTile(page: PersonPage): HTMLElement {
           'button',
           {
             type: 'button',
-            'aria-label': 'Allow more devices',
+            'aria-label': _('Allow more devices'),
             disabled: p.device_limit >= 32 ? 'disabled' : null,
             click: () => page.patch({ device_limit: String(p.device_limit + 1) }),
           },

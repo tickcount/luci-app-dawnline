@@ -24,7 +24,7 @@ import { expiresHelp, limitHelp, nameHelp, quotaHelp } from '../netcheck';
 import { coreFor } from '../cores';
 import { icon } from '../../shared/icons';
 import {
-  KIND_LABEL,
+  kindLabel,
   addMonthsClamped,
   ago,
   bits,
@@ -38,6 +38,7 @@ import {
   initials,
   todayOf,
 } from '../../shared/format';
+import { fill, fmt, num, plural } from '../../shared/i18n';
 
 type Sid = string;
 
@@ -64,13 +65,13 @@ function slotBar(p: Person): HTMLElement {
   const n = Math.max(1, p.device_limit, used);
   // 22px a segment until the bar is 160px long; past that the segments get thinner, so the count stays close.
   const width = Math.min(160, n * 22 + (n - 1) * 3);
-  return E('div', { class: 'dl-slotbar', title: `${used} of ${p.device_limit} devices` }, [
+  return E('div', { class: 'dl-slotbar', title: fmt(N_(p.device_limit, '%s of %s device', '%s of %s devices'), used, p.device_limit) }, [
     E(
       'span',
       { class: 'dl-slotbar-segs', style: `width: ${width}px` },
-      Array.from({ length: n }, (_, i) => E('i', { class: i >= p.device_limit ? 'over' : i < used ? 'used' : '' })),
+      Array.from({ length: n }, (_x, i) => E('i', { class: i >= p.device_limit ? 'over' : i < used ? 'used' : '' })),
     ),
-    E('span', { class: 'dl-slotbar-text' }, `${used} of ${p.device_limit}`),
+    E('span', { class: 'dl-slotbar-text' }, fmt(_('%s of %s'), used, p.device_limit)),
   ]);
 }
 
@@ -201,8 +202,8 @@ export class PeoplePage {
             'div',
             { class: 'dl-plist-none' },
             this.st.servers.length
-              ? 'No people yet. Add someone and send them their personal link.'
-              : 'Set up the server first, then add people.',
+              ? _('No people yet. Add someone and send them their personal link.')
+              : _('Set up the server first, then add people.'),
           ),
     );
     this.decorate();
@@ -229,7 +230,7 @@ export class PeoplePage {
       'select',
       {
         class: 'dl-select',
-        'aria-label': 'Sort',
+        'aria-label': _('Sort'),
         change: (ev: Event) => {
           page.sort = (ev.target as HTMLSelectElement).value as SortBy;
           remember('dl.people.sort', page.sort);
@@ -237,17 +238,17 @@ export class PeoplePage {
         },
       },
       [
-        E('option', { value: 'seen', selected: page.sort === 'seen' ? 'selected' : null }, 'Last seen'),
-        E('option', { value: 'name', selected: page.sort === 'name' ? 'selected' : null }, 'Name'),
-        E('option', { value: 'usage', selected: page.sort === 'usage' ? 'selected' : null }, 'Usage'),
+        E('option', { value: 'seen', selected: page.sort === 'seen' ? 'selected' : null }, _('Last seen', 'sort')),
+        E('option', { value: 'name', selected: page.sort === 'name' ? 'selected' : null }, _('Name', 'sort')),
+        E('option', { value: 'usage', selected: page.sort === 'usage' ? 'selected' : null }, _('Usage', 'sort')),
       ],
     );
     // Find, once the list is long enough to need it; "/" focuses it.
     const find = E('input', {
       type: 'search',
       class: 'cbi-input-text dl-people-find',
-      placeholder: 'Find…',
-      'aria-label': 'Find a person or device',
+      placeholder: _('Find…'),
+      'aria-label': _('Find a person or device'),
       hidden: st.people.length > 8 ? null : 'hidden',
       input: (ev: Event) => {
         page.query = (ev.target as HTMLInputElement).value.trim().toLowerCase();
@@ -268,25 +269,28 @@ export class PeoplePage {
         ? ''
         : E('div', { class: 'dl-pagehead' }, [
             E('div', { class: 'dl-stack' }, [
-              E('h2', { class: 'dl-h1' }, 'People'),
+              E('h2', { class: 'dl-h1' }, _('People')),
               E('span', { class: 'dl-muted dl-people-count' }, this.countText()),
             ]),
-            st.servers.length ? button([icon('plus'), ' Add person'], () => page.openCreate(), 'add') : '',
+            st.servers.length ? button([icon('plus'), ` ${_('Add person')}`], () => page.openCreate(), 'add') : '',
           ]),
       st.servers.length
         ? ''
-        : E('div', { class: 'alert-message warning' }, [
-            'No server yet. ',
-            E('a', { href: L.url('admin/network/dawnline/server') }, 'Run the setup wizard'),
-            ' before adding people.',
-          ]),
+        : E(
+            'div',
+            { class: 'alert-message warning' },
+            fill(
+              _('No server yet. %s before adding people.'),
+              E('a', { href: L.url('admin/network/dawnline/server') }, _('Run the setup wizard')),
+            ),
+          ),
       E('div', { class: 'dl-toolbar' }, [
         E('div', { class: 'dl-seg dl-people-tabs', role: 'tablist' }),
         // Sort and add stay together on the right, wrapping as one group.
         E('div', { class: 'dl-toolbar-end' }, [
           find,
           sort,
-          page.serverId ? button([icon('plus'), ' Add person'], () => page.openCreate(), 'add') : '',
+          page.serverId ? button([icon('plus'), ` ${_('Add person')}`], () => page.openCreate(), 'add') : '',
         ]),
       ]),
       this.list,
@@ -311,7 +315,11 @@ export class PeoplePage {
 
   countText(): string {
     const t = this.st.totals;
-    return `${t.people} ${t.people === 1 ? 'person' : 'people'} · ${t.devices} device${t.devices === 1 ? '' : 's'} · ${t.online} online`;
+    return [
+      plural(t.people, '%s person', '%s people'),
+      plural(t.devices, '%s device', '%s devices'),
+      fmt(_('%s online'), num(t.online)),
+    ].join(' · ');
   }
 
   /** Row classes, counters, filter tabs and sort order; a `quiet` repaint keeps focused tabs. */
@@ -329,7 +337,7 @@ export class PeoplePage {
     };
     const tabs = this.el?.querySelector<HTMLElement>('.dl-people-tabs');
     if (tabs && !(quiet && focusInside(tabs))) {
-      const label: Record<Filter, string> = { all: 'All', online: 'Online', attention: 'Needs attention', paused: 'Paused' };
+      const label: Record<Filter, string> = { all: _('All'), online: _('Online'), attention: _('Needs attention'), paused: _('Paused') };
       dom.content(
         tabs,
         (Object.keys(label) as Filter[]).map((f) =>
@@ -385,7 +393,7 @@ export class PeoplePage {
     // Say so when the filter leaves nobody.
     let none = this.el?.querySelector<HTMLElement>('.dl-people-none') ?? null;
     if (people.length && !shown) {
-      none ??= E('div', { class: 'dl-empty dl-people-none' }, E('p', {}, 'No one here right now.'));
+      none ??= E('div', { class: 'dl-empty dl-people-none' }, E('p', {}, _('No one here right now.')));
       if (none.previousElementSibling !== this.list) this.list.after(none);
     } else none?.remove();
   }
@@ -397,7 +405,7 @@ export class PeoplePage {
   renderCard(node: HTMLElement, sid: Sid): HTMLElement {
     const p = this.person(sid);
     if (!p) {
-      dom.content(node, E('em', {}, 'This person was just removed.'));
+      dom.content(node, E('em', {}, _('This person was just removed.')));
       return node;
     }
     const today = this.today;
@@ -413,14 +421,14 @@ export class PeoplePage {
       const soon = endsSoon(p, left);
       const over = left != null && left < 0;
       pills.push(
-        E('span', { class: `dl-pill-ic${over ? ' bad' : soon ? ' warn' : ''}`, title: `Access ends ${date(p.expires)}` }, [
+        E('span', { class: `dl-pill-ic${over ? ' bad' : soon ? ' warn' : ''}`, title: fmt(_('Access ends %s'), date(p.expires)) }, [
           icon('calendar'),
-          over ? `ended ${date(p.expires)}` : soon ? endsIn(left as number) : `until ${date(p.expires)}`,
+          over ? fmt(_('ended %s'), date(p.expires)) : soon ? endsIn(left as number) : fmt(_('until %s'), date(p.expires)),
         ]),
       );
     }
     if (p.hours && why !== 'hours')
-      pills.push(E('span', { class: 'dl-pill-ic', title: 'Allowed hours' }, [icon('clock'), p.hours.replace('-', '–')]));
+      pills.push(E('span', { class: 'dl-pill-ic', title: _('Allowed hours') }, [icon('clock'), p.hours.replace('-', '–')]));
 
     const chips = byDeviceState(p.devices).map((d) => {
       return E(
@@ -428,7 +436,13 @@ export class PeoplePage {
         {
           type: 'button',
           class: `dl-chip${d.disabled ? ' disabled' : ''}${d.online ? ' live' : ''}`,
-          title: `${KIND_LABEL[d.kind]} · ${d.address}${d.online ? ` · online from ${d.endpoint}` : d.handshake ? ` · seen ${ago(d.handshake, this.st.now)}` : ''}`,
+          title: [
+            kindLabel(d.kind),
+            d.address,
+            d.online ? fmt(_('online from %s'), d.endpoint) : d.handshake ? fmt(_('seen %s'), ago(d.handshake, this.st.now)) : '',
+          ]
+            .filter(Boolean)
+            .join(' · '),
           click: (ev: Event) => {
             ev.preventDefault();
             void openDevice(p, d, this.deviceOpts(p));
@@ -437,7 +451,7 @@ export class PeoplePage {
         [
           icon(d.kind),
           E('span', { class: 'dl-chip-name' }, d.name),
-          !d.handshake && !d.disabled ? E('span', { class: 'dl-chip-tag' }, 'not set up') : '',
+          !d.handshake && !d.disabled ? E('span', { class: 'dl-chip-tag' }, _('not set up')) : '',
           // Online shows as the green chip (.dl-chip.live); no dots.
         ],
       );
@@ -449,13 +463,13 @@ export class PeoplePage {
         {
           type: 'button',
           class: 'dl-chip add',
-          title: free > 0 ? 'Add device' : 'Over the limit: admins can still add',
+          title: free > 0 ? _('Add device') : _('Over the limit: admins can still add'),
           click: (ev: Event) => {
             ev.preventDefault();
             addDevice(p, this.deviceOpts(p));
           },
         },
-        [icon('plus'), 'Add device'],
+        [icon('plus'), _('Add device')],
       ),
     );
 
@@ -465,20 +479,24 @@ export class PeoplePage {
       fixes.push(
         E(
           'button',
-          { type: 'button', class: 'dl-fix', click: () => this.quick(p, { expires: addMonth(p.expires, today) }, 'Extended by 1 month') },
-          'Extend 1 month',
+          {
+            type: 'button',
+            class: 'dl-fix',
+            click: () => this.quick(p, { expires: addMonth(p.expires, today) }, _('Extended by 1 month')),
+          },
+          _('Extend 1 month'),
         ),
       );
 
     const more = iconButton(
       'more',
-      'More',
+      _('More'),
       (ev: MouseEvent) =>
         dropdown(
           ev.currentTarget as HTMLElement,
           [
             {
-              label: 'Open',
+              label: _('Open'),
               icon: icon('open'),
               run: () => {
                 location.href = personUrl(p.id);
@@ -486,27 +504,27 @@ export class PeoplePage {
             },
             portal
               ? {
-                  label: 'Invite card',
+                  label: _('Invite card'),
                   icon: icon('qr'),
-                  run: () => inviteCard(p, this.st.servers.find((s) => s.id === p.server)?.name ?? 'Home'),
+                  run: () => inviteCard(p, this.st.servers.find((s) => s.id === p.server)?.name ?? _('Home')),
                 }
               : null,
-            free > 0 ? { label: 'Add device', icon: icon('plus'), run: () => addDevice(p, this.deviceOpts(p)) } : null,
+            free > 0 ? { label: _('Add device'), icon: icon('plus'), run: () => addDevice(p, this.deviceOpts(p)) } : null,
             null,
             {
-              label: p.paused ? 'Resume' : 'Pause',
+              label: p.paused ? _('Resume') : _('Pause'),
               icon: icon(p.paused ? 'play' : 'pause'),
               warn: !p.paused,
               run: () => this.togglePause(p),
             },
-            { label: 'Delete', icon: icon('trash'), danger: true, run: () => this.remove(p.id) },
+            { label: _('Delete'), icon: icon('trash'), danger: true, run: () => this.remove(p.id) },
           ].filter((x, i, a) => x || (i > 0 && a[i - 1])) as MenuItem[],
         ),
       'neutral',
       'dl-icon-only',
     );
     const actions = E('div', { class: 'dl-pcard-actions' }, [
-      portal ? iconButton('link', 'Copy link', () => copyPersonLink(p.id), 'neutral', 'dl-icon-only') : '',
+      portal ? iconButton('link', _('Copy link'), () => copyPersonLink(p.id), 'neutral', 'dl-icon-only') : '',
       more,
     ]);
 
@@ -541,28 +559,34 @@ export class PeoplePage {
     const today = this.today;
     // The month's data resets on the 1st (router time).
     const reset = addMonthsClamped(`${today.slice(0, 8)}01`, 1);
-    const extra = () => this.quick(p, { bonus_gb: String((p.bonus_gb || 0) + 10) }, '+10 GB this month');
+    const extra = () => this.quick(p, { bonus_gb: String((p.bonus_gb || 0) + 10) }, _('+10 GB this month'));
     const what: Record<typeof why, [string, 'warn' | 'bad', string, string, [string, string, () => unknown] | null]> = {
-      paused: ['pause', 'warn', 'Paused', 'Devices can’t connect until you resume', ['play', 'Resume', () => this.togglePause(p)]],
+      paused: ['pause', 'warn', _('Paused'), _('Devices can’t connect until you resume'), ['play', _('Resume'), () => this.togglePause(p)]],
       quota:
         p.quota_period === 'month'
-          ? ['chart', 'bad', 'Data limit reached', `Paused until it resets on ${date(reset)}`, ['plus', '+10 GB this month', extra]]
+          ? [
+              'chart',
+              'bad',
+              _('Data limit reached'),
+              fmt(_('Paused until it resets on %s'), date(reset)),
+              ['plus', _('+10 GB this month'), extra],
+            ]
           : [
               'chart',
               'bad',
-              'Data limit reached',
-              'Paused until the limit is raised',
-              ['edit', 'Change limit', () => (location.href = personUrl(p.id))],
+              _('Data limit reached'),
+              _('Paused until the limit is raised'),
+              ['edit', _('Change limit'), () => (location.href = personUrl(p.id))],
             ],
       expired: [
         'calendar',
         'bad',
-        `Access ended ${date(p.expires)}`,
-        'Devices can’t connect',
-        ['calendar', 'Extend 1 month', () => this.quick(p, { expires: addMonth(p.expires, today) }, 'Extended by 1 month')],
+        fmt(_('Access ended %s'), date(p.expires)),
+        _('Devices can’t connect'),
+        ['calendar', _('Extend 1 month'), () => this.quick(p, { expires: addMonth(p.expires, today) }, _('Extended by 1 month'))],
       ],
-      hours: ['clock', 'warn', 'Outside allowed hours', `Access ${p.hours.replace('-', '–')} (router time)`, null],
-      no_server: ['alert', 'warn', 'No server', 'Choose a server on their page', null],
+      hours: ['clock', 'warn', _('Outside allowed hours'), fmt(_('Access %s (router time)'), p.hours.replace('-', '–')), null],
+      no_server: ['alert', 'warn', _('No server'), _('Choose a server on their page'), null],
     };
     const [ic, tone, title, sub, act] = what[why];
     return E('div', { class: `dl-pstrip ${tone}` }, [
@@ -586,16 +610,18 @@ export class PeoplePage {
       fill.style.width = `${pct}%`;
       bar.appendChild(fill);
       attachTip(bar, () => [
-        E('div', { class: 'dl-tip-title' }, `${pct.toFixed(1)}% used`),
+        E('div', { class: 'dl-tip-title' }, fmt(_('%s%% used'), num(pct, 1))),
         E(
           'div',
           { class: 'dl-muted' },
-          `${bytes(p.quota_used)} of ${bytes(p.quota_limit)} · ${bytes(Math.max(0, p.quota_limit - p.quota_used))} left`,
+          `${fmt(_('%s of %s'), bytes(p.quota_used), bytes(p.quota_limit))} · ${fmt(_('%s left'), bytes(Math.max(0, p.quota_limit - p.quota_used)))}`,
         ),
         E(
           'div',
           { class: 'dl-faint' },
-          p.quota_period === 'total' ? 'In total' : `This month${p.bonus_gb ? ` · includes +${p.bonus_gb} GB extra` : ''}`,
+          p.quota_period === 'total'
+            ? _('In total')
+            : [_('This month'), p.bonus_gb ? fmt(_('includes +%s GB extra'), num(p.bonus_gb)) : ''].filter(Boolean).join(' · '),
         ),
       ]);
     } else {
@@ -610,7 +636,7 @@ export class PeoplePage {
       });
       if (devs.length)
         attachTip(bar, () => [
-          E('div', { class: 'dl-tip-title' }, 'This month by device'),
+          E('div', { class: 'dl-tip-title' }, _('This month by device')),
           ...devs.map((x, i) =>
             E('div', { class: 'dl-tip-row' }, [
               E('span', { class: `dl-swatch c${Math.min(i, 4)}` }),
@@ -621,12 +647,12 @@ export class PeoplePage {
         ]);
     }
 
-    const limitText = p.quota_limit ? `${bytes(Math.max(0, p.quota_limit - p.quota_used))} left` : 'no limit';
+    const limitText = p.quota_limit ? fmt(_('%s left'), bytes(Math.max(0, p.quota_limit - p.quota_used))) : _('no limit');
     return E('div', { class: 'dl-pside' }, [
       E('div', { class: 'dl-pside-top' }, [
         live
-          ? E('span', { class: 'dl-pside-state live' }, 'Online')
-          : E('span', { class: 'dl-pside-state' }, p.online ? 'Online' : p.last_seen ? 'Offline' : 'Never connected'),
+          ? E('span', { class: 'dl-pside-state live' }, _('Online'))
+          : E('span', { class: 'dl-pside-state' }, p.online ? _('Online') : p.last_seen ? _('Offline') : _('Never connected')),
         actions,
       ]),
       E('div', { class: 'dl-use-num' }, [
@@ -634,38 +660,50 @@ export class PeoplePage {
         E(
           'span',
           { class: 'dl-faint' },
-          p.quota_limit ? `of ${bytes(p.quota_limit)}` : p.quota_period === 'total' && p.quota_gb ? 'in total' : 'this month',
+          p.quota_limit
+            ? fmt(_('of %s'), bytes(p.quota_limit))
+            : p.quota_period === 'total' && p.quota_gb
+              ? _('in total')
+              : _('this month'),
         ),
       ]),
       bar,
       live
-        ? E('div', { class: 'dl-use-live', title: 'Right now' }, [`↓ ${bits(r![2])}`, E('span', { class: 'dl-faint' }, `↑ ${bits(r![1])}`)])
-        : E('div', { class: 'dl-faint dl-pside-foot' }, today ? `today ${bytes(today)} · ${limitText}` : limitText),
+        ? E('div', { class: 'dl-use-live', title: _('Right now') }, [
+            `↓ ${bits(r![2])}`,
+            E('span', { class: 'dl-faint' }, `↑ ${bits(r![1])}`),
+          ])
+        : E('div', { class: 'dl-faint dl-pside-foot' }, today ? `${fmt(_('today %s'), bytes(today))} · ${limitText}` : limitText),
     ]);
   }
 
   async togglePause(p: Person) {
-    if (await attempt(() => api.personPause(p.id, !p.paused), p.paused ? `${p.name} resumed` : `${p.name} paused`)) await this.refresh();
+    if (await attempt(() => api.personPause(p.id, !p.paused), fmt(p.paused ? _('%s resumed') : _('%s paused'), p.name)))
+      await this.refresh();
   }
 
   async remove(sid: Sid) {
     const p = this.person(sid);
     const ok = await confirmDialog(
-      `Remove ${p?.name ?? sid}?`,
-      `All ${p?.devices.length ?? 0} devices are disconnected immediately and the personal link stops working. Usage history is kept in backups.`,
-      'Remove',
+      fmt(_('Remove %s?'), p?.name ?? sid),
+      plural(
+        p?.devices.length ?? 0,
+        '%s device is disconnected immediately and the personal link stops working. Usage history is kept in backups.',
+        'All %s devices are disconnected immediately and the personal link stops working. Usage history is kept in backups.',
+      ),
+      _('Remove'),
       true,
     );
-    if (ok && (await attempt(() => api.personDelete(sid), 'Person removed'))) await this.refresh();
+    if (ok && (await attempt(() => api.personDelete(sid), _('Person removed')))) await this.refresh();
   }
 
   openCreate() {
     const st = this.st;
     if (!st.servers.length) {
-      notify('Set up the server first.', 'warning');
+      notify(_('Set up the server first.'), 'warning');
       return;
     }
-    const name = E('input', { type: 'text', class: 'cbi-input-text', placeholder: 'e.g. Myata', maxlength: 48 }) as HTMLInputElement;
+    const name = E('input', { type: 'text', class: 'cbi-input-text', placeholder: _('e.g. Myata'), maxlength: 48 }) as HTMLInputElement;
     // The last person's access and data limit come back pre-filled (most are alike).
     const last = (() => {
       try {
@@ -688,7 +726,7 @@ export class PeoplePage {
       class: 'cbi-input-text',
       min: 0,
       step: 'any',
-      placeholder: 'Unlimited',
+      placeholder: _('Unlimited'),
       value: last.quota ?? '',
     }) as HTMLInputElement;
     const quick = (label: string, months: number) =>
@@ -721,26 +759,32 @@ export class PeoplePage {
       ]);
     // Each field says what its value means, or what is wrong, as it is typed; Create refuses what the router would.
     const today = todayOf(st.series);
-    const nameRow = liveField('Name', name, () => nameHelp(name.value, [], 'Shown in their portal and apps.'));
-    const limitRow = liveField('Devices', limit, () => limitHelp(limit.value));
+    const nameRow = liveField(_('Name', 'person'), name, () => nameHelp(name.value, [], _('Shown in their portal and apps.')));
+    const limitRow = liveField(_('Devices'), limit, () => limitHelp(limit.value));
     const expRow = liveField(
-      'End date',
+      _('End date'),
       expires,
       () => expiresHelp(expires.value, today, daysLeft, date),
-      E('div', { class: 'dl-actions' }, [expires, quick('1 month', 1), quick('3 months', 3), quick('1 year', 12), quick('None', 0)]),
+      E('div', { class: 'dl-actions' }, [
+        expires,
+        quick(_('1 month'), 1),
+        quick(_('3 months'), 3),
+        quick(_('1 year'), 12),
+        quick(_('None', 'end date'), 0),
+      ]),
     );
-    const quotaRow = liveField('Monthly data (GB)', quota, () => quotaHelp(quota.value));
+    const quotaRow = liveField(_('Monthly data (GB)'), quota, () => quotaHelp(quota.value));
     // The quick buttons set the date without an input event.
     expires.addEventListener('change', () => expRow.refresh());
     const portalOn = st.settings.portal_enabled;
 
     modal(
-      'Add person',
+      _('Add person'),
       [
         nameRow,
-        server ? row('Server', server) : '',
+        server ? row(_('Server'), server) : '',
         E('div', { class: 'cbi-value dl-block' }, [
-          E('label', { class: 'cbi-value-title' }, 'Access'),
+          E('label', { class: 'cbi-value-title' }, _('Access')),
           E('div', { class: 'cbi-value-field' }, access.el),
         ]),
         limitRow,
@@ -752,7 +796,7 @@ export class PeoplePage {
         ' ',
         button(
           // Without the portal there is no link to copy.
-          portalOn ? 'Create and copy link' : 'Create',
+          portalOn ? _('Create and copy link') : _('Create'),
           async () => {
             const bad = firstBad([nameRow, limitRow, expRow, quotaRow]);
             if (bad) {
@@ -774,7 +818,7 @@ export class PeoplePage {
             if (!r) return;
             remember('dl.person.last', JSON.stringify({ access: access.get(), quota: quota.value.trim() }));
             // After the await some browsers refuse the clipboard: the card has its own Copy.
-            if (r.link) await copyText(r.link, 'Personal link copied', true);
+            if (r.link) await copyText(r.link, _('Personal link copied'), true);
             this.showCreated(r.id, name.value.trim(), r.link, st.servers.find((x) => x.id === (server?.value ?? srv.id))?.name ?? srv.name);
             await this.refresh();
           },
@@ -788,28 +832,28 @@ export class PeoplePage {
   showCreated(id: string, name: string, link: string | null, server: string) {
     if (link) {
       inviteCard({ id, name, link }, server, {
-        title: `${name} is ready`,
-        lead: `Send ${name} the card or the link. They open it, add their devices and connect — no account needed.`,
+        title: fmt(_('%s is ready'), name),
+        lead: fmt(_('Send %s the card or the link. They open it, add their devices and connect - no account needed.'), name),
       });
       return;
     }
     // No portal, no link: the two ways on from here, as buttons.
     const p = this.person(id);
     modal(
-      `${name} is ready`,
-      [E('p', {}, 'Created. Turn on the personal portal in Settings to get a link, or add devices for them here.')],
+      fmt(_('%s is ready'), name),
+      [E('p', {}, _('Created. Turn on the personal portal in Settings to get a link, or add devices for them here.'))],
       [
-        E('button', { class: 'cbi-button cbi-button-neutral', click: closeModal }, 'Done'),
+        E('button', { class: 'cbi-button cbi-button-neutral', click: closeModal }, _('Done')),
         ' ',
         E(
           'a',
           { class: 'cbi-button cbi-button-neutral', href: `${L.url('admin/network/dawnline/settings')}?section=portal` },
-          'Open Settings',
+          _('Open Settings'),
         ),
         ' ',
         p
           ? button(
-              'Add device',
+              _('Add device'),
               () => {
                 closeModal();
                 addDevice(p, this.deviceOpts(p));

@@ -6,6 +6,8 @@
 // Layout: no navbar, a breadcrumb on top. Phone: "Your access" first, devices
 // under it; desktop (≥ 960px): devices left, access right and sticky.
 
+// First: the translation globals, before anything draws.
+import { onLang } from './i18n';
 import { put, h } from './dom';
 import { EASE_OUT, play, publishSprings } from './motion';
 import { gone, call } from './api';
@@ -26,6 +28,8 @@ const app = document.getElementById('app')!;
 
 let parts: { notice: HTMLElement; devices: HTMLElement; access: HTMLElement } | null = null;
 let booted = false;
+/** How the page was last drawn: what a language change draws again. */
+let redraw: () => void = () => {};
 
 /** The first paint comes in: the blocks rise one after the other, the sun rises behind its line. */
 function intro() {
@@ -65,6 +69,7 @@ function intro() {
 function render(o: RepaintOpts = {}) {
   const st = state();
   if (!st) return;
+  redraw = render;
   // Paused by the admin: nothing on the page works until it is resumed, so the page is the one card that says so.
   if (st.person.state === 'paused') {
     document.title = placeName();
@@ -101,7 +106,14 @@ function only(icon: string, title: string, text: string, gone = false, tone: Ton
 function linkGone() {
   setState(null);
   closeSheet(true);
-  only('key', 'This link no longer works', 'Ask for a new one.', true);
+  redraw = linkGone;
+  only('key', _('This link no longer works'), _('Ask for a new one.'), true);
+}
+
+/** Nothing could load: the reason as the router or the browser gave it. */
+function notLoaded(why: string) {
+  redraw = () => notLoaded(why);
+  only('server', _('The page could not load'), why);
 }
 
 /**
@@ -130,9 +142,16 @@ async function refresh() {
   } catch (e) {
     if (gone(e)) linkGone();
     // A network hiccup: keep showing the last state (the page loads fresh data on reload).
-    else if (!state()) only('server', 'The page could not load', (e as Error).message);
+    else if (!state()) notLoaded((e as Error).message);
   }
 }
+
+// Another language: everything is drawn again in it, the sections too (their headings are text).
+onLang(() => {
+  closeMenu(true);
+  parts = null;
+  redraw();
+});
 
 // What the keyboard does never animates.
 document.addEventListener('keydown', (e) => {

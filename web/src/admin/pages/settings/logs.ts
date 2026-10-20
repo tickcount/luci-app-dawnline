@@ -7,8 +7,9 @@ import { attempt } from '../../ui/toast';
 import { chipToggle, seg, setChip } from '../../ui/controls';
 import { row } from '../../ui/layout';
 import { icon } from '../../../shared/icons';
-import { fmtDay, kb, plural } from '../../../shared/format';
-import { CATEGORIES, CATEGORY_HELP, CATEGORY_LABEL, retentionText } from '../../events/model';
+import { fmtDay, kb } from '../../../shared/format';
+import { fmt, num, plural } from '../../../shared/i18n';
+import { CATEGORIES, categoryHelp, categoryLabel, retentionText } from '../../events/model';
 import { clearLogDialog, exportEvents, resetUsageDialog } from '../../logs';
 import { section, type SettingsHost } from './common';
 
@@ -17,54 +18,54 @@ export function logsCard(host: SettingsHost): HTMLElement {
   const p = L.policy;
   const keep = seg(
     [
-      ['7', '7 days'],
-      ['30', '30 days'],
-      ['90', '90 days'],
-      ['365', '1 year'],
-      ['0', 'No limit'],
+      ['7', plural(7, '%s day', '%s days')],
+      ['30', plural(30, '%s day', '%s days')],
+      ['90', plural(90, '%s day', '%s days')],
+      ['365', plural(1, '%s year', '%s years')],
+      ['0', _('No limit', 'retention')],
     ],
     String(p.keep_days),
-    { label: 'Keep activity', cls: 'sm' },
+    { label: _('Keep activity'), cls: 'sm' },
   );
   const size = seg(
     [
-      ['500', '500'],
-      ['2000', '2,000'],
-      ['5000', '5,000'],
-      ['20000', '20,000'],
+      ['500', num(500)],
+      ['2000', num(2000)],
+      ['5000', num(5000)],
+      ['20000', num(20000)],
     ],
     String(p.max),
-    { label: 'Maximum events', cls: 'sm' },
+    { label: _('Maximum events'), cls: 'sm' },
   );
   const persist = seg(
     [
-      ['10min', 'Every 10 min'],
-      ['hourly', 'Hourly'],
-      ['off', 'Memory only'],
+      ['10min', _('Every 10 min')],
+      ['hourly', _('Hourly')],
+      ['off', _('Memory only')],
     ],
     p.persist,
-    { label: 'Save to flash', cls: 'sm' },
+    { label: _('Save to flash'), cls: 'sm' },
   );
   const days = seg(
     [
-      ['31', '1 month'],
-      ['62', '2 months'],
-      ['180', '6 months'],
-      ['365', '1 year'],
-      ['730', '2 years'],
+      ['31', plural(1, '%s month', '%s months')],
+      ['62', plural(2, '%s month', '%s months')],
+      ['180', plural(6, '%s month', '%s months')],
+      ['365', plural(1, '%s year', '%s years')],
+      ['730', plural(2, '%s year', '%s years')],
     ],
     String(p.usage_days),
-    { label: 'Daily traffic', cls: 'sm' },
+    { label: _('Daily traffic'), cls: 'sm' },
   );
   const months = seg(
     [
-      ['12', '1 year'],
-      ['24', '2 years'],
-      ['60', '5 years'],
-      ['120', '10 years'],
+      ['12', plural(1, '%s year', '%s years')],
+      ['24', plural(2, '%s year', '%s years')],
+      ['60', plural(5, '%s year', '%s years')],
+      ['120', plural(10, '%s year', '%s years')],
     ],
     String(p.usage_months),
-    { label: 'Monthly traffic', cls: 'sm' },
+    { label: _('Monthly traffic'), cls: 'sm' },
   );
   const chosen = new Set(p.categories);
   const cats = E(
@@ -72,13 +73,13 @@ export function logsCard(host: SettingsHost): HTMLElement {
     { class: 'dl-chips-row' },
     CATEGORIES.map((c) => {
       const b = chipToggle(
-        [CATEGORY_LABEL[c], E('b', {}, String(L.by_category[c] ?? 0))],
+        [categoryLabel(c), E('b', {}, num(L.by_category[c] ?? 0))],
         chosen.has(c),
         () => {
           if (!chosen.delete(c)) chosen.add(c);
           setChip(b, chosen.has(c));
         },
-        { title: CATEGORY_HELP[c] },
+        { title: categoryHelp(c) },
       );
       return b;
     }),
@@ -91,72 +92,83 @@ export function logsCard(host: SettingsHost): HTMLElement {
       E('span', { class: 'dl-row-main dl-stack' }, [E('b', {}, title), E('span', { class: 'dl-sub' }, detail)]),
       ...actions,
     ]);
-  const exportBtn = (fmt: 'csv' | 'json') =>
+  const exportBtn = (kind: 'csv' | 'json') =>
     button(
-      fmt.toUpperCase(),
+      kind.toUpperCase(),
       async () => {
         const [st, ev] = await Promise.all([api.status(1), api.events(20000)]);
-        exportEvents(st, ev.events, fmt);
+        exportEvents(st, ev.events, kind);
       },
       'neutral',
-      { title: `Download the log as ${fmt.toUpperCase()}` },
+      { title: fmt(_('Download the log as %s'), kind.toUpperCase()) },
     );
 
   return section(
     'logs',
-    'Logs & history',
+    _('Logs & history'),
     [
       E('p', { class: 'dl-muted' }, retentionText(p)),
-      row('Keep activity', keep, 'Older events are removed automatically.'),
-      row('Maximum size', size, 'Newest events are kept when the log is full.'),
-      row('Record', cats, 'Switched-off categories are not logged from now on.'),
+      row(_('Keep activity'), keep, _('Older events are removed automatically.')),
+      row(_('Maximum size'), size, _('Newest events are kept when the log is full.')),
+      row(_('Record'), cats, _('Switched-off categories are not logged from now on.')),
       row(
-        'Save to flash',
+        _('Save to flash'),
         persist,
-        'The log lives in memory and is copied to flash. Memory only saves flash writes but is lost on reboot.',
+        _('The log lives in memory and is copied to flash. Memory only saves flash writes but is lost on reboot.'),
       ),
-      row('Daily traffic', days, 'Per-day history behind the charts.'),
-      row('Monthly traffic', months, 'Per-month totals; data limits use the current month.'),
-      E('h4', { class: 'dl-setsub' }, 'Stored data'),
+      row(_('Daily traffic'), days, _('Per-day history behind the charts.')),
+      row(_('Monthly traffic'), months, _('Per-month totals; data limits use the current month.')),
+      E('h4', { class: 'dl-setsub' }, _('Stored data')),
       E('div', { class: 'dl-list' }, [
         stored(
           'activity',
-          'Activity log',
+          _('Activity log'),
           L.events
-            ? `${plural(L.events, 'event')} since ${since} · ${kb(L.log_ram)} in memory${p.persist === 'off' ? '' : `, ${kb(L.log_flash)} on flash`}`
-            : 'Empty',
+            ? `${fmt(_('%s since %s'), plural(L.events, '%s event', '%s events'), since)} · ${
+                p.persist === 'off'
+                  ? fmt(_('%s in memory'), kb(L.log_ram))
+                  : fmt(_('%s in memory, %s on flash'), kb(L.log_ram), kb(L.log_flash))
+              }`
+            : _('Empty'),
           [
             exportBtn('csv'),
             exportBtn('json'),
             button(
-              'Clear',
-              () => clearLogDialog('Clear activity', 'Removes events from the log on the router.', {}, () => host.reload('logs')),
+              _('Clear'),
+              () => clearLogDialog(_('Clear activity'), _('Removes events from the log on the router.'), {}, () => host.reload('logs')),
               'negative',
             ),
           ],
         ),
         stored(
           'chart',
-          'Traffic history',
+          _('Traffic history'),
           // usage_since is a router day (YYYY-MM-DD): shown as that day in any time zone.
-          L.usage_days ? `${plural(L.usage_days, 'day')} since ${fmtDay(L.usage_since)} · ${kb(L.usage_flash)} on flash` : 'Empty',
-          [button('Reset', () => resetUsageDialog('all', '', '', () => setTimeout(() => host.reload('logs'), 300)), 'negative')],
+          L.usage_days
+            ? `${fmt(_('%s since %s'), plural(L.usage_days, '%s day', '%s days'), fmtDay(L.usage_since))} · ${fmt(_('%s on flash'), kb(L.usage_flash))}`
+            : _('Empty'),
+          [button(_('Reset'), () => resetUsageDialog('all', '', '', () => setTimeout(() => host.reload('logs'), 300)), 'negative')],
         ),
-        stored('pin', 'Location cache', `${plural(host.d.geo_cached, 'address', 'addresses')} · ${kb(L.geo_flash)} on flash`, [
-          button(
-            'Clear',
-            async () => {
-              if (await attempt(() => api.geoClear(), 'Location cache cleared')) await host.reload('logs');
-            },
-            'negative',
-          ),
-        ]),
+        stored(
+          'pin',
+          _('Location cache'),
+          `${plural(host.d.geo_cached, '%s address', '%s addresses')} · ${fmt(_('%s on flash'), kb(L.geo_flash))}`,
+          [
+            button(
+              _('Clear'),
+              async () => {
+                if (await attempt(() => api.geoClear(), _('Location cache cleared'))) await host.reload('logs');
+              },
+              'negative',
+            ),
+          ],
+        ),
       ]),
     ],
     [
-      E('span', { class: 'dl-sub' }, 'Clear one person or device from their own page.'),
+      E('span', { class: 'dl-sub' }, _('Clear one person or device from their own page.')),
       button(
-        'Save',
+        _('Save'),
         () =>
           host.save(
             {
@@ -167,7 +179,7 @@ export function logsCard(host: SettingsHost): HTMLElement {
               usage_keep_months: months.dataset.value!,
               log_category: [...chosen],
             },
-            'Saved',
+            _('Saved'),
             'logs',
           ),
         'positive',

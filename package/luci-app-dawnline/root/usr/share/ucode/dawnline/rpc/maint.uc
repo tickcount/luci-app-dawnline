@@ -1,6 +1,7 @@
 // Dawnline rpcd methods: Diagnostics (Health, the service log), backups,
 // export / import, and removing Dawnline.
 
+import { _ } from 'dawnline.i18n';
 import { slog_clear, admin_log } from 'dawnline.util';
 import * as core from 'dawnline.core';
 import * as apply from 'dawnline.apply';
@@ -49,10 +50,10 @@ function import_all(a) {
 /** Remove Dawnline's state from the router (the package is removed by the UI afterwards). */
 function uninstall(a) {
 	if (a.confirm != 'remove')
-		die('Type "remove" to confirm.');
+		die(_('Type "remove" to confirm.'));
 	// Not in the middle of an update (opkg/apk may be installing Dawnline itself).
 	if (upd.busy())
-		die('An update is running: wait for it to finish, then remove Dawnline.');
+		die(_('An update is running: wait for it to finish, then remove Dawnline.'));
 	backup.backup_create('pre-remove');
 	// Stop first: the agent would put back what teardown removes, and could start an automatic update.
 	system('/etc/init.d/dawnline stop >/dev/null 2>&1; /etc/init.d/dawnline disable >/dev/null 2>&1');

@@ -12,11 +12,11 @@ export function showPageCode() {
     const el = h(
       'div',
       { class: 'view' },
-      head('Open on another device'),
-      sub('Point its camera at the code: this page opens there.'),
+      head(_('Open on another device')),
+      sub(_('Point its camera at the code: this page opens there.')),
       qrBox(url, true),
       linkRow(url),
     );
-    return { el, label: 'Open on another device' };
+    return { el, label: _('Open on another device') };
   });
 }

@@ -4,9 +4,10 @@
 
 import { cursor } from 'uci';
 import {
-	valid_name, valid_key, valid_host, valid_date, slugify, host_label, ucut, NAME_RULE, parse_cidr, cidr_overlaps, int2ip, ip2int,
+	valid_name, valid_key, valid_host, valid_date, slugify, host_label, ucut, name_rule, parse_cidr, cidr_overlaps, int2ip, ip2int,
 	rand_hex, rand_bytes, date_end, month_key, read_json, DATA_DIR, RUN_DIR, uniq
 } from 'dawnline.util';
+import { _, N_ } from 'dawnline.i18n';
 import * as net from 'dawnline.net';
 import * as schema from 'dawnline.schema';
 import { policy as updates_policy } from 'dawnline.updates';
@@ -481,35 +482,35 @@ export function new_code() {
 
 export function create_person(c, m, a) {
 	if (!valid_name(a.name))
-		fail(NAME_RULE);
+		fail(name_rule());
 	// The id is a UCI section name: letters, digits and underscores only (a dash
 	// makes uci drop the section). Repeated names get _2, _3, …
 	let base = replace(a.slug ?? slugify(a.name), /-/g, '_');
 	if (!match(base, /^[a-z0-9_]{1,32}$/))
-		fail('The id may use lowercase letters, digits and underscores.');
+		fail(_('The id may use lowercase letters, digits and underscores.'));
 	// Any kind of section (store.id_taken, which imports this module).
 	let taken = (id) => m.people[id] || m.servers[id] || m.devices[id] || m.services[id] || m.circles[id] ||
 		index([ 'settings', 'main', 'global', 'defaults' ], id) >= 0;
 	let slug = base;
 	for (let n = 2; taken(slug); n++) {
 		if (n > 99)
-			fail(`"${base}" is already taken.`);
+			fail(sprintf(_('"%s" is already taken.'), base));
 		slug = `${substr(base, 0, 28)}_${n}`;
 	}
 	let srv_id = a.server ?? keys(m.servers)[0];
 	if (!m.servers[srv_id])
-		fail('Set up a server first.');
+		fail(_('Set up a server first.'));
 	let access = a.access ?? 'internet';
 	if (index(ACCESS, access) < 0)
-		fail('Access must be lan, internet or both.');
+		fail(_('Access must be lan, internet or both.'));
 	let limit = toint(a.device_limit, m.settings.default_device_limit);
 	if (limit < 1 || limit > 32)
-		fail('Device limit must be between 1 and 32.');
+		fail(_('Device limit must be between 1 and 32.'));
 	if (a.expires && !valid_date(a.expires))
-		fail('End date must be YYYY-MM-DD.');
+		fail(_('End date must be YYYY-MM-DD.'));
 	let quota = num(a.quota_gb, 0);
 	if (quota < 0 || quota > 100000)
-		fail('Monthly data must be a positive number of GB.');
+		fail(_('Monthly data must be a positive number of GB.'));
 
 	c.set(CONFIG, slug, 'person');
 	c.set(CONFIG, slug, 'server', srv_id);
@@ -535,52 +536,53 @@ export function create_person(c, m, a) {
 export function update_person(c, m, id, a) {
 	let p = m.people[id];
 	if (!p)
-		fail('Unknown person.');
+		fail(_('Unknown person.'));
 	let set = (k, v) => (v == null || v == '') ? c.delete(CONFIG, id, k) : c.set(CONFIG, id, k, `${v}`);
 	if (a.name != null) {
 		if (!valid_name(a.name))
-			fail(NAME_RULE);
+			fail(name_rule());
 		set('name', trim(a.name));
 	}
 	if (a.access != null) {
 		if (index(ACCESS, a.access) < 0)
-			fail('Access must be lan, internet or both.');
+			fail(_('Access must be lan, internet or both.'));
 		set('access', a.access);
 	}
 	if (a.device_limit != null) {
 		let n = toint(a.device_limit, 0);
 		if (n < 1 || n > 32)
-			fail('Device limit must be between 1 and 32.');
+			fail(_('Device limit must be between 1 and 32.'));
 		let have = length(p.devices);
 		if (n < have)
-			fail(`${p.name} already has ${have} devices. Remove one first to lower the limit to ${n}.`);
+			fail(sprintf(N_(have, '%s already has %d device. Remove one first to lower the limit to %d.',
+				'%s already has %d devices. Remove one first to lower the limit to %d.'), p.name, have, n));
 		set('device_limit', n);
 	}
 	if (a.expires != null) {
 		if (a.expires != '' && !valid_date(a.expires))
-			fail('End date must be YYYY-MM-DD.');
+			fail(_('End date must be YYYY-MM-DD.'));
 		set('expires', a.expires);
 	}
 	if (a.expire_action != null) {
 		if (index([ 'pause', 'notify', 'remove' ], a.expire_action) < 0)
-			fail('Unknown end action.');
+			fail(_('Unknown end action.'));
 		set('expire_action', a.expire_action == 'pause' ? '' : a.expire_action);
 	}
 	if (a.dns_mode != null) {
 		if (index([ 'device', 'home' ], a.dns_mode) < 0)
-			fail('Unknown DNS choice.');
+			fail(_('Unknown DNS choice.'));
 		set('dns_mode', a.dns_mode == 'device' ? '' : a.dns_mode);
 	}
 	if (a.expire_warn != null) {
 		let n = toint(a.expire_warn, -1);
 		if (n < 0 || n > 60)
-			fail('Warning must be 0-60 days.');
+			fail(_('Warning must be 0-60 days.'));
 		set('expire_warn', n == 3 ? '' : n);
 	}
 	if (a.quota_gb != null) {
 		let q = num(a.quota_gb, -1);
 		if (a.quota_gb != '' && (q < 0 || q > 100000))
-			fail('Data limit must be a positive number of GB.');
+			fail(_('Data limit must be a positive number of GB.'));
 		set('quota_gb', q > 0 ? q : '');
 	}
 	if (a.quota_period != null)
@@ -588,13 +590,13 @@ export function update_person(c, m, id, a) {
 	if (a.bonus_gb != null) {
 		let b = num(a.bonus_gb, -1);
 		if (b < 0 || b > 100000)
-			fail('Extra data must be a positive number of GB.');
+			fail(_('Extra data must be a positive number of GB.'));
 		set('bonus_gb', b > 0 ? b : '');
 		set('bonus_month', b > 0 ? month_key() : '');
 	}
 	if (a.hours != null) {
 		if (a.hours != '' && !parse_hours(a.hours))
-			fail('Hours must look like 07:00-23:00.');
+			fail(_('Hours must look like 07:00-23:00.'));
 		set('hours', a.hours);
 	}
 	if (a.note != null)
@@ -602,7 +604,7 @@ export function update_person(c, m, id, a) {
 	if (type(a.services) == 'array') {
 		for (let sid in a.services)
 			if (!m.services[sid])
-				fail(`Unknown service ${sid}.`);
+				fail(sprintf(_('Unknown service %s.'), sid));
 		if (length(a.services))
 			c.set(CONFIG, id, 'service', a.services);
 		else
@@ -611,7 +613,7 @@ export function update_person(c, m, id, a) {
 	if (a.circle != null) {
 		let ci = m.circles[a.circle];
 		if (a.circle != '' && (!ci || ci.server != p.server))
-			fail('Unknown circle.');
+			fail(_('Unknown circle.'));
 		set('circle', a.circle);
 	}
 	// Another server: every device gets an address in its tunnel (so each
@@ -619,13 +621,13 @@ export function update_person(c, m, id, a) {
 	// server's and go.
 	if (a.server != null && a.server != '' && a.server != p.server) {
 		if (!m.servers[a.server])
-			fail('Unknown server.');
+			fail(_('Unknown server.'));
 		set('server', a.server);
 		p.server = a.server;
 		for (let did in p.devices) {
 			let addr = alloc_address(m, m.servers[a.server]);
 			if (!addr)
-				fail(`No free address left on ${m.servers[a.server].name}.`);
+				fail(sprintf(_('No free address left on %s.'), m.servers[a.server].name));
 			m.devices[did].address = addr;
 			c.set(CONFIG, did, 'address', addr);
 		}
@@ -652,29 +654,29 @@ export function create_device(c, m, person_id, name, kind, opts) {
 	opts ??= {};
 	let p = m.people[person_id];
 	if (!p)
-		fail('Unknown person.');
+		fail(_('Unknown person.'));
 	let srv = m.servers[p.server];
 	if (!srv)
-		fail('The person has no server.');
+		fail(_('The person has no server.'));
 	name = trim(name ?? '');
 	if (!valid_name(name))
-		fail('Enter a device name (up to 48 characters).');
+		fail(_('Enter a device name (up to 48 characters).'));
 	if (index(KINDS, kind) < 0)
 		kind = 'other';
 	if (opts.by == 'portal' && length(p.devices) >= p.device_limit)
-		fail(`Device limit reached (${p.device_limit}).`);
+		fail(sprintf(_('Device limit reached (%d).'), p.device_limit));
 	for (let id in p.devices)
 		if (lc(m.devices[id].name) == lc(name))
-			fail(`"${name}" already exists.`);
+			fail(sprintf(_('"%s" already exists.'), name));
 	let addr = alloc_address(m, srv);
 	if (!addr)
-		fail('No free addresses left in the server subnet.');
+		fail(_('No free addresses left in the server subnet.'));
 	let k = opts.keys ?? {};
 	if (!valid_key(k.public_key))
-		fail('Key generation failed (is amneziawg-tools installed?).');
+		fail(_('Key generation failed (is amneziawg-tools installed?).'));
 	for (let o, d in m.devices)
 		if (d.public_key == k.public_key)
-			fail('This key is already in use.');
+			fail(_('This key is already in use.'));
 
 	let id = `d_${rand_hex(4)}`;
 	let dev = { id, person: person_id, name, kind, address: addr, public_key: k.public_key, private_key: k.private_key ?? '',
@@ -699,13 +701,13 @@ export function create_device(c, m, person_id, name, kind, opts) {
 export function rename_device(c, m, id, name) {
 	let d = m.devices[id];
 	if (!d)
-		fail('Unknown device.');
+		fail(_('Unknown device.'));
 	name = trim(name ?? '');
 	if (!valid_name(name))
-		fail('Enter a device name (up to 48 characters).');
+		fail(_('Enter a device name (up to 48 characters).'));
 	for (let o in m.people[d.person]?.devices ?? [])
 		if (o != id && lc(m.devices[o].name) == lc(name))
-			fail(`"${name}" already exists.`);
+			fail(sprintf(_('"%s" already exists.'), name));
 	c.set(CONFIG, id, 'name', name);
 	d.name = name;
 };
@@ -713,7 +715,7 @@ export function rename_device(c, m, id, name) {
 export function delete_device(c, m, id) {
 	let d = m.devices[id];
 	if (!d)
-		fail('Unknown device.');
+		fail(_('Unknown device.'));
 	c.delete(CONFIG, id);
 	let p = m.people[d.person];
 	if (p)
@@ -725,9 +727,9 @@ export function delete_device(c, m, id) {
 export function rotate_device(c, m, id, keys) {
 	let d = m.devices[id];
 	if (!d)
-		fail('Unknown device.');
+		fail(_('Unknown device.'));
 	if (!valid_key(keys?.public_key) || !keys?.private_key)
-		fail('Key generation failed.');
+		fail(_('Key generation failed.'));
 	c.set(CONFIG, id, 'private_key', keys.private_key);
 	c.set(CONFIG, id, 'public_key', keys.public_key);
 	if (keys.preshared_key)
@@ -737,7 +739,7 @@ export function rotate_device(c, m, id, keys) {
 export function delete_person(c, m, id) {
 	let p = m.people[id];
 	if (!p)
-		fail('Unknown person.');
+		fail(_('Unknown person.'));
 	for (let d in p.devices)
 		c.delete(CONFIG, d);
 	c.delete(CONFIG, id);
@@ -757,20 +759,20 @@ export function private_cidr(c) {
 export function server_errors(m, srv, others_subnets) {
 	let errs = [];
 	if (!valid_ifname(srv.ifname))
-		push(errs, 'Interface name: 1-12 lowercase letters, digits or _.');
+		push(errs, _('Interface name: 1-12 lowercase letters, digits or _.'));
 	if (srv.port < 1 || srv.port > 65535)
-		push(errs, 'Port must be 1-65535.');
+		push(errs, _('Port must be 1-65535.'));
 	let c = parse_cidr(srv.subnet);
 	if (!c)
-		push(errs, 'Subnet must look like 10.77.0.0/24.');
+		push(errs, _('Subnet must look like 10.77.0.0/24.'));
 	else
 		for (let o in others_subnets ?? []) {
 			let oc = parse_cidr(o);
 			if (oc && cidr_overlaps(c, oc))
-				push(errs, `Subnet overlaps ${o}.`);
+				push(errs, sprintf(_('Subnet overlaps %s.'), o));
 		}
 	if (srv.endpoint != '' && !valid_host(srv.endpoint))
-		push(errs, 'Endpoint must be a hostname or IP address.');
+		push(errs, _('Endpoint must be a hostname or IP address.'));
 	return errs;
 };
 
@@ -788,52 +790,55 @@ export function model_errors(m) {
 	let errs = [];
 	let codes = {}, addrs = {};
 	for (let id, p in m.people) {
-		let who = `Person ${p.name}`;
 		if (p.server != '' && !m.servers[p.server])
-			push(errs, `${who}: server ${p.server} does not exist.`);
+			push(errs, sprintf(_('Person %s: server %s does not exist.'), p.name, p.server));
 		if (p.circle != '' && !m.circles[p.circle])
-			push(errs, `${who}: circle ${p.circle} does not exist.`);
+			push(errs, sprintf(_('Person %s: circle %s does not exist.'), p.name, p.circle));
 		for (let sid in p.services)
 			if (!m.services[sid])
-				push(errs, `${who}: home service ${sid} does not exist.`);
+				push(errs, sprintf(_('Person %s: home service %s does not exist.'), p.name, sid));
 		if (p.code != '') {
 			if (codes[p.code])
-				push(errs, `${who}: has the same personal link as ${codes[p.code]}.`);
+				push(errs, sprintf(_('Person %s: has the same personal link as %s.'), p.name, codes[p.code]));
 			codes[p.code] = p.name;
 		}
 	}
 	for (let id, d in m.devices) {
 		let p = m.people[d.person];
-		let who = `Device ${d.name}${p ? ` of ${p.name}` : ''}`;
 		if (!p) {
-			push(errs, `${who}: person ${d.person} does not exist.`);
+			push(errs, sprintf(_('Device %s: person %s does not exist.'), d.name, d.person));
 			continue;
 		}
+		let say = (msg, ...args) => push(errs, sprintf(msg, d.name, p.name, ...args));
 		if (!valid_key(d.public_key))
-			push(errs, `${who}: the public key is not a key.`);
+			say(_('Device %s of %s: the public key is not a key.'));
 		if (d.private_key != '' && !valid_key(d.private_key))
-			push(errs, `${who}: the private key is not a key.`);
+			say(_('Device %s of %s: the private key is not a key.'));
 		if (d.preshared_key != '' && !valid_key(d.preshared_key))
-			push(errs, `${who}: the preshared key is not a key.`);
+			say(_('Device %s of %s: the preshared key is not a key.'));
 		let n = ip2int(d.address);
 		if (n == null) {
-			push(errs, `${who}: address ${d.address || '(none)'} is not a plain IPv4 address.`);
+			if (d.address)
+				say(_('Device %s of %s: address %s is not a plain IPv4 address.'), d.address);
+			else
+				say(_('Device %s of %s: address (none) is not a plain IPv4 address.'));
 			continue;
 		}
 		let srv = m.servers[p.server];
 		let t = srv ? parse_cidr(srv.subnet) : null;
 		if (t && (n < t.first || n > t.last))
-			push(errs, `${who}: address ${d.address} is outside ${srv.name}'s tunnel ${srv.subnet}.`);
+			say(_("Device %s of %s: address %s is outside %s's tunnel %s."), d.address, srv.name, srv.subnet);
 		else if (t && n == t.first)
-			push(errs, `${who}: address ${d.address} is the router's own address on ${srv.name}.`);
+			say(_("Device %s of %s: address %s is the router's own address on %s."), d.address, srv.name);
 		let key = `${p.server} ${d.address}`;
-		if (addrs[key])
-			push(errs, `${who}: address ${d.address} is also used by ${addrs[key]}.`);
-		addrs[key] = who;
+		let o = addrs[key];
+		if (o)
+			say(_('Device %s of %s: address %s is also used by device %s of %s.'), d.address, o.device, o.person);
+		addrs[key] = { device: d.name, person: p.name };
 	}
 	for (let id, ci in m.circles)
 		if (!m.servers[ci.server])
-			push(errs, `Circle ${ci.name}: server ${ci.server} does not exist.`);
+			push(errs, sprintf(_('Circle %s: server %s does not exist.'), ci.name, ci.server));
 	return errs;
 };
 
@@ -854,7 +859,7 @@ export function renumber_server(c, m, srv, subnet) {
 			for (let did in p.devices) {
 				let addr = alloc_address(m, srv);
 				if (!addr)
-					fail(`${subnet} has no room for every device on ${srv.name}.`);
+					fail(sprintf(_('%s has no room for every device on %s.'), subnet, srv.name));
 				m.devices[did].address = addr;
 				c.set(CONFIG, did, 'address', addr);
 			}

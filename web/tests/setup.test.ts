@@ -94,13 +94,15 @@ describe('setup', () => {
   it('words the import as each platform’s app does', () => {
     expect(importPath('awg', 'ios')).toBe('+ → Create from file or archive');
     expect(importPath('awg', 'android')).toBe('+ → Import from file or archive');
-    expect(importPath('wg', 'windows')).toBe('Add Tunnel → Import tunnel(s) from file');
-    expect(importPath('vpn', 'ios')).toBe('Add server → Insert key');
+    expect(importPath('wg', 'windows')).toBe('Add Tunnel → Import tunnel(s) from file…');
+    expect(importPath('vpn', 'ios')).toBe('+ → Insert');
+    expect(scanPath('vpn')).toBe('+ → QR code');
+    expect(importPath('awg', 'unknown')).toBe('+ → Import from file or archive');
     expect(scanPath('awg', 'android')).toBe('+ → Scan from QR code');
     expect(scanPath('awg')).toBe('+ → Create from QR code (Android: Scan from QR code)');
     expect(importSteps('awg', 'mac', 'Outline-Home.conf', false)).toEqual([
       ['Open AmneziaWG', ''],
-      ['+ → ', 'Import tunnel(s) from file'],
+      ['+ → ', 'Import Tunnel(s) from File…'],
       ['Pick the file and connect', ''],
     ]);
     expect(importSteps('awg', 'linux', 'Outline-Home.conf', false)[1]).toEqual(['Run ', 'sudo awg-quick up ./Outline-Home.conf']);

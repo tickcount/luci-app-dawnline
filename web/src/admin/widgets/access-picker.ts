@@ -3,15 +3,15 @@
 import type { Person } from '../../shared/types';
 import { E } from '../e';
 import { icon } from '../../shared/icons';
-import { ACCESS_LABEL } from '../../shared/format';
+import { accessLabel } from '../../shared/format';
 
 /** Returns the element and a getter. */
 export function accessPicker(initial: Person['access'], onChange?: (v: Person['access']) => void) {
   let value = initial;
   const opts: { v: Person['access']; ic: string; text: string }[] = [
-    { v: 'internet', ic: 'globe', text: 'Browse the internet through your router. No access to devices at home.' },
-    { v: 'lan', ic: 'home', text: 'Reach devices at home (NAS, printer, cameras). Internet stays on their own connection.' },
-    { v: 'both', ic: 'shield', text: 'Home devices and the internet, all through your router.' },
+    { v: 'internet', ic: 'globe', text: _('Browse the internet through your router. No access to devices at home.') },
+    { v: 'lan', ic: 'home', text: _('Reach devices at home (NAS, printer, cameras). Internet stays on their own connection.') },
+    { v: 'both', ic: 'shield', text: _('Home devices and the internet, all through your router.') },
   ];
   const el = E(
     'div',
@@ -29,7 +29,7 @@ export function accessPicker(initial: Person['access'], onChange?: (v: Person['a
             onChange?.(o.v);
           },
         },
-        [E('span', { class: 'dl-choice-title' }, [icon(o.ic), ACCESS_LABEL[o.v]]), E('span', { class: 'dl-choice-text' }, o.text)],
+        [E('span', { class: 'dl-choice-title' }, [icon(o.ic), accessLabel(o.v)]), E('span', { class: 'dl-choice-text' }, o.text)],
       ),
     ),
   );

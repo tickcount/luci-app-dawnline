@@ -22,7 +22,8 @@
 //
 // Everything is derived from the router at run time; nothing assumes a
 // particular subnet or tool. If the LAN is not a bridge or setup fails, the
-// direct path stays and status() says why.
+// direct path stays and status() says why (kept as a code in loop.json, which
+// apply and the agent write with no language; error_text() makes the words).
 
 import { readfile, writefile, readlink, stat, unlink } from 'fs';
 import { cursor } from 'uci';
@@ -33,6 +34,7 @@ import * as net from 'dawnline.net';
 import * as core from 'dawnline.core';
 import * as store from 'dawnline.store';
 import * as resolver from 'dawnline.resolver';
+import { _, L_ } from 'dawnline.i18n';
 
 export const NS = 'dawnline';
 const TX_ROOT = net.INTERNAL.transit, TX_NS = 'dlx1', LAN_ROOT = net.INTERNAL.lan, LAN_NS = 'dll1';
@@ -40,7 +42,7 @@ const PREF_LOOP_DNS = 5205, PREF_MAIN = 5210, PREF_LOOP = 5290;
 export const RESOLVER_CONF = resolver.CONF;
 const STATE = `${RUN_DIR}/loop.json`;
 
-const WHO = 'Internet like a home device';
+const WHO = L_('Internet like a home device');
 
 function log(msg, level, detail) {
 	slog('dawnline', level ?? 'info', msg, detail, WHO);
@@ -180,6 +182,57 @@ function pick_table(saved) {
 	return null;
 }
 
+/* ---------- why it is off ---------- */
+
+/*
+ * The reasons plan() and ensure() give, kept in loop.json:
+ *   { code: 'no_lan' }                 no LAN detected
+ *   { code: 'not_bridge', dev }        the LAN is not a bridge
+ *   { code: 'no_ipv4', dev }           the LAN has no IPv4 address
+ *   { code: 'no_address', net }        no free address on the LAN's network
+ *   { code: 'no_transit' }             no free link-local range for the internal link
+ *   { code: 'no_table' }               no free routing table
+ *   { code: 'setup', detail }          a command failed (detail: it and what it said)
+ */
+
+/** A reason from plan() for the service log: English, like every log line. */
+function error_note(e) {
+	if (e.code == 'no_lan')
+		return L_('No LAN detected.');
+	if (e.code == 'not_bridge')
+		return sprintf(L_('%s is not a bridge, so Dawnline cannot join the LAN as a device.'), e.dev);
+	if (e.code == 'no_ipv4')
+		return sprintf(L_('%s has no IPv4 address.'), e.dev);
+	if (e.code == 'no_address')
+		return sprintf(L_('No free address on %s.'), e.net);
+	if (e.code == 'no_transit')
+		return L_('No free link-local range for the internal link.');
+	return L_('No free routing table.');
+}
+
+/**
+ * Why "like a home device" is off (a reason above), as a sentence in the
+ * reader's language. Null for none; the English of a loop.json written by an
+ * older version as it is.
+ */
+export function error_text(e) {
+	if (type(e) != 'object')
+		return e ?? null;
+	if (e.code == 'no_lan')
+		return _('No LAN detected.');
+	if (e.code == 'not_bridge')
+		return sprintf(_('%s is not a bridge, so Dawnline cannot join the LAN as a device.'), e.dev);
+	if (e.code == 'no_ipv4')
+		return sprintf(_('%s has no IPv4 address.'), e.dev);
+	if (e.code == 'no_address')
+		return sprintf(_('No free address on %s.'), e.net);
+	if (e.code == 'no_transit')
+		return _('No free link-local range for the internal link.');
+	if (e.code == 'no_table')
+		return _('No free routing table.');
+	return sprintf(_('Setup failed: %s'), e.detail);
+};
+
 /* ---------- plan ---------- */
 
 function settings() {
@@ -199,8 +252,8 @@ function all_ifnames(m) {
 }
 
 /**
- * What should exist, or { error } when it cannot. Pure apart from reading
- * router state (and one ping per candidate address).
+ * What should exist, or { error } (a reason, see error_text) when it cannot.
+ * Pure apart from reading router state (and one ping per candidate address).
  */
 export function plan(m) {
 	let srvs = wanted(m);
@@ -210,24 +263,24 @@ export function plan(m) {
 	let dev = snap.lan;
 	let d = snap.devices[dev];
 	if (!dev || !d)
-		return { error: 'No LAN detected.' };
+		return { error: { code: 'no_lan' } };
 	if (d.kind != 'bridge')
-		return { error: `${dev} is not a bridge, so Dawnline cannot join the LAN as a device.` };
+		return { error: { code: 'not_bridge', dev } };
 	let lan = parse_cidr(d.addrs[0]);
 	if (!lan)
-		return { error: `${dev} has no IPv4 address.` };
+		return { error: { code: 'no_ipv4', dev } };
 	let facts = dhcp_facts(d.logical, lan);
 	let st = settings();
 	let addr = pick_address(lan, facts, st.lan_address, dev);
 	if (!addr)
-		return { error: `No free address on ${int2ip(lan.net)}/${lan.prefix}.` };
+		return { error: { code: 'no_address', net: `${int2ip(lan.net)}/${lan.prefix}` } };
 	let last = read_json(STATE, {});
 	let tx = pick_transit(last?.transit);
 	if (tx == null)
-		return { error: 'No free link-local range for the internal link.' };
+		return { error: { code: 'no_transit' } };
 	let table = pick_table(last?.plan?.table);
 	if (table == null)
-		return { error: 'No free routing table.' };
+		return { error: { code: 'no_table' } };
 	let servers = [];
 	for (let srv in srvs) {
 		let sn = net.server_net(srv, snap);
@@ -362,8 +415,8 @@ export function ensure(m, force) {
 			remove(ifnames);
 		ensure_dir(RUN_DIR);
 		write_json(STATE, { error: p.error, off: !!p.off }, 0o644);
-		if (p.error && p.error != was.error)
-			log('is off', 'error', p.error);
+		if (p.error && sprintf('%J', p.error) != sprintf('%J', was.error))
+			log(L_('is off'), 'error', error_note(p.error));
 		return p;
 	}
 	let last = read_json(STATE, {});
@@ -411,18 +464,19 @@ export function ensure(m, force) {
 	push(errs, ...run(sync_rules(p, ifnames)));
 
 	if (length(errs)) {
-		if (read_json(STATE, {}).error != `Setup failed: ${errs[0]}`)
-			log('failed — internet goes out directly for now', 'error', errs[0]);
+		let why = { code: 'setup', detail: errs[0] };
+		if (sprintf('%J', read_json(STATE, {}).error) != sprintf('%J', why))
+			log(L_('failed - internet goes out directly for now'), 'error', errs[0]);
 		remove(ifnames);
-		write_json(STATE, { error: `Setup failed: ${errs[0]}` }, 0o644);
-		return { error: errs[0] };
+		write_json(STATE, { error: why }, 0o644);
+		return { error: why };
 	}
 	ensure_dir(RUN_DIR);
 	write_json(STATE, { applied: time(), plan: p, transit: p.transit }, 0o644);
 	if (!last.applied || last.plan?.dev != p.dev || last.plan?.address != p.address)
-		log(`is on · traffic enters ${p.dev} as ${p.address}`, 'up');
+		log(sprintf(L_('is on · traffic enters %s as %s'), p.dev, p.address), 'up');
 	else if (!healthy)
-		log(`was broken — set up again (${p.dev} as ${p.address})`, 'repair');
+		log(sprintf(L_('was broken - set up again (%s as %s)'), p.dev, p.address), 'repair');
 	return p;
 };
 
@@ -440,7 +494,7 @@ export function remember(p) {
 	});
 };
 
-/** Last applied state for views and health checks. */
+/** Last applied state for views and health checks; `error` says why it is off (error_text). */
 export function status() {
 	let s = read_json(STATE, {});
 	if (s.plan)
@@ -449,7 +503,7 @@ export function status() {
 			dev: s.plan.dev, address: s.plan.address, dns: s.plan.dns, gateway: s.plan.gateway, transit: s.plan.tx_ns,
 			bridged: replace(readlink(`/sys/class/net/${LAN_ROOT}/master`) ?? '', /^.*\//, '') == s.plan.dev,
 		};
-	return { active: false, off: !!s.off, error: s.error };
+	return { active: false, off: !!s.off, error: error_text(s.error) };
 };
 
 /** The DNS address tunnel clients should use while the loop is up. */

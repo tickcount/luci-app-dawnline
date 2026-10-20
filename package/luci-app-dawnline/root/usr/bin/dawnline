@@ -13,6 +13,7 @@ import * as watchdog from 'dawnline.watchdog';
 import * as awg from 'dawnline.awg';
 import * as store from 'dawnline.store';
 import * as devices from 'dawnline.devices';
+import { L_ } from 'dawnline.i18n';
 import {
 	VERSION, slog, slog_read, sh_out, q, take_iface_intent, read_json, write_json, ensure_dir, with_lock, RUN_DIR
 } from 'dawnline.util';
@@ -139,7 +140,7 @@ function ifup_failed(ifname, who) {
 		return out;
 	});
 	if (r)
-		slog('awg', 'error', r.n > 1 ? `couldn't start · ${r.n} failed attempts in ${r.mins} min` : "couldn't start",
+		slog('awg', 'error', r.n > 1 ? sprintf(L_("couldn't start · %d failed attempts in %d min"), r.n, r.mins) : L_("couldn't start"),
 			watchdog.iface_errors(ifname), who);
 }
 
@@ -308,16 +309,16 @@ try {
 		if (args[1] == 'ifup') {
 			ifup_ok(ifname);
 			let port = sh_out(`awg show ${q(ifname)} listen-port 2>/dev/null`);
-			slog('awg', 'up', port ? `started · accepting connections on port ${port}` : 'started', null, who);
+			slog('awg', 'up', port ? sprintf(L_('started · accepting connections on port %s'), port) : L_('started'), null, who);
 		}
 		else if (args[1] == 'ifdown') {
 			// Stops Dawnline made itself are explained by the admin's own line
 			// (changed, turned off, removed); only an AmneziaWG update gets one here.
 			if (it?.reason == 'update')
-				slog('awg', 'info', 'restarting for the AmneziaWG update', null, who);
+				slog('awg', 'info', L_('restarting for the AmneziaWG update'), null, who);
 			else if (!it)
-				slog('awg', 'down', 'stopped unexpectedly', join('\n', filter([
-					"Dawnline didn't stop it: the router's network restarted, someone stopped it by hand, or it failed.",
+				slog('awg', 'down', L_('stopped unexpectedly'), join('\n', filter([
+					L_("Dawnline didn't stop it: the router's network restarted, someone stopped it by hand, or it failed."),
 					watchdog.iface_errors(ifname),
 				], (x) => x)), who);
 		}

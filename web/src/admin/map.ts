@@ -8,6 +8,7 @@
 import type { Geo, GeoPoint, Person } from '../shared/types';
 import { E } from './e';
 import { ago, initials } from '../shared/format';
+import { fmt, num, plural } from '../shared/i18n';
 import { icon, iconSvg } from '../shared/icons';
 import { onNavigate } from './ui/nav';
 import { isDark } from './ui/theme';
@@ -64,8 +65,8 @@ function loadMapLibre(host: HTMLElement): Promise<any> {
         loading = null;
         throw new Error(
           e?.message === 'integrity'
-            ? 'The map library from the CDN is not the expected file: not loading it.'
-            : 'Could not load the map library (no internet access from this browser?)',
+            ? _('The map library from the CDN is not the expected file: not loading it.')
+            : _('Could not load the map library (no internet access from this browser?)'),
         );
       },
     );
@@ -416,11 +417,11 @@ export class ConnectionMap {
       this.dockKey = '';
       const el = E(
         'div',
-        { class: 'dl-mk-hub', title: `Home router${home.city ? ` · ${home.city}` : ''}${home.org ? ` · ${home.org}` : ''}` },
-        [host, E('span', { class: 'dl-mk-label chip' }, home.city || 'Home')],
+        { class: 'dl-mk-hub', title: `${_('Home router')}${home.city ? ` · ${home.city}` : ''}${home.org ? ` · ${home.org}` : ''}` },
+        [host, E('span', { class: 'dl-mk-label chip' }, home.city || _('Home'))],
       );
       // Who is docked here: listed on hover; a click on the plate zooms to them (an avatar opens its card).
-      el.addEventListener('mouseenter', () => this.showMerged(home.city || 'the server'));
+      el.addEventListener('mouseenter', () => this.showMerged(home.city));
       el.addEventListener('mouseleave', () => this.focus(this.focused));
       el.addEventListener('click', () => this.zoomToMerged());
       this.add(el, [home.lon, home.lat], true);
@@ -448,7 +449,9 @@ export class ConnectionMap {
         {
           type: 'button',
           class: `dl-mk${g.online ? ' online' : ''}`,
-          'aria-label': `${person?.name ?? 'Someone'}: ${n} device${n === 1 ? '' : 's'} in ${g.city || 'an unknown city'}`,
+          'aria-label': g.city
+            ? fmt(N_(n, '%s: %s device in %s', '%s: %s devices in %s'), person?.name ?? _('Someone'), num(n), g.city)
+            : fmt(N_(n, '%s: %s device in an unknown city', '%s: %s devices in an unknown city'), person?.name ?? _('Someone'), num(n)),
         },
         [
           E('span', { class: 'dl-mk-av' }, [initials(person?.name ?? '?'), badge]),
@@ -462,7 +465,15 @@ export class ConnectionMap {
         ev.stopPropagation();
         this.openPopup(g, at, el);
       });
-      this.add(el, at, false, person?.name ?? 'Someone', `${g.city || g.cc || '?'} · ${g.online ? 'now' : ago(g.ts, data.now)}`, g.key, g);
+      this.add(
+        el,
+        at,
+        false,
+        person?.name ?? _('Someone'),
+        `${g.city || g.cc || '?'} · ${g.online ? _('now') : ago(g.ts, data.now)}`,
+        g.key,
+        g,
+      );
     }
     this.declutter();
 
@@ -488,7 +499,7 @@ export class ConnectionMap {
         this.fit(coords, animate);
       }
     }
-    this.status.textContent = placed.length || home ? '' : 'No locations yet';
+    this.status.textContent = placed.length || home ? '' : _('No locations yet');
     this.status.style.display = this.status.textContent ? '' : 'none';
     this.focus(this.focused && this.people.some((x) => x.person === this.focused) ? this.focused : null);
   }
@@ -605,11 +616,14 @@ export class ConnectionMap {
     this.popup = null;
   }
 
-  /** The people folded into the server, in the corner card. */
-  private showMerged(place: string) {
+  /** The people folded into the server, in the corner card; `city` is the server's, when known. */
+  private showMerged(city: string) {
     if (!this.merged.length) return;
     dom.content(this.card, [
-      E('div', { class: 'dl-map-card-head' }, [E('b', {}, `Near ${place}`), ' · click to zoom in']),
+      E('div', { class: 'dl-map-card-head' }, [
+        E('b', {}, city ? fmt(_('Near %s'), city) : _('Near the server')),
+        ` · ${_('click to zoom in')}`,
+      ]),
       ...this.merged.map((m) => E('div', { class: 'dl-map-card-row' }, [E('span', {}, m.who), E('span', { class: 'dl-faint' }, m.where)])),
     ]);
     this.card.classList.add('on');
@@ -682,7 +696,7 @@ export class ConnectionMap {
           const cities = [...new Set(slots.map((x) => x.g?.city || x.g?.cc || '?'))];
           const el = E('div', { class: 'dl-mk-pile' }, [
             box,
-            E('span', { class: 'dl-mk-label below' }, cities.length === 1 ? cities[0] : `${slots.length} people`),
+            E('span', { class: 'dl-mk-label below' }, cities.length === 1 ? cities[0] : plural(slots.length, '%s person', '%s people')),
           ]);
           pile = { marker: new this.gl.Marker({ element: el }).setLngLat(at).addTo(this.map), el, box, faces };
           el.addEventListener('mouseleave', () => this.focus(this.focused));
@@ -796,14 +810,16 @@ export class ConnectionMap {
     const n = g.points.length;
     const tile = E('span', { class: 'dl-mk-tile' });
     tile.innerHTML = iconSvg(kind, 'dl-mk-tile-ic') + (n > 1 ? `<span class="dl-mk-tile-n">${n}</span>` : '');
-    const when = g.online ? 'now' : ago(g.ts, now);
+    const when = g.online ? _('now') : ago(g.ts, now);
     const el = E(
       'button',
       {
         type: 'button',
         class: `dl-mk place${g.online ? ' online' : ''}`,
         style: g.online ? null : `--dl-mk-fade:${Math.max(0.4, 1 - (0.6 * (now - g.ts)) / (30 * 86400)).toFixed(2)}`,
-        'aria-label': `${n} device${n === 1 ? '' : 's'} in ${g.city || 'an unknown city'}, ${when}`,
+        'aria-label': g.city
+          ? fmt(N_(n, '%s device in %s, %s', '%s devices in %s, %s'), num(n), g.city, when)
+          : fmt(N_(n, '%s device in an unknown city, %s', '%s devices in an unknown city, %s'), num(n), when),
       },
       [tile, E('span', { class: 'dl-mk-label below' }, [g.city || g.cc || '?', E('span', { class: 'dl-mk-when' }, when)])],
     );
@@ -850,11 +866,11 @@ export class ConnectionMap {
     x.when = null;
     if (on) {
       // In the replay the time goes on the city's line (two lines would run into a place below).
-      x.when = E('span', { class: `dl-mk-when${r ? ' inline' : ''}` }, r ? r.when : 'now');
+      x.when = E('span', { class: `dl-mk-when${r ? ' inline' : ''}` }, r ? r.when : _('now'));
       x.label.replaceChildren(city, r ? ' · ' : '', x.when);
-    } else x.label.replaceChildren(`${city} · ${x.g.online ? 'now' : ago(x.g.ts, this.data!.now)}`);
-    const when = on ? (r ? r.when : 'now') : x.g.online ? 'now' : ago(x.g.ts, this.data!.now);
-    x.el.setAttribute('aria-label', `${x.n ? `${x.n}: ` : ''}${x.g.city || 'an unknown city'}, ${when}`);
+    } else x.label.replaceChildren(`${city} · ${x.g.online ? _('now') : ago(x.g.ts, this.data!.now)}`);
+    const when = on ? (r ? r.when : _('now')) : x.g.online ? _('now') : ago(x.g.ts, this.data!.now);
+    x.el.setAttribute('aria-label', `${x.n ? `${x.n}: ` : ''}${x.g.city || _('an unknown city')}, ${when}`);
     if (animate && on && !was) {
       x.el.classList.remove('arrive');
       void x.el.offsetWidth;
@@ -940,11 +956,11 @@ export class ConnectionMap {
       .filter((p) => p.person === person)
       .sort((a, b) => Number(b.online) - Number(a.online) || b.ts - a.ts);
     dom.content(this.card, [
-      E('div', { class: 'dl-map-card-head' }, [E('b', {}, who?.name ?? person), ` · ${pts.length} device${pts.length === 1 ? '' : 's'}`]),
+      E('div', { class: 'dl-map-card-head' }, [E('b', {}, who?.name ?? person), ` · ${plural(pts.length, '%s device', '%s devices')}`]),
       ...pts.map((p) =>
         E('div', { class: 'dl-map-card-row' }, [
-          E('span', {}, who?.devices.find((d) => d.id === p.device)?.name ?? 'Device'),
-          E('span', { class: 'dl-faint' }, `${p.city || p.cc || '?'} · ${p.online ? 'now' : ago(p.ts, data.now)}`),
+          E('span', {}, who?.devices.find((d) => d.id === p.device)?.name ?? _('Device')),
+          E('span', { class: 'dl-faint' }, `${p.city || p.cc || '?'} · ${p.online ? _('now') : ago(p.ts, data.now)}`),
         ]),
       ),
     ]);
@@ -1010,6 +1026,7 @@ export class ConnectionMap {
     const data = this.data!;
     const where = [g.city, g.cc || g.country].filter(Boolean).join(', ');
     const people = [...new Set(g.points.map((p) => p.person))];
+    const owner = people.length === 1 ? data.people.find((x) => x.id === people[0])?.name : undefined;
     const rows = g.points
       .sort((a, b) => Number(b.online) - Number(a.online) || b.ts - a.ts)
       .map((p) => {
@@ -1017,16 +1034,19 @@ export class ConnectionMap {
         const dev = person?.devices.find((d) => d.id === p.device);
         return E('button', { type: 'button', class: 'dl-pop-row', click: () => this.cb.openDevice(p.person, p.device) }, [
           E('span', { class: `dl-pop-dot${p.online ? ' on' : ''}` }),
-          E('span', { class: 'dl-pop-name' }, [E('b', {}, person?.name ?? p.person), ` · ${dev?.name ?? 'device'}`]),
-          E('span', { class: 'dl-faint dl-nowrap' }, p.online ? 'now' : ago(p.ts, data.now)),
+          E('span', { class: 'dl-pop-name' }, [E('b', {}, person?.name ?? p.person), ` · ${dev?.name ?? _('device')}`]),
+          E('span', { class: 'dl-faint dl-nowrap' }, p.online ? _('now') : ago(p.ts, data.now)),
         ]);
       });
     const body = E('div', { class: 'dl-pop' }, [
       E('div', { class: 'dl-pop-head' }, [
         E('span', { class: 'dl-pop-net' }, icon('globe')),
         E('div', { class: 'dl-stack' }, [
-          E('strong', {}, g.org || 'Unknown network'),
-          E('span', { class: 'dl-faint' }, [g.asn ? `AS${g.asn} · ` : '', where ? `${where} · approximate` : 'approximate location']),
+          E('strong', {}, g.org || _('Unknown network')),
+          E('span', { class: 'dl-faint' }, [
+            g.asn ? `AS${g.asn} · ` : '',
+            where ? `${where} · ${_('approximate')}` : _('approximate location'),
+          ]),
         ]),
       ]),
       E('div', { class: 'dl-pop-list' }, rows),
@@ -1035,7 +1055,7 @@ export class ConnectionMap {
             E(
               'button',
               { type: 'button', class: 'cbi-button cbi-button-positive important', click: () => this.cb.openPerson(people[0]) },
-              `Open ${data.people.find((x) => x.id === people[0])?.name ?? 'person'}`,
+              owner ? fmt(_('Open %s'), owner) : _('Open person'),
             ),
           ])
         : '',
@@ -1198,7 +1218,7 @@ export interface Face {
 function face(slot: { el: HTMLElement; at: [number, number]; who?: string; where?: string; g?: Group }): Face {
   return {
     key: slot.el.dataset.key ?? '',
-    who: slot.who ?? 'Someone',
+    who: slot.who ?? _('Someone'),
     where: slot.where ?? '',
     online: !!slot.g?.online,
     at: slot.at,
@@ -1350,10 +1370,10 @@ interface Group {
 /** Segmented range control for the map header. */
 export function rangeControl(initial: Range, onChange: (r: Range) => void, online = true): HTMLElement {
   const opts: [Range, string][] = [
-    ['online', 'Online now'],
-    ['24h', '24h'],
-    ['7d', '7 days'],
-    ['30d', '30 days'],
+    ['online', _('Online now')],
+    ['24h', _('24h')],
+    ['7d', _('7 days')],
+    ['30d', _('30 days')],
   ];
   const el = E('div', { class: 'dl-seg', role: 'tablist' });
   for (const [v, label] of opts) {

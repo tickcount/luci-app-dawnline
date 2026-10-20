@@ -1,6 +1,6 @@
 {
   "name": "dawnline-web",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "private": true,
   "license": "MIT",
   "type": "module",
@@ -12,7 +12,9 @@
     "test": "vitest run",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "ci": "npm run format:check && npm run typecheck && npm run test && npm run build"
+    "ci": "npm run format:check && npm run typecheck && npm run i18n:check && npm run test && npm run build",
+    "i18n": "node i18n/extract.ts",
+    "i18n:check": "node i18n/extract.ts --check"
   },
   "dependencies": {
     "qrcode-generator": "1.4.4"

@@ -1,8 +1,10 @@
 // Dawnline — Health: what the router has and lacks (packages, listeners,
 // networks), the checks shown on Diagnostics → Health, and their fixes.
+// The checks' texts are in the language of the call (dawnline.i18n).
 
 import { readfile, stat, lsdir } from 'fs';
 import { cursor } from 'uci';
+import { _, N_ } from 'dawnline.i18n';
 import { q, sh, sh_out, parse_cidr, cidr_overlaps, ip2int, in_cidr, file_exists, cloudflare_ip } from 'dawnline.util';
 import * as core from 'dawnline.core';
 import * as live from 'dawnline.live';
@@ -174,43 +176,12 @@ export function foreign_subnets() {
 
 /*
  * Checks are named for the healthy state ("Clock is set"); a failed one also
- * gets the problem in words for notices ("Clock isn't set"). Longest names
- * first; a server's name after the check name is kept.
+ * gets the problem in words for notices ("Clock isn't set"), passed with it.
+ * A server's checks carry its name after both (` (Home)`, with several servers).
  */
-const PROBLEM = [
-	[ 'AmneziaWG answers reach devices', 'AmneziaWG answers may not reach devices' ],
-	[ 'AmneziaWG devices loaded', 'Not every device is loaded into AmneziaWG' ],
-	[ 'AmneziaWG subnet is unique', 'AmneziaWG subnet overlaps another network' ],
-	[ 'AmneziaWG port is free', 'AmneziaWG port is taken' ],
-	[ 'AmneziaWG installed', 'AmneziaWG isn’t ready' ],
-	[ 'AmneziaWG firewall', 'AmneziaWG firewall rules are missing' ],
-	[ 'AmneziaWG running', 'AmneziaWG is down' ],
-	[ 'Portal answers reach visitors', 'Portal answers may not reach visitors' ],
-	[ 'Portal address points here', 'Portal address doesn’t point here' ],
-	[ 'Portal address', 'Portal address isn’t set' ],
-	[ 'Portal certificate', 'Portal certificate needs attention' ],
-	[ 'Personal portal', 'Personal portal isn’t working' ],
-	[ 'Plain HTTP links', 'Portal links use plain HTTP' ],
-	[ 'Internet like a home device', 'Internet like a home device isn’t working' ],
-	[ 'DNS for Home-only devices', 'DNS for Home-only devices isn’t working' ],
-	[ 'Background agent running', 'Background agent isn’t running' ],
-	[ 'Access rules loaded', 'Access rules aren’t loaded' ],
-	[ 'Server configured', 'No server yet' ],
-	[ 'Public address', 'Public address needs attention' ],
-	[ 'Clock is set', 'Clock isn’t set' ],
-];
-
-function problem_of(title) {
-	for (let p in PROBLEM)
-		if (substr(title, 0, length(p[0])) == p[0])
-			return p[1] + substr(title, length(p[0]));
-	return title;
-}
-
-/** problem: the failed check in words, when the table's wording does not fit the case. */
 function check(id, title, status, detail, fix, problem) {
 	let bad = status == 'warn' || status == 'error';
-	return { id, title, status, detail: detail ?? '', fix: fix ?? null, problem: bad ? (problem ?? problem_of(title)) : null };
+	return { id, title, status, detail: detail ?? '', fix: fix ?? null, problem: bad ? (problem ?? title) : null };
 }
 
 /**
@@ -222,13 +193,14 @@ function replies(m) {
 	return { ok: fw.reply_ok(m, d), diverts: map(d, fw.divert_str) };
 }
 
-function reply_check(id, title, proto, port, r) {
+function reply_check(id, title, problem, proto, port, r) {
 	let via = join(', ', r.diverts);
+	let from = `${uc(proto)} ${port}`;
 	return check(id, title, r.ok ? 'ok' : 'error',
-		!r.ok ? `Answers from ${uc(proto)} ${port} are swallowed by a proxy on the router (${via}): clients get no reply.`
-			: length(r.diverts) ? `Answers from ${uc(proto)} ${port} go straight out. A proxy on the router diverts its own traffic (${via}); these answers skip it.`
-			: `Answers from ${uc(proto)} ${port} go straight out.`,
-		r.ok ? null : 'apply');
+		!r.ok ? sprintf(_('Answers from %s are swallowed by a proxy on the router (%s): clients get no reply.'), from, via)
+			: length(r.diverts) ? sprintf(_('Answers from %s go straight out. A proxy on the router diverts its own traffic (%s); these answers skip it.'), from, via)
+			: sprintf(_('Answers from %s go straight out.'), from),
+		r.ok ? null : 'apply', problem);
 }
 
 const PRIVATE = map([ '100.64.0.0/10', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16' ], parse_cidr);
@@ -260,29 +232,36 @@ export function endpoint_facts(srv, host) {
 	};
 };
 
-/** The facts in words: { status: ok|warn|error, text }. `proto_note` names what must get through ("UDP 4500"). */
+/**
+ * The facts in words, in the language of the call: { status: ok|warn|error, text }
+ * (text a whole sentence). `proto_note` names what must get through ("UDP 4500").
+ */
 export function endpoint_words(f, proto_note) {
 	if (!f.host)
-		return { status: 'error', text: 'No public address: devices will not know where to connect.' };
+		return { status: 'error', text: _('No public address: devices will not know where to connect.') };
 	if (!length(f.ips))
-		return { status: 'error', text: `${f.host} does not resolve.` };
+		return { status: 'error', text: sprintf(_('%s does not resolve.'), f.host) };
 	if (f.cloudflare)
-		return { status: 'error', text: `${f.host} → ${join(', ', f.ips)} (Cloudflare). ${proto_note} reaches the router only if this name is DNS-only there, or use the router's IP.` };
+		return { status: 'error', text: sprintf(_("%s → %s (Cloudflare). %s reaches the router only if this name is DNS-only there, or use the router's IP."),
+			f.host, join(', ', f.ips), proto_note) };
 	if (f.v6_only)
-		return { status: f.kind == 'public' ? 'warn' : 'ok', text: `${f.host} → ${join(', ', f.ips6)}: IPv6 only, so only devices with IPv6 connect${f.kind == 'public' ? ` (the router's IPv4 ${f.wan} has no name)` : ''}.` };
+		return { status: f.kind == 'public' ? 'warn' : 'ok', text: f.kind == 'public'
+			? sprintf(_("%s → %s: IPv6 only, so only devices with IPv6 connect (the router's IPv4 %s has no name)."), f.host, join(', ', f.ips6), f.wan)
+			: sprintf(_('%s → %s: IPv6 only, so only devices with IPv6 connect.'), f.host, join(', ', f.ips6)) };
 	if (f.kind == 'cgnat' || f.kind == 'private')
 		return { status: 'warn', text: f.kind == 'cgnat'
-			? `The WAN address ${f.wan} is CGNAT (shared by the ISP): ${proto_note} cannot be forwarded to this router from outside unless the ISP gives a public address or IPv6.`
-			: `The WAN address ${f.wan} is private: this router is behind another one. Forward ${proto_note} on it, or devices cannot connect.` };
+			? sprintf(_('The WAN address %s is CGNAT (shared by the ISP): %s cannot be forwarded to this router from outside unless the ISP gives a public address or IPv6.'), f.wan, proto_note)
+			: sprintf(_('The WAN address %s is private: this router is behind another one. Forward %s on it, or devices cannot connect.'), f.wan, proto_note) };
 	if (f.wan && !f.here)
-		return { status: 'warn', text: `${f.host} points at ${join(', ', f.ips4)}, not this router (WAN ${f.wan}). Check your DNS / DDNS.` };
-	return { status: 'ok', text: f.here ? `${f.host} points at this router (${f.wan}).` : `${f.host} → ${join(', ', f.ips)}` };
+		return { status: 'warn', text: sprintf(_('%s points at %s, not this router (WAN %s). Check your DNS / DDNS.'), f.host, join(', ', f.ips4), f.wan) };
+	// Without the router's WAN address only the facts: names and addresses, no words.
+	return { status: 'ok', text: f.here ? sprintf(_('%s points at this router (%s).'), f.host, f.wan) : `${f.host} → ${join(', ', f.ips)}` };
 };
 
 /** What a public address resolves to and whether that reaches this router (for a core's protocol). */
-function endpoint_check(id, title, srv, host, proto_note) {
+function endpoint_check(id, title, problem, srv, host, proto_note) {
 	let w = endpoint_words(endpoint_facts(srv, host), proto_note);
-	return check(id, title, w.status, w.text);
+	return check(id, title, w.status, w.text, null, problem);
 }
 
 /**
@@ -306,7 +285,9 @@ function policy_routing() {
 	return out;
 }
 
-const NO_PROTO = "netifd doesn't know the amneziawg protocol (AmneziaWG missing, or the network wasn't restarted after installing it).";
+function no_proto() {
+	return _("netifd doesn't know the amneziawg protocol (AmneziaWG missing, or the network wasn't restarted after installing it).");
+}
 
 /** Free space on the overlay in KB (null when unknown). */
 function overlay_free_kb() {
@@ -318,27 +299,29 @@ function overlay_free_kb() {
 /** Is AmneziaWG there and usable: packages, kernel module, netifd's protocol handler. */
 function awg_check() {
 	let st = awg.load();
-	let title = 'AmneziaWG installed';
-	if (length(st.missing ?? [])) {
+	let title = _('AmneziaWG installed');
+	let missing = st.missing ?? [];
+	if (length(missing)) {
 		// The module was built for the kernel of the firmware it was installed on.
 		let kc = builds.kernel_changed();
-		if (kc && index(st.missing, 'kmod-amneziawg') >= 0)
+		if (kc && index(missing, 'kmod-amneziawg') >= 0)
 			return check('awg', title, 'error',
-				`The firmware changed (kernel ${kc.was} → ${kc.now}): the AmneziaWG build installed for it is gone. Install the build for this firmware.`,
-				'install:awg', 'AmneziaWG needs a build for the new firmware');
-		return check('awg', title, 'error', `${join(' and ', st.missing)} ${length(st.missing) == 1 ? 'is' : 'are'} missing.`, 'install:awg',
-			'AmneziaWG isn’t installed');
+				sprintf(_('The firmware changed (kernel %s → %s): the AmneziaWG build installed for it is gone. Install the build for this firmware.'), kc.was, kc.now),
+				'install:awg', _('AmneziaWG needs a build for the new firmware'));
+		return check('awg', title, 'error', sprintf(N_(length(missing), '%s is missing.', '%s are missing.'), join(', ', missing)), 'install:awg',
+			_('AmneziaWG isn’t installed'));
 	}
 	if (!st.loaded) {
 		// load() tried it: the second modprobe only repeats why.
 		let why = trim(sh('modprobe amneziawg 2>&1; dmesg | grep -i amneziawg | tail -n 3').out);
 		return check('awg', title, 'error',
-			`The kernel module doesn't load${why ? `: ${why}` : '.'} Reinstall a build for this kernel in Components.`, 'updates',
-			'AmneziaWG’s kernel module doesn’t load');
+			why ? sprintf(_("The kernel module doesn't load: %s Reinstall a build for this kernel in Components."), why)
+				: _("The kernel module doesn't load. Reinstall a build for this kernel in Components."),
+			'updates', _('AmneziaWG’s kernel module doesn’t load'));
 	}
 	if (!st.handler)
-		return check('awg', title, 'error', NO_PROTO, 'netrestart', 'The network doesn’t know AmneziaWG yet');
-	return check('awg', title, 'ok', 'Kernel module, awg tool and the netifd protocol are present.');
+		return check('awg', title, 'error', no_proto(), 'netrestart', _('The network doesn’t know AmneziaWG yet'));
+	return check('awg', title, 'ok', _('Kernel module, awg tool and the netifd protocol are present.'));
 }
 
 /** Checks of a server's AmneziaWG tunnel. */
@@ -347,13 +330,15 @@ function awg_checks(m, id, srv, label, fwc, dmp, rep) {
 	let st = live.iface_status(srv.ifname);
 	let up = !!st?.up;
 	let codes = map(st?.errors ?? [], (e) => e.code);
+	let running = _('AmneziaWG running') + label, down = _('AmneziaWG is down') + label;
 	if (!up && index(codes, 'INVALID_PROTO') >= 0)
-		push(out, check(`up_${id}`, `AmneziaWG running${label}`, 'error', NO_PROTO, 'netrestart'));
+		push(out, check(`up_${id}`, running, 'error', no_proto(), 'netrestart', down));
 	else
-		push(out, check(`up_${id}`, `AmneziaWG running${label}`, up ? 'ok' : 'error',
-			up ? `${srv.ifname} is up, listening on UDP ${srv.port}.` :
-			(st ? `${srv.ifname} is down${length(codes) ? ': ' + join(', ', codes) : ''}.` : `${srv.ifname} does not exist.`),
-			up ? null : (st ? 'ifup:' + srv.ifname : 'apply')));
+		push(out, check(`up_${id}`, running, up ? 'ok' : 'error',
+			up ? sprintf(_('%s is up, listening on UDP %d.'), srv.ifname, srv.port) :
+			!st ? sprintf(_('%s does not exist.'), srv.ifname) :
+			length(codes) ? sprintf(_('%s is down: %s.'), srv.ifname, join(', ', codes)) : sprintf(_('%s is down.'), srv.ifname),
+			up ? null : (st ? 'ifup:' + srv.ifname : 'apply'), down));
 	if (up) {
 		// By key, not by count: a stale peer standing in for a missing one would
 		// make the numbers match.
@@ -375,17 +360,20 @@ function awg_checks(m, id, srv, label, fwc, dmp, rep) {
 		let missing = length(filter(keys(wanted), (k) => !loaded[k]));
 		let extra = length(filter(keys(loaded), (k) => !wanted[k]));
 		let same = !missing && !extra;
-		push(out, check(`peers_${id}`, `AmneziaWG devices loaded${label}`, same ? 'ok' : 'warn',
-			same ? `${actual} device${actual == 1 ? ' is' : 's are'} loaded in the tunnel.` :
-			`${missing} of ${expected} device${expected == 1 ? '' : 's'} missing${extra ? `, ${extra} loaded that should not be` : ''}.`,
-			same ? null : 'sync'));
+		push(out, check(`peers_${id}`, _('AmneziaWG devices loaded') + label, same ? 'ok' : 'warn',
+			same ? sprintf(N_(actual, '%d device is loaded in the tunnel.', '%d devices are loaded in the tunnel.'), actual) :
+			extra ? sprintf(N_(expected, '%d of %d device missing, %d loaded that should not be.', '%d of %d devices missing, %d loaded that should not be.'),
+				missing, expected, extra)
+			: sprintf(N_(expected, '%d of %d device missing.', '%d of %d devices missing.'), missing, expected),
+			same ? null : 'sync', _('Not every device is loaded into AmneziaWG') + label));
 	}
 	let rule = fwc.get('firewall', `dawnline_${id}_port`) == 'rule';
 	let zone = fwc.get('firewall', `dawnline_${id}_zone`) == 'zone';
-	push(out, check(`fw_${id}`, `AmneziaWG firewall${label}`, rule && zone ? 'ok' : 'error',
-		rule && zone ? `Zone ${srv.ifname} and the WAN rule for UDP ${srv.port} exist.` : 'Firewall zone or WAN rule is missing.',
-		rule && zone ? null : 'apply'));
-	push(out, reply_check(`reply_${id}`, `AmneziaWG answers reach devices${label}`, 'udp', srv.port, rep));
+	push(out, check(`fw_${id}`, _('AmneziaWG firewall') + label, rule && zone ? 'ok' : 'error',
+		rule && zone ? sprintf(_('Zone %s and the WAN rule for UDP %d exist.'), srv.ifname, srv.port) : _('Firewall zone or WAN rule is missing.'),
+		rule && zone ? null : 'apply', _('AmneziaWG firewall rules are missing') + label));
+	push(out, reply_check(`reply_${id}`, _('AmneziaWG answers reach devices') + label, _('AmneziaWG answers may not reach devices') + label,
+		'udp', srv.port, rep));
 	// Port collisions with other tunnels.
 	let clash = [];
 	let nc = cursor();
@@ -395,7 +383,8 @@ function awg_checks(m, id, srv, label, fwc, dmp, rep) {
 			push(clash, s['.name']);
 	});
 	if (length(clash))
-		push(out, check(`port_${id}`, `AmneziaWG port is free${label}`, 'error', `UDP ${srv.port} is also used by ${join(', ', clash)}.`));
+		push(out, check(`port_${id}`, _('AmneziaWG port is free') + label, 'error', sprintf(_('UDP %d is also used by %s.'), srv.port, join(', ', clash)),
+			null, _('AmneziaWG port is taken') + label));
 	let overlaps = [];
 	let sc = parse_cidr(srv.subnet);
 	for (let o in other_subnets(id)) {
@@ -403,8 +392,9 @@ function awg_checks(m, id, srv, label, fwc, dmp, rep) {
 		if (sc && oc && cidr_overlaps(sc, oc))
 			push(overlaps, `${o.iface} (${o.cidr})`);
 	}
-	push(out, check(`subnet_${id}`, `AmneziaWG subnet is unique${label}`, length(overlaps) ? 'error' : 'ok',
-		length(overlaps) ? `${srv.subnet} overlaps ${join(', ', overlaps)}.` : `${srv.subnet} does not overlap other networks.`));
+	push(out, check(`subnet_${id}`, _('AmneziaWG subnet is unique') + label, length(overlaps) ? 'error' : 'ok',
+		length(overlaps) ? sprintf(_('%s overlaps %s.'), srv.subnet, join(', ', overlaps)) : sprintf(_('%s does not overlap other networks.'), srv.subnet),
+		null, _('AmneziaWG subnet overlaps another network') + label));
 	return out;
 }
 
@@ -412,50 +402,59 @@ function awg_checks(m, id, srv, label, fwc, dmp, rep) {
 function portal_checks(m, need, rep) {
 	let out = [];
 	let s = m.settings;
+	let portal = _('Personal portal'), portal_bad = _('Personal portal isn’t working');
 	if (length(need.https))
-		return [ check('portal', 'Personal portal', 'error', `HTTPS isn't available on this router: install ${join(' and ', need.https)}.`, 'install:https') ];
+		return [ check('portal', portal, 'error', sprintf(_("HTTPS isn't available on this router: install %s."), join(', ', need.https)), 'install:https', portal_bad) ];
 	let owners = tcp_port_owners(s.portal_port);
 	let listening = tcp_listening(s.portal_port);
 	if (length(owners))
-		push(out, check('portal', 'Personal portal', 'error',
-			`TCP ${s.portal_port} is already used by ${join(', ', owners)}. Choose another port in Settings.`));
+		push(out, check('portal', portal, 'error',
+			sprintf(_('TCP %d is already used by %s. Choose another port in Settings.'), s.portal_port, join(', ', owners)), null, portal_bad));
 	else
-		push(out, check('portal', 'Personal portal', listening ? 'ok' : 'error',
-			listening ? `Listening on TCP ${s.portal_port}.` : `Nothing listens on TCP ${s.portal_port}.`, listening ? null : 'restart'));
+		push(out, check('portal', portal, listening ? 'ok' : 'error',
+			listening ? sprintf(_('Listening on TCP %d.'), s.portal_port) : sprintf(_('Nothing listens on TCP %d.'), s.portal_port),
+			listening ? null : 'restart', portal_bad));
 	if (!s.portal_host)
-		push(out, check('portal_host', 'Portal address', 'error', 'Set the public hostname in Settings so links can be generated.'));
+		push(out, check('portal_host', _('Portal address'), 'error', _('Set the public hostname in Settings so links can be generated.'),
+			null, _('Portal address isn’t set')));
 	else {
 		let ips = lookup.resolve(s.portal_host), wan = lookup.router_wan(m);
 		let cf = filter(ips, (x) => cloudflare_ip(x));
-		push(out, check('portal_dns', 'Portal address points here', !length(ips) ? 'error' : length(cf) ? 'ok' : wan && index(ips, wan) < 0 ? 'warn' : 'ok',
-			!length(ips) ? `${s.portal_host} does not resolve.` :
-			length(cf) ? `${s.portal_host} goes through Cloudflare; in Russia such connections often stall after ~16 KB.` :
-			wan && index(ips, wan) < 0 ? `${s.portal_host} points at ${join(', ', ips)}, not this router (${wan}).` :
-			`${s.portal_host} → ${join(', ', ips)}${wan ? ' (this router)' : ''}.`));
+		let h = s.portal_host;
+		push(out, check('portal_dns', _('Portal address points here'), !length(ips) ? 'error' : length(cf) ? 'ok' : wan && index(ips, wan) < 0 ? 'warn' : 'ok',
+			!length(ips) ? sprintf(_('%s does not resolve.'), h) :
+			length(cf) ? sprintf(_('%s goes through Cloudflare; in Russia such connections often stall after ~16 KB.'), h) :
+			wan && index(ips, wan) < 0 ? sprintf(_('%s points at %s, not this router (%s).'), h, join(', ', ips), wan) :
+			wan ? sprintf(_('%s → %s (this router).'), h, join(', ', ips)) : `${h} → ${join(', ', ips)}.`,
+			null, _('Portal address doesn’t point here')));
 	}
-	push(out, reply_check('portal_reply', 'Portal answers reach visitors', 'tcp', s.portal_port, rep));
+	push(out, reply_check('portal_reply', _('Portal answers reach visitors'), _('Portal answers may not reach visitors'), 'tcp', s.portal_port, rep));
 	if (core.portal_http(m)) {
 		let ipl = filter(core.portal_hosts(m), (h) => ip2int(h) != null);
-		push(out, check('portal_http', 'Plain HTTP links', 'warn',
-			`Links on ${join(', ', ipl)} use plain HTTP: the link and the VPN keys in configurations travel unencrypted.`));
+		push(out, check('portal_http', _('Plain HTTP links'), 'warn',
+			sprintf(_('Links on %s use plain HTTP: the link and the VPN keys in configurations travel unencrypted.'), join(', ', ipl)),
+			null, _('Portal links use plain HTTP')));
 	}
 	if (ip2int(s.portal_host) != null) {
-		push(out, check('cert', 'Portal certificate', 'skip', 'The main address is an IP: its links use plain HTTP.'));
+		push(out, check('cert', _('Portal certificate'), 'skip', _('The main address is an IP: its links use plain HTTP.')));
 		return out;
 	}
 	let cert = pc.portal_cert(s);
 	let ok = system(`openssl x509 -checkend 1209600 -noout -in ${q(cert.cert)} >/dev/null 2>&1`) == 0;
 	let sans = cert.self_signed ? [] : pc.cert_names(cert.cert);
 	let covers = !s.portal_host || cert.self_signed || length(filter(sans, (n) => pc.name_covers(n, s.portal_host))) > 0;
-	push(out, check('cert', 'Portal certificate', cert.self_signed || !ok || !covers ? 'warn' : 'ok',
-		cert.self_signed ? `Using a self-signed certificate: browsers will show a warning.${length(need.acme) ? ' ACME can get a free Let’s Encrypt one.' : ''}` :
-		!covers ? `${cert.cert} does not cover ${s.portal_host} (it has ${join(', ', sans)}): browsers will warn.` :
-		ok ? `${cert.cert} covers ${s.portal_host} and is valid for more than 14 days.` : `${cert.cert} expires within 14 days.`));
+	push(out, check('cert', _('Portal certificate'), cert.self_signed || !ok || !covers ? 'warn' : 'ok',
+		cert.self_signed ? (length(need.acme) ? _('Using a self-signed certificate: browsers will show a warning. ACME can get a free Let’s Encrypt one.')
+			: _('Using a self-signed certificate: browsers will show a warning.')) :
+		!covers ? sprintf(_('%s does not cover %s (it has %s): browsers will warn.'), cert.cert, s.portal_host, join(', ', sans)) :
+		ok ? sprintf(_('%s covers %s and is valid for more than 14 days.'), cert.cert, s.portal_host) : sprintf(_('%s expires within 14 days.'), cert.cert),
+		null, _('Portal certificate needs attention')));
 	return out;
 }
 
 /**
- * Run all checks. Each result: { id, title, status: ok|warn|error|skip, detail, fix }.
+ * Run all checks. Each result: { id, title, status: ok|warn|error|skip, detail, fix,
+ * problem (a failed check in words, else null) }, the texts in the language of the call.
  * `fix` names an action accepted by fix(), or one the UI handles itself
  * (install:<feature>, updates).
  */
@@ -469,46 +468,50 @@ export function health(m) {
 	if (length(m.servers))
 		push(out, awg_check());
 	let y = localtime().year;
-	push(out, check('clock', 'Clock is set', y >= 2025 ? 'ok' : 'error',
-		y >= 2025 ? 'End dates and quotas use the router clock.' : 'The router clock looks wrong; end dates will misbehave. Check NTP.'));
+	push(out, check('clock', _('Clock is set'), y >= 2025 ? 'ok' : 'error',
+		y >= 2025 ? _('End dates and quotas use the router clock.') : _('The router clock looks wrong; end dates will misbehave. Check NTP.'),
+		null, _('Clock isn’t set')));
 
 	let agent = service_running('dawnline', 'agent');
-	push(out, check('agent', 'Background agent running', agent ? 'ok' : 'error',
-		'Counts traffic and enforces end dates and quotas.', agent ? null : 'restart'));
+	push(out, check('agent', _('Background agent running'), agent ? 'ok' : 'error',
+		_('Counts traffic and enforces end dates and quotas.'), agent ? null : 'restart', _('Background agent isn’t running')));
 
 	// A full overlay fails every config write on the router, Dawnline's and
 	// OpenWrt's own; backups and history are what Dawnline adds to it.
 	let free = overlay_free_kb();
 	if (free != null)
-		push(out, check('flash', 'Free space on the router', free < 512 ? 'error' : free < 2048 ? 'warn' : 'ok',
-			free < 2048 ? `${int(free / 1024 * 10) / 10} MB free: settings may stop saving. Remove old backups (Settings → Backups) or shorten the history.`
-				: `${int(free / 1024)} MB free on the overlay.`,
-			null, 'The router is running out of flash'));
+		push(out, check('flash', _('Free space on the router'), free < 512 ? 'error' : free < 2048 ? 'warn' : 'ok',
+			free < 2048 ? sprintf(_('%s MB free: settings may stop saving. Remove old backups (Settings → Backups) or shorten the history.'), int(free / 1024 * 10) / 10)
+				: sprintf(_('%d MB free on the overlay.'), int(free / 1024)),
+			null, _('The router is running out of flash')));
 
 	if (!length(m.servers)) {
-		push(out, check('server', 'Server configured', 'warn', 'Run the setup wizard on the Server tab.'));
+		push(out, check('server', _('Server configured'), 'warn', _('Run the setup wizard on the Server tab.'), null, _('No server yet')));
 		return out;
 	}
 
 	let nft_ok = system('nft list table inet dawnline >/dev/null 2>&1') == 0;
-	push(out, check('nft', 'Access rules loaded', nft_ok ? 'ok' : 'error',
-		nft_ok ? 'Table inet dawnline enforces who may reach LAN and the internet.'
-			: 'Table inet dawnline is missing: no device is loaded into the tunnels until it is back.',
-		nft_ok ? null : 'apply'));
+	push(out, check('nft', _('Access rules loaded'), nft_ok ? 'ok' : 'error',
+		nft_ok ? _('Table inet dawnline enforces who may reach LAN and the internet.')
+			: _('Table inet dawnline is missing: no device is loaded into the tunnels until it is back.'),
+		nft_ok ? null : 'apply', _('Access rules aren’t loaded')));
 
 	if (length(filter(values(m.servers), (s) => s.lan_like && s.enabled))) {
 		let pr = policy_routing();
-		push(out, check('policy', 'Internet like a home device not bypassed', length(pr) ? 'warn' : 'ok',
-			length(pr) ? `Policy routing on the router (${join('; ', pr)}) sends marked traffic straight out, past the home-device path: tunnel traffic it matches skips your LAN's proxies and filters.`
-				: 'No other policy routing ahead of the tunnel rules.',
-			null, 'Other policy routing bypasses the home-device path'));
+		push(out, check('policy', _('Internet like a home device not bypassed'), length(pr) ? 'warn' : 'ok',
+			length(pr) ? sprintf(_("Policy routing on the router (%s) sends marked traffic straight out, past the home-device path: tunnel traffic it matches skips your LAN's proxies and filters."), join('; ', pr))
+				: _('No other policy routing ahead of the tunnel rules.'),
+			null, _('Other policy routing bypasses the home-device path')));
 	}
 
 	// A device the sync has to leave out (a merged import, a hand-edited config).
+	// Its sentences (core.model_errors), how many more, then what it means.
 	let data = core.model_errors(m);
-	push(out, check('data', 'People and devices consistent', length(data) ? 'error' : 'ok',
-		length(data) ? `${join(' ', slice(data, 0, 4))}${length(data) > 4 ? ` (${length(data) - 4} more)` : ''} Such devices are left out of the tunnels: fix or remove them.`
-			: 'Every device has a key and an address of its own inside its server.'));
+	push(out, check('data', _('People and devices consistent'), length(data) ? 'error' : 'ok',
+		length(data) ? join(' ', filter([ join(' ', slice(data, 0, 4)), length(data) > 4 ? sprintf(_('(%d more)'), length(data) - 4) : null,
+			_('Such devices are left out of the tunnels: fix or remove them.') ], (x) => x))
+			: _('Every device has a key and an address of its own inside its server.'),
+		null, _('People and devices are inconsistent')));
 
 	let fwc = cursor();
 	fwc.load('firewall');
@@ -516,21 +519,23 @@ export function health(m) {
 	for (let id, srv in m.servers) {
 		let label = length(m.servers) > 1 ? ` (${srv.name})` : '';
 		if (!srv.enabled) {
-			push(out, check(`srv_${id}`, `Server${label}`, 'skip', 'Server is disabled.'));
+			push(out, check(`srv_${id}`, _('Server') + label, 'skip', _('Server is disabled.')));
 			continue;
 		}
 		push(out, ...awg_checks(m, id, srv, label, fwc, dmp, rep));
-		push(out, endpoint_check(`ep_${id}`, `Public address${label}`, srv, core.endpoint_host(m, srv), `UDP ${srv.port}`));
+		push(out, endpoint_check(`ep_${id}`, _('Public address') + label, _('Public address needs attention') + label,
+			srv, core.endpoint_host(m, srv), `UDP ${srv.port}`));
 
 		if (srv.lan_like) {
 			let ls = loop.status();
 			let nh = need.home;
-			push(out, check(`home_${id}`, `Internet like a home device${label}`, ls.active && ls.bridged ? 'ok' : 'warn',
-				ls.active && ls.bridged ? `Traffic enters ${ls.dev} as ${ls.address}, so it is handled like any device on your LAN.` :
-				length(nh) ? `Needs ${join(' and ', nh)}. Internet traffic leaves through WAN directly until then.` :
-				ls.active ? `The link is up but not attached to ${ls.dev}.` :
-				`${ls.error ?? 'Not set up.'} Internet traffic leaves through WAN directly.`,
-				ls.active && ls.bridged ? null : length(nh) ? 'install:home' : 'apply'));
+			push(out, check(`home_${id}`, _('Internet like a home device') + label, ls.active && ls.bridged ? 'ok' : 'warn',
+				ls.active && ls.bridged ? sprintf(_('Traffic enters %s as %s, so it is handled like any device on your LAN.'), ls.dev, ls.address) :
+				length(nh) ? sprintf(_('Needs %s. Internet traffic leaves through WAN directly until then.'), join(', ', nh)) :
+				ls.active ? sprintf(_('The link is up but not attached to %s.'), ls.dev) :
+				// loop.status()'s own sentence, then what it means.
+				`${ls.error ?? _('Not set up.')} ${_('Internet traffic leaves through WAN directly.')}`,
+				ls.active && ls.bridged ? null : length(nh) ? 'install:home' : 'apply', _('Internet like a home device isn’t working') + label));
 		}
 	}
 
@@ -542,10 +547,11 @@ export function health(m) {
 		// A new config (a server turned on, the home link up) restarts it: give it a few seconds.
 		let restarting = !running && conf != null && time() - conf.mtime < 10;
 		let ok = running || restarting;
-		push(out, check('resolver', 'DNS for Home-only devices', ok ? 'ok' : 'warn',
-			restarting ? 'Restarting with the new settings.' :
-			ok ? (rt.mode == 'ns' ? `Plain resolver running next to the LAN (${rt.address}).` : `Plain resolver on port ${rt.port}.`)
-				: 'The resolver is not running; Home-only devices cannot resolve names.', ok ? null : 'apply'));
+		push(out, check('resolver', _('DNS for Home-only devices'), ok ? 'ok' : 'warn',
+			restarting ? _('Restarting with the new settings.') :
+			ok ? (rt.mode == 'ns' ? sprintf(_('Plain resolver running next to the LAN (%s).'), rt.address) : sprintf(_('Plain resolver on port %d.'), rt.port))
+				: _('The resolver is not running; Home-only devices cannot resolve names.'),
+			ok ? null : 'apply', _('DNS for Home-only devices isn’t working')));
 	}
 
 	if (m.settings.portal_enabled)
@@ -572,9 +578,9 @@ export function fix(id) {
 		// Only Dawnline's own tunnels: never another interface of the router.
 		let mine = filter(values(core.load().servers), (s) => s.ifname == m[1] && s.private_key);
 		if (!length(mine))
-			die(`${m[1]} is not one of Dawnline's tunnels.`);
+			die(sprintf(_("%s is not one of Dawnline's tunnels."), m[1]));
 		system(`ifup ${q(m[1])}`);
 		return { ok: true };
 	}
-	die('Unknown fix.');
+	die(_('Unknown fix.'));
 };

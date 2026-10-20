@@ -3,6 +3,7 @@
 // stays for the replay, and the replay's timeline and shimmer. No DOM here (see ./render).
 
 import type { GeoPoint, LogEvent } from '../../shared/types';
+import { locale } from '../../shared/i18n';
 
 /** On one client address: from a connect or a roam to the next one, a disconnect or now. */
 export interface Stretch {
@@ -219,14 +220,14 @@ export function ticks(range: '24h' | '7d' | '30d', now: number): [number, string
   } else if (range === '7d') {
     d.setHours(12, 0, 0, 0);
     for (; d.getTime() / 1000 <= now; d.setDate(d.getDate() + 1))
-      put(d.getTime() / 1000, d.toLocaleDateString('en-GB', { weekday: 'short' }));
+      put(d.getTime() / 1000, d.toLocaleDateString(locale(), { weekday: 'short' }));
   } else {
     const end = new Date(now * 1000);
     end.setHours(0, 0, 0, 0);
     for (let i = 0; i < 5; i++) {
       const w = new Date(end);
       w.setDate(end.getDate() - 7 * i);
-      put(w.getTime() / 1000, w.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }));
+      put(w.getTime() / 1000, w.toLocaleDateString(locale(), { day: 'numeric', month: 'short' }));
     }
     out.reverse();
   }
@@ -234,12 +235,12 @@ export function ticks(range: '24h' | '7d' | '30d', now: number): [number, string
 }
 
 /** "14:05", local. */
-export const clock = (ts: number) => new Date(ts * 1000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+export const clock = (ts: number) => new Date(ts * 1000).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
 
 /** "Today", "Yesterday" or "Wed 14 Oct" for a moment, against the router's `now`. */
 export function dayName(ts: number, now: number): string {
   const day = (x: number) => new Date(x * 1000).toDateString();
-  if (day(ts) === day(now)) return 'Today';
-  if (day(ts) === day(now - 86400)) return 'Yesterday';
-  return new Date(ts * 1000).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  if (day(ts) === day(now)) return _('Today');
+  if (day(ts) === day(now - 86400)) return _('Yesterday');
+  return new Date(ts * 1000).toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short' });
 }
