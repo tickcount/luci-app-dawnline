@@ -640,10 +640,6 @@ msgstr ""
 msgid "Its connection stops working at once. You can add it again later."
 msgstr ""
 
-#: web/src/portal/page/devices.ts
-msgid "Its settings changed: update the connection"
-msgstr ""
-
 #: web/src/shared/format.ts
 msgid "KB"
 msgstr ""
@@ -939,6 +935,10 @@ msgstr ""
 msgid "Reconnect"
 msgstr ""
 
+#: web/src/portal/page/devices.ts
+msgid "Reconnect %s"
+msgstr ""
+
 #: web/src/portal/flows/device-actions.ts
 msgid "Reconnect %s?"
 msgstr ""
@@ -1194,14 +1194,6 @@ msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
 msgid "Unknown service %s."
-msgstr ""
-
-#: web/src/portal/page/devices.ts
-msgid "Update"
-msgstr ""
-
-#: web/src/portal/page/devices.ts
-msgid "Update the connection"
 msgstr ""
 
 #: web/src/portal/ui/bars.ts

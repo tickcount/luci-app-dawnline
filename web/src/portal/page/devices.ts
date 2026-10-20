@@ -25,7 +25,7 @@ export const reachableFromHome = (p: Person, d: Device) => p.access !== 'interne
 /** The status line: its class and words (short, on one line; the full wording shows on hover). */
 function statusOf(d: Device, p: Person): [string, string] {
   if (d.disabled) return ['', _('Disabled')];
-  // The Update pill beside it says what to do.
+  // The Reconnect button under it says what to do.
   if (d.config_stale && d.handshake) return ['warn-t', _('Settings changed')];
   // Over the data limit or outside the hours the tunnel stays up but passes nothing: the app says
   // "connected", so say here why nothing works.
@@ -65,42 +65,25 @@ function dayName(back: number): string {
 }
 
 /** Last 7 days down and up over their bars; a day under the pointer puts its own numbers in their place. */
-function usage(d: Device, stale: boolean): HTMLElement {
+function usage(d: Device): HTMLElement {
   const week = sumDays(d.spark);
   const lbl = h('span', { class: 'use-lbl' }, _('Last 7 days'));
   const val = upDown(d.id);
   val.set(week);
-  let side: HTMLElement;
-  if (stale)
-    side = h(
-      'button',
-      {
-        type: 'button',
-        class: 'upd-pill',
-        'aria-label': _('Update the connection'),
-        title: _('Its settings changed: update the connection'),
-        onclick: () => reconnect(d),
-      },
-      ic('refresh'),
-      h('span', {}, _('Update')),
-    );
-  else {
-    const chart = bars(d.spark, 'bars-week', 34);
-    side = chart.el;
-    chart.cols.forEach((col, i) => {
-      const back = d.spark.length - 1 - i;
-      // What the pointer reads off the bars changes at once: no morph while it moves.
-      col.addEventListener('pointerenter', () => {
-        setText(lbl, dayName(back));
-        val.set(d.spark[i]);
-      });
-      col.addEventListener('pointerleave', () => {
-        setText(lbl, _('Last 7 days'));
-        val.set(week);
-      });
+  const chart = bars(d.spark, 'bars-week', 34);
+  chart.cols.forEach((col, i) => {
+    const back = d.spark.length - 1 - i;
+    // What the pointer reads off the bars changes at once: no morph while it moves.
+    col.addEventListener('pointerenter', () => {
+      setText(lbl, dayName(back));
+      val.set(d.spark[i]);
     });
-  }
-  return h('div', { class: 'dev-use' }, h('div', { class: 'use-txt' }, lbl, h('span', { class: 'use-val' }, val.el)), side);
+    col.addEventListener('pointerleave', () => {
+      setText(lbl, _('Last 7 days'));
+      val.set(week);
+    });
+  });
+  return h('div', { class: 'dev-use' }, h('div', { class: 'use-txt' }, lbl, h('span', { class: 'use-val' }, val.el)), chart.el);
 }
 
 function card(d: Device, st: State): HTMLElement {
@@ -149,7 +132,8 @@ function card(d: Device, st: State): HTMLElement {
       ),
       more,
     ),
-    // Stopped by the admin: a device never set up has nothing to show.
+    // Stopped by the admin: a device never set up has nothing to show. Its settings changed: Reconnect in
+    // place of its week (new keys, then set it up again), as a device not set up yet shows Connect.
     setUp && locked
       ? null
       : setUp
@@ -164,7 +148,19 @@ function card(d: Device, st: State): HTMLElement {
             ic('qr'),
             h('span', {}, _('Connect')),
           )
-        : usage(d, stale),
+        : stale
+          ? h(
+              'button',
+              {
+                type: 'button',
+                class: 'btn tint block setup-btn',
+                'aria-label': fmt(_('Reconnect %s'), d.name),
+                onclick: () => reconnect(d),
+              },
+              ic('refresh'),
+              h('span', {}, _('Reconnect')),
+            )
+          : usage(d),
   );
 }
 
@@ -189,13 +185,33 @@ const addCard = () =>
 
 /** The section, built once; `fill` puts the cards in. */
 export function devicesSection(): HTMLElement {
+  const grid = h('div', { class: 'dgrid' });
+  snapOnJump(grid);
   return h(
     'section',
     { class: 'devices', id: 'devices', 'aria-label': _('Your devices') },
     h('div', { class: 'sec-head' }, h('h2', {}, _('Your devices')), h('span', { class: 'aside num' })),
-    h('div', { class: 'dgrid' }),
+    grid,
     h('p', { class: 'note-s limit', hidden: true }),
   );
+}
+
+/**
+ * A card whose width jumps (the grid changed its columns: a window across 560 or 960 px, a phone turned)
+ * takes its new shape with the layout, at once: gliding there from the old one, its numbers would not fit
+ * for a moment and wrap. A threshold crossed while the window is resized a little at a time still glides
+ * (devices.css). The class goes on before the frame is painted, so the glide that began never shows.
+ */
+function snapOnJump(grid: HTMLElement) {
+  let was = 0;
+  new ResizeObserver(() => {
+    const w = grid.querySelector('.dev')?.getBoundingClientRect().width ?? 0;
+    if (Math.abs(w - was) > 16) {
+      grid.classList.add('snap');
+      requestAnimationFrame(() => requestAnimationFrame(() => grid.classList.remove('snap')));
+    }
+    was = w;
+  }).observe(grid);
 }
 
 /** The cards for this state, moving from where they were. */

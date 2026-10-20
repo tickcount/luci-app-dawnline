@@ -12,6 +12,7 @@
 }
 .bars-week {
   --gap: 4px;
+  transition: margin var(--fit);
 }
 .bars .col {
   display: flex;
@@ -38,7 +39,19 @@
 .bars-week i {
   width: 6px;
   border-radius: 3px;
-  transition-duration: 150ms;
+  transition:
+    background-color 150ms,
+    width var(--fit),
+    border-radius var(--fit);
+}
+/* A card turning compact (devices.css) thins the week's bars and their gaps: they glide there. */
+.bars-week .col {
+  transition: padding var(--fit);
+}
+.bars-week .axis {
+  transition:
+    left var(--fit),
+    right var(--fit);
 }
 .bars .dn {
   background: color-mix(in srgb, var(--text) 24%, transparent);
@@ -77,14 +90,16 @@
 /* ↓ down  ↑ up: the arrows are the line icon turned; the upload one step quieter. */
 .ud {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  white-space: nowrap;
+  column-gap: 10px;
+  transition: column-gap var(--fit);
 }
 .ud > span {
   display: inline-flex;
   align-items: center;
   gap: 2px;
+  white-space: nowrap;
 }
 .ud .i {
   width: 0.8em;
@@ -101,4 +116,16 @@
 .ud-up .i {
   transform: rotate(-90deg);
   color: var(--text-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bars-week,
+  .bars-week .col,
+  .bars-week .axis,
+  .ud {
+    transition: none;
+  }
+  .bars-week i {
+    transition: background-color 150ms;
+  }
 }

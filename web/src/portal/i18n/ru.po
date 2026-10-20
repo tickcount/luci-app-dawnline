@@ -645,10 +645,6 @@ msgstr "Устройство получит новые ключи. Сейчас 
 msgid "Its connection stops working at once. You can add it again later."
 msgstr "Подключение сразу перестанет работать. Устройство можно будет добавить снова."
 
-#: web/src/portal/page/devices.ts
-msgid "Its settings changed: update the connection"
-msgstr "Настройки изменились: обновите подключение"
-
 #: web/src/shared/format.ts
 msgid "KB"
 msgstr "КБ"
@@ -944,6 +940,10 @@ msgstr "QR-код"
 msgid "Reconnect"
 msgstr "Переподключить"
 
+#: web/src/portal/page/devices.ts
+msgid "Reconnect %s"
+msgstr "Переподключить %s"
+
 #: web/src/portal/flows/device-actions.ts
 msgid "Reconnect %s?"
 msgstr "Переподключить «%s»?"
@@ -1200,14 +1200,6 @@ msgstr "Неизвестный сервер."
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
 msgid "Unknown service %s."
 msgstr "Неизвестный сервис %s."
-
-#: web/src/portal/page/devices.ts
-msgid "Update"
-msgstr "Обновить"
-
-#: web/src/portal/page/devices.ts
-msgid "Update the connection"
-msgstr "Обновить подключение"
 
 #: web/src/portal/ui/bars.ts
 msgid "Uploaded"
