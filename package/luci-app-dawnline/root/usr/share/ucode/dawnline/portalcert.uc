@@ -21,11 +21,14 @@ export function name_covers(name, host) {
 	return substr(name, 0, 2) == '*.' && dot > 0 && substr(host, dot) == substr(name, 1);
 };
 
+// A module constant, compiled once, not for each file of the directory.
+const FULLCHAIN = /^(.+)\.fullchain\.crt$/;
+
 /** ACME certificates on the router and the names each covers. */
 export function acme_certs() {
 	let out = [];
 	for (let f in sort(lsdir('/etc/ssl/acme') ?? [])) {
-		let m = match(f, /^(.+)\.fullchain\.crt$/);
+		let m = match(f, FULLCHAIN);
 		if (!m)
 			continue;
 		let c = `/etc/ssl/acme/${f}`, k = `/etc/ssl/acme/${m[1]}.key`;

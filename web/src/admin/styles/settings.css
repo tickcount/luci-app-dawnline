@@ -13,12 +13,14 @@
 .dl-group-ic { width: 32px; height: 32px; border-radius: 10px; background: var(--dl-soft); color: var(--dl-fg-muted); display: inline-flex; align-items: center; justify-content: center; flex: none; }
 .dl-group-ic .dl-icon-wrap { display: inline-flex; } .dl-group-ic .dl-icon { width: 16px; height: 16px; }
 .dl-group-body > * { padding: 12px 0; margin: 0 !important; }
-.dl-group-body > * + *:not(.alert-message):not(.dl-params) { border-top: 1px solid var(--dl-line); }
+.dl-group-body > * + *:not(.alert-message):not(.dl-params):not(.dl-note) { border-top: 1px solid var(--dl-line); }
 /* Boxed pieces (a notice, a parameters panel) keep their own padding and frame: spaced, not ruled. */
 .dl-group-body > .alert-message, .dl-group-body > .dl-params { margin: 12px 0 !important; }
 .dl-group-body > .alert-message { padding: 10px 14px; }
 .dl-group-body > .dl-params { padding: 0; }
-.dl-group-body > .alert-message + *, .dl-group-body > .dl-params + * { border-top: 0; }
+/* A warning note belongs to the row above it: no gap before, room to the group's edge after. */
+.dl-group-body > .dl-note { margin: 0 0 14px !important; padding: 10px 12px; }
+.dl-group-body > .alert-message + *, .dl-group-body > .dl-params + *, .dl-group-body > .dl-note + * { border-top: 0; }
 .dl-group-body > .dl-row { border-left: 0; border-right: 0; border-bottom: 0; padding-left: 0; padding-right: 0; background: none; }
 .dl-group-body > .dl-row:first-child { border-top: 0; }
 .dl-setsec-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; padding: 12px 20px; border-top: 1px solid var(--dl-line); background: var(--dl-soft); }

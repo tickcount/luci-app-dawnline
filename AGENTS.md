@@ -9,6 +9,7 @@ Guidance for coding agents working in this repository (`tickcount/luci-app-dawnl
 - `rules/frontend.md` — TypeScript admin UI and portal: layout of `web/src`, pollers and the live revision.
 - `rules/shell.md` — install, uninstall, init and CI scripts.
 - `rules/ui-design.md` — how the admin UI and the portal look: modern product quality, mock first from the real CSS and components, verified in the browser.
+- `DESIGN.md` — the personal portal's design system: tokens, components, layout and motion, measured on the live page. Read it before any work on the portal (`web/src/portal`, and what it uses from `web/src/shared`); a change to how the portal looks or moves updates it in the same change.
 - `rules/i18n.md` — translations: every visible string and backend message wrapped, the catalogs, the Russian style guide and glossary. Anything added to the admin UI or the portal is localized in the same change; anything removed takes its catalog entries with it.
 
 This repo usually sits inside the router-admin workspace (`../AGENTS.md`). Its rules apply to anything that touches the router: read-only first, backup before mutating, router shell as a literal stdin heredoc over SSH (`../rules/`).

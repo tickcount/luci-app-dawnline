@@ -163,7 +163,7 @@ export function snapshot(fresh) {
 		let flags = hex(sysread(dev, 'flags') || '0');
 		let kind = +(sysread(dev, 'type') || '0');
 		let master = readlink(`${SYS}/${dev}/master`);
-		master = master ? replace(master, /^.*\//, '') : null;
+		master = master ? substr(master, rindex(master, '/') + 1) : null;
 		let bridge = stat(`${SYS}/${dev}/bridge`) != null;
 		let wifi = stat(`${SYS}/${dev}/phy80211`) != null || stat(`${SYS}/${dev}/wireless`) != null;
 		let nets = routes[dev] ? collapse(routes[dev]) : [];
@@ -295,10 +295,13 @@ export function lan_names() {
 	return out;
 };
 
+// A module constant, compiled once: event_hosts runs for every event of the log.
+const ANY_IPV4 = /[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/g;
+
 /** Event addresses that belong to devices at home, with their names ({ ip: name }). */
 export function event_hosts(e, names) {
 	let out = null;
-	for (let ip in match(e.detail ?? '', /[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/g) ?? [])
+	for (let ip in match(e.detail ?? '', ANY_IPV4) ?? [])
 		if (names[ip[0]])
 			(out ??= {})[ip[0]] = names[ip[0]];
 	return out;

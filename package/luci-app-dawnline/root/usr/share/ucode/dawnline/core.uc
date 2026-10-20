@@ -4,7 +4,7 @@
 
 import { cursor } from 'uci';
 import {
-	valid_name, valid_key, valid_host, valid_date, slugify, host_label, ucut, name_rule, parse_cidr, cidr_overlaps, int2ip, ip2int,
+	valid_name, valid_key, valid_host, valid_iface, valid_date, slugify, host_label, ucut, name_rule, parse_cidr, cidr_overlaps, int2ip, ip2int,
 	rand_hex, rand_bytes, date_end, month_key, read_json, DATA_DIR, RUN_DIR, uniq
 } from 'dawnline.util';
 import { _, N_ } from 'dawnline.i18n';
@@ -635,7 +635,7 @@ export function update_person(c, m, id, a) {
 		c.delete(CONFIG, id, 'home_net');
 	}
 	if (type(a.home_nets) == 'array') {
-		let nets = uniq(filter(map(a.home_nets, (x) => trim(`${x}`)), (x) => match(x, /^[A-Za-z0-9_.@-]{1,32}$/)));
+		let nets = uniq(filter(map(a.home_nets, (x) => trim(`${x}`)), valid_iface));
 		if (length(nets))
 			c.set(CONFIG, id, 'home_net', nets);
 		else
@@ -895,7 +895,7 @@ export function wan_forwards(zone, proto) {
 	c.load('firewall');
 	let out = [];
 	c.foreach('firewall', 'redirect', (r) => {
-		if (match(r['.name'], /^dawnline_/) || r.enabled == '0' || (r.target ?? 'DNAT') != 'DNAT' || r.src != zone)
+		if (substr(r['.name'], 0, 9) == 'dawnline_' || r.enabled == '0' || (r.target ?? 'DNAT') != 'DNAT' || r.src != zone)
 			return;
 		// fw4's default is "tcp udp".
 		let protos = split(type(r.proto) == 'array' ? join(' ', r.proto) : r.proto ?? 'tcp udp', /[ ,]+/);

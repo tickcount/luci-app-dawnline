@@ -11,7 +11,7 @@ import { copyText, downloadFile } from './ui/files';
 import { dropdown, type MenuItem } from './ui/menu';
 import { drawer } from './ui/drawer';
 import { attempt, notify } from './ui/toast';
-import { liveField } from './ui/layout';
+import { liveField, warnNote } from './ui/layout';
 import { qrCode } from './ui/qr';
 import { nameHelp } from './netcheck';
 import { deviceStatus } from './ui/badges';
@@ -331,16 +331,11 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
     // Whether it is connected (or still waiting) is in Status above.
     E('div', { class: 'dl-dsec-head' }, [E('h4', {}, _('Connect', 'section'))]),
     d.config_stale
-      ? E('div', { class: 'dl-note warn' }, [
-          icon('alert'),
-          E(
-            'span',
-            {},
-            _(
-              'This device has an older configuration: networks or DNS changed since it was set up. Import it again with the QR code, key or file below.',
-            ),
+      ? warnNote(
+          _(
+            'This device has an older configuration: networks or DNS changed since it was set up. Import it again with the QR code, key or file below.',
           ),
-        ])
+        )
       : '',
     connect,
   ]);

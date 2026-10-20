@@ -41,9 +41,13 @@ def strip_comments(text):
     return re.sub(r'//[^\n]*|/\*.*?\*/', '', text, flags=re.S)
 
 
-def blank_comments(text):
-    """Comments replaced by their newlines: line numbers stay, their text goes."""
-    return re.sub(r'//[^\n]*|/\*.*?\*/', lambda m: '\n' * m.group(0).count('\n'), text, flags=re.S)
+def blank_comments_templates(text):
+    """Comments and template literals replaced by their newlines, strings kept:
+    line numbers stay, and a `}` that starts a line of a template (nft rules)
+    ends no function. A template inside another one's `${…}` reads as code:
+    good enough for how Dawnline writes them."""
+    return re.sub(r"//[^\n]*|/\*.*?\*/|'(?:\\.|[^'\\\n])*'|\"(?:\\.|[^\"\\\n])*\"|`(?:\\.|[^`\\])*`",
+                  lambda m: m.group(0) if m.group(0)[0] in '\'"' else '\n' * m.group(0).count('\n'), text, flags=re.S)
 
 
 # A regex literal on one line: `/…/` with no slash inside, followed by flags or
@@ -66,7 +70,7 @@ for f in files:
             problem(f"{f}:{line}: {name}() is used before its definition")
     # In a module an exported function is an expression statement: its closing
     # brace needs a semicolon ("Expecting ';'" breaks the whole module).
-    lines = blank_comments(open(f, encoding='utf-8').read()).split('\n')
+    lines = blank_comments_templates(open(f, encoding='utf-8').read()).split('\n')
     inside = None
     for n, text in enumerate(lines, 1):
         if inside is None and re.match(r'^export function \w+\(', text):

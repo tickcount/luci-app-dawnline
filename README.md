@@ -109,7 +109,7 @@ follows a modern design.
   <tr>
     <td valign="top">
       <h3>🏠 Internet like a home device</h3>
-      <p>People's devices go online the way the devices at home do, so your proxies, ad and DNS filters cover them too.</p>
+      <p>Turn it on and people's devices go online the way the devices at home do, so your proxies, ad and DNS filters cover them too. Off by default: it costs speed.</p>
     </td>
     <td valign="top">
       <h3>🗺️ Overview and places</h3>

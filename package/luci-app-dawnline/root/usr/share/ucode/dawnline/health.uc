@@ -45,18 +45,26 @@ export function needs() {
 	};
 };
 
+// "  12: 00000000:1194 00000000:0000 07 …": local address, then the remote one (none).
+// A module constant, compiled once: a literal in the loop would be compiled
+// again for every socket (0.12 ms each on the WR3000P, some 90 sockets a call).
+const UDP_UNCONNECTED = /^ *[0-9]+: [0-9A-F]+:([0-9A-F]{4}) [0-9A-F]+:0000 /;
+
 /** UDP ports an unconnected socket is bound to (IPv4 and IPv6): nothing else can listen there. */
 export function udp_bound() {
 	let out = {};
 	for (let f in [ '/proc/net/udp', '/proc/net/udp6' ])
 		for (let line in split(readfile(f) ?? '', '\n')) {
-			// "  12: 00000000:1194 00000000:0000 07 …": local address, then the remote one (none).
-			let m = match(line, /^ *[0-9]+: [0-9A-F]+:([0-9A-F]{4}) [0-9A-F]+:0000 /);
+			let m = match(line, UDP_UNCONNECTED);
 			if (m)
 				out[hex(m[1])] = true;
 		}
 	return map(keys(out), (k) => +k);
 };
+
+// netstat's columns and the port of "0.0.0.0:53" / ":::53". Module constants,
+// compiled once, not for each socket.
+const BLANKS = /[ \t]+/, PORT_SUFFIX = /:([0-9]+)$/;
 
 /**
  * Programs on 'tcp' or 'udp' ports, our portal left out: { port: "dnsmasq" }.
@@ -65,10 +73,10 @@ export function udp_bound() {
 function port_programs(proto) {
 	let out = {};
 	for (let line in split(sh_out(`netstat -ln${proto == 'tcp' ? 't' : 'u'}p 2>/dev/null`) ?? '', '\n')) {
-		let f = split(trim(line), /[ \t]+/);
+		let f = split(trim(line), BLANKS);
 		if (f[0] != proto && f[0] != `${proto}6`)
 			continue;
-		let m = match(f[3] ?? '', /:([0-9]+)$/);
+		let m = match(f[3] ?? '', PORT_SUFFIX);
 		let owner = split(f[length(f) - 1], '/');
 		if (!m || !owner[1] || out[m[1]])
 			continue;
@@ -264,6 +272,9 @@ function endpoint_check(id, title, problem, srv, host, proto_note) {
 	return check(id, title, w.status, w.text, null, problem);
 }
 
+// "1000:	from all fwmark 0x1 lookup 100". A module constant, compiled once, not for each rule.
+const MARK_RULE = /^(\d+):.*fwmark 0x([0-9a-f]+)(\/0x[0-9a-f]+)?.* lookup (\S+)/;
+
 /**
  * Policy routing by another package (mwan3, pbr): an fwmark rule ahead of
  * Dawnline's (pref < 5205) whose table has a default route of its own sends
@@ -273,7 +284,7 @@ function endpoint_check(id, title, problem, srv, host, proto_note) {
 function policy_routing() {
 	let out = [];
 	for (let line in split(sh_out('ip -4 rule show 2>/dev/null') ?? '', '\n')) {
-		let mm = match(line, /^(\d+):.*fwmark 0x([0-9a-f]+)(\/0x[0-9a-f]+)?.* lookup (\S+)/);
+		let mm = match(line, MARK_RULE);
 		if (!mm || +mm[1] >= 5205)
 			continue;
 		let routes = sh_out(`ip -4 route show table ${q(mm[4])} 2>/dev/null`) ?? '';

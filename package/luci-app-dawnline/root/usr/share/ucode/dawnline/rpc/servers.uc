@@ -325,7 +325,8 @@ function server_create(a) {
 			set('detected_wan', snap.wan);
 		if (snap.lan)
 			set('detected_lan', snap.lan);
-		set('lan_like', a.lan_like === false || a.lan_like === '0' ? '0' : '1');
+		// Off unless asked for: the loop through the LAN costs speed (the wizard says how much).
+		set('lan_like', a.lan_like === true || a.lan_like === 1 || a.lan_like === '1' ? '1' : '0');
 		set('enabled', '1');
 		if (a.portal_enabled != null) {
 			let on = a.portal_enabled === true || a.portal_enabled === 1 || a.portal_enabled === '1';

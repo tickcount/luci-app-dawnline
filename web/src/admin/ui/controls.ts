@@ -1,5 +1,5 @@
 // Form controls in the house style: a switch, a segmented control, a chip
-// toggle and a text input.
+// toggle and a text input; LuCI's own select and multi-select for settings.
 
 import { E } from '../e';
 
@@ -111,6 +111,35 @@ export function chipToggle(
 export function setChip(b: HTMLElement, on: boolean) {
   b.classList.toggle('on', on);
   b.setAttribute('aria-pressed', on ? 'true' : 'false');
+}
+
+/**
+ * Single choice as LuCI's select (a ListValue's widget); the choice is `.value`.
+ * Unknown values get an option of their own, so nothing is lost on save.
+ */
+export function select<T extends string>(options: [T, string][], value: T, label: string, onChange?: (v: T) => void): HTMLSelectElement {
+  if (!options.some(([v]) => v === value)) options = [...options, [value, value]];
+  return E(
+    'select',
+    { class: 'cbi-input-select', 'aria-label': label, change: (ev: Event) => onChange?.((ev.target as HTMLSelectElement).value as T) },
+    options.map(([v, t]) => E('option', { value: v, selected: v === value ? 'selected' : null }, t)),
+  ) as HTMLSelectElement;
+}
+
+/** Several choices as LuCI's multi-select dropdown (a MultiValue's widget): `node` to show, `value()` to save. */
+export function multiSelect(
+  options: [string, Node | string][],
+  values: string[],
+  label: string,
+): { node: HTMLElement; value: () => string[] } {
+  const w = new ui.Dropdown(values, Object.fromEntries(options), {
+    multiple: true,
+    sort: options.map(([v]) => v),
+    select_placeholder: _('None'),
+  });
+  const node = w.render() as HTMLElement;
+  node.setAttribute('aria-label', label);
+  return { node, value: () => w.getValue() as string[] };
 }
 
 export function input(value: string, attrs: Record<string, unknown> = {}): HTMLInputElement {

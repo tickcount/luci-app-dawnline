@@ -28,6 +28,9 @@ export const OBF_CONF = {
 const TOOL = '/usr/bin/awg', PROTO = '/lib/netifd/proto/amneziawg.sh';
 /** The packages AmneziaWG comes in (the Components tab installs them). */
 const PACKAGES = [ 'kmod-amneziawg', 'amneziawg-tools' ];
+// A module constant, compiled once (a literal is compiled each time it runs):
+// dump() checks it on every line of `awg show all dump`, every second.
+const DIGITS = /^[0-9]+$/;
 
 /** netifd knows the amneziawg protocol (it reads the proto scripts when it starts). */
 function proto_handler() {
@@ -282,7 +285,7 @@ export function obf_errors(o) {
 		let v = o[k];
 		if (v == null || v == '')
 			continue;
-		if (!match(v, /^[0-9]+$/) || +v < r[0] || +v > r[1])
+		if (!match(v, DIGITS) || +v < r[0] || +v > r[1])
 			push(errs, `${k}=${v} (${r[0]}-${r[1]})`);
 	}
 	if (o.jmin != null && o.jmax != null && +o.jmin > +o.jmax)
@@ -375,7 +378,7 @@ export function client_config(m, dev) {
 	if (!srv)
 		return null;
 	let host = core.endpoint_host(m, srv);
-	let ep = match(host, /:/) && !match(host, /^\[/) ? `[${host}]` : host;
+	let ep = index(host, ':') >= 0 && substr(host, 0, 1) != '[' ? `[${host}]` : host;
 	let allowed = allowed_ips(m, srv, p);
 	let dns = core.client_dns(m, srv, p);
 	let mtu = core.device_mtu(srv, dev);
@@ -506,9 +509,10 @@ export function dump(wanted) {
 		let f = split(line, '\t');
 		if (length(f) < 5 || !valid_key(f[1]))
 			continue;
-		if (valid_key(f[2]) && match(f[3] ?? '', /^[0-9]+$/))
+		let key2 = valid_key(f[2]);
+		if (key2 && match(f[3] ?? '', DIGITS))
 			out.ifaces[f[0]] = { public_key: f[2], port: +f[3] };
-		else if (length(f) >= 9 && (f[2] == '(none)' || valid_key(f[2]))) {
+		else if (length(f) >= 9 && (key2 || f[2] == '(none)')) {
 			let ep = f[3] == '(none)' ? '' : f[3];
 			out.peers[f[1]] = {
 				ifname: f[0],
@@ -654,6 +658,9 @@ export function probes(m, ctx) {
 /* ---------- issued configurations ---------- */
 
 const ISSUED = `${DATA_DIR}/issued.json`;
+// The lines a fingerprint leaves out. A module constant, compiled once, not
+// for each line of each device's configuration.
+const DEVICE_OWN = /^(PrivateKey|Jc|Jmin|Jmax) /;
 
 function fnv32(str) {
 	let h = 2166136261;
@@ -670,7 +677,7 @@ function fnv32(str) {
  */
 export function config_fingerprint(m, dev) {
 	let c = dev ? client_config(m, dev) : null;
-	return c ? fnv32(join('\n', filter(split(c.conf, '\n'), (l) => !match(l, /^(PrivateKey|Jc|Jmin|Jmax) /)))) : null;
+	return c ? fnv32(join('\n', filter(split(c.conf, '\n'), (l) => !match(l, DEVICE_OWN)))) : null;
 };
 
 /** Device id → fingerprint of the configuration last shown or downloaded. */

@@ -55,6 +55,76 @@ test('valid_slug and valid_key', () => {
 	ok(!util.valid_key(''), 'empty');
 });
 
+test('valid_key without a regex', () => {
+	let k = 'yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk=';
+	ok(util.valid_key('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnop0='), 'letters');
+	ok(util.valid_key('qrstuvwxyz0123456789+/qrstuvwxyz0123456789w='), 'digits, + and /');
+	ok(!util.valid_key(`${k}=`), '45 characters');
+	ok(!util.valid_key(substr(k, 1)), '43 characters');
+	ok(!util.valid_key(replace(k, '+', '-')), 'URL-safe alphabet');
+	ok(!util.valid_key(`${substr(k, 0, 20)}=${substr(k, 21)}`), 'padding inside');
+	ok(!util.valid_key(`${substr(k, 0, 20)}\u0000${substr(k, 21)}`), 'NUL byte');
+	ok(!util.valid_key(`${k}\u0000x`), 'NUL and more after the key');
+	ok(!util.valid_key(` ${substr(k, 1)}`), 'space');
+	ok(!util.valid_key(null), 'null');
+	ok(!util.valid_key([ k ]), 'array');
+	// The pattern it stands for, on keys changed at both ends and in the middle.
+	let re = /^[A-Za-z0-9+\/]{42}[AEIMQUYcgkosw048]=$/;
+	for (let i in [ 0, 1, 21, 41, 42, 43 ])
+		for (let c in [ 'A', 'z', '0', '9', '+', '/', 'b', 'k', '=', '-', '_', ' ', '.', '\n' ]) {
+			let s = `${substr(k, 0, i)}${c}${substr(k, i + 1)}`;
+			eq(util.valid_key(s), match(s, re) != null, s);
+		}
+});
+
+test('valid_host without a regex', () => {
+	ok(util.valid_host('a'), 'one character');
+	ok(util.valid_host('xn--80ak6aa92e.com'), 'dashes inside a label');
+	ok(util.valid_host('Router-1.LAN'), 'upper case');
+	ok(!util.valid_host('example.com.'), 'trailing dot');
+	ok(!util.valid_host('.example.com'), 'leading dot');
+	ok(!util.valid_host('a-.example.com'), 'dash ending a label');
+	ok(!util.valid_host('under_score.example'), 'underscore');
+	ok(!util.valid_host('example.com\u0000x'), 'NUL byte');
+	// The pattern it stands for (and the address checks after it), on names with
+	// each character replaced, removed or with one inserted before it.
+	let re = /^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$/;
+	let old = (s) => length(s) <= 253 && (match(s, re) != null || util.ip2int(s) != null || util.is_ip6(s));
+	let label = replace(sprintf('%63s', ''), ' ', 'b');
+	for (let h in [ 'vpn.example.com', 'a.b-c.d', `${label}.x`, `x.${label}`, '203.0.113.7', '2001:db8::1' ]) {
+		let at = [];
+		for (let i = 0; i <= length(h); i++)
+			if (length(h) < 20 || i < 2 || i > length(h) - 3 || (i > 60 && i < 66))
+				push(at, i);
+		for (let i in at)
+			for (let c in [ 'a', 'Z', '0', '-', '.', '_', ' ', '*', ':', '\n', '' ]) {
+				let s = `${substr(h, 0, i)}${c}${substr(h, i + 1)}`, t = `${substr(h, 0, i)}${c}${substr(h, i)}`;
+				eq(util.valid_host(s), old(s), s);
+				eq(util.valid_host(t), old(t), t);
+			}
+	}
+});
+
+test('valid_iface without a regex', () => {
+	ok(util.valid_iface('wan'), 'wan');
+	ok(util.valid_iface('lan.100'), 'dot');
+	ok(util.valid_iface('@wan6'), 'alias');
+	ok(!util.valid_iface(''), 'empty');
+	ok(!util.valid_iface(replace(sprintf('%33s', ''), ' ', 'a')), '33 characters');
+	ok(!util.valid_iface('wan\u0000x'), 'NUL byte');
+	ok(!util.valid_iface(null), 'null');
+	ok(!util.valid_iface([ 'wan' ]), 'array');
+	// The pattern it stands for, as above.
+	let re = /^[A-Za-z0-9_.@-]{1,32}$/;
+	for (let n in [ 'wan', 'br-lan.10', 'A_z@0', replace(sprintf('%32s', ''), ' ', 'x') ])
+		for (let i = 0; i <= length(n); i++)
+			for (let c in [ 'a', 'Z', '9', '_', '.', '@', '-', ' ', '$', ';', '/', '\n', '' ]) {
+				let s = `${substr(n, 0, i)}${c}${substr(n, i + 1)}`, t = `${substr(n, 0, i)}${c}${substr(n, i)}`;
+				eq(util.valid_iface(s), match(s, re) != null, s);
+				eq(util.valid_iface(t), match(t, re) != null, t);
+			}
+});
+
 test('ip2int / int2ip / cidr_any', () => {
 	eq(util.ip2int('10.9.0.1'), 168361985, 'ip2int');
 	eq(util.int2ip(168361985), '10.9.0.1', 'int2ip');
@@ -83,6 +153,40 @@ test('parse_cidr', () => {
 	ok(!util.cidr_overlaps(util.parse_cidr('10.9.0.0/24'), util.parse_cidr('10.9.1.0/24')), 'adjacent');
 	ok(util.in_cidr('10.9.0.200', util.parse_cidr('10.9.0.0/24')), 'in_cidr');
 	ok(!util.in_cidr('10.9.1.1', util.parse_cidr('10.9.0.0/24')), 'not in_cidr');
+});
+
+test('parse_cidr and cidr_any share one pattern', () => {
+	// The patterns each had, on networks changed at each character.
+	let old_any = (s) => {
+		let m = match(s ?? '', /^([0-9.]+)(\/([0-9]+))?$/);
+		if (!m)
+			return null;
+		let ip = util.ip2int(m[1]), prefix = m[3] != null ? +m[3] : 32;
+		if (ip == null || prefix > 32)
+			return null;
+		let size = 1 << (32 - prefix);
+		return { net: ip - ip % size, prefix, size, ip };
+	};
+	let old_cidr = (s) => {
+		let m = match(s ?? '', /^([0-9.]+)\/([0-9]+)$/);
+		if (!m)
+			return null;
+		let ip = util.ip2int(m[1]), prefix = +m[2];
+		if (ip == null || prefix < 8 || prefix > 30)
+			return null;
+		let size = 1 << (32 - prefix);
+		let net = ip - ip % size;
+		return { net, prefix, size, first: net + 1, last: net + size - 2, ip };
+	};
+	for (let n in [ '10.9.0.0/24', '192.168.1.77/30', '0.0.0.0/8', '10.0.0.5', '1.2.3.4/32', '//', '' ])
+		for (let i = 0; i <= length(n); i++)
+			for (let c in [ '0', '9', '.', '/', ' ', 'a', '-', '\n', '' ]) {
+				let s = `${substr(n, 0, i)}${c}${substr(n, i + 1)}`, t = `${substr(n, 0, i)}${c}${substr(n, i)}`;
+				eq(util.parse_cidr(s), old_cidr(s), s);
+				eq(util.parse_cidr(t), old_cidr(t), t);
+				eq(util.cidr_any(s), old_any(s), s);
+				eq(util.cidr_any(t), old_any(t), t);
+			}
 });
 
 test('cloudflare_ip', () => {
@@ -139,4 +243,46 @@ test('text: ulength, ucut, translit, host_label, tunnel_name', () => {
 	eq(util.tunnel_name(null), 'dawnline', 'tunnel name: null');
 	eq(util.host_label('!!!'), 'device', 'nothing left');
 	eq(length(util.host_label(replace(sprintf('%50s', ''), ' ', 'x'))), 40, 'cut at 40');
+});
+
+test('host_label, tunnel_name, slugify: dashes trimmed without a regex', () => {
+	// What they were with the dash patterns and the device-name regex, on names
+	// changed at each character (names come from uci, which holds no NUL byte).
+	let old_label = (s) => {
+		let l = replace(lc(util.translit(`${s ?? ''}`)), /[^a-z0-9]+/g, '-');
+		l = replace(substr(replace(l, /^-+|-+$/g, ''), 0, 40), /-+$/g, '');
+		return l || 'device';
+	};
+	let old_tunnel = (s) => {
+		let l = replace(util.translit(`${s ?? ''}`), /[^A-Za-z0-9]+/g, '-');
+		l = replace(substr(replace(l, /^-+|-+$/g, ''), 0, 15), /-+$/g, '');
+		return l && !match(l, /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i) ? l : 'dawnline';
+	};
+	let old_slug = (s) => {
+		let out = lc(util.translit(trim(`${s ?? ''}`)));
+		out = replace(out, /[^a-z0-9]+/g, '-');
+		out = replace(out, /^-+|-+$/g, '');
+		return substr(out, 0, 32) || 'user';
+	};
+	let same = (s) => {
+		eq(util.host_label(s), old_label(s), s);
+		eq(util.tunnel_name(s), old_tunnel(s), s);
+		eq(util.slugify(s), old_slug(s), s);
+	};
+	let long = replace(sprintf('%13s', ''), ' ', 'x');
+	for (let n in [ 'Outline Home', '--a--b--', ' (My VPN)! ', 'Дом у моря', `${long}-yz`, `${long}y-z`,
+	                `${long}${long}${long}-ab`, `${replace(sprintf('%31s', ''), ' ', 'q')}--r`, '-', '' ])
+		for (let i = 0; i <= length(n); i++)
+			for (let c in [ 'a', 'Z', '0', '-', ' ', '!', '.', '_', 'Ж', '\n', '' ]) {
+				same(`${substr(n, 0, i)}${c}${substr(n, i + 1)}`);
+				same(`${substr(n, 0, i)}${c}${substr(n, i)}`);
+			}
+	// Windows device names in any case, and their neighbours.
+	for (let b in [ 'con', 'prn', 'aux', 'nul', 'com', 'lpt', 'co', 'conx' ])
+		for (let d in [ '', '0', '1', '5', '9', 'x', '10', '-1', ' 2' ]) {
+			same(`${b}${d}`);
+			same(uc(`${b}${d}`));
+			same(`${uc(substr(b, 0, 1))}${substr(b, 1)}${d}`);
+		}
+	same(null);
 });

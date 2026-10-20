@@ -3250,6 +3250,10 @@ msgstr "Как портал принимает подключения (80 и 443
 msgid "Idle right now"
 msgstr "Сейчас без трафика"
 
+#: web/src/admin/interfaces.ts
+msgid "If the router’s DNS hands out proxy addresses, those sites won’t open without it."
+msgstr "Если DNS роутера выдаёт адреса прокси, без этого такие сайты не откроются."
+
 #: web/src/admin/pages/settings/backups.ts
 msgid "Import"
 msgstr "Импортировать"
@@ -4327,6 +4331,7 @@ msgid "Nobody is connected"
 msgstr "Никто не подключён"
 
 #: web/src/admin/pages/settings/defaults.ts
+#: web/src/admin/ui/controls.ts
 msgid "None"
 msgstr "Нет"
 
@@ -4489,8 +4494,8 @@ msgid "Off: NAT may close the tunnel when idle, and “Connected” lags."
 msgstr "Выкл.: NAT может закрыть туннель при простое, а статус «Подключено» будет запаздывать."
 
 #: web/src/admin/interfaces.ts
-msgid "Off: internet traffic goes straight to the WAN, past whatever handles home traffic on this router."
-msgstr "Выкл.: интернет-трафик идёт прямо в WAN, минуя всё, что обрабатывает домашний трафик на этом роутере."
+msgid "Off: internet traffic goes straight to the WAN, the fastest way. DNS still goes through this router. Proxies and filters here handle the tunnel only if you %s."
+msgstr "Выкл.: интернет-трафик идёт прямо в WAN, это самый быстрый путь. DNS по-прежнему через роутер. Прокси и фильтры на роутере обработают туннель, только если вы %s."
 
 #: web/src/admin/pages/server.ts
 msgid "Off: only you add devices, from LuCI. On: people manage their devices within the limits you set."
@@ -5812,6 +5817,10 @@ msgstr "Пакеты-сигнатуры"
 msgid "Signatures"
 msgstr "Сигнатуры"
 
+#: web/src/admin/interfaces.ts
+msgid "Slower: every packet crosses the router twice. On a dual-core router expect up to a third less speed, and lost packets at full load."
+msgstr "Медленнее: каждый пакет проходит через роутер дважды. На двухъядерном роутере скорость ниже до трети, а на пределе теряются пакеты."
+
 #: web/src/admin/cores/awg.ts
 #: web/src/admin/pages/server.ts
 msgid "So networks that block VPNs do not recognise the tunnel. Off = plain WireGuard"
@@ -7002,6 +7011,10 @@ msgstr "Почему соединение проходит или нет"
 msgid "Within a circle: family sees family, guests see guests. Everyone reaches their own devices. Internet-only people never."
 msgstr "Внутри круга: семья видит семью, гости - гостей. Каждый видит свои устройства. Люди только с интернетом - никогда."
 
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/loop.uc
+msgid "Without kmod-nft-offload every packet on this path passes the firewall twice. Install it and restart Dawnline."
+msgstr "Без kmod-nft-offload каждый пакет на этом пути дважды проходит через межсетевой экран. Установите его и перезапустите Dawnline."
+
 #: web/src/admin/updater/operation.ts
 msgid "Working…"
 msgstr "Выполняется…"
@@ -7215,6 +7228,10 @@ msgstr ": новую сборку нужно включить вручную в 
 #: web/src/admin/events/model.ts
 msgid "access"
 msgstr "доступ"
+
+#: web/src/admin/interfaces.ts
+msgid "add its interface %s to their source interfaces yourself"
+msgstr "сами добавите его интерфейс %s в их источники трафика"
 
 #: web/src/admin/events/model.ts
 msgid "address %s"
@@ -7926,6 +7943,10 @@ msgstr ": правила Dawnline изменены или удалены"
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/watchdog.uc
 msgid "runs again"
 msgstr "снова работает"
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/loop.uc
+msgid "runs without its fast path"
+msgstr "работает без ускорения"
 
 #: web/src/admin/events/model.ts
 msgid "saved to flash every 10 minutes"

@@ -1,8 +1,10 @@
 // dawnline.awg: disguise presets against their own validation, the parser
 // of `awg show all dump` on the output formats of AmneziaWG 1.0, 2.0 and 3.1
-// (the stand-in awg in fixtures/bin prints the fixture put at AWG_DUMP), and Reconnect.
+// (the stand-in awg in fixtures/bin prints the fixture put at AWG_DUMP),
+// Reconnect, and a device's configuration from the fixture model.
 import { readfile, writefile, unlink } from 'fs';
 import * as awg from 'dawnline.awg';
+import * as core from 'dawnline.core';
 
 const AWG_DUMP = '/tmp/dawnline-tests/awg-dump';
 let fixtures = sourcepath(0, true) + '/fixtures';
@@ -114,4 +116,40 @@ test('blocked reasons', () => {
 	// Files of older versions hold the English fragment after the name.
 	eq(awg.blocked_text(srv('has an invalid interface name "x"')), 'Home has an invalid interface name "x".', 'old fragment');
 	eq(awg.blocked_note({ code: 'ifname', ifname: 'x' }), 'has an invalid interface name "x"', 'the log keeps the fragment');
+});
+
+test('client_config: an IPv6 endpoint in brackets, without a regex', () => {
+	let m = core.load();
+	let srv = m.servers.main, dev = m.devices.alice_phone;
+	let ep = (h) => {
+		srv.endpoint = h;
+		return match(awg.client_config(m, dev).conf, /\nEndpoint = ([^\n]*)\n/)?.[1];
+	};
+	eq(ep('vpn.example.com'), 'vpn.example.com:51820', 'a name');
+	eq(ep('203.0.113.7'), '203.0.113.7:51820', 'IPv4');
+	eq(ep('2001:db8::1'), '[2001:db8::1]:51820', 'IPv6');
+	eq(ep('[2001:db8::1]'), '[2001:db8::1]:51820', 'IPv6 in brackets already');
+	eq(ep(''), 'vpn.example.com:51820', 'the portal name when the server has none');
+	// The regexes it stands for, on hosts changed at each character.
+	for (let h in [ '2001:db8::1', '[::1]', 'a.b' ])
+		for (let i = 0; i <= length(h); i++)
+			for (let c in [ ':', '[', ']', 'a', '' ]) {
+				let s = `${substr(h, 0, i)}${c}${substr(h, i + 1)}`;
+				let want = match(s, /:/) && !match(s, /^\[/) ? `[${s}]` : s;
+				eq(ep(s), `${want || 'vpn.example.com'}:51820`, s);
+			}
+});
+
+test('config_fingerprint leaves out the private key and the junk', () => {
+	let m = core.load();
+	let dev = m.devices.alice_phone;
+	let f = awg.config_fingerprint(m, dev);
+	ok(match(f, /^[0-9a-f]{8}$/), 'eight hex digits');
+	dev.private_key = 'yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk=';
+	eq(awg.config_fingerprint(m, dev), f, 'a private key');
+	m.servers.main.obf.jc = '7';
+	eq(awg.config_fingerprint(m, dev), f, 'another junk count');
+	m.servers.main.port = 51821;
+	ok(awg.config_fingerprint(m, dev) != f, 'another port');
+	eq(awg.config_fingerprint(m, null), null, 'no device');
 });

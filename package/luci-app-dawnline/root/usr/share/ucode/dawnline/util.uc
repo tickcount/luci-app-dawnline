@@ -5,7 +5,7 @@
 import { open, readfile, writefile, rename, mkdir, stat, unlink, popen, lsdir } from 'fs';
 import { _ } from 'dawnline.i18n';
 
-export const VERSION = '0.12.1';
+export const VERSION = '0.13.0';
 /** GitHub repository with Dawnline releases (updates and the installer). */
 export const REPO = 'tickcount/luci-app-dawnline';
 export const RUN_DIR = '/var/run/dawnline';
@@ -365,8 +365,14 @@ export function slog_restore() {
 
 /* ---------- IPv4 ---------- */
 
+// Module constants, compiled once: a regex literal is compiled again each
+// time it runs (rules/backend.md), and these run for every address and every
+// network in a list (status, the portal, the agent's checks).
+const IPV4 = /^([0-9]+)\.([0-9]+)\.([0-9]+)\.([0-9]+)$/;
+const CIDR = /^([0-9.]+)(\/([0-9]+))?$/;
+
 export function ip2int(ip) {
-	let m = match(ip, /^([0-9]+)\.([0-9]+)\.([0-9]+)\.([0-9]+)$/);
+	let m = match(ip, IPV4);
 	if (!m)
 		return null;
 	let n = 0;
@@ -389,7 +395,7 @@ export function int2ip(n) {
  * allowed networks use this; parse_cidr is the stricter one for subnets.
  */
 export function cidr_any(s) {
-	let m = match(s ?? '', /^([0-9.]+)(\/([0-9]+))?$/);
+	let m = match(s ?? '', CIDR);
 	if (!m)
 		return null;
 	let ip = ip2int(m[1]), prefix = m[3] != null ? +m[3] : 32;
@@ -432,10 +438,10 @@ export function cloudflare_ip(a) {
 
 /** Parse "a.b.c.d/len" → { net, prefix, first, last, size } (net is the masked base). */
 export function parse_cidr(cidr) {
-	let m = match(cidr ?? '', /^([0-9.]+)\/([0-9]+)$/);
-	if (!m)
+	let m = match(cidr ?? '', CIDR);
+	if (!m || m[3] == null)
 		return null;
-	let ip = ip2int(m[1]), prefix = +m[2];
+	let ip = ip2int(m[1]), prefix = +m[3];
 	if (ip == null || prefix < 8 || prefix > 30)
 		return null;
 	let size = 1 << (32 - prefix);
@@ -549,8 +555,24 @@ export function name_rule() {
 	return _('Enter a name: up to 48 characters, without < > " or \\.');
 };
 
+// Character sets for checks written without a regex: ucode compiles a regex
+// literal each time it runs, and musl's regcomp takes milliseconds for a
+// bounded repeat (rules/backend.md). ltrim stops at a NUL byte, so a string
+// with one fails these checks (a regex looks only up to it).
+const ASCII_ALNUM = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+const B64 = `${ASCII_ALNUM}+/`;
+// 32 bytes are 43 base64 characters: the last holds four bits of the key and two zero bits.
+const KEY_LAST = 'AEIMQUYcgkosw048';
+
+/**
+ * A (Amnezia)WireGuard key: 32 bytes in base64, 43 characters and "=", the
+ * same as /^[A-Za-z0-9+\/]{42}[AEIMQUYcgkosw048]=$/ without its 1.7 ms
+ * compile on the WR3000P: the agent's watcher checks two keys per line of
+ * `awg show all dump` every second. This takes about 0.03 ms.
+ */
 export function valid_key(s) {
-	return type(s) == 'string' && match(s, /^[A-Za-z0-9+\/]{42}[AEIMQUYcgkosw048]=$/) != null;
+	return type(s) == 'string' && length(s) == 44 && substr(s, 43) == '=' &&
+		index(KEY_LAST, substr(s, 42, 1)) >= 0 && ltrim(substr(s, 0, 42), B64) == '';
 };
 
 /** An IPv6 address in its usual spelling (no zone, no brackets). */
@@ -558,10 +580,25 @@ export function is_ip6(s) {
 	return type(s) == 'string' && match(s, /^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}$/) != null && match(s, /:::/) == null;
 };
 
+const LABEL = `${ASCII_ALNUM}-`;
+
+/**
+ * Dot-separated labels of 1-63 letters, digits and dashes, none starting or
+ * ending with a dash: the same as
+ * /^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$/
+ * without its 10 ms compile on the WR3000P.
+ */
+function host_name(s) {
+	for (let l in split(s, '.'))
+		if (length(l) < 1 || length(l) > 63 || ltrim(l, LABEL) != '' ||
+		    index(ASCII_ALNUM, substr(l, 0, 1)) < 0 || index(ASCII_ALNUM, substr(l, -1)) < 0)
+			return false;
+	return true;
+}
+
+/** A host name or an IP address, as a public address or the portal's name may be given. */
 export function valid_host(s) {
-	return type(s) == 'string' && length(s) <= 253 &&
-		(match(s, /^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$/) != null ||
-		 ip2int(s) != null || is_ip6(s));
+	return type(s) == 'string' && length(s) <= 253 && (host_name(s) || ip2int(s) != null || is_ip6(s));
 };
 
 /** YYYY-MM-DD, and a day that exists (2026-02-30 does not). */
@@ -573,11 +610,18 @@ export function valid_date(s) {
 	return l.year == +m[1] && l.mon == +m[2] && l.mday == +m[3];
 };
 
+// Runs of other characters become one dash. Module constants: host_label and
+// tunnel_name run for every device of a status or a portal answer.
+const NOT_LC_ALNUM = /[^a-z0-9]+/g, NOT_ALNUM = /[^A-Za-z0-9]+/g;
+// Names Windows keeps for devices: no file may be called that, whatever the case.
+const WIN_DEVICES = [ 'con', 'prn', 'aux', 'nul', 'com1', 'com2', 'com3', 'com4', 'com5', 'com6', 'com7', 'com8', 'com9',
+	'lpt1', 'lpt2', 'lpt3', 'lpt4', 'lpt5', 'lpt6', 'lpt7', 'lpt8', 'lpt9' ];
+
 /** Turn a display name into a portal slug candidate ("Мама Таня" → "mama-tanya"). */
 export function slugify(s) {
 	let out = lc(translit(trim(`${s ?? ''}`)));
-	out = replace(out, /[^a-z0-9]+/g, '-');
-	out = replace(out, /^-+|-+$/g, '');
+	out = replace(out, NOT_LC_ALNUM, '-');
+	out = trim(out, '-');
 	return substr(out, 0, 32) || 'user';
 };
 
@@ -586,8 +630,8 @@ export function slugify(s) {
  * "telefon"): at most 40 characters, "device" when nothing is left.
  */
 export function host_label(s) {
-	let l = replace(lc(translit(`${s ?? ''}`)), /[^a-z0-9]+/g, '-');
-	l = replace(substr(replace(l, /^-+|-+$/g, ''), 0, 40), /-+$/g, '');
+	let l = replace(lc(translit(`${s ?? ''}`)), NOT_LC_ALNUM, '-');
+	l = rtrim(substr(trim(l, '-'), 0, 40), '-');
 	return l || 'device';
 };
 
@@ -598,9 +642,9 @@ export function host_label(s) {
  * refuses its device names (CON, NUL, COM1…). "dawnline" when nothing is left.
  */
 export function tunnel_name(s) {
-	let l = replace(translit(`${s ?? ''}`), /[^A-Za-z0-9]+/g, '-');
-	l = replace(substr(replace(l, /^-+|-+$/g, ''), 0, 15), /-+$/g, '');
-	return l && !match(l, /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i) ? l : 'dawnline';
+	let l = replace(translit(`${s ?? ''}`), NOT_ALNUM, '-');
+	l = rtrim(substr(trim(l, '-'), 0, 15), '-');
+	return l && index(WIN_DEVICES, lc(l)) < 0 ? l : 'dawnline';
 };
 
 /* ---------- time ---------- */
@@ -660,9 +704,21 @@ export function now() {
 	return time();
 };
 
+const IFACE = `${ASCII_ALNUM}_.@-`;
+
+/**
+ * A netifd interface name (network.interface.<name>, a person's home network):
+ * 1-32 letters, digits and _ . @ -, the same as /^[A-Za-z0-9_.@-]{1,32}$/
+ * without its 3 ms compile on the WR3000P (iface_status runs several times for
+ * the Overview's status, and in the agent's minute checks).
+ */
+export function valid_iface(s) {
+	return type(s) == 'string' && length(s) >= 1 && length(s) <= 32 && ltrim(s, IFACE) == '';
+};
+
 /** netifd's view of an interface (ubus network.interface.<name> status), or null. */
 export function iface_status(ifname) {
-	if (!match(ifname ?? '', /^[A-Za-z0-9_.@-]{1,32}$/))
+	if (!valid_iface(ifname))
 		return null;
 	let s = sh_out(`ubus call network.interface.${ifname} status 2>/dev/null`);
 	if (!s)

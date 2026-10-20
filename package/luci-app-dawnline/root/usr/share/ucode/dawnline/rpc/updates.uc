@@ -44,11 +44,14 @@ function awg_tunnels() {
 	return out;
 }
 
+// A line of /etc/openwrt_release. A module constant, compiled once, not for each line.
+const RELEASE_LINE = /^DISTRIB_(RELEASE|TARGET|ARCH)='([^']*)'/;
+
 function status(a) {
 	let m = core.load();
 	let rel = {};
 	for (let line in split(readfile('/etc/openwrt_release') ?? '', '\n')) {
-		let x = match(line, /^DISTRIB_(RELEASE|TARGET|ARCH)='([^']*)'/);
+		let x = match(line, RELEASE_LINE);
 		if (x)
 			rel[lc(x[1])] = x[2];
 	}

@@ -3197,6 +3197,10 @@ msgstr ""
 msgid "Idle right now"
 msgstr ""
 
+#: web/src/admin/interfaces.ts
+msgid "If the router’s DNS hands out proxy addresses, those sites won’t open without it."
+msgstr ""
+
 #: web/src/admin/pages/settings/backups.ts
 msgid "Import"
 msgstr ""
@@ -4273,6 +4277,7 @@ msgid "Nobody is connected"
 msgstr ""
 
 #: web/src/admin/pages/settings/defaults.ts
+#: web/src/admin/ui/controls.ts
 msgid "None"
 msgstr ""
 
@@ -4435,7 +4440,7 @@ msgid "Off: NAT may close the tunnel when idle, and “Connected” lags."
 msgstr ""
 
 #: web/src/admin/interfaces.ts
-msgid "Off: internet traffic goes straight to the WAN, past whatever handles home traffic on this router."
+msgid "Off: internet traffic goes straight to the WAN, the fastest way. DNS still goes through this router. Proxies and filters here handle the tunnel only if you %s."
 msgstr ""
 
 #: web/src/admin/pages/server.ts
@@ -5753,6 +5758,10 @@ msgstr ""
 msgid "Signatures"
 msgstr ""
 
+#: web/src/admin/interfaces.ts
+msgid "Slower: every packet crosses the router twice. On a dual-core router expect up to a third less speed, and lost packets at full load."
+msgstr ""
+
 #: web/src/admin/cores/awg.ts
 #: web/src/admin/pages/server.ts
 msgid "So networks that block VPNs do not recognise the tunnel. Off = plain WireGuard"
@@ -6937,6 +6946,10 @@ msgstr ""
 msgid "Within a circle: family sees family, guests see guests. Everyone reaches their own devices. Internet-only people never."
 msgstr ""
 
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/loop.uc
+msgid "Without kmod-nft-offload every packet on this path passes the firewall twice. Install it and restart Dawnline."
+msgstr ""
+
 #: web/src/admin/updater/operation.ts
 msgid "Working…"
 msgstr ""
@@ -7149,6 +7162,10 @@ msgstr ""
 
 #: web/src/admin/events/model.ts
 msgid "access"
+msgstr ""
+
+#: web/src/admin/interfaces.ts
+msgid "add its interface %s to their source interfaces yourself"
 msgstr ""
 
 #: web/src/admin/events/model.ts
@@ -7858,6 +7875,10 @@ msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/watchdog.uc
 msgid "runs again"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/loop.uc
+msgid "runs without its fast path"
 msgstr ""
 
 #: web/src/admin/events/model.ts

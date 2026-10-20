@@ -37,6 +37,8 @@ interface WidgetOptions {
   sort?: boolean | string[];
   create?: boolean;
   multiple?: boolean;
+  /** Dropdown: what it shows with nothing chosen. */
+  select_placeholder?: string;
   size?: number;
   rows?: number;
   cols?: number;

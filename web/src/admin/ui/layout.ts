@@ -1,12 +1,12 @@
 // Layout pieces: a labelled setting row, a settings card, a titled group, a
-// "missing package" row, LuCI's callout and an SVG holder.
+// "missing package" row, a warning note, LuCI's callout and an SVG holder.
 
 import type { Child } from '../luci.d';
 import { E } from '../e';
 import { icon } from '../../shared/icons';
 
 /** Label and help on the left, the control on the right. */
-export function row(label: string, control: Node, help?: string): HTMLElement {
+export function row(label: string, control: Node, help?: Child): HTMLElement {
   return E('div', { class: 'dl-setrow' }, [
     E('div', { class: 'dl-stack' }, [E('span', { class: 'dl-setrow-label' }, label), help ? E('span', { class: 'dl-sub' }, help) : '']),
     E('div', { class: 'dl-setrow-ctl' }, control),
@@ -115,6 +115,11 @@ export function needRow(ic: string, tone: '' | 'bad' | 'warn', title: string, su
     E('span', { class: 'dl-row-main dl-stack' }, [E('b', {}, title), E('span', { class: 'dl-sub' }, sub)]),
     actions,
   ]);
+}
+
+/** A warning beside the choice it is about: alert icon and text on an orange wash. */
+export function warnNote(text: Child): HTMLElement {
+  return E('div', { class: 'dl-note warn' }, [icon('alert'), E('span', {}, text)]);
 }
 
 export function callout(tone: 'ok' | 'warn' | 'error' | 'info', children: Child): HTMLElement {

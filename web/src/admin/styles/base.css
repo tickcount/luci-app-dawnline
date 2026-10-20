@@ -1,32 +1,44 @@
 /* Tokens (Outline first, LuCI Bootstrap next, a fallback that works anywhere), pills, cards, activity rows. */
 :root {
-  /* Outline's tokens first, then LuCI Bootstrap's, then something that works anywhere. */
+  /* Outline's tokens first, then LuCI Bootstrap's, then Outline's own values (light here, dark below).
+     Washes mix the theme's text colour, not currentColor: on muted text (icon tiles) currentColor fades them out. */
   --dl-card: var(--panel-bg, var(--background-color-high, transparent));
   --dl-elevated: var(--elevated, var(--background-color-high, Canvas));
   --dl-line: var(--border, var(--border-color-medium, color-mix(in srgb, currentColor 14%, transparent)));
-  --dl-soft: var(--muted, color-mix(in srgb, currentColor 5%, transparent));
-  --dl-soft-hover: var(--soft-hover, color-mix(in srgb, currentColor 10%, transparent));
-  --dl-fg: var(--foreground, var(--text-color-highest, inherit));
+  --dl-fg: var(--foreground, var(--text-color-highest, currentColor));
+  --dl-soft: var(--muted, color-mix(in srgb, var(--dl-fg) 5%, transparent));
+  --dl-soft-hover: var(--soft-hover, color-mix(in srgb, var(--dl-fg) 10%, transparent));
   --dl-fg-muted: var(--muted-foreground, color-mix(in srgb, currentColor 65%, transparent));
   --dl-fg-faint: var(--text-tertiary, color-mix(in srgb, currentColor 50%, transparent));
   --dl-accent: var(--accent, #3a83f7);
   --dl-ok: var(--success, #00a240);
   --dl-warn: var(--warning, #e25507);
   --dl-bad: var(--danger, #e02e2a);
-  --dl-ok-wash: var(--success-a15, color-mix(in srgb, #00a240 15%, transparent));
-  --dl-warn-wash: var(--warning-a15, color-mix(in srgb, #e25507 15%, transparent));
-  --dl-bad-wash: var(--destructive-a15, color-mix(in srgb, #e02e2a 15%, transparent));
-  --dl-info-wash: var(--info-a15, color-mix(in srgb, #3a83f7 15%, transparent));
   --dl-info: var(--info, #2c67c5);
-  --dl-track: var(--foreground-a10, color-mix(in srgb, currentColor 10%, transparent));
+  --dl-ok-wash: var(--success-a15, color-mix(in srgb, var(--dl-ok) 15%, transparent));
+  --dl-warn-wash: var(--warning-a15, color-mix(in srgb, var(--dl-warn) 15%, transparent));
+  --dl-bad-wash: var(--destructive-a15, color-mix(in srgb, var(--dl-bad) 15%, transparent));
+  --dl-info-wash: var(--info-a15, color-mix(in srgb, var(--dl-info) 15%, transparent));
+  --dl-track: var(--foreground-a10, color-mix(in srgb, var(--dl-fg) 10%, transparent));
   --dl-chart-1: var(--chart-blue, #3a83f7);
-  --dl-chart-2: var(--chart-green, #00a240);
+  --dl-chart-2: var(--chart-green, var(--dl-ok));
   --dl-ring: var(--ring, #3a83f7);
-  --dl-primary: var(--primary, #0d0d0d);
-  --dl-primary-fg: var(--primary-foreground, #fff);
+  --dl-primary: var(--primary, var(--dl-fg));
+  --dl-primary-fg: var(--primary-foreground, var(--dl-elevated));
   --dl-mono: var(--font-mono, ui-monospace, Menlo, Consolas, monospace);
   --dl-shadow: var(--shadow-sm, none);
   --dl-radius: 16px;
+}
+/* Bootstrap's page is its --background-color-high: in dark mode cards and popovers sit one step lighter, as on Outline. */
+:root[data-darkmode="true"] {
+  --dl-card: var(--panel-bg, var(--background-color-low, transparent));
+  --dl-elevated: var(--elevated, var(--background-color-low, Canvas));
+  --dl-accent: var(--accent, #006efe);
+  --dl-ok: var(--success, #40c977);
+  --dl-warn: var(--warning, #ff8549);
+  --dl-bad: var(--danger, #ff6764);
+  --dl-info: var(--info, #5ba2fe);
+  --dl-ring: var(--ring, #5ba2febc);
 }
 
 /* Text is read, not edited: the arrow over it, the I-beam only where you type. */

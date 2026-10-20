@@ -196,22 +196,28 @@ export function homeServices(initial: Status, serverId: string, reload: () => Pr
     const wait = busy.has(h.address);
     const chip = (label: string, on: boolean, click: () => void) =>
       chipToggle(label, on, click, { disabled: wait ? 'disabled' : null, 'aria-busy': wait ? 'true' : null });
-    return E('div', { class: 'dl-row' }, [
+    // The name and the ports share a wrapping line: the ports go under the name before it is squeezed.
+    return E('div', { class: 'dl-row dl-host' }, [
       icon(h.services.some((s) => s.type.startsWith('_ipp') || s.type.startsWith('_printer')) ? 'file' : 'computer'),
-      E('span', { class: 'dl-row-main dl-stack' }, [E('b', {}, h.name || h.address), E('span', { class: 'dl-mono dl-faint' }, h.address)]),
-      E('div', { class: 'dl-chips-row dl-host-ports' }, [
-        chip(_('All ports'), all, () => choose(h, all ? null : [])),
-        ...portGroups(h).map(([label, ports]) => {
-          const on = !all && ports.every((p) => chosen.has(p));
-          return chip(`${label} ${ports.join(', ')}`, on, () => {
-            const next = new Set(all ? [] : chosen);
-            for (const p of ports) {
-              if (on) next.delete(p);
-              else next.add(p);
-            }
-            choose(h, next.size ? [...next] : null);
-          });
-        }),
+      E('div', { class: 'dl-host-body' }, [
+        E('span', { class: 'dl-row-main dl-stack' }, [
+          E('b', {}, h.name || h.address),
+          E('span', { class: 'dl-mono dl-faint' }, h.address),
+        ]),
+        E('div', { class: 'dl-chips-row' }, [
+          chip(_('All ports'), all, () => choose(h, all ? null : [])),
+          ...portGroups(h).map(([label, ports]) => {
+            const on = !all && ports.every((p) => chosen.has(p));
+            return chip(`${label} ${ports.join(', ')}`, on, () => {
+              const next = new Set(all ? [] : chosen);
+              for (const p of ports) {
+                if (on) next.delete(p);
+                else next.add(p);
+              }
+              choose(h, next.size ? [...next] : null);
+            });
+          }),
+        ]),
       ]),
     ]);
   }

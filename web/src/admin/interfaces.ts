@@ -9,6 +9,7 @@ import { button } from './ui/button';
 import { attempt, notify } from './ui/toast';
 import { seg, sw } from './ui/controls';
 import { attachTip } from './ui/tooltip';
+import { warnNote } from './ui/layout';
 import { installMissing } from './pkgs';
 import { icon } from '../shared/icons';
 import { fill, fmt, locale, plural } from '../shared/i18n';
@@ -30,6 +31,40 @@ const ICON: Record<NetDevice['kind'], string> = {
   vpn: 'tunnel',
   other: 'link',
 };
+
+/**
+ * "Internet like a home device" off: traffic leaves past the router's own
+ * proxies and filters, while DNS still goes through the router, which may
+ * answer with addresses only those proxies serve. Said wherever it is chosen.
+ */
+export function likeHomeOffText(ifname: string): (Node | string)[] {
+  // The step to take, in bold.
+  const add = E('b', {}, fill(_('add its interface %s to their source interfaces yourself'), E('span', { class: 'dl-mono' }, ifname)));
+  return [
+    ...fill(
+      _(
+        'Off: internet traffic goes straight to the WAN, the fastest way. DNS still goes through this router. Proxies and filters here handle the tunnel only if you %s.',
+      ),
+      add,
+    ),
+    ' ',
+    // What breaks, not only what is missed: the one part to notice.
+    E('span', { class: 'dl-warn' }, _('If the router’s DNS hands out proxy addresses, those sites won’t open without it.')),
+  ];
+}
+
+/**
+ * What "like a home device" costs: every packet crosses the router twice
+ * (through the netns and back over the LAN bridge). Measured on a dual-core
+ * MT7981: about 225 Mbit/s down without it, 160 with it, the CPU full either way.
+ */
+export function likeHomeCost(): HTMLElement {
+  return warnNote(
+    _(
+      'Slower: every packet crosses the router twice. On a dual-core router expect up to a third less speed, and lost packets at full load.',
+    ),
+  );
+}
 
 /** Server → Access cards; `update` takes a new status without touching the draft. */
 export interface AccessCards {
@@ -170,7 +205,7 @@ export function accessCards(srv: Server, first: Status, refresh: () => Promise<u
 
   function likeHomeText(): (Node | string)[] {
     const lh = d.like_home;
-    if (!lanLike) return [_('Off: internet traffic goes straight to the WAN, past whatever handles home traffic on this router.')];
+    if (!lanLike) return likeHomeOffText(srv.ifname);
     if (d.needs?.length)
       return [
         E('span', { class: 'dl-warn' }, fmt(_('Needs %s.'), new Intl.ListFormat(locale(), { type: 'conjunction' }).format(d.needs))),
@@ -301,6 +336,7 @@ export function accessCards(srv: Server, first: Status, refresh: () => Promise<u
             }),
           ],
           likeHomeTone(),
+          lanLike ? likeHomeCost() : undefined,
         ),
         setrow(
           'globe',

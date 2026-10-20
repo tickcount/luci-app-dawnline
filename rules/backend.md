@@ -23,7 +23,8 @@ Read with `code-standards.md`. Everything here runs on a small router (2 × Cort
 
 - **The portal is CGI:** every request starts ucode and compiles the module graph, about 140 ms of CPU before any work (a full `state` answer about 180 ms). No periodic polling from the portal; one request per user action.
 - **rpcd keeps the admin backend loaded:** LuCI RPC calls are cheap, so the admin UI may poll small methods often (`rev`), and the heavy ones (`status`) only on change or rarely.
-- **Code on the agent's 1-second watcher stays in the low milliseconds:** one `awg show all dump` (about 4 ms with process start), the model cached by the config file's mtime/inode (`core.load()` is about 4 ms), files written only when something changed. Slow work (geo lookups, apply) runs only on a transition.
+- **Code on the agent's 1-second watcher stays in the low milliseconds:** one `awg show all dump` (about 4 ms with process start, 1 ms to parse), the model cached by the config file's mtime/inode (`core.load()` is about 4 ms), files written only when something changed. Slow work (geo lookups, apply) runs only on a transition.
+- **A regex literal is compiled every time it runs:** ucode calls regcomp for `/…/` each time the expression is evaluated, and musl's regcomp grows with the pattern. Bounded repeats are copied out (`{42}` about 1.7 ms on the WR3000P, `[A-Za-z0-9_.@-]{1,32}` 3 ms, two `{0,61}` 10 ms), alternations and classes add up (`/^(PrivateKey|Jc|Jmin|Jmax) /` 0.11 ms, `/^[0-9]+$/` 0.02 ms); matching a compiled regex takes 0.01–0.1 ms. In a loop or on a hot path, hoist the regex into a module `const` (compiled once, when the module loads — every portal request pays that too) or check with `length`/`substr`/`ltrim` (`util.valid_key`, `valid_host`, `valid_iface`).
 - Measure before and after on the router (a loop of 20–200 calls, `/proc/self/stat` CPU ticks, system busy from `/proc/stat`) when adding anything periodic.
 
 ## Checks

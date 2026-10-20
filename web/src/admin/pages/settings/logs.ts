@@ -4,7 +4,7 @@ import { E } from '../../e';
 import { api } from '../../api';
 import { button } from '../../ui/button';
 import { attempt } from '../../ui/toast';
-import { chipToggle, seg, setChip } from '../../ui/controls';
+import { multiSelect, select } from '../../ui/controls';
 import { row } from '../../ui/layout';
 import { icon } from '../../../shared/icons';
 import { fmtDay, kb } from '../../../shared/format';
@@ -16,7 +16,7 @@ import { section, type SettingsHost } from './common';
 export function logsCard(host: SettingsHost): HTMLElement {
   const L = host.d.logs;
   const p = L.policy;
-  const keep = seg(
+  const keep = select(
     [
       ['7', plural(7, '%s day', '%s days')],
       ['30', plural(30, '%s day', '%s days')],
@@ -25,9 +25,9 @@ export function logsCard(host: SettingsHost): HTMLElement {
       ['0', _('No limit', 'retention')],
     ],
     String(p.keep_days),
-    { label: _('Keep activity'), cls: 'sm' },
+    _('Keep activity'),
   );
-  const size = seg(
+  const size = select(
     [
       ['500', num(500)],
       ['2000', num(2000)],
@@ -35,18 +35,18 @@ export function logsCard(host: SettingsHost): HTMLElement {
       ['20000', num(20000)],
     ],
     String(p.max),
-    { label: _('Maximum events'), cls: 'sm' },
+    _('Maximum events'),
   );
-  const persist = seg(
+  const persist = select(
     [
       ['10min', _('Every 10 min')],
       ['hourly', _('Hourly')],
       ['off', _('Memory only')],
     ],
     p.persist,
-    { label: _('Save to flash'), cls: 'sm' },
+    _('Save to flash'),
   );
-  const days = seg(
+  const days = select(
     [
       ['31', plural(1, '%s month', '%s months')],
       ['62', plural(2, '%s month', '%s months')],
@@ -55,9 +55,9 @@ export function logsCard(host: SettingsHost): HTMLElement {
       ['730', plural(2, '%s year', '%s years')],
     ],
     String(p.usage_days),
-    { label: _('Daily traffic'), cls: 'sm' },
+    _('Daily traffic'),
   );
-  const months = seg(
+  const months = select(
     [
       ['12', plural(1, '%s year', '%s years')],
       ['24', plural(2, '%s year', '%s years')],
@@ -65,24 +65,19 @@ export function logsCard(host: SettingsHost): HTMLElement {
       ['120', plural(10, '%s year', '%s years')],
     ],
     String(p.usage_months),
-    { label: _('Monthly traffic'), cls: 'sm' },
+    _('Monthly traffic'),
   );
-  const chosen = new Set(p.categories);
-  const cats = E(
-    'div',
-    { class: 'dl-chips-row' },
-    CATEGORIES.map((c) => {
-      const b = chipToggle(
-        [categoryLabel(c), E('b', {}, num(L.by_category[c] ?? 0))],
-        chosen.has(c),
-        () => {
-          if (!chosen.delete(c)) chosen.add(c);
-          setChip(b, chosen.has(c));
-        },
-        { title: categoryHelp(c) },
-      );
-      return b;
-    }),
+  const cats = multiSelect(
+    CATEGORIES.map((c): [string, Node] => [
+      c,
+      E('span', { title: categoryHelp(c) }, [
+        categoryLabel(c),
+        ' ',
+        E('span', { class: 'dl-faint dl-opt-note' }, num(L.by_category[c] ?? 0)),
+      ]),
+    ]),
+    p.categories,
+    _('Record'),
   );
 
   const since = L.oldest ? fmtDay(new Date(L.oldest * 1000)) : '';
@@ -110,7 +105,7 @@ export function logsCard(host: SettingsHost): HTMLElement {
       E('p', { class: 'dl-muted' }, retentionText(p)),
       row(_('Keep activity'), keep, _('Older events are removed automatically.')),
       row(_('Maximum size'), size, _('Newest events are kept when the log is full.')),
-      row(_('Record'), cats, _('Switched-off categories are not logged from now on.')),
+      row(_('Record'), cats.node, _('Switched-off categories are not logged from now on.')),
       row(
         _('Save to flash'),
         persist,
@@ -172,12 +167,12 @@ export function logsCard(host: SettingsHost): HTMLElement {
         () =>
           host.save(
             {
-              log_keep_days: keep.dataset.value!,
-              log_max: size.dataset.value!,
-              log_persist: persist.dataset.value!,
-              usage_keep_days: days.dataset.value!,
-              usage_keep_months: months.dataset.value!,
-              log_category: [...chosen],
+              log_keep_days: keep.value,
+              log_max: size.value,
+              log_persist: persist.value,
+              usage_keep_days: days.value,
+              usage_keep_months: months.value,
+              log_category: cats.value(),
             },
             _('Saved'),
             'logs',

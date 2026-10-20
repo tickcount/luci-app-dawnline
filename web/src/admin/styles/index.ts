@@ -2,7 +2,8 @@
 // (luci-theme-outline: --panel-bg, --border, --muted, --accent, --success-a15,
 // …). Every token has a fallback so other themes still get a sane look.
 // Outline switches dark mode with html[data-darkmode], and its tokens follow
-// it automatically, so nothing here needs a dark variant.
+// it automatically; only the fallbacks in base.css have a dark variant (LuCI
+// Bootstrap sets the same attribute).
 //
 // One file per feature, imported as text (tsup minifies them, see
 // tsup.config.ts) and joined in cascade order: later files override earlier ones.

@@ -4,14 +4,14 @@
 import type { UpdatePolicy } from '../../api';
 import { E } from '../../e';
 import { button } from '../../ui/button';
-import { chipToggle, input, isOn, seg, setChip, sw } from '../../ui/controls';
+import { input, isOn, multiSelect, select, sw } from '../../ui/controls';
 import { row } from '../../ui/layout';
 import { notify } from '../../ui/toast';
 import { timeHelp } from '../../netcheck';
 import { fmt } from '../../../shared/i18n';
 import { section, type SettingsHost } from './common';
 
-/** The components automatic updates may install: id and chip label. */
+/** The components automatic updates may install: id and label. */
 const targetChoices = (): [string, string][] => [
   ['app', 'Dawnline'],
   ['amneziawg', 'AmneziaWG'],
@@ -21,7 +21,7 @@ const targetChoices = (): [string, string][] => [
 export function updatesCard(host: SettingsHost): HTMLElement {
   const u = (host.d.effective as Record<string, any>).updates as UpdatePolicy;
   const check = sw(u.check, _('Check automatically'), (v) => show(v, isOn(auto)));
-  const every = seg(
+  const every = select(
     [
       ['6h', _('Every 6 h')],
       ['12h', _('Every 12 h')],
@@ -29,7 +29,7 @@ export function updatesCard(host: SettingsHost): HTMLElement {
       ['7d', _('Weekly')],
     ],
     u.interval,
-    { label: _('How often'), cls: 'sm' },
+    _('How often'),
   );
   const auto = sw(u.auto, _('Install automatically'), (v) => show(isOn(check), v));
   const at = input(u.time, {
@@ -38,27 +38,17 @@ export function updatesCard(host: SettingsHost): HTMLElement {
     class: 'cbi-input-text dl-w-port dl-mono',
     'aria-label': _('Time'),
   });
-  const mode = seg(
+  const mode = select(
     [
       ['scheduled', _('At a set time')],
       ['immediate', _('As soon as found')],
     ],
     u.mode,
-    { label: _('When'), cls: 'sm', onChange: (v) => (at.hidden = v !== 'scheduled') },
+    _('When'),
+    (v) => (at.hidden = v !== 'scheduled'),
   );
   at.hidden = u.mode !== 'scheduled';
-  const chosen = new Set<string>(u.targets);
-  const targets = E(
-    'div',
-    { class: 'dl-chips-row' },
-    targetChoices().map(([k, t]) => {
-      const b = chipToggle(t, chosen.has(k), () => {
-        if (!chosen.delete(k)) chosen.add(k);
-        setChip(b, chosen.has(k));
-      });
-      return b;
-    }),
-  );
+  const targets = multiSelect(targetChoices(), u.targets, _('Components'));
   const keep = sw(u.keep, _('Keep the previous version'));
   const mirrors = sw(u.mirrors, _('GitHub mirrors'));
   const everyRow = row(_('How often'), every);
@@ -68,7 +58,7 @@ export function updatesCard(host: SettingsHost): HTMLElement {
       E('div', { class: 'dl-hostport' }, [mode, at]),
       _('A set time keeps tunnel restarts out of the evening; the run happens within an hour of it.'),
     ),
-    row(_('Components'), targets, _('AmneziaWG is off by default: a new kernel module restarts every tunnel.')),
+    row(_('Components'), targets.node, _('AmneziaWG is off by default: a new kernel module restarts every tunnel.')),
   ];
   const show = (c: boolean, a: boolean) => {
     everyRow.hidden = !c;
@@ -104,7 +94,7 @@ export function updatesCard(host: SettingsHost): HTMLElement {
       button(
         _('Save'),
         () => {
-          if (mode.dataset.value === 'scheduled') {
+          if (mode.value === 'scheduled') {
             const h = timeHelp(at.value);
             if (h.bad) {
               notify(fmt(_('Time: %s'), h.text), 'warning');
@@ -114,11 +104,11 @@ export function updatesCard(host: SettingsHost): HTMLElement {
           return host.save(
             {
               update_check: isOn(check) ? '1' : '0',
-              update_interval: every.dataset.value!,
+              update_interval: every.value,
               update_auto: isOn(auto) ? '1' : '0',
-              update_mode: mode.dataset.value!,
+              update_mode: mode.value,
               update_time: at.value.trim(),
-              update_targets: [...chosen],
+              update_targets: targets.value(),
               update_keep: isOn(keep) ? '1' : '0',
               update_mirrors: isOn(mirrors) ? '1' : '0',
             },

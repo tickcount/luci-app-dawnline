@@ -126,7 +126,7 @@ export function sync(m, dry) {
 
 	let stale = [];
 	c.foreach('firewall', null, (s) => {
-		if (match(s['.name'], /^dawnline_/) && !want[s['.name']])
+		if (substr(s['.name'], 0, 9) == 'dawnline_' && !want[s['.name']])
 			push(stale, s['.name']);
 	});
 	for (let s in stale) {
@@ -170,6 +170,9 @@ export function drift(m) {
 };
 
 const MARK_ALL = 0xffffffff;
+// "1000:	from all fwmark 0x1 lookup 100", or "fwmark 0x1/0xff". A module
+// constant, compiled once, not for each rule.
+const MARK_RULE = /^(\d+):.*fwmark 0x([0-9a-f]+)(\/0x([0-9a-f]+))?.* lookup (\S+)/;
 
 function hx(n) {
 	return sprintf('0x%x', n);
@@ -184,8 +187,7 @@ export function proxy_diverts() {
 	let out = [], seen = {};
 	for (let fam in [ '-4', '-6' ])
 		for (let line in split(sh_out(`ip ${fam} rule show 2>/dev/null`) ?? '', '\n')) {
-			// "1000:	from all fwmark 0x1 lookup 100", or "fwmark 0x1/0xff".
-			let mm = match(line, /^(\d+):.*fwmark 0x([0-9a-f]+)(\/0x([0-9a-f]+))?.* lookup (\S+)/);
+			let mm = match(line, MARK_RULE);
 			if (!mm || +mm[1] >= 32766)
 				continue;
 			let d = { pref: +mm[1], mark: hex(mm[2]), mask: mm[4] ? hex(mm[4]) : MARK_ALL, table: mm[5] };

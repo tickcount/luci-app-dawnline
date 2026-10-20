@@ -2,6 +2,8 @@
 
 The bar is a modern product UI (Linear / Vercel / Raycast level), not a "native" LuCI form. A plain label + input row, a bare radio list, three columns of check marks or a text dump is a first draft, never the result.
 
+**The portal has its own design system, `DESIGN.md`** (repo root): read it before any portal work, mocks included. Build from its tokens, components and spring tokens, follow its Do's and Don'ts, and update it in the same change when the portal's look or motion changes. The admin follows this file and the LuCI theme.
+
 ## Approach
 
 - **Mock first.** Any visible change beyond a one-line fix: show a mockup (2–4 genuinely different options when the direction is open) with a recommendation, then build the chosen one. Do not start coding a layout the user has not seen.

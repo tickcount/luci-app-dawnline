@@ -2,7 +2,8 @@
 /* Server → Access: networks as chips, circles, services from home, who reaches what, check access. */
 .dl-chip.static { cursor: default; } .dl-chip.static:hover { background: var(--dl-soft); }
 .dl-chip.static .dl-chip-name { font-weight: 500; }
-.dl-setrow.head .dl-chips-row { margin-top: 8px; }
+.dl-setrow.head .dl-chips-row, .dl-setrow.head .dl-note { margin-top: 8px; }
+.dl-setrow.head .dl-note { margin-bottom: 0; }
 .dl-setrow.head > .dl-lh-main, .dl-setrow.head > .dl-lh-main > .dl-stack { flex: 1 1 auto; min-width: 0; }
 .dl-setrow.head > .dl-setrow-ctl:empty { display: none; }
 .dl-setrow.head:has(> .dl-lh-main) { align-items: flex-start; }
@@ -12,8 +13,12 @@
 .dl-boxrow > .dl-switch { flex: none; }
 .dl-ifpick { display: flex; flex-direction: column; gap: 12px; padding: 14px; border: 1px solid var(--dl-line); border-radius: 14px; }
 .dl-iflead-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.dl-host-ports { justify-content: flex-end; }
-@media (max-width: 760px) { .dl-host-ports { justify-content: flex-start; } }
+/* A device at home: the name keeps at least 160px; past that the ports wrap under it, lined up with it,
+   and on one line the name's growth pushes them to the right. The icon sits centred on name and address (20 + 2 + 20px). */
+.dl-host { align-items: flex-start; }
+.dl-host > .dl-icon-wrap { margin-top: 13px; }
+.dl-host-body { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.dl-host-body > .dl-row-main { flex: 1 1 160px; }
 .dl-circle-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex: none; }
 .dl-circles .dl-chip b { font-weight: 500; }
 .dl-circle-name { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; }

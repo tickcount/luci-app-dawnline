@@ -1,6 +1,7 @@
 // dawnline.core: the model read from the fixture config (real libuci), access
 // hours, quotas and the derived person state at an explicit time, address
-// allocation and the automatic MTU.
+// allocation, the automatic MTU, and other packages' port forwards.
+import { readfile, writefile, unlink } from 'fs';
 import * as core from 'dawnline.core';
 
 // A local time that no time zone turns into another day.
@@ -163,4 +164,30 @@ test('device_labels', () => {
 	} };
 	let p = { id: 'p', devices: [ 'd', 'c', 'b', 'a' ] };
 	eq(core.device_labels(mm, p), { a: 'iphone', b: 'iphone-2', c: 'telefon', d: 'telefon-2' }, 'unique by age');
+});
+
+test('wan_forwards leaves out Dawnline\'s own, without a regex', () => {
+	// A firewall config for this case only (the container's own is put back).
+	let path = '/etc/config/firewall', saved = readfile(path);
+	let names = [ 'dawnline_portal', 'dawnline_', 'dawnline', 'Dawnline_x', 'xdawnline_y', 'dawnlinex_1', 'web' ];
+	let conf = '';
+	for (let i = 0; i < length(names); i++)
+		conf += sprintf("config redirect '%s'\n\toption src 'wan'\n\toption proto 'udp'\n\toption src_dport '%d'\n\n", names[i], 6000 + i);
+	writefile(path, conf);
+	let got = null, err = null;
+	try {
+		got = core.wan_forwards('wan', 'udp');
+	}
+	catch (e) {
+		err = e;
+	}
+	if (saved != null)
+		writefile(path, saved);
+	else
+		unlink(path);
+	if (err)
+		die(err.message);
+	// The names the pattern it stands for let through.
+	eq(map(got, (f) => f.name), filter(names, (n) => !match(n, /^dawnline_/)), 'names');
+	eq(got[0], { from: 6002, to: 6002, name: 'dawnline' }, 'a forward');
 });

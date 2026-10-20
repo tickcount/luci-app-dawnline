@@ -124,8 +124,12 @@ export function online(dmp, id, peer) {
 	return !!(peer && peer.handshake > 0 && time() - peer.handshake < ONLINE_WINDOW);
 };
 
+// "203.0.113.7:41821", "[2001:db8::1]:41821". A module constant, compiled once:
+// the agent's watcher asks for every device, every second.
+const ENDPOINT = /^\[?([^\]]+)\]?:[0-9]+$/;
+
 export function endpoint_ip(ep) {
-	let m = match(ep ?? '', /^\[?([^\]]+)\]?:[0-9]+$/);
+	let m = match(ep ?? '', ENDPOINT);
 	return m ? m[1] : ep;
 };
 

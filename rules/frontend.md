@@ -1,6 +1,6 @@
 # Frontend (TypeScript: admin UI and portal)
 
-Read with `code-standards.md` and, for anything visible, `ui-design.md` and `i18n.md` (every visible string goes through `_()`).
+Read with `code-standards.md` and, for anything visible, `ui-design.md` and `i18n.md` (every visible string goes through `_()`). Portal work starts with `DESIGN.md` (its tokens, components and motion).
 
 ## Code
 

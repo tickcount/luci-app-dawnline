@@ -7,12 +7,23 @@
 //                                              └── NAT to a LAN address ┘
 //
 // The netns is one more device on the LAN bridge with its own address (picked
-// from the LAN subnet above the DHCP pool). Replies come back the same way.
+// from the LAN subnet above the DHCP pool) and its own MAC (hashed from the
+// bridge's), the same each time it is created: the router's neighbour table
+// knows the address by that MAC, so a netns created again keeps its address
+// instead of seeing it held by another device. Replies come back the same way.
 // Home-network destinations keep their direct route; per-person access is
 // still enforced on dawn0 before any of this (table inet dawnline).
 //
 // Clients also use the netns address as DNS: it forwards to the DNS the LAN
 // gets from DHCP, from the LAN side, so DNS interception applies as well.
+//
+// The netns forwards and NATs every packet a second time (conntrack, the
+// forward hook): about 40% more CPU per packet on an MT7981. A flowtable on
+// its two links (dlx1, dll1) lets established TCP and UDP flows skip that
+// work. The netns holds no access rules: who may reach what is judged on the
+// tunnel interfaces in the root namespace, which no flowtable here touches.
+// Without kernel flowtables (kmod-nft-offload) the loop runs as before,
+// slower, and logs it once.
 //
 // Separately, people with Home-only access get a plain resolver
 // (dawnline.resolver). While the netns exists it runs inside it and sends its
@@ -41,6 +52,7 @@ const TX_ROOT = net.INTERNAL.transit, TX_NS = 'dlx1', LAN_ROOT = net.INTERNAL.la
 const PREF_LOOP_DNS = 5205, PREF_MAIN = 5210, PREF_LOOP = 5290;
 export const RESOLVER_CONF = resolver.CONF;
 const STATE = `${RUN_DIR}/loop.json`;
+const NS_RULES = '/var/etc/dawnline-ns.nft';
 
 const WHO = L_('Internet like a home device');
 
@@ -106,39 +118,64 @@ function used_addresses(dev) {
 	return used;
 }
 
+/** The MAC the netns's LAN link has now; null without the link. */
 function our_mac() {
 	return sh_out(`ip -n ${NS} -j link show ${LAN_NS} 2>/dev/null | jsonfilter -e '@[0].address'`);
 }
 
+/** 32-bit FNV-1a of a string, continuing from `h`. */
+function fnv1a(s, h) {
+	for (let i = 0; i < length(s); i++)
+		h = ((h ^ ord(s, i)) * 16777619) & 0xffffffff;
+	return h;
+}
+
 /**
- * A LAN address for the netns: keep the saved one while it is valid and not
- * taken by someone else, otherwise the highest free host above the DHCP pool
- * (then below it), skipping static leases and anything that answers.
+ * The MAC for the netns's LAN link, from the bridge's MAC: a locally
+ * administered unicast address hashed from it, so it is the same every time
+ * and differs between routers. Not the bridge's MAC with a bit flipped: radios
+ * and ports often get those.
  */
-function pick_address(lan, facts, saved, dev) {
+export function lan_mac(bridge) {
+	let s = lc(trim(bridge ?? ''));
+	let h1 = fnv1a(`dawnline lan ${s}`, 0x811c9dc5), h2 = fnv1a(s, h1);
+	let b = [ ((h1 >> 24) & 0xfc) | 0x02, (h1 >> 16) & 0xff, (h1 >> 8) & 0xff, h1 & 0xff, (h2 >> 24) & 0xff, (h2 >> 16) & 0xff ];
+	return join(':', map(b, (x) => sprintf('%02x', x)));
+};
+
+/**
+ * True when the netns may use a LAN address (a number): a host of the
+ * network, not the router's, not a static lease, outside the DHCP pool and
+ * not held by another device in `used` (address → MAC, or true without one).
+ * An entry with one of the MACs in `mine` is the netns itself, also from
+ * before it was created again.
+ */
+export function address_free(ip, lan, facts, used, mine) {
+	if (ip <= lan.net || ip >= lan.net + lan.size - 1 || ip == lan.ip || index(facts.statics, ip) >= 0)
+		return false;
+	if (facts.pool && ip >= facts.pool[0] && ip <= facts.pool[1])
+		return false;
+	let u = used[int2ip(ip)];
+	return u == null || index(mine, u) >= 0;
+};
+
+/**
+ * A LAN address for the netns: keep the saved one while it is free (see
+ * address_free; `mine` are the netns's MACs), otherwise the highest free host
+ * above the DHCP pool (then below it) that does not answer.
+ */
+function pick_address(lan, facts, saved, dev, mine) {
 	let used = used_addresses(dev);
-	let mine = our_mac();
-	let taken = (ip) => {
-		let s = int2ip(ip);
-		if (ip == lan.ip || index(facts.statics, ip) >= 0)
-			return true;
-		if (facts.pool && ip >= facts.pool[0] && ip <= facts.pool[1])
-			return true;
-		let u = used[s];
-		return u != null && !(mine && u == mine);
-	};
 	let sv = ip2int(saved ?? '');
-	if (sv != null && sv > lan.net && sv < lan.net + lan.size - 1 && !taken(sv))
+	if (sv != null && address_free(sv, lan, facts, used, mine))
 		return int2ip(sv);
 	for (let ip = lan.net + lan.size - 2; ip > lan.net; ip--) {
-		if (taken(ip))
+		if (!address_free(ip, lan, facts, used, mine))
 			continue;
 		// Last check: nobody answers on it.
 		sh(`ping -c 1 -W 1 -I ${q(dev)} ${int2ip(ip)}`);
-		let again = used_addresses(dev)[int2ip(ip)];
-		if (again != null && !(mine && again == mine))
-			continue;
-		return int2ip(ip);
+		if (address_free(ip, lan, facts, used_addresses(dev), mine))
+			return int2ip(ip);
 	}
 	return null;
 }
@@ -271,7 +308,9 @@ export function plan(m) {
 		return { error: { code: 'no_ipv4', dev } };
 	let facts = dhcp_facts(d.logical, lan);
 	let st = settings();
-	let addr = pick_address(lan, facts, st.lan_address, dev);
+	let mac = lan_mac(readfile(`/sys/class/net/${dev}/address`));
+	// The netns's MACs: the one it gets, and the one it has (a random one from an older version).
+	let addr = pick_address(lan, facts, st.lan_address, dev, [ mac, our_mac() ]);
 	if (!addr)
 		return { error: { code: 'no_address', net: `${int2ip(lan.net)}/${lan.prefix}` } };
 	let last = read_json(STATE, {});
@@ -291,6 +330,7 @@ export function plan(m) {
 		dev,
 		gateway: int2ip(lan.ip),
 		address: addr,
+		mac,
 		prefix: lan.prefix,
 		dns: facts.dns ?? int2ip(lan.ip),
 		transit: tx,
@@ -303,10 +343,20 @@ export function plan(m) {
 
 /* ---------- apply ---------- */
 
-function ns_rules(p) {
+/**
+ * The netns's nft script as text (nothing is loaded). With `fast`, a
+ * flowtable on the netns's own two links takes established TCP and UDP flows
+ * past conntrack and the forward hook here. Only dlx1 and dll1: the root
+ * namespace's links (dawn0, dlx0) stay out, the guard there sees every packet.
+ */
+export function ns_rules(p, fast) {
 	return `table inet dawnline
 delete table inet dawnline
-table inet dawnline {
+table inet dawnline {${fast ? `
+	flowtable ft {
+		hook ingress priority 0;
+		devices = { "${TX_NS}", "${LAN_NS}" };
+	}` : ''}
 	chain nat_pre {
 		type nat hook prerouting priority dstnat; policy accept;
 		iifname "${TX_NS}" ip daddr ${p.address} meta l4proto { tcp, udp } th dport 53 dnat ip to ${p.dns}:53
@@ -316,7 +366,8 @@ table inet dawnline {
 		oifname "${LAN_NS}" masquerade
 	}
 	chain filter_forward {
-		type filter hook forward priority filter; policy drop;
+		type filter hook forward priority filter; policy drop;${fast ? `
+		ct state established meta l4proto { tcp, udp } flow add @ft` : ''}
 		ct state established,related accept
 		iifname "${TX_NS}" oifname "${LAN_NS}" accept
 	}
@@ -329,6 +380,21 @@ table inet dawnline {
 	}
 }
 `;
+};
+
+/**
+ * Load the netns's rules, with the flowtable when the kernel takes it, else
+ * without (the loop works either way). { fast, slow, err }: slow is why the
+ * flowtable failed, err why the rules without it failed too.
+ */
+function load_ns_rules(p) {
+	ensure_dir('/var/etc');
+	let load = (fast) => {
+		writefile(NS_RULES, ns_rules(p, fast));
+		return run([ `ip netns exec ${NS} nft -f ${NS_RULES}` ])[0];
+	};
+	let slow = load(true);
+	return slow ? { fast: false, slow, err: load(false) } : { fast: true };
 }
 
 /** Our policy rules: in our priority band and bound to a Dawnline tunnel interface. */
@@ -382,21 +448,27 @@ function tunnel_ifnames() {
 	return out;
 }
 
-/** Remove the netns, links and rules. */
+/** Remove the netns, links and rules, and the router's neighbour entry for the netns. */
 export function remove(ifnames) {
 	ifnames ??= tunnel_ifnames();
+	let last = read_json(STATE, {})?.plan;
+	// Read while the link is there: the entry is ours when it carries the netns's MAC.
+	let held = last?.dev ? used_addresses(last.dev)[last.address] : null;
+	let stale = type(held) == 'string' && index([ last.mac, our_mac() ], held) >= 0;
 	let cmds = [];
 	for (let r in current_rules(ifnames))
 		push(cmds, `ip -4 rule del priority ${r.priority} iif ${q(r.iif)}${r.dst ? ' to ' + r.dst + (r.dstlen != null ? '/' + r.dstlen : '') : ''} lookup ${r.table}`);
-	let t = read_json(STATE, {})?.plan?.table;
-	if (t)
-		push(cmds, `ip -4 route flush table ${t}`);
+	if (last?.table)
+		push(cmds, `ip -4 route flush table ${last.table}`);
 	if (exists(TX_ROOT))
 		push(cmds, `ip link del ${TX_ROOT}`);
 	if (exists(LAN_ROOT))
 		push(cmds, `ip link del ${LAN_ROOT}`);
 	if (stat(`/var/run/netns/${NS}`))
 		push(cmds, `ip netns del ${NS}`);
+	// Left there, it would hold the address for a MAC nobody has.
+	if (stale)
+		push(cmds, `ip -4 neigh del ${q(last.address)} dev ${q(last.dev)}`);
 	run(cmds);
 	unlink(STATE);
 };
@@ -427,13 +499,18 @@ export function ensure(m, force) {
 	if (same && healthy && !length(rules))
 		return p;
 
+	// A link made by an older version has a random MAC (its plan had none, so
+	// this runs once after an update): it gets the stable one.
+	let remac = exists(LAN_ROOT) && our_mac() != p.mac;
 	let cmds = [];
 	if (!stat(`/var/run/netns/${NS}`))
 		push(cmds, `ip netns add ${NS}`);
 	if (!exists(TX_ROOT))
 		push(cmds, `ip link add ${TX_ROOT} type veth peer name ${TX_NS} netns ${NS}`);
 	if (!exists(LAN_ROOT))
-		push(cmds, `ip link add ${LAN_ROOT} type veth peer name ${LAN_NS} netns ${NS}`);
+		push(cmds, `ip link add ${LAN_ROOT} type veth peer name ${LAN_NS} address ${p.mac} netns ${NS}`);
+	if (remac)
+		push(cmds, `ip -n ${NS} link set ${LAN_NS} down`, `ip -n ${NS} link set ${LAN_NS} address ${p.mac}`);
 	let errs = run(cmds);
 	cmds = [
 		`ip addr flush dev ${TX_ROOT}`,
@@ -457,10 +534,13 @@ export function ensure(m, force) {
 	];
 	for (let s in p.servers)
 		push(cmds, `ip -n ${NS} route replace ${q(s.subnet)} via ${q(p.tx_root)} dev ${TX_NS}`);
-	ensure_dir('/var/etc');
-	writefile('/var/etc/dawnline-ns.nft', ns_rules(p));
-	push(cmds, `ip netns exec ${NS} nft -f /var/etc/dawnline-ns.nft`);
+	// The router knows the address by the old MAC: ask again now, not when the entry expires.
+	if (remac)
+		push(cmds, `ip -4 neigh flush to ${p.address} dev ${q(p.dev)}`);
 	push(errs, ...run(cmds));
+	let ft = load_ns_rules(p);
+	if (ft.err)
+		push(errs, ft.err);
 	push(errs, ...run(sync_rules(p, ifnames)));
 
 	if (length(errs)) {
@@ -472,11 +552,17 @@ export function ensure(m, force) {
 		return { error: why };
 	}
 	ensure_dir(RUN_DIR);
-	write_json(STATE, { applied: time(), plan: p, transit: p.transit }, 0o644);
+	write_json(STATE, { applied: time(), plan: p, transit: p.transit, fast: ft.fast }, 0o644);
 	if (!last.applied || last.plan?.dev != p.dev || last.plan?.address != p.address)
 		log(sprintf(L_('is on · traffic enters %s as %s'), p.dev, p.address), 'up');
 	else if (!healthy)
 		log(sprintf(L_('was broken - set up again (%s as %s)'), p.dev, p.address), 'repair');
+	// Once, not again on every apply while the module is still missing.
+	if (!ft.fast && last.fast !== false)
+		log(L_('runs without its fast path'), 'info', join('\n', [
+			L_('Without kmod-nft-offload every packet on this path passes the firewall twice. Install it and restart Dawnline.'),
+			ft.slow,
+		]));
 	return p;
 };
 

@@ -12,12 +12,12 @@ import { cancelButton, closeModal, confirmDialog, modal } from '../ui/modal';
 import { copyText } from '../ui/files';
 import { attempt, errorText, notify } from '../ui/toast';
 import { input, seg, sw } from '../ui/controls';
-import { card, firstBad, group, liveRow, needRow, row } from '../ui/layout';
+import { card, firstBad, group, liveRow, needRow, row, warnNote } from '../ui/layout';
 import { dnsHelp, endpointProbe, hostHelp, nameHelp, portalPortHelp, portHelp, rangeHelp, rangeOf, subnetOf } from '../netcheck';
 import { icon } from '../../shared/icons';
 import { ago, duration } from '../../shared/format';
 import { fmt, locale, plural } from '../../shared/i18n';
-import { accessCards } from '../interfaces';
+import { accessCards, likeHomeCost, likeHomeOffText } from '../interfaces';
 import { checkAccess, whoReaches } from '../access';
 import { defaultMethod, methodPicker } from '../disguise';
 import { coreOf } from '../cores';
@@ -301,7 +301,7 @@ export class ServerPage {
         srv.up ? part('clock', [fmt(_('up %s'), duration(srv.uptime))]) : '',
       ]),
       // The reason the tunnel can't run at all ("can't use the network interface awg0: it exists and isn't Dawnline's").
-      srv.blocked ? E('div', { class: 'dl-note warn' }, [icon('alert'), E('span', {}, srv.blocked)]) : '',
+      srv.blocked ? warnNote(srv.blocked) : '',
     ]);
   }
 
@@ -591,7 +591,8 @@ export class ServerPage {
       // Off by default: the portal opens a port on WAN, so it is a choice.
       portal: false,
       portal_port: d.portal_port || 8443,
-      lan_like: true,
+      // Off by default: the loop through the LAN costs up to a third of the speed (likeHomeCost).
+      lan_like: false,
       lan_zone: d.lan_zone,
       wan_zone: d.wan_zone,
     };
@@ -639,14 +640,7 @@ export class ServerPage {
         : '';
     const restartNote =
       d.awg_state?.tools && d.awg_state.handler === false
-        ? E('div', { class: 'dl-note warn' }, [
-            icon('alert'),
-            E(
-              'span',
-              {},
-              _('Creating the server restarts the network for a few seconds: AmneziaWG was installed after the network started.'),
-            ),
-          ])
+        ? warnNote(_('Creating the server restarts the network for a few seconds: AmneziaWG was installed after the network started.'))
         : '';
     const rangeHelpNow = () => rangeHelp(state.range, d.networks ?? [], rangeOf(d.subnet));
     const portalHelpNow = () => portalPortHelp(state.portal_port, d.tcp_taken ?? [], ipLinks());
@@ -660,6 +654,34 @@ export class ServerPage {
         if (key === 'portal_port') portalSame = state.portal_port === state.port;
       });
       return el;
+    };
+
+    /** "Internet like a home device": the help follows the switch; on, the cost shows under it. */
+    const likeHomeGroup = (): HTMLElement => {
+      const cost = likeHomeCost();
+      const likeRow = row(
+        _('Through the home network'),
+        sw(state.lan_like, _('Internet like a home device'), (v) => {
+          state.lan_like = v;
+          paintLike();
+        }),
+        ' ',
+      );
+      const paintLike = () => {
+        dom.content(
+          likeRow.querySelector('.dl-sub') as HTMLElement,
+          state.lan_like
+            ? _(
+                'Whatever handles home traffic on this router (proxies, filters, DNS) handles theirs too. Change it later under Servers → Access.',
+              )
+            : likeHomeOffText(d.ifname),
+        );
+        if (state.lan_like) likeRow.after(cost);
+        else cost.remove();
+      };
+      const g = group('home', _('Internet like a home device'), _('How devices reach the internet'), [likeRow]);
+      paintLike();
+      return g;
     };
 
     type Page = { id: string; title: string; render: () => Node; check?: () => string | null };
@@ -733,6 +755,8 @@ export class ServerPage {
           group('shield', _('Disguise'), _('So networks that block VPNs do not recognise the tunnel. Off = plain WireGuard'), [
             methodPicker(d.awg, state.preset, (m) => (state.preset = m), undefined, d.awg_state?.tools !== false),
           ]),
+          // One more server has no portal step: the choice comes last here, as it does there.
+          extra ? likeHomeGroup() : '',
         ]),
       check: () => {
         const p = portHelpNow();
@@ -764,15 +788,7 @@ export class ServerPage {
           },
         );
         return E('div', { class: 'dl-wizard-groups' }, [
-          group('home', _('Internet like a home device'), _('How devices reach the internet'), [
-            row(
-              _('Through the home network'),
-              sw(state.lan_like, _('Internet like a home device'), (v) => (state.lan_like = v)),
-              _(
-                'Whatever handles home traffic on this router (proxies, filters, DNS) handles theirs too. Change it later under Servers → Access.',
-              ),
-            ),
-          ]),
+          likeHomeGroup(),
           group('link', _('Personal portal'), _('A page where each person adds their own devices with their personal link'), [
             row(_('Portal'), onOff, _('Off: only you add devices, from LuCI. On: people manage their devices within the limits you set.')),
             portRow,
