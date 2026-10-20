@@ -25,11 +25,11 @@
 .dl-dcard-trend { display: flex; align-items: flex-end; gap: 12px; min-width: 0; }
 .dl-dcard-trend > .dl-stack { flex: none; }
 .dl-dcard-trend b { font-size: 16px; font-weight: 500; font-variant-numeric: tabular-nums; }
-.dl-dbars { flex: 1; min-width: 0; height: 32px; display: flex; align-items: flex-end; gap: 2px; }
+.dl-dbars { flex: 1; min-width: 0; height: 32px; display: flex; align-items: flex-end; --dl-gap: 2px; }
 .dl-dbars i { flex: 1; min-width: 0; border-radius: 2px; background: var(--dl-chart-1); opacity: .55; }
 .dl-dbars i.zero { background: var(--dl-track); opacity: 1; }
 .dl-dbars i.hi { opacity: 1; }
-.dl-dbars i:hover { opacity: 1; filter: brightness(1.2); }
+.dl-dbars > span:hover i { opacity: 1; filter: brightness(1.2); }
 .dl-datechip { position: relative; display: inline-flex; }
 .dl-date-hidden { position: absolute !important; left: 0; bottom: 0; width: 1px !important; min-width: 0 !important; height: 1px !important; opacity: 0; pointer-events: none; border: 0 !important; padding: 0 !important; margin: 0 !important; }
 .dl-chipbtn .dl-icon { width: 13px; height: 13px; }
@@ -147,10 +147,10 @@
 .dl-meter i { width: 16px; height: 4px; border-radius: 2px; background: var(--dl-line); }
 .dl-meter i.on { background: var(--dl-accent); }
 .dl-bento-total { font-size: 16px; font-weight: 500; margin-left: 8px; }
-.dl-bento-bars { display: flex; align-items: flex-end; gap: 3px; height: 54px; }
+.dl-bento-bars { display: flex; align-items: flex-end; height: 54px; --dl-gap: 3px; }
 .dl-bento-bars i { flex: 1; min-width: 0; border-radius: 3px 3px 0 0; background: var(--dl-soft-hover); transition: background .15s; }
 .dl-bento-bars i.future { height: 4px; background: var(--dl-soft); }
-.dl-bento-bars i:hover { background: var(--dl-fg-faint); }
+.dl-bento-bars > span:hover i:not(.hi) { background: var(--dl-fg-faint); }
 .dl-bento-bars i.hi { background: var(--dl-accent); }
 @media (max-width: 700px) { .dl-addrbar { flex-wrap: wrap; } }
 @media (max-width: 900px) { .dl-bento { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .dl-bento-tile.online { grid-column: span 2; } }

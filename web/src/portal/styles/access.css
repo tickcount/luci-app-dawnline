@@ -125,28 +125,6 @@
   flex-direction: column;
   gap: 8px;
 }
-.mbars {
-  display: flex;
-  align-items: flex-end;
-  gap: 3px;
-  height: 64px;
-}
-.mbars i {
-  flex: 1;
-  border-radius: 2.5px;
-  background: var(--bar);
-  min-height: 3px;
-  transition: background-color 120ms;
-}
-.mbars i.future {
-  background: color-mix(in srgb, var(--bar) 45%, transparent);
-}
-.mbars i.today {
-  background: var(--accent);
-}
-.mbars i:not(.future):hover {
-  background: var(--text-2);
-}
 .month-axis {
   position: relative;
   display: flex;
@@ -171,7 +149,10 @@
   font-size: 13px;
   color: var(--text-2);
 }
-.month-read b {
+.month-read > * {
+  white-space: nowrap;
+}
+.month-read .ud {
   color: var(--text);
   font-weight: 500;
   font-size: 15px;
@@ -273,7 +254,8 @@
 .until.soon .cal-g i.end {
   box-shadow: inset 0 0 0 1.5px var(--warn);
 }
-.acc-row.open .cal-g i {
+/* The days come in when the person opens the row, not when a repaint rebuilds it open. */
+.acc-row.opened .cal-g i {
   animation: cal-in 360ms var(--ease-out) backwards;
   animation-delay: calc(var(--i) * 7ms);
 }
@@ -339,7 +321,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .acc-row.open .cal-g i {
+  .acc-row.opened .cal-g i {
     animation: none;
   }
 }

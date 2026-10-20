@@ -4,7 +4,7 @@
 // scenario picker is picker.ts).
 
 import type { State } from '../state';
-import type { Device, Kind, Person } from '../../shared/types';
+import type { Device, Kind, Pair, Person } from '../../shared/types';
 
 export const GB = 2 ** 30;
 const HOUR = 3600;
@@ -109,8 +109,11 @@ const label = (s: string) =>
 /** How busy each day of the week is, Monday first. */
 const WEEK = [0.9, 1.15, 0.8, 1.05, 1.3, 0.75, 1.1];
 
-/** The month so far, day by day, adding up to `total` bytes (today only partly gone). */
-export function monthDays(total: number, t: number): number[] {
+/** A day split into what the devices sent and received: about a tenth sent, more on a day something backed up. */
+const split = (v: number, sent: number): Pair => [Math.round(v * sent), v - Math.round(v * sent)];
+
+/** The month so far, day by day as [rx, tx], adding up to `total` bytes (today only partly gone). */
+export function monthDays(total: number, t: number): Pair[] {
   const d = new Date(t * 1000);
   const days = d.getDate();
   const w = Array.from({ length: days }, (_, i) => {
@@ -118,7 +121,7 @@ export function monthDays(total: number, t: number): number[] {
     return WEEK[wd] * (i === days - 1 ? 0.45 : 1) * (0.85 + ((i * 37) % 11) / 30);
   });
   const sum = w.reduce((a, b) => a + b, 0);
-  return w.map((x) => Math.round((x / sum) * total));
+  return w.map((x, i) => split(Math.round((x / sum) * total), i % 11 === 4 ? 0.4 : 0.08 + ((i * 17) % 9) / 100));
 }
 
 /** A window of the day that leaves `t` out (the visitor's hours): the hours scenario is outside it. */
@@ -149,7 +152,9 @@ function device(d: DemoDevice, t: number, st: Person['state']): Device {
     active: true,
     month: [Math.round(month / 8), Math.round((month * 7) / 8)],
     total: [Math.round(month / 4), Math.round((month * 7) / 4)],
-    spark: [0.8, 1.3, 0.6, 1.1, 1.6, 0.9, 1].map((f) => (hs ? Math.round(((month / 4) * f) / 7) : 0)),
+    spark: [0.8, 1.3, 0.6, 1.1, 1.6, 0.9, 1].map((f, i) =>
+      split(hs ? Math.round(((month / 4) * f) / 7) : 0, [0.1, 0.14, 0.08, 0.35, 0.11, 0.09, 0.12][i]),
+    ),
     hostname: `${label(d.name)}.user.lan`,
     browser_key: false,
     config_stale: d.stale,

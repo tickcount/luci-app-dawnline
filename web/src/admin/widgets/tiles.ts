@@ -75,12 +75,14 @@ export function daysTile(series: DayUsage[], note: string): HTMLElement {
     days.map((d, i) => {
       const v = vals[i];
       const bar = E('i', { class: i === days.length - 1 ? 'hi' : '', style: `height:${Math.max(4, (v / max) * 100)}%` });
-      attachTip(bar, () => [
+      // The day's column carries the tooltip: it answers above a short bar and between two bars.
+      const col = E('span', {}, [bar]);
+      attachTip(col, () => [
         E('div', { class: 'dl-tip-title' }, i === days.length - 1 ? `${_('Today')} · ${dayLabel(d.day)}` : dayLabel(d.day)),
         E('div', {}, bytes(v)),
         E('div', { class: 'dl-muted dl-mono' }, `↓ ${bytes(d.tx)} ↑ ${bytes(d.rx)}`),
       ]);
-      return bar;
+      return col;
     }),
   );
   return E('div', { class: 'dl-bento-tile month' }, [
@@ -108,11 +110,12 @@ export function dayBars(series: DayUsage[]): HTMLElement {
     days.map((x, i) => {
       const bar = E('i', { class: `${vals[i] ? '' : 'zero'}${i === days.length - 1 ? ' hi' : ''}` });
       bar.style.height = `${Math.max(8, (vals[i] / max) * 100)}%`;
-      attachTip(bar, () => [
+      const col = E('span', {}, [bar]);
+      attachTip(col, () => [
         E('div', { class: 'dl-tip-title' }, i === days.length - 1 ? `${_('Today')} · ${dayLabel(x.day)}` : dayLabel(x.day)),
         E('div', {}, bytes(vals[i])),
       ]);
-      return bar;
+      return col;
     }),
   );
 }

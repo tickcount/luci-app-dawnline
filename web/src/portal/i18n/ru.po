@@ -114,10 +114,6 @@ msgstr[0] "Свободно %s из %s места"
 msgstr[1] "Свободно %s из %s мест"
 msgstr[2] "Свободно %s из %s мест"
 
-#: web/src/portal/page/access.ts
-msgid "%s on %s"
-msgstr "%s за %s"
-
 #: web/src/portal/page/devices.ts
 msgid "%s options"
 msgstr "Действия с устройством %s"
@@ -125,10 +121,6 @@ msgstr "Действия с устройством %s"
 #: web/src/shared/format.ts
 msgid "%s this month"
 msgstr "%s в этом месяце"
-
-#: web/src/portal/page/access.ts
-msgid "%s used"
-msgstr "%s использовано"
 
 #: web/src/portal/page/notices.ts
 msgid "%s your time"
@@ -498,6 +490,10 @@ msgstr "Скачать файл"
 #: web/src/portal/flows/setup-parts.ts
 msgid "Download the key"
 msgstr "Скачать ключ"
+
+#: web/src/portal/ui/bars.ts
+msgid "Downloaded"
+msgstr "Получено"
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
 msgid "End date must be YYYY-MM-DD."
@@ -1212,6 +1208,10 @@ msgstr "Обновить"
 #: web/src/portal/page/devices.ts
 msgid "Update the connection"
 msgstr "Обновить подключение"
+
+#: web/src/portal/ui/bars.ts
+msgid "Uploaded"
+msgstr "Отправлено"
 
 #: web/src/portal/flows/wait.ts
 msgid "Waiting for the connection"

@@ -31,8 +31,9 @@ test('month_days', () => {
 	days[day_key_ago(n)] = [ 100, 100 ];
 	let s = view.month_days({ days });
 	eq(length(s), n, 'one bar a day, from the 1st to today');
-	eq(s[n - 1], 12, 'today last, received and sent together');
-	eq(s[0], n > 1 ? 3 : 12, 'the 1st first');
+	eq(s[n - 1], [ 5, 7 ], 'today last, received and sent apart');
+	eq(s[0], n > 1 ? [ 1, 2 ] : [ 5, 7 ], 'the 1st first');
 	eq(length(view.month_days(null)), n, 'no usage yet: zeros');
-	eq(view.month_days(null)[0], 0, 'a day without traffic is zero');
+	eq(view.month_days(null)[0], [ 0, 0 ], 'a day without traffic is zero both ways');
+	eq(view.spark({ days }, 1), [ [ 5, 7 ] ], 'the week the same way, today last');
 });

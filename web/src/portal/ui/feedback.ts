@@ -41,6 +41,24 @@ export function toast(msg: string, bad = false) {
   }, 2400);
 }
 
+/** An icon that changes in place: the new one pops in where the old one stood. */
+export function swapIcon(icon: Element, name: string): Element {
+  const next = ic(name, icon.getAttribute('class') ?? 'i');
+  icon.replaceWith(next);
+  play(
+    next,
+    [
+      { opacity: 0, transform: 'scale(.6)', filter: 'blur(3px)' },
+      { opacity: 1, transform: 'none', filter: 'none' },
+    ],
+    {
+      duration: POP.duration,
+      easing: POP.easing,
+    },
+  );
+  return next;
+}
+
 /**
  * The control that copied says so for a moment: its icon turns into a check
  * and its "Copy…" label (`.lbl`, a badge's main line) into "Copied". Every
@@ -53,22 +71,7 @@ function copied(from: Element) {
   const label = from.querySelector<HTMLElement>('.lbl, .b-main');
   const was = label ? textOf(label) : '';
   from.classList.add('copied');
-  let check: Element | null = null;
-  if (icon) {
-    check = ic('check', icon.getAttribute('class') ?? 'i');
-    icon.replaceWith(check);
-    play(
-      check,
-      [
-        { opacity: 0, transform: 'scale(.6)', filter: 'blur(3px)' },
-        { opacity: 1, transform: 'none', filter: 'none' },
-      ],
-      {
-        duration: POP.duration,
-        easing: POP.easing,
-      },
-    );
-  }
+  const check = icon ? swapIcon(icon, 'check') : null;
   if (label) morphText(label, _('Copied'));
   setTimeout(() => {
     if (check && icon) check.replaceWith(icon);

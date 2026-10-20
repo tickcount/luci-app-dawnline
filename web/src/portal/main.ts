@@ -33,7 +33,11 @@ let redraw: () => void = () => {};
 
 /** The first paint comes in: the blocks rise one after the other, the sun rises behind its line. */
 function intro() {
-  const els = [...app.querySelectorAll('.crumbs, .notice, .sec-head, .dgrid > *, .note-s:not([hidden]), .acc-slot .acc-row, .gone')];
+  // In the order they stand on screen, top to bottom and then left to right: on a phone "Your access" comes before the devices.
+  const els = [...app.querySelectorAll('.crumbs, .notice, .sec-head, .dgrid > *, .note-s:not([hidden]), .acc-slot .acc-row, .gone')]
+    .map((el) => ({ el, at: el.getBoundingClientRect() }))
+    .sort((a, b) => Math.round(a.at.top) - Math.round(b.at.top) || a.at.left - b.at.left)
+    .map((x) => x.el);
   // Each block rises to its own opacity: a card the admin disabled is dimmed all the way, not at the end.
   const own = els.map((el) => getComputedStyle(el).opacity);
   els.forEach((el, i) =>

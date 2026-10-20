@@ -5,11 +5,12 @@
 // flows/.
 
 import type { Device, Person } from '../../shared/types';
-import { addDays, ago, byDeviceState, bytes, parseDay } from '../../shared/format';
+import { addDays, ago, byDeviceState, parseDay } from '../../shared/format';
 import { fmt, locale, num, plural } from '../../shared/i18n';
 import { h, ic } from '../dom';
 import { BOUNCY, EASE_IN, EASE_OUT, SMOOTH, play } from '../motion';
 import { now, today, type RepaintOpts, type State } from '../state';
+import { bars, sumDays, upDown } from '../ui/bars';
 import { copy } from '../ui/feedback';
 import { glass } from '../ui/glass';
 import { openMenu, type MenuItem } from '../ui/menu';
@@ -63,11 +64,12 @@ function dayName(back: number): string {
   return parseDay(addDays(today(), -back)).toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
-/** Last 7 days as a number and bars; a bar under the pointer puts its own day in the number's place. */
+/** Last 7 days down and up over their bars; a day under the pointer puts its own numbers in their place. */
 function usage(d: Device, stale: boolean): HTMLElement {
-  const week = d.spark.reduce((a, b) => a + b, 0);
+  const week = sumDays(d.spark);
   const lbl = h('span', { class: 'use-lbl' }, _('Last 7 days'));
-  const val = h('span', { class: 'use-val num', 'data-t': `${d.id}:use` }, bytes(week));
+  const val = upDown(d.id);
+  val.set(week);
   let side: HTMLElement;
   if (stale)
     side = h(
@@ -83,25 +85,22 @@ function usage(d: Device, stale: boolean): HTMLElement {
       h('span', {}, _('Update')),
     );
   else {
-    const max = Math.max(1, ...d.spark);
-    side = h('div', { class: 'spark' });
-    d.spark.forEach((v, i) => {
+    const chart = bars(d.spark, 'bars-week', 34);
+    side = chart.el;
+    chart.cols.forEach((col, i) => {
       const back = d.spark.length - 1 - i;
-      const b = h('i', { class: back === 0 ? 'today' : '' });
-      b.style.height = `${Math.max(3, Math.round((v / max) * 34))}px`;
       // What the pointer reads off the bars changes at once: no morph while it moves.
-      b.addEventListener('pointerenter', () => {
+      col.addEventListener('pointerenter', () => {
         setText(lbl, dayName(back));
-        setText(val, bytes(v));
+        val.set(d.spark[i]);
       });
-      b.addEventListener('pointerleave', () => {
+      col.addEventListener('pointerleave', () => {
         setText(lbl, _('Last 7 days'));
-        setText(val, bytes(week));
+        val.set(week);
       });
-      side.appendChild(b);
     });
   }
-  return h('div', { class: 'dev-use' }, h('div', { class: 'use-txt' }, lbl, val), side);
+  return h('div', { class: 'dev-use' }, h('div', { class: 'use-txt' }, lbl, h('span', { class: 'use-val' }, val.el)), side);
 }
 
 function card(d: Device, st: State): HTMLElement {

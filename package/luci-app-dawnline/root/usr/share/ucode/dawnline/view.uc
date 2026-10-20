@@ -6,17 +6,17 @@ import * as live from 'dawnline.live';
 import * as awg from 'dawnline.awg';
 import { day_key_ago, month_key } from 'dawnline.util';
 
-/** Daily totals (rx+tx) for the last `n` days, oldest first. */
+/** Each day's [rx, tx] for the last `n` days, oldest first: the charts draw what came and what went apart. */
 export function spark(rec, n) {
 	let out = [];
 	for (let i = n - 1; i >= 0; i--) {
 		let v = rec?.days?.[day_key_ago(i)];
-		push(out, v ? v[0] + v[1] : 0);
+		push(out, v ? [ v[0], v[1] ] : [ 0, 0 ]);
 	}
 	return out;
 };
 
-/** Daily totals (rx+tx) from the 1st of this month to today, oldest first (the portal's month chart). */
+/** Each day's [rx, tx] from the 1st of this month to today, oldest first (the portal's month chart). */
 export function month_days(rec) {
 	return spark(rec, +substr(day_key_ago(0), 8, 2));
 };

@@ -600,7 +600,7 @@ export class PeoplePage {
   usageSide(p: Person, actions: HTMLElement): HTMLElement {
     const used = p.quota_used || p.month[0] + p.month[1];
     const pct = p.quota_limit ? Math.min(100, (p.quota_used / p.quota_limit) * 100) : 0;
-    const today = p.devices.reduce((a, d) => a + (d.spark[d.spark.length - 1] ?? 0), 0);
+    const today = p.devices.reduce((a, d) => a + (d.spark[d.spark.length - 1] ?? [0, 0]).reduce((x, y) => x + y), 0);
     const r = p.rate?.[p.rate.length - 1];
     const live = p.online && r && this.st.now - r[0] < 180;
 

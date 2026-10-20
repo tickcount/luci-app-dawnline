@@ -109,20 +109,12 @@ msgid_plural "%s of %s slots free"
 msgstr[0] ""
 msgstr[1] ""
 
-#: web/src/portal/page/access.ts
-msgid "%s on %s"
-msgstr ""
-
 #: web/src/portal/page/devices.ts
 msgid "%s options"
 msgstr ""
 
 #: web/src/shared/format.ts
 msgid "%s this month"
-msgstr ""
-
-#: web/src/portal/page/access.ts
-msgid "%s used"
 msgstr ""
 
 #: web/src/portal/page/notices.ts
@@ -492,6 +484,10 @@ msgstr ""
 
 #: web/src/portal/flows/setup-parts.ts
 msgid "Download the key"
+msgstr ""
+
+#: web/src/portal/ui/bars.ts
+msgid "Downloaded"
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
@@ -1206,6 +1202,10 @@ msgstr ""
 
 #: web/src/portal/page/devices.ts
 msgid "Update the connection"
+msgstr ""
+
+#: web/src/portal/ui/bars.ts
+msgid "Uploaded"
 msgstr ""
 
 #: web/src/portal/flows/wait.ts

@@ -4,13 +4,14 @@
 // the month day by day inside; and until when, as the days left over a
 // calendar of the weeks, with the admin's hours as a bar of the day.
 
-import type { Person } from '../../shared/types';
+import type { Pair, Person } from '../../shared/types';
 import { accessLabel, byDeviceState, bytes, date, daysLeft, endsSoon, parseDay } from '../../shared/format';
 import { fill, fmt, locale, num, plural } from '../../shared/i18n';
 import { h, ic, markup } from '../dom';
 import { calendar, clockOf, hoursFor, minuteAt, monthOf, stretches } from '../days';
 import { now, today, type State } from '../state';
 import { accordion, type Accordion } from '../ui/accordion';
+import { bars, upDown } from '../ui/bars';
 import { copy } from '../ui/feedback';
 import { glass } from '../ui/glass';
 import { morphChanged, setText, textsOf } from '../ui/morph';
@@ -93,34 +94,27 @@ function meter(pct: number): HTMLElement {
   return h('div', { class: 'meter' }, i);
 }
 
-/** The month as one bar a day (today in blue, days to come faint), and the total under it. */
+/** The month a day at a time, down and up (today in blue, days to come flat), what came and went under it. */
 function month(p: Person, used: number, pct: number): HTMLElement {
   const { days, day } = monthOf(today());
-  const series = p.month_days ?? [];
-  const max = Math.max(1, ...series);
+  const series = Array.from({ length: day }, (_x, i): Pair => p.month_days?.[i] ?? [0, 0]);
   const short = (d: number) => dayMonth(`${today().slice(0, 8)}${String(d).padStart(2, '0')}`);
-  // The total, and a bar under the pointer in its place, at once: no morph while the pointer moves.
-  const total = h('b', { class: 'num', 'data-t': 'm-used' }, bytes(used));
-  const read = h('span', { class: 'mread' });
-  /** The month's total, or (`d`) one day's: the number in its sentence. */
-  const say = (v: number, d?: number) => {
-    setText(total, bytes(v));
-    read.replaceChildren(...(d ? fill<Node | string>(_('%s on %s'), total, short(d)) : fill(_('%s used'), total)));
+  // The month's down and up; a day under the pointer puts its own in their place and its date where "left" stands,
+  // at once: no morph while the pointer moves.
+  const read = upDown('m');
+  const left = p.quota_limit ? fmt(_('%s left'), bytes(Math.max(0, p.quota_limit - used))) : _('No limit');
+  const side = h('span', { class: 'num', 'data-t': 'm-left' }, left);
+  const say = (v: Pair, d?: number) => {
+    read.set(v);
+    setText(side, d ? short(d) : left);
+    side.classList.toggle('bad-t', !d && p.state === 'quota');
   };
-  say(used);
-  const bars = h('div', { class: 'mbars' });
-  for (let i = 0; i < days; i++) {
-    if (i >= day) {
-      bars.appendChild(h('i', { class: 'future' }));
-      continue;
-    }
-    const v = series[i] ?? 0;
-    const b = h('i', { class: i === day - 1 ? 'today' : '' });
-    b.style.height = `${Math.max(3, Math.round((v / max) * 64))}px`;
-    b.addEventListener('pointerenter', () => say(v, i + 1));
-    b.addEventListener('pointerleave', () => say(used));
-    bars.appendChild(b);
-  }
+  say(p.month);
+  const chart = bars(series, 'bars-month', 64, days - day);
+  chart.cols.forEach((col, i) => {
+    col.addEventListener('pointerenter', () => say(series[i], i + 1));
+    col.addEventListener('pointerleave', () => say(p.month));
+  });
   // "Today" under its bar; the month's ends step aside when it comes close.
   const td = h('span', { class: 'td' }, _('Today'));
   td.style.left = pc(day - 0.5, days);
@@ -131,23 +125,7 @@ function month(p: Person, used: number, pct: number): HTMLElement {
     td,
     h('span', { class: day >= days - 3 ? 'hide' : '' }, short(days)),
   );
-  return h(
-    'div',
-    { class: 'month' },
-    bars,
-    axis,
-    h(
-      'div',
-      { class: 'month-read' },
-      read,
-      h(
-        'span',
-        { class: `num${p.state === 'quota' ? ' bad-t' : ''}`, 'data-t': 'm-left' },
-        p.quota_limit ? fmt(_('%s left'), bytes(Math.max(0, p.quota_limit - used))) : _('No limit'),
-      ),
-    ),
-    p.quota_limit ? meter(pct) : null,
-  );
+  return h('div', { class: 'month' }, chart.el, axis, h('div', { class: 'month-read' }, read.el, side), p.quota_limit ? meter(pct) : null);
 }
 
 /** The days left as a number over a calendar of the weeks to the end (the last day ringed). */

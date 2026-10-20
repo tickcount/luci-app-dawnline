@@ -97,27 +97,6 @@
   font-weight: 500;
   letter-spacing: -0.02em;
 }
-.spark {
-  display: flex;
-  align-items: flex-end;
-  gap: 4px;
-  height: 34px;
-}
-.spark i {
-  width: 6px;
-  border-radius: 3px;
-  background: var(--bar);
-  transition: background-color 150ms;
-}
-.spark i.today {
-  background: var(--accent);
-}
-.spark i:hover {
-  background: var(--text-2);
-}
-.spark i.today:hover {
-  background: color-mix(in srgb, var(--accent) 75%, var(--text));
-}
 .dev .setup-btn {
   margin-top: auto;
 }

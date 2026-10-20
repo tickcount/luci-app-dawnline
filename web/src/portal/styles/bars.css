@@ -1,0 +1,104 @@
+/* Traffic by day, both ways (ui/bars.ts): downloads rise above a hairline, uploads hang below it,
+   today in accent; a device card's week and the month in "Your access". Beside them, "↓ 3.9 GB  ↑ 819 MB".
+   The columns meet: each takes half the gap on either side, so the pointer reads a day in the gaps too, and
+   the row gives the outer halves back so the bars stand where a plain gap would put them. */
+
+.bars {
+  --gap: 3px;
+  position: relative;
+  display: flex;
+  flex: none;
+  margin-inline: calc(var(--gap) / -2);
+}
+.bars-week {
+  --gap: 4px;
+}
+.bars .col {
+  display: flex;
+  flex-direction: column;
+  padding-inline: calc(var(--gap) / 2);
+}
+.bars-month .col {
+  flex: 1;
+  min-width: 0;
+}
+.bars .half {
+  display: flex;
+  flex-direction: column;
+}
+.bars .half.top {
+  justify-content: flex-end;
+  margin-bottom: 3px;
+}
+.bars i {
+  display: block;
+  border-radius: 2.5px;
+  transition: background-color 120ms;
+}
+.bars-week i {
+  width: 6px;
+  border-radius: 3px;
+  transition-duration: 150ms;
+}
+.bars .dn {
+  background: color-mix(in srgb, var(--text) 24%, transparent);
+}
+.bars .up {
+  background: color-mix(in srgb, var(--text) 11%, transparent);
+}
+.bars .today .dn {
+  background: var(--accent);
+}
+.bars .today .up {
+  background: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.bars .col:not(.future):hover .dn {
+  background: var(--text-2);
+}
+.bars .col:not(.future):hover .up {
+  background: color-mix(in srgb, var(--text-2) 50%, transparent);
+}
+.bars .today:hover .dn {
+  background: color-mix(in srgb, var(--accent) 75%, var(--text));
+}
+.bars .future i {
+  height: 3px;
+  background: color-mix(in srgb, var(--bar) 45%, transparent);
+}
+.bars .axis {
+  position: absolute;
+  left: calc(var(--gap) / 2);
+  right: calc(var(--gap) / 2);
+  height: 1px;
+  background: var(--line);
+  pointer-events: none;
+}
+
+/* ↓ down  ↑ up: the arrows are the line icon turned; the upload one step quieter. */
+.ud {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+}
+.ud > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.ud .i {
+  width: 0.8em;
+  height: 0.8em;
+  stroke-width: 2.2;
+  color: var(--text-2);
+}
+.ud-dn .i {
+  transform: rotate(90deg);
+}
+.ud-up {
+  color: var(--text-2);
+}
+.ud-up .i {
+  transform: rotate(-90deg);
+  color: var(--text-3);
+}

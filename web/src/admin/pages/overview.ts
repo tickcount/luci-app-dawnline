@@ -306,7 +306,10 @@ export class ServerOverview {
     const st = this.st;
     const off = st.servers[0] ? !st.servers[0].enabled : false;
     const CAP = 12;
-    const today = (d: Device) => d.spark[d.spark.length - 1] ?? 0;
+    const today = (d: Device) => {
+      const [rx, tx] = d.spark[d.spark.length - 1] ?? [0, 0];
+      return rx + tx;
+    };
     const cityOf = (d: Device) => st.geo.points.find((g) => g.device === d.id && g.city)?.city;
     const home = (d: Device) => /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(d.endpoint ?? '');
     // Where a device is: its city, or "LAN" when it connects from the home network (the hover

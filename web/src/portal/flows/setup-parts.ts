@@ -24,7 +24,7 @@ import {
   type Store,
 } from '../setup';
 import { accordion } from '../ui/accordion';
-import { copy, download, sendFile, shareFile } from '../ui/feedback';
+import { copy, download, sendFile, shareFile, swapIcon } from '../ui/feedback';
 import { glass } from '../ui/glass';
 import { menuLine, morphText, setText } from '../ui/morph';
 import { hint } from '../ui/sheet';
@@ -206,7 +206,8 @@ function confLine(line: string, reveal: boolean): Node {
   const m = /^(\s*[A-Za-z0-9]+\s*=)\s*(.*)$/.exec(line);
   if (!m) return document.createTextNode(line);
   const secret = /^(\s*)(PrivateKey|PresharedKey)\b/.test(line);
-  return h('span', {}, h('span', { class: 'k' }, m[1]), ' ', secret && !reveal ? h('span', { class: 'mask' }, '••••••••••••••••') : m[2]);
+  const value = !secret ? m[2] : reveal ? h('span', { class: 'secret' }, m[2]) : h('span', { class: 'mask' }, '••••••••••••••••');
+  return h('span', {}, h('span', { class: 'k' }, m[1]), ' ', value);
 }
 
 /** The .conf for a router: a file card to download (or share), and the configuration folded, its keys hidden. */
@@ -217,6 +218,8 @@ export function filePane(cfg: ClientConfig): HTMLElement {
     pre.replaceChildren(...cfg.conf.split('\n').flatMap((l, i) => (i ? ['\n', confLine(l, reveal)] : [confLine(l, reveal)])));
   paint();
   const share = !!shareFile(cfg.filename, cfg.conf);
+  let icon = ic('key');
+  const label = h('span', {}, _('Show key'));
   const eye = h(
     'button',
     {
@@ -224,10 +227,11 @@ export function filePane(cfg: ClientConfig): HTMLElement {
       class: 'btn soft sm',
       onclick: () => {
         reveal = !reveal;
-        eye.replaceChildren(ic(reveal ? 'x' : 'key'), h('span', {}, reveal ? _('Hide key') : _('Show key')));
+        icon = swapIcon(icon, reveal ? 'x' : 'key');
+        morphText(label, reveal ? _('Hide key') : _('Show key'));
         paint();
         // A key shown comes into focus out of a blur; hidden again, the mask fades back.
-        pre.querySelectorAll('.mask, .k').forEach((x) =>
+        pre.querySelectorAll('.mask, .secret').forEach((x) =>
           play(
             x,
             [
@@ -239,8 +243,8 @@ export function filePane(cfg: ClientConfig): HTMLElement {
         );
       },
     },
-    ic('key'),
-    h('span', {}, _('Show key')),
+    icon,
+    label,
   );
   const cp = h(
     'button',

@@ -102,7 +102,7 @@ describe('demo data', () => {
     const t = new Date(2026, 9, 19, 12).getTime() / 1000;
     const days = monthDays(1000, t);
     expect(days).toHaveLength(19);
-    expect(Math.abs(days.reduce((a, b) => a + b, 0) - 1000)).toBeLessThanOrEqual(19);
+    expect(Math.abs(days.reduce((a, [rx, tx]) => a + rx + tx, 0) - 1000)).toBeLessThanOrEqual(19);
   });
 
   it('keeps the hours scenario outside its window', () => {

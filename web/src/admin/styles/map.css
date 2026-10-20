@@ -243,10 +243,16 @@
   background: var(--dl-elevated); border: 1px solid var(--dl-line); box-shadow: var(--shadow-xl, 0 8px 16px -4px rgba(0,0,0,.4)); pointer-events: none; z-index: 3; }
 .dl-tip-title { font-weight: 500; }
 .dl-tip-float { position: fixed; z-index: 2000; color: var(--dl-fg); }
-.dl-spark i:hover { opacity: 1; filter: brightness(1.25); }
 .dl-meter, .dl-slots { cursor: default; }
 .dl-axis { display: flex; justify-content: space-between; font-size: 12px; color: var(--dl-fg-faint); margin-top: 6px; }
 .dl-legend i.down { background: var(--dl-chart-1); } .dl-legend i.up { background: var(--dl-chart-2); }
-.dl-spark { display: flex; align-items: flex-end; gap: 2px; flex: 0 0 auto; }
+.dl-spark { display: flex; align-items: flex-end; flex: 0 0 auto; --dl-gap: 2px; }
 .dl-spark i { flex: 1; display: block; border-radius: 2px 2px 0 0; background: var(--dl-chart-1); opacity: .85; }
 .dl-spark i.zero { opacity: .22; }
+.dl-spark > span:hover i:not(.zero) { opacity: 1; filter: brightness(1.25); }
+/* A day's column in the daily charts (spark, a device card's bars, the last 30 days): the chart's full height and
+   half the gap on either side, so its tooltip answers above a short bar and between two bars. The outer columns
+   keep no outer half, so the bars stand where a plain gap would put them. */
+.dl-spark > span, .dl-dbars > span, .dl-bento-bars > span { flex: 1; min-width: 0; height: 100%; display: flex; align-items: flex-end; padding: 0 calc(var(--dl-gap) / 2); }
+.dl-spark > span:first-child, .dl-dbars > span:first-child, .dl-bento-bars > span:first-child { padding-left: 0; }
+.dl-spark > span:last-child, .dl-dbars > span:last-child, .dl-bento-bars > span:last-child { padding-right: 0; }

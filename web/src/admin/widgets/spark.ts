@@ -15,8 +15,10 @@ export function spark(values: number[], width = 120, height = 26, today = isoDay
     const b = E('i');
     b.style.height = `${Math.max(6, (v / max) * 100)}%`;
     if (!v) b.classList.add('zero');
+    // The day's column carries the tooltip: it answers above a short bar and between two bars.
+    const col = E('span', {}, [b]);
     const back = values.length - 1 - i;
-    attachTip(b, () => [
+    attachTip(col, () => [
       E(
         'div',
         { class: 'dl-tip-title' },
@@ -28,7 +30,7 @@ export function spark(values: number[], width = 120, height = 26, today = isoDay
       ),
       E('div', { class: 'dl-muted' }, bytes(v)),
     ]);
-    el.appendChild(b);
+    el.appendChild(col);
   });
   return el;
 }

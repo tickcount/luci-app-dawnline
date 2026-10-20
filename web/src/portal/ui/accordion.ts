@@ -2,7 +2,9 @@
 // closed and share their rounded ends; an open row lifts out with 10 px gaps
 // and its own corners. One row open at a time. A row with nothing to open is a
 // plain head: no chevron, no click. Inside the sheet it tells the sheet first,
-// so a code that comes into view gets its width.
+// so a code that comes into view gets its width. A row the person opens is
+// `.opened` until it closes: what enters inside it (the calendar's days) keys on
+// that, so a repaint that rebuilds the row open doesn't play it again.
 
 import { h, ic } from '../dom';
 import { EASE_IN, SOFT, play } from '../motion';
@@ -98,9 +100,10 @@ export function accordion(
     const closing = rows.filter((x) => x.classList.contains('open') && (x === r || willOpen));
     rows.forEach((x) => {
       x.classList.remove('closing');
-      if (x !== r) x.classList.remove('open');
+      if (x !== r) x.classList.remove('open', 'opened');
     });
     r.classList.toggle('open', willOpen);
+    r.classList.toggle('opened', willOpen);
     corners();
     const plan = planWidth();
     rows.forEach((x, i) => {
