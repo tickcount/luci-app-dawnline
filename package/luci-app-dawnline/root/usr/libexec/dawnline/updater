@@ -24,6 +24,25 @@ import * as pkgs from 'dawnline.upd_pkgs';
 import * as i18n from 'dawnline.i18n';
 import { _, L_ } from 'dawnline.i18n';
 
+const USAGE = `Usage:
+  updater check [app|amneziawg|packages]
+  updater install app | app@<tag> | app:reinstall | app:rollback
+  updater install amneziawg[:auto|slava|grey[:ru]] | amneziawg:rollback
+  updater install pkgs:<name,…>
+  updater auto
+`;
+
+// No command, one it doesn't know, or an install of nothing: the usage and exit, before anything is read or
+// written (no job for Components, no history, nothing in the service log). Asked for help: the same, on stdout.
+if (index([ '-h', '--help', 'help' ], ARGV[0]) >= 0) {
+	print(USAGE);
+	exit(0);
+}
+if (index([ 'check', 'install', 'auto' ], ARGV[0]) < 0 || (ARGV[0] == 'install' && !length(ARGV[1] ?? ''))) {
+	warn(USAGE);
+	exit(2);
+}
+
 // The phases and errors of a job LuCI started are in the admin's language (rpc/updates.uc hands it over).
 i18n.use(getenv('DAWNLINE_LANG'));
 
@@ -313,7 +332,7 @@ function main() {
 		else if (job.action == 'auto')
 			auto();
 		else
-			die('Usage: updater check [app|amneziawg|packages] | install <what> | auto');
+			die(USAGE);
 		job.state = 'done';
 		phase(_('Finished'));
 	}
