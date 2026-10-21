@@ -4,6 +4,7 @@
 // tunnel of your own, one from an imported config) is left alone and the
 // server is reported instead. Why a server is kept down is kept in
 // core.BLOCKED as a code with its values (awg.blocked_text says it).
+// drift() tells the watchdog when one of them was edited outside Dawnline.
 
 import { cursor } from 'uci';
 import { stat, unlink, writefile } from 'fs';
@@ -29,6 +30,14 @@ export function owner(ifname, c) {
 		return null;
 	return c.get('network', ifname, '_dawnline') ?? '';
 };
+
+/** What sync() writes into network.<ifname> apart from the markers: what netifd sets the tunnel up from. */
+function options(srv) {
+	let o = awg.netifd_options(srv);
+	o.disabled = srv.enabled ? null : '1';
+	o.auto = srv.enabled ? null : '0';
+	return o;
+}
 
 /** Bring network config in line with the servers; true when it changed. */
 export function sync(m) {
@@ -70,13 +79,15 @@ export function sync(m) {
 				'Dawnline never changes interfaces it did not create. Choose another interface name for this server.');
 			continue;
 		}
+		// Disguise values AmneziaWG refuses or crashes on (a hand edit in uci;
+		// import and restore refuse them) never reach setconf and the kernel.
 		// A disguise this build cannot run (a 3.1 preset after a rollback to
 		// 2.0): the kernel would drop those options silently and run a tunnel
 		// no device can reach. Down, and said so, until the build or the
 		// disguise is changed.
-		let why = tools ? awg.obf_unsupported(srv.obf) : null;
+		let why = !tools ? null : length(awg.obf_unsafe(srv.obf)) ? { code: 'disguise_invalid' } : awg.obf_unsupported(srv.obf);
 		if (why) {
-			block(srv, why, 'Install that AmneziaWG build in Dawnline → Components, or switch the disguise on the Server page.');
+			block(srv, why, awg.blocked_fix(why));
 			continue;
 		}
 		delete srv.blocked;
@@ -85,17 +96,16 @@ export function sync(m) {
 			continue;
 		// Per server: with several, each changed one has to be brought up again.
 		let mine = uci_section(c, 'network', ifn, 'interface');
-		let set = (opt, val) => {
-			if (uci_put(c, 'network', ifn, opt, val))
+		for (let k, v in options(srv))
+			if (uci_put(c, 'network', ifn, k, v))
 				mine = true;
-		};
-		for (let k, v in awg.netifd_options(srv))
-			set(k, v);
-		set('disabled', srv.enabled ? null : '1');
-		set('auto', srv.enabled ? null : '0');
-		set('_dawnline', id);
+		// The markers are saved, but netifd does not read them: a renamed server
+		// keeps its tunnel and every session in it.
+		if (uci_put(c, 'network', ifn, '_dawnline', id))
+			changed = true;
 		// For the log once the server is gone.
-		set('_dawnline_name', srv.name);
+		if (uci_put(c, 'network', ifn, '_dawnline_name', srv.name))
+			changed = true;
 		if (mine) {
 			changed = true;
 			push(touched, ifn);
@@ -125,6 +135,9 @@ export function sync(m) {
 	if (changed) {
 		c.commit('network');
 		ack_config([ 'network' ]);
+	}
+	// Only the markers changed: nothing for netifd to read (it ignores them, and so does a reload).
+	if (length(touched) || length(stale)) {
 		system('ubus call network reload');
 		for (let ifn in touched)
 			if (m.servers[c.get('network', ifn, '_dawnline')]?.enabled)
@@ -133,4 +146,30 @@ export function sync(m) {
 		system(`logger -t dawnline ${q('network updated: ' + join(', ', [ ...touched, ...stale ]))}`);
 	}
 	return changed;
+};
+
+/**
+ * For the watchdog: what of each running server's interface differs from
+ * what sync() writes, by option name (a LuCI or uci edit of network.<ifname>,
+ * which would otherwise last until the next apply): { server id: [ names ] },
+ * an empty list when it is as Dawnline set it. Only enabled servers whose
+ * section exists and is theirs (a missing one is the tunnel probe's); the
+ * markers are not compared, netifd does not read them. A dry run on a
+ * cursor of its own: nothing is saved. Meaningful while amneziawg-tools is
+ * installed (sync() leaves the interfaces alone without it).
+ */
+export function drift(m) {
+	let c = cursor();
+	c.load('network');
+	let out = {};
+	for (let id, srv in m.servers) {
+		if (!srv.enabled || !length(core.tunnels(srv)) || owner(srv.ifname, c) != id || c.get('network', srv.ifname) != 'interface')
+			continue;
+		let diff = [];
+		for (let k, v in options(srv))
+			if (uci_put(c, 'network', srv.ifname, k, v))
+				push(diff, k);
+		out[id] = diff;
+	}
+	return out;
 };

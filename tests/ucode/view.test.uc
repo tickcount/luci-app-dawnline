@@ -37,3 +37,23 @@ test('month_days', () => {
 	eq(view.month_days(null)[0], [ 0, 0 ], 'a day without traffic is zero both ways');
 	eq(view.spark({ days }, 1), [ [ 5, 7 ] ], 'the week the same way, today last');
 });
+
+// What the set-up sheet reads off a device: the watcher's state, or without the agent a session that lives.
+test('device_view: set-up state', () => {
+	let m = {
+		settings: { hostnames: false },
+		servers: { s_1: { id: 's_1', keepalive: 25, obf: {} } },
+		people: { p_1: { id: 'p_1', server: 's_1', devices: [ 'd_1' ] } },
+		devices: { d_1: { id: 'd_1', person: 'p_1', kind: 'phone', public_key: 'K1', private_key: 'x', mtu: 0, keepalive: null } },
+		_reconnect: {}, _issued: {},
+	};
+	let hs = time() - 10;
+	let peers = { K1: { ifname: 'awga', endpoint: '203.0.113.7:4000', handshake: hs, rx: 100, tx: 100 } };
+	let usage = { devices: {}, people: {} };
+	let watched = { peers, presence: { online: { d_1: true } }, windows: {}, link: {}, setup: { d_1: { state: 'nodata', since: hs + 15 } } };
+	eq(view.device_view(m, m.devices.d_1, usage, watched).setup, { state: 'nodata', since: hs + 15 }, 'the watcher\'s');
+	eq(view.device_view(m, m.devices.d_1, usage, { ...watched, setup: {} }).setup, null, 'the watcher sees nothing');
+	let alone = { peers, presence: null, windows: {}, link: {}, setup: null };
+	eq(view.device_view(m, m.devices.d_1, usage, alone).setup, { state: 'flowing', since: hs }, 'no agent: a live session');
+	eq(view.device_view(m, m.devices.d_1, usage, { ...alone, peers: {} }).setup, null, 'no agent, not online: nothing');
+});

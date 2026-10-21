@@ -1,7 +1,8 @@
 // Dawnline — backups (tar.gz of the config and its data files), restoring
 // them, and the JSON export / import. Whatever comes back in is checked first:
 // only Dawnline's own regular files, and servers that cannot take over one of
-// the router's own interfaces or networks.
+// the router's own interfaces or networks, or hand the kernel disguise values
+// AmneziaWG refuses.
 
 import { readfile, stat, unlink, lsdir, rename } from 'fs';
 import { cursor } from 'uci';
@@ -9,6 +10,7 @@ import {
 	q, sh, ensure_dir, read_json, write_json, write_file, file_exists, rand_hex, lock, unlock, DATA_DIR, RUN_DIR, VERSION
 } from 'dawnline.util';
 import * as core from 'dawnline.core';
+import * as awg from 'dawnline.awg';
 import * as live from 'dawnline.live';
 import * as apply from 'dawnline.apply';
 import * as net from 'dawnline.net';
@@ -39,9 +41,10 @@ const MAX_UNPACKED = 16 * 1024 * 1024;
 /**
  * What is wrong with a configuration about to replace the current one
  * (cursor `c` holds it): each server must have a valid, unique interface
- * name that is not one of the router's own interfaces, a free subnet and a
- * unique port, and the people and devices must be consistent
- * (core.model_errors). [] when it can be used.
+ * name that is not one of the router's own interfaces, a free subnet, a
+ * unique port and disguise values AmneziaWG takes (awg.obf_unsafe), and the
+ * people and devices must be consistent (core.model_errors). [] when it can
+ * be used.
  */
 export function config_errors(c) {
 	let m = core.load(c);
@@ -52,7 +55,7 @@ export function config_errors(c) {
 	let internal = values(net.INTERNAL);
 	let ifnames = {}, ports = {}, subnets = [];
 	for (let id, srv in m.servers) {
-		for (let e in core.server_errors(m, srv, [ ...foreign, ...subnets ]))
+		for (let e in [ ...core.server_errors(m, srv, [ ...foreign, ...subnets ]), ...awg.obf_unsafe(srv.obf) ])
 			push(errs, sprintf(_('Server %s: %s'), srv.name, e));
 		if (ifnames[srv.ifname])
 			push(errs, sprintf(_('Server %s: interface %s is also used by %s.'), srv.name, srv.ifname, ifnames[srv.ifname]));

@@ -20,6 +20,10 @@ msgstr "Доступ закончился"
 msgid "Access only at certain hours of the day."
 msgstr "Доступ только в определённые часы."
 
+#: web/src/portal/demo/way-pick.ts
+msgid "Auto"
+msgstr "Авто"
+
 #: web/src/portal/demo/crumbs.ts
 msgid "Dawnline on GitHub"
 msgstr "Dawnline на GitHub"
@@ -52,9 +56,17 @@ msgstr "Первый визит"
 msgid "How the page looks in each case. Nothing here connects."
 msgstr "Как выглядит страница в каждом случае. Ничего не подключается по-настоящему."
 
+#: web/src/portal/demo/way-pick.ts
+msgid "No data"
+msgstr "Нет данных"
+
 #: web/src/portal/demo/data.ts
 msgid "No free slots"
 msgstr "Нет свободных мест"
+
+#: web/src/portal/demo/way-pick.ts
+msgid "Online"
+msgstr "В сети"
 
 #: web/src/portal/demo/data.ts
 msgid "Opened over plain HTTP"
@@ -79,6 +91,10 @@ msgstr "Доступ на паузе"
 #: web/src/portal/demo/data.ts
 msgid "Plain WireGuard"
 msgstr "Обычный WireGuard"
+
+#: web/src/portal/demo/way-pick.ts
+msgid "Set-up state"
+msgstr "Состояние настройки"
 
 #: web/src/portal/demo/data.ts
 msgid "Settings changed"
@@ -123,6 +139,14 @@ msgstr "Три устройства: одно в сети, одно ждёт н�
 #: web/src/portal/demo/picker.ts
 msgid "Try a scenario"
 msgstr "Выберите сценарий"
+
+#: web/src/portal/demo/way-pick.ts
+msgid "Trying"
+msgstr "Попытки"
+
+#: web/src/portal/demo/way-pick.ts
+msgid "Waiting"
+msgstr "Ожидание"
 
 #: web/src/portal/demo/data.ts
 msgid "Your page"

@@ -33,7 +33,7 @@ Dawnline запускает сервер [AmneziaWG] на вашем роуте�
 **на какой срок, сколько трафика и в какие часы**.
 
 <p align="center">
-  <a href="https://dawnline-demo.vercel.app"><img src="docs/screenshots/portal.png" alt="Личный портал: устройства и доступ, добавление телефона в три шага" width="860"></a>
+  <a href="https://dawnline-demo.vercel.app"><img src="docs/screenshots/portal-ru.png" alt="Личный портал: устройства и доступ, добавление телефона в три шага" width="860"></a>
   <br>
   <sub>Личная страница человека: его устройства и доступ. Телефон добавляется в три шага, и страница видит, когда он подключился.
   <a href="https://dawnline-demo.vercel.app"><b>Попробуйте в демо</b></a>: ничего не устанавливается и никуда не подключается.</sub>
@@ -161,7 +161,7 @@ flowchart LR
 ## 📸 Как это выглядит
 
 <p align="center">
-  <img src="docs/screenshots/overview.png" alt="Обзор: кто в сети, скорость, последние 30 дней и откуда подключаются" width="720">
+  <img src="docs/screenshots/overview-ru.png" alt="Обзор: кто в сети, скорость, последние 30 дней и откуда подключаются" width="720">
   <br>
   <sub><b>Обзор</b>: кто в сети, скорость сейчас, последние 30 дней и карта, откуда подключаются.</sub>
 </p>
@@ -169,11 +169,11 @@ flowchart LR
 <table>
   <tr>
     <td width="50%" valign="top">
-      <img alt="Люди: все на сервере, с устройствами, трафиком и состоянием" src="docs/screenshots/people.png">
+      <img alt="Люди: все на сервере, с устройствами, трафиком и состоянием" src="docs/screenshots/people-ru.png">
       <p align="center"><sub><b>Люди</b>: в сети, доступ скоро закончится, сверх лимита, вне часов доступа, на паузе.</sub></p>
     </td>
     <td width="50%" valign="top">
-      <img alt="Человек: его устройства, трафик, места и лимиты" src="docs/screenshots/person.png">
+      <img alt="Человек: его устройства, трафик, места и лимиты" src="docs/screenshots/person-ru.png">
       <p align="center"><sub><b>Человек</b>: его устройства, трафик, места и лимиты.</sub></p>
     </td>
   </tr>
@@ -411,7 +411,8 @@ scripts/lint-ucode.py                    # статические проверк
 scripts/check-ucode.sh root@router       # скомпилировать все файлы ucode на роутере
 scripts/deploy.sh root@router            # поставить рабочую копию (сначала сохраняет конфиги)
 scripts/build-packages.sh all            # .ipk и .apk в OpenWrt SDK в Docker
-scripts/capture-screenshots.mjs --demo   # скриншоты для README с роутера, с демо-людьми вместо настоящих
+scripts/capture-screenshots.mjs --demo   # скриншоты админки для README с роутера, с демо-людьми вместо настоящих
+scripts/capture-portal.mjs               # скриншоты портала для README из его демо, на английском и русском
 scripts/frame-screenshots.py             # оформить их для README
 ```
 

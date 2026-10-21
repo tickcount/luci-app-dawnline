@@ -50,14 +50,16 @@ const CONF: [string, string][] = [
 
 /**
  * The applied parameters, grouped by what they do, with a plain-language
- * line per group. Collapsed by default; copyable as config lines.
+ * line per group. Collapsed by default; copyable as config lines. The header
+ * protection key stays out of the status (read-only users can read it): the
+ * view says there is one, and each device's file has it.
  */
-function paramsView(o: Record<string, string>): HTMLElement | null {
-  const has = (k: string) => o[k] != null && o[k] !== '';
+function paramsView(o: Record<string, string>, hpk: boolean): HTMLElement | null {
+  const has = (k: string) => (k === 'header_protection_key' ? hpk : o[k] != null && o[k] !== '');
   const keys = CONF.filter(([k]) => has(k));
   if (!keys.length) return null;
   const val = (k: string, name: string) =>
-    E('span', { class: 'dl-pv' }, [E('i', {}, name), E('b', {}, k === 'header_protection_key' ? `${o[k].slice(0, 6)}••••` : o[k])]);
+    E('span', { class: 'dl-pv' }, [E('i', {}, name), E('b', {}, k === 'header_protection_key' ? _('set', 'key') : o[k])]);
   const group = (title: string, ic: string, text: string, ks: string[]) => {
     const present = CONF.filter(([k]) => ks.includes(k) && has(k));
     return present.length
@@ -76,7 +78,10 @@ function paramsView(o: Record<string, string>): HTMLElement | null {
   const signature = (o.i1 ?? '').includes('0x8580')
     ? _('A first packet shaped like a DNS answer.')
     : _('Extra packets sent before the handshake.');
-  const conf = keys.map(([k, n]) => `${n} = ${o[k]}`).join('\n');
+  const conf = keys
+    .filter(([k]) => k !== 'header_protection_key')
+    .map(([k, n]) => `${n} = ${o[k]}`)
+    .join('\n');
   const body = E('div', { class: 'dl-pgrid' }, [
     group(
       _('Junk packets'),
@@ -126,7 +131,7 @@ function paramsView(o: Record<string, string>): HTMLElement | null {
           class: 'dl-linkbtn',
           click: (ev: Event) => {
             ev.preventDefault();
-            copyText(conf, _('Parameters copied'));
+            copyText(conf, hpk ? _('Parameters copied. The header protection key is in each device’s file.') : _('Parameters copied'));
           },
         },
         _('Copy as config'),
@@ -379,7 +384,7 @@ export function settingsCard(ctx: CoreCtx, srv: Server): HTMLElement {
               ),
             )
           : '',
-        paramsView(srv.obf ?? {}) ?? '',
+        paramsView(srv.obf ?? {}, srv.hpk) ?? '',
         E('div', { class: 'dl-row-end' }, [
           E('span', { class: 'dl-sub' }, _('Applies at once: every AmneziaWG device imports its configuration again.')),
           apply,
@@ -438,7 +443,7 @@ function overviewTile(srv: Server): HTMLElement {
   if (pad.length) chips.push(pad.slice(0, 2).join(' · ') + (pad.length > 2 ? ` +${pad.length - 2}` : ''));
   if (['h1', 'h2', 'h3', 'h4'].some((k) => o[k] && o[k] !== String(['h1', 'h2', 'h3', 'h4'].indexOf(k) + 1))) chips.push(_('H1–H4 random'));
   if (o.i1) chips.push(/0x(8580|0100)0001/.test(o.i1) ? _('DNS-like first packets') : _('Signature packets'));
-  if (o.header_protection_key) chips.push(_('Encrypted headers'));
+  if (srv.hpk) chips.push(_('Encrypted headers'));
   if (!chips.length) chips.push(m?.id === 'off' ? _('Plain WireGuard') : _('No values yet'));
   return E('div', { class: 'dl-bento-tile dl-disg' }, [
     E('div', { class: 'dl-bento-head' }, [

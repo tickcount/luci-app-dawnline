@@ -44,7 +44,23 @@ function restart_services() {
 function probes(m) {
 	let out = [];
 	// The tunnels check themselves: AmneziaWG (packages, kernel module, netifd) and each server's interface.
-	push(out, ...awg.probes(m, { udp_listening: health.udp_listening, reapply: () => apply.apply(), owner: (ifn) => netifd.owner(ifn) }));
+	let tunnels = awg.probes(m, { udp_listening: health.udp_listening, reapply: () => apply.apply(), owner: (ifn) => netifd.owner(ifn) });
+	push(out, ...tunnels);
+	// A tunnel's interface edited outside Dawnline (LuCI, uci) keeps that until
+	// the next apply: set up again with Dawnline's settings. Only while
+	// AmneziaWG itself works (its target comes first, and is fixed first).
+	if (filter(tunnels, (p) => p.id == 'awg')[0]?.ok)
+		for (let id, diff in netifd.drift(m)) {
+			let srv = m.servers[id];
+			push(out, {
+				id: `cfg_${id}`, src: 'awg', name: `${srv.name} · interface settings`, who: srv.name, ok: !length(diff),
+				problem: sprintf(L_('interface %s was changed outside Dawnline'), srv.ifname),
+				back: sprintf(L_("interface %s has Dawnline's settings again"), srv.ifname),
+				// Option names only: their values hold the server's private key.
+				detail: () => sprintf(L_('Changed: %s.'), join(', ', diff)),
+				repair: { what: L_('setting it up again'), run: () => apply.apply() },
+			});
+		}
 	if (length(m.servers))
 		push(out, {
 			id: 'nft', src: 'dawnline', name: 'Access rules', who: L_('Access rules'), ok: nft.present(),
@@ -184,6 +200,14 @@ function names() {
 	};
 }
 
+/** A target's chip name in the language of the call: names(), a server's interface settings, else as stored. */
+function chip_name(m, n, id, stored) {
+	if (n[id])
+		return n[id];
+	let srv = substr(id, 0, 4) == 'cfg_' ? m.servers[substr(id, 4)] : null;
+	return srv ? sprintf(_('%s · interface settings'), srv.name) : stored;
+}
+
 /**
  * For the Health page: the watchdog's state and the newest log entries. Target
  * and repair names in the language of the call; the log as it was written.
@@ -195,11 +219,11 @@ export function view(m) {
 	// The agent itself: fine while it ticks (cron restarts it after 5 minutes without).
 	let targets = [ { id: 'agent', name: n.agent, ok: beat > 0 && time() - beat < 180, tries: 0 } ];
 	for (let id, x in (type(st.targets) == 'object' ? st.targets : {}))
-		push(targets, { id, name: n[id] ?? x.name, ok: !!x.ok, tries: x.tries ?? 0 });
+		push(targets, { id, name: chip_name(m, n, id, x.name), ok: !!x.ok, tries: x.tries ?? 0 });
 	return {
 		watchdog: {
 			enabled: m.settings.watchdog, last: st.last ?? null, beat: beat || null, now: time(),
-			targets, repairs: map(st.repairs ?? [], (r) => ({ ...r, name: n[r.id] ?? r.name })),
+			targets, repairs: map(st.repairs ?? [], (r) => ({ ...r, name: chip_name(m, n, r.id, r.name) })),
 		},
 		log: slog_read(200),
 	};

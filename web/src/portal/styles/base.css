@@ -8,6 +8,10 @@ html {
   -webkit-text-size-adjust: 100%;
   /* The page keeps its width when a sheet locks the scroll: no sideways jump behind the scrim. */
   scrollbar-gutter: stable;
+  /* No scroll anchoring: on a phone "Your access" shows above the devices but comes after them in the page
+     (main.ts), so the browser would hold "Your devices" still while an access row opens or folds, and pull a page
+     scrolled less than the fold to the very top. A row grows and folds in place; a repaint glides what moves. */
+  overflow-anchor: none;
 }
 body {
   margin: 0;

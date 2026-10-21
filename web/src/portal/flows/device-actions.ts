@@ -1,16 +1,17 @@
-// A device's own actions from its ⋯ menu: Rename, Reconnect (new keys, then
-// the set-up of the new ones) and Remove. A question comes before what cannot
-// be undone; the action's button stays busy until the router answers.
+// A device's own actions from its ⋯ menu: Reconnect (new keys, then the set-up
+// of the new ones) and Remove (Rename edits the name on the card: rename.ts). A
+// question comes before what cannot be undone; the action's button stays busy
+// until the router answers.
 
 import type { ClientConfig, Device } from '../../shared/types';
 import { fmt } from '../../shared/i18n';
 import { call } from '../api';
-import { h, ic } from '../dom';
+import { h } from '../dom';
 import { EASE_IN, play } from '../motion';
 import { repaint, setState, state, type State } from '../state';
 import { once, toast } from '../ui/feedback';
 import { glass, type Tone } from '../ui/glass';
-import { closeSheet, head, onClosed, openSheet, type View } from '../ui/sheet';
+import { closeSheet, onClosed, openSheet, type View } from '../ui/sheet';
 import { secureFirst } from './secure';
 import { continueSetup } from './setup-view';
 
@@ -35,37 +36,6 @@ function ask(o: { icon: string; tone: Tone; title: string; text: string; action:
     ),
   );
   return { el, label: o.title, asks: true };
-}
-
-export function rename(d: Device) {
-  openSheet(() => {
-    const input = h('input', { type: 'text', maxlength: 48, 'aria-label': _('Device name'), autocomplete: 'off' }) as HTMLInputElement;
-    input.value = d.name;
-    const save = h('button', { class: 'go', type: 'submit', 'aria-label': _('Save') }, ic('check')) as HTMLButtonElement;
-    input.addEventListener('input', () => save.classList.toggle('ready', !!input.value.trim() && input.value.trim() !== d.name));
-    const form = h('form', { class: 'field', autocomplete: 'off' }, input, save);
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const name = input.value.trim();
-      if (!name || name === d.name) return;
-      void once(save, async () => {
-        try {
-          const r = await call<{ state: State }>(`devices/${d.id}`, { action: 'rename', name });
-          setState(r.state);
-          onClosed(() => {
-            repaint();
-            toast(_('Renamed'));
-          });
-          closeSheet();
-        } catch (er) {
-          toast((er as Error).message, true);
-        }
-      });
-    });
-    setTimeout(() => input.select(), 60);
-    const title = fmt(_('Rename %s'), d.name);
-    return { el: h('div', { class: 'view' }, head(title), form), label: title };
-  });
 }
 
 /**

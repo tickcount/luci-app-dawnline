@@ -6,7 +6,18 @@
 // itself is data.ts; serve.ts puts this router behind the page's fetch.
 
 import type { AwgConfig, Kind } from '../../shared/types';
-import { ENDPOINT, deviceLimit, isScenario, pageState, seedDevices, type DemoDevice, type ScenarioId } from './data';
+import { DEVICE_NAME_MAX, validDeviceName } from '../../shared/format';
+import {
+  ENDPOINT,
+  deviceLimit,
+  isScenario,
+  pageState,
+  seedDevices,
+  type DemoDevice,
+  type DemoWay,
+  type ScenarioId,
+  handshakeOf,
+} from './data';
 
 /** What the router remembers for this visitor. */
 export interface DemoDb {
@@ -59,7 +70,6 @@ function valid(v: unknown): DemoDb | null {
 }
 
 const KINDS: Kind[] = ['computer', 'phone', 'tablet', 'router', 'other'];
-const NAME_MAX = 32;
 
 export function createRouter(o: RouterOpts) {
   const clock = o.clock ?? (() => Math.floor(Date.now() / 1000));
@@ -74,6 +84,8 @@ export function createRouter(o: RouterOpts) {
   let db = kept && (!o.want || kept.scenario === o.want) ? kept : seed(isScenario(o.want) ? o.want : 'normal');
 
   const state = () => pageState(db.scenario, db.devs, clock(), o.secureUrl());
+  /** The device whose settings went out last: the one the set-up sheet is open for. */
+  let issued = '';
 
   function needOpen() {
     if (db.scenario === 'paused') refuse(403, 'Your access is paused.');
@@ -88,7 +100,7 @@ export function createRouter(o: RouterOpts) {
   function checkName(v: unknown, self?: DemoDevice): string {
     const name = String(v ?? '').trim();
     if (!name) refuse(400, 'Give the device a name.');
-    if (name.length > NAME_MAX) refuse(400, `A name is at most ${NAME_MAX} characters.`);
+    if (!validDeviceName(name)) refuse(400, `Enter a device name: up to ${DEVICE_NAME_MAX} letters, digits, spaces and - _ .`);
     if (db.devs.some((d) => d !== self && d.name.toLowerCase() === name.toLowerCase()))
       refuse(409, 'You already have a device with this name.');
     return name;
@@ -148,6 +160,7 @@ export function createRouter(o: RouterOpts) {
       stale: false,
     };
     db.devs.push(d);
+    issued = d.id;
     return { id: d.id, config: config(d), state: state() };
   }
 
@@ -158,6 +171,7 @@ export function createRouter(o: RouterOpts) {
     needHttps();
     d.stale = false;
     if (!d.hs && !d.connectAt) d.connectAt = soon();
+    issued = d.id;
     return config(d);
   }
 
@@ -172,6 +186,7 @@ export function createRouter(o: RouterOpts) {
       d.hs = 0;
       d.stale = false;
       d.connectAt = soon();
+      issued = d.id;
       extra = { config: config(d) };
     } else if (b.action === 'delete') db.devs = db.devs.filter((x) => x !== d);
     else refuse(400, 'Unknown action.');
@@ -200,6 +215,33 @@ export function createRouter(o: RouterOpts) {
   return {
     answer,
     scenario: () => db.scenario,
+    /** The device being set up (its settings went out last), if it is still there. */
+    settingUp: () => (db.devs.some((d) => d.id === issued) ? issued : null),
+    /** The set-up state `id` is held in, 'auto' when none. */
+    wayOf: (id: string): DemoWay | 'auto' => db.devs.find((d) => d.id === id)?.way ?? 'auto',
+    /**
+     * Hold `id` in a set-up state, or let it go: 'connected' is a handshake now with data after it, 'auto' the
+     * demo's own timing (it connects a few seconds on, unless it already has).
+     */
+    holdWay(id: string, w: DemoWay | 'connected' | 'auto') {
+      const d = db.devs.find((x) => x.id === id);
+      if (!d) return;
+      const t = clock();
+      delete d.way;
+      delete d.wayAt;
+      if (w === 'connected') {
+        d.hs = t;
+        d.connectAt = 0;
+      } else if (w === 'auto') {
+        if (!handshakeOf(d, t)) d.connectAt = soon();
+      } else {
+        d.way = w;
+        d.wayAt = t;
+        d.hs = 0;
+        d.connectAt = 0;
+      }
+      o.keep.save(db);
+    },
     /** Start a scenario over: its own devices, nothing added. */
     use(s: ScenarioId) {
       db = seed(s);

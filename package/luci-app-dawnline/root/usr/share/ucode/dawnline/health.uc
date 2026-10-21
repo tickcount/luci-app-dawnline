@@ -223,22 +223,137 @@ export function wan_kind(wan) {
 	return length(filter(PRIVATE, (c) => in_cidr(wc, c))) ? 'private' : 'public';
 };
 
+const HEX = '0123456789abcdef';
+
+// An IPv6 address as its 32 hex digits, so two spellings of one address
+// compare equal (2001:DB8::1, 2001:db8:0::1, as typed or as a tool prints
+// it); null when it is none. No regex: the router's addresses and a name's
+// AAAA records go through it on every look.
+function ip6_full(s) {
+	if (type(s) != 'string')
+		return null;
+	let halves = split(lc(s), '::');
+	if (length(halves) > 2)
+		return null;
+	let head = halves[0] != '' ? split(halves[0], ':') : [];
+	let tail = length(halves) == 2 && halves[1] != '' ? split(halves[1], ':') : [];
+	let gap = 8 - length(head) - length(tail);
+	if (length(halves) == 2 ? gap < 1 : gap != 0)
+		return null;
+	let groups = [ ...head ];
+	for (let i = 0; i < gap; i++)
+		push(groups, '0');
+	push(groups, ...tail);
+	let out = '';
+	for (let g in groups) {
+		if (length(g) < 1 || length(g) > 4 || ltrim(g, HEX) != '')
+			return null;
+		out += substr(`0000${g}`, length(g));
+	}
+	return out;
+}
+
+/**
+ * The router's public IPv6 addresses in `ip -6 -j addr show scope global`
+ * output (`links`), on any interface: a DDNS client may publish the LAN's
+ * address from the delegated prefix, which reaches the router too. Unique
+ * local addresses (fc00::/7: OpenWrt gives the LAN one even without IPv6
+ * from the ISP) and failed duplicates do not count: nothing reaches them from
+ * outside. [] when there is none.
+ */
+export function own_ipv6(links) {
+	let out = [];
+	for (let l in (type(links) == 'array' ? links : []))
+		for (let a in l?.addr_info ?? []) {
+			let k = ip6_full(a?.local);
+			if (k && a.family == 'inet6' && !a.dadfailed && substr(k, 0, 2) != 'fc' && substr(k, 0, 2) != 'fd')
+				push(out, a.local);
+		}
+	return out;
+};
+
+// The router's public IPv6 addresses (own_ipv6), or null when `ip` could not tell.
+function router_ipv6() {
+	let out = sh_out('ip -6 -j addr show scope global');
+	if (out == null)
+		return null;
+	try {
+		let links = json(out || '[]');
+		return type(links) == 'array' ? own_ipv6(links) : null;
+	}
+	catch (e) {
+		// No JSON (an `ip` without -j): unknown, so the AAAA records get no verdict.
+		return null;
+	}
+}
+
+// What the facts are made from, read on the router.
+function endpoint_reads(srv, host) {
+	let ips = host ? lookup.resolve(host) : [];
+	// The router's IPv6 only when the name has some to compare with.
+	return {
+		ips, wan: srv ? (net.wan_address(srv) ?? lookup.wan_ipv4(srv.wan_zone)) : lookup.wan_ipv4('wan'),
+		router6: length(filter(ips, (a) => ip2int(a) == null)) ? router_ipv6() : null,
+	};
+}
+
 /**
  * What a public address points at, for Health and the "as you type" check on
  * the server page: { host, ips, ips4, ips6, wan, kind (wan_kind), cloudflare,
- * here (an IPv4 of it is this router's WAN), v6_only }.
+ * here (an IPv4 of it is this router's WAN), v6_only, router6 (the router's
+ * public IPv6 addresses, own_ipv6; null when unknown, or not read because the
+ * name has no IPv6), foreign6 (its IPv6 addresses that are none of those, all
+ * of them when the router has none; null while router6 is), here6 (it has
+ * IPv6 addresses and each is one of the router's) }. `reads` (a test's)
+ * stands for what is read on the router: { ips, wan, router6 }.
  */
-export function endpoint_facts(srv, host) {
-	let ips = host ? lookup.resolve(host) : [];
-	let wan = srv ? (net.wan_address(srv) ?? lookup.wan_ipv4(srv.wan_zone)) : lookup.wan_ipv4('wan');
+export function endpoint_facts(srv, host, reads) {
+	let r = reads ?? endpoint_reads(srv, host);
+	let ips = r.ips ?? [], wan = r.wan ?? null;
 	let ips4 = filter(ips, (a) => ip2int(a) != null), ips6 = filter(ips, (a) => ip2int(a) == null);
+	let own = r.router6 != null ? map(r.router6, ip6_full) : null;
+	let foreign6 = own != null ? filter(ips6, (a) => index(own, ip6_full(a)) < 0) : null;
 	return {
-		host, ips, ips4, ips6, wan: wan ?? null, kind: wan_kind(wan),
+		host, ips, ips4, ips6, wan, kind: wan_kind(wan),
 		cloudflare: length(filter(ips, (a) => cloudflare_ip(a))) > 0,
 		here: wan != null && index(ips4, wan) >= 0,
 		v6_only: !length(ips4) && length(ips6) > 0,
+		router6: r.router6 ?? null, foreign6,
+		here6: foreign6 != null && length(ips6) > 0 && !length(foreign6),
 	};
 };
+
+/*
+ * The name's IPv6 addresses that do not reach this router from outside, in
+ * words, or null (each is a public one of the router, or those are unknown).
+ * A name with IPv4 too: devices that prefer IPv6 take these and fail, the
+ * others connect.
+ */
+function aaaa_words(f) {
+	let bad = f.foreign6 ?? [], n = length(bad);
+	if (!n)
+		return null;
+	if (!length(f.router6))
+		return sprintf(N_(n, '%s AAAA → %s, but this router has no public IPv6 address: devices that prefer IPv6 will fail to connect. Remove this AAAA record or set up IPv6 on the router.',
+			'%s AAAA → %s, but this router has no public IPv6 address: devices that prefer IPv6 will fail to connect. Remove these AAAA records or set up IPv6 on the router.'),
+			f.host, join(', ', bad));
+	return sprintf(N_(n, '%s AAAA → %s is not a public address of this router: devices that prefer IPv6 will fail to connect. Fix or remove this AAAA record.',
+		'%s AAAA → %s are not public addresses of this router: devices that prefer IPv6 will fail to connect. Fix or remove these AAAA records.'),
+		f.host, join(', ', bad));
+}
+
+// An IPv6-only name none of whose addresses is a public one of the router: no device connects. Null otherwise.
+function v6_only_unreached(f) {
+	let n = length(f.foreign6 ?? []);
+	if (!n || n < length(f.ips6))
+		return null;
+	if (!length(f.router6))
+		return sprintf(_('%s → %s: IPv6 only, but this router has no public IPv6 address: no device can connect. Check your DNS / DDNS, or set up IPv6 on the router.'),
+			f.host, join(', ', f.ips6));
+	return sprintf(N_(n, '%s → %s: IPv6 only, and not a public address of this router: no device can connect. Check your DNS / DDNS.',
+		'%s → %s: IPv6 only, and not public addresses of this router: no device can connect. Check your DNS / DDNS.'),
+		f.host, join(', ', f.ips6));
+}
 
 /**
  * The facts in words, in the language of the call: { status: ok|warn|error, text }
@@ -252,18 +367,28 @@ export function endpoint_words(f, proto_note) {
 	if (f.cloudflare)
 		return { status: 'error', text: sprintf(_("%s → %s (Cloudflare). %s reaches the router only if this name is DNS-only there, or use the router's IP."),
 			f.host, join(', ', f.ips), proto_note) };
-	if (f.v6_only)
+	let v6 = aaaa_words(f);
+	if (f.v6_only) {
+		let none = v6_only_unreached(f);
+		if (none != null || v6 != null)
+			return { status: 'warn', text: none ?? v6 };
 		return { status: f.kind == 'public' ? 'warn' : 'ok', text: f.kind == 'public'
 			? sprintf(_("%s → %s: IPv6 only, so only devices with IPv6 connect (the router's IPv4 %s has no name)."), f.host, join(', ', f.ips6), f.wan)
 			: sprintf(_('%s → %s: IPv6 only, so only devices with IPv6 connect.'), f.host, join(', ', f.ips6)) };
+	}
+	let v4 = null;
 	if (f.kind == 'cgnat' || f.kind == 'private')
-		return { status: 'warn', text: f.kind == 'cgnat'
+		v4 = f.kind == 'cgnat'
 			? sprintf(_('The WAN address %s is CGNAT (shared by the ISP): %s cannot be forwarded to this router from outside unless the ISP gives a public address or IPv6.'), f.wan, proto_note)
-			: sprintf(_('The WAN address %s is private: this router is behind another one. Forward %s on it, or devices cannot connect.'), f.wan, proto_note) };
-	if (f.wan && !f.here)
-		return { status: 'warn', text: sprintf(_('%s points at %s, not this router (WAN %s). Check your DNS / DDNS.'), f.host, join(', ', f.ips4), f.wan) };
+			: sprintf(_('The WAN address %s is private: this router is behind another one. Forward %s on it, or devices cannot connect.'), f.wan, proto_note);
+	else if (f.wan && !f.here)
+		v4 = sprintf(_('%s points at %s, not this router (WAN %s). Check your DNS / DDNS.'), f.host, join(', ', f.ips4), f.wan);
+	// Two separate facts, each a sentence of its own: the IPv4 one first.
+	if (v4 != null || v6 != null)
+		return { status: 'warn', text: join(' ', filter([ v4, v6 ], (x) => x != null)) };
 	// Without the router's WAN address only the facts: names and addresses, no words.
-	return { status: 'ok', text: f.here ? sprintf(_('%s points at this router (%s).'), f.host, f.wan) : `${f.host} → ${join(', ', f.ips)}` };
+	return { status: 'ok', text: f.here ? sprintf(_('%s points at this router (%s).'), f.host, join(', ', [ f.wan, ...(f.here6 ? f.ips6 : []) ]))
+		: `${f.host} → ${join(', ', f.ips)}` };
 };
 
 /** What a public address resolves to and whether that reaches this router (for a core's protocol). */
@@ -332,7 +457,51 @@ function awg_check() {
 	}
 	if (!st.handler)
 		return check('awg', title, 'error', no_proto(), 'netrestart', _('The network doesn’t know AmneziaWG yet'));
+	// The install could not swap the loaded module: the old one runs until the next boot (dawnline.awg_builds).
+	if (builds.waits_for_reboot())
+		return check('awg', title, 'warn', _('The AmneziaWG update is installed and starts after a reboot.'), null,
+			_('The AmneziaWG update waits for a reboot'));
 	return check('awg', title, 'ok', _('Kernel module, awg tool and the netifd protocol are present.'));
+}
+
+/**
+ * The /24s home routers come with out of the box. A home network on one of
+ * them is very likely the same as the network a person connects from, and
+ * home access then takes those addresses into the tunnel: their own printer or
+ * TV is out of reach while connected, LAN Bypass or not.
+ */
+const COMMON_HOME = [
+	'192.168.0.0/24', '192.168.1.0/24', '192.168.2.0/24', '192.168.3.0/24', '192.168.8.0/24', '192.168.10.0/24',
+	'192.168.31.0/24', '192.168.50.0/24', '192.168.88.0/24', '192.168.100.0/24', '192.168.178.0/24',
+	'10.0.0.0/24', '10.1.1.0/24',
+];
+
+/** The home networks in `nets` that overlap a common out-of-the-box subnet. */
+export function common_home(nets) {
+	return filter(nets ?? [], (n) => {
+		let a = parse_cidr(n);
+		return a && length(filter(COMMON_HOME, (c) => cidr_overlaps(a, parse_cidr(c))));
+	});
+};
+
+/**
+ * Whether the server's home networks are on a common subnet, while anyone on
+ * it has home access (otherwise nothing of home goes into the tunnel). A
+ * warning on Health only: advice, not a fault, so no notice elsewhere.
+ */
+function home_check(m, id, srv, label) {
+	let reach = filter(values(m.people), (p) => p.server == id && (p.access == 'lan' || p.access == 'both'));
+	let nets = net.server_net(srv).nets;
+	if (!length(reach) || !length(nets))
+		return null;
+	let bad = common_home(nets);
+	let c = check(`homenet_${id}`, _('Home network addresses') + label, length(bad) ? 'warn' : 'ok',
+		length(bad)
+			? sprintf(_('%s is one of the most common home subnets. On a network with the same addresses, people with home access reach your home instead of their own: their printer or TV there is out of reach while connected, with LAN Bypass too. A rarer subnet for your home network avoids it, for example 10.37.12.0/24.'), join(', ', bad))
+			: sprintf(_('%s is not a common home subnet: the networks people connect from rarely use the same addresses.'), join(', ', nets)),
+		null);
+	c.problem = null;
+	return c;
 }
 
 /** Checks of a server's AmneziaWG tunnel. */
@@ -350,26 +519,15 @@ function awg_checks(m, id, srv, label, fwc, dmp, rep) {
 			!st ? sprintf(_('%s does not exist.'), srv.ifname) :
 			length(codes) ? sprintf(_('%s is down: %s.'), srv.ifname, join(', ', codes)) : sprintf(_('%s is down.'), srv.ifname),
 			up ? null : (st ? 'ifup:' + srv.ifname : 'apply'), down));
-	if (up) {
-		// By key, not by count: a stale peer standing in for a missing one would
-		// make the numbers match.
-		let states = apply.states_for(m, core.load_usage());
-		let wanted = {}, expected = 0;
-		for (let did, d in m.devices) {
-			let p = m.people[d.person];
-			if (p?.server == id && !d.disabled && index(awg.SOFT_STATES, states[d.person]) >= 0) {
-				wanted[d.public_key] = true;
-				expected++;
-			}
-		}
-		let loaded = {}, actual = 0;
-		for (let k, p in dmp.peers)
-			if (p.ifname == srv.ifname) {
-				loaded[k] = true;
-				actual++;
-			}
-		let missing = length(filter(keys(wanted), (k) => !loaded[k]));
-		let extra = length(filter(keys(loaded), (k) => !wanted[k]));
+	// The devices the sync loads, by the same choice the agent compares with every minute.
+	if (up && dmp.reads[srv.ifname] == 'error')
+		push(out, check(`peers_${id}`, _('AmneziaWG devices loaded') + label, 'warn',
+			_('The tunnel could not be read, so its devices could not be checked.'), null,
+			_('The devices in AmneziaWG could not be checked') + label));
+	else if (up) {
+		let devs = awg.tunnel_devices(m, id, apply.states_for(m, core.load_usage()));
+		let diff = awg.peer_diff(devs, dmp, srv.ifname);
+		let expected = length(devs), missing = diff.missing, extra = diff.extra, actual = diff.loaded;
 		let same = !missing && !extra;
 		push(out, check(`peers_${id}`, _('AmneziaWG devices loaded') + label, same ? 'ok' : 'warn',
 			same ? sprintf(N_(actual, '%d device is loaded in the tunnel.', '%d devices are loaded in the tunnel.'), actual) :
@@ -406,6 +564,9 @@ function awg_checks(m, id, srv, label, fwc, dmp, rep) {
 	push(out, check(`subnet_${id}`, _('AmneziaWG subnet is unique') + label, length(overlaps) ? 'error' : 'ok',
 		length(overlaps) ? sprintf(_('%s overlaps %s.'), srv.subnet, join(', ', overlaps)) : sprintf(_('%s does not overlap other networks.'), srv.subnet),
 		null, _('AmneziaWG subnet overlaps another network') + label));
+	let home = home_check(m, id, srv, label);
+	if (home)
+		push(out, home);
 	return out;
 }
 

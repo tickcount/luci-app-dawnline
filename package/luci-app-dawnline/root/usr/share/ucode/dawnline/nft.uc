@@ -10,7 +10,8 @@ import * as core from 'dawnline.core';
 import * as net from 'dawnline.net';
 import * as loop from 'dawnline.loop';
 
-const PRIVATE4 = [ '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '100.64.0.0/10', '169.254.0.0/16', '224.0.0.0/3' ];
+/** Private IPv4 ranges: internet people never reach them (awg.BYPASS4 is the rest). */
+export const PRIVATE4 = [ '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '100.64.0.0/10', '169.254.0.0/16', '224.0.0.0/3' ];
 /** The sets whose members change at run time (update replaces them together). */
 const SETS = [ 'lan_ok', 'lan_all', 'lan_part', 'mesh_pairs', 'inet_ok', 'svc_ok', 'svc_host', 'dns_real' ];
 
@@ -18,8 +19,11 @@ function ip4(a) {
 	return ip2int(a ?? '') != null;
 }
 
-/** Per-person runtime membership: which tunnel addresses may reach what. */
-export function access_sets(m, usage, states) {
+/**
+ * Per-person runtime membership: which tunnel addresses may reach what.
+ * `snap` is the network (net.snapshot() when not given).
+ */
+export function access_sets(m, usage, states, snap) {
 	// lan_ok: home access (the router itself, the mesh); lan_all: every home
 	// network; lan_part: device . network for people limited to some networks;
 	// mesh_pairs: device . device within a circle (or one person's own devices);
@@ -27,7 +31,7 @@ export function access_sets(m, usage, states) {
 	let sets = {};
 	for (let k in SETS)
 		sets[k] = [];
-	let snap = net.snapshot();
+	snap ??= net.snapshot();
 	let homes = {}, groups = {};
 	for (let id, d in m.devices) {
 		let p = m.people[d.person];
@@ -91,13 +95,23 @@ function portal_ports(m) {
 	return ports;
 }
 
-function table(m, sets) {
+/**
+ * What the table is made from besides the model, read from the router: the
+ * netns's DNS address (loop.client_dns), where the Home-only resolver runs
+ * (loop.resolver_target), the LAN's DNS and the network snapshot.
+ */
+function router_ctx() {
+	return { dns_addr: loop.client_dns(), resolver: loop.resolver_target(), lan_dns: loop.lan_dns(), snap: net.snapshot() };
+}
+
+function table(m, sets, ctx) {
+	ctx ??= router_ctx();
 	let ifs = [], tun = [];
-	let dns_addr = loop.client_dns();
+	let dns_addr = ctx.dns_addr;
 	if (!ip4(dns_addr))
 		dns_addr = null;
-	let rt = loop.resolver_target();
-	let snap = net.snapshot();
+	let rt = ctx.resolver;
+	let snap = ctx.snap;
 	// Each server's home networks are its own: with several servers, "all
 	// home" on one never reaches the other's networks (set lan_<id>).
 	let homes = {};
@@ -194,7 +208,7 @@ function table(m, sets) {
 	push(t, '	}');
 	// Devices ask the tunnel address; send each query where it belongs.
 	let to_resolver = rt.mode == 'ns' && ip4(rt.address) ? `dnat ip to ${rt.address}:53` : `redirect to :${+rt.port}`;
-	let lan_dns = loop.lan_dns();
+	let lan_dns = ctx.lan_dns;
 	if (!ip4(lan_dns))
 		lan_dns = null;
 	push(t, '	chain dns {');
@@ -228,9 +242,13 @@ export function load(script) {
 	return replace(trim(r.out), f, 'rules') || `nft exited with ${r.code}`;
 };
 
-/** The table as text, for a check (`nft -c -f`) or a test; nothing is loaded. */
-export function render(m, sets) {
-	return table(m, sets);
+/**
+ * The table as text, for a check (`nft -c -f`) or a test; nothing is loaded.
+ * `ctx` (a test's) stands for what is read from the router: { dns_addr,
+ * resolver, lan_dns, snap } (router_ctx).
+ */
+export function render(m, sets, ctx) {
+	return table(m, sets, ctx);
 };
 
 /** Full table rebuild (structure changes: servers, home networks, DNS paths); null or the error. */

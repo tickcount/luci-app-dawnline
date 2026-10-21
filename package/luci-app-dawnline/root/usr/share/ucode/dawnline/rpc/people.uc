@@ -56,7 +56,9 @@ function person_update(a) {
 	let s = apply.sync();
 	let m = core.load();
 	let u = core.load_usage();
-	return { person: view.person_view(m, m.people[a.id], u, live.dump(m), view.states(m, u), { admin: true }), was: before?.access, warning: s.warning };
+	// One person: only their server's tunnel is read.
+	let p = m.people[a.id];
+	return { person: view.person_view(m, p, u, live.dump(m, p.server ?? ''), view.states(m, u), { admin: true }), was: before?.access, warning: s.warning };
 }
 
 function person_pause(a) {
@@ -138,20 +140,28 @@ function person_usage(a) {
 
 function device_create(a) {
 	devices.need_awg();
-	return devices.add(a.person, a.name, a.kind, { by: 'admin' });
+	return devices.add(a.person, a.name, a.kind, { by: 'admin', lan_bypass: a.lan_bypass === true });
 }
 
+/**
+ * A device's configuration. Only `issue` (true: the admin shows its QR code,
+ * downloads or copies it) counts as handing it out; a look at the device
+ * marks nothing, so its "settings changed" stays until it really gets them.
+ */
 function device_config(a) {
 	let m = core.load();
 	let d = m.devices[a.id];
 	if (!d)
 		die(_('Unknown device.'));
-	awg.mark_issued(m, d.id);
+	if (a.issue === true)
+		awg.mark_issued(m, d.id);
 	return awg.client_config(m, d);
 }
 
+/** Name, on/off and the link values (mtu, keepalive: strings, '' = the server's; lan_bypass: true or false). */
 function device_update(a) {
-	return devices.update(a.id, { name: a.name, disabled: a.disabled }, { by: 'admin' });
+	return devices.update(a.id, { name: a.name, disabled: a.disabled, mtu: a.mtu, keepalive: a.keepalive,
+		lan_bypass: a.lan_bypass == null ? null : a.lan_bypass === true }, { by: 'admin' });
 }
 
 export const methods = {
@@ -169,9 +179,10 @@ export const methods = {
 	person_links: { args: { id: '' }, call: wrap(person_links) },
 	person_delete: { args: { id: '' }, call: wrap(person_delete) },
 	person_usage: { args: { id: '', days: 30 }, call: wrap(person_usage) },
-	device_create: { args: { person: '', name: '', kind: '' }, call: wrap(device_create) },
-	device_config: { args: { id: '' }, call: wrap(device_config) },
-	device_update: { args: { id: '', name: '', disabled: false }, call: wrap(device_update) },
+	device_create: { args: { person: '', name: '', kind: '', lan_bypass: false }, call: wrap(device_create) },
+	device_config: { args: { id: '', issue: false }, call: wrap(device_config) },
+	device_update: { args: { id: '', name: '', disabled: false, mtu: '', keepalive: '', lan_bypass: false }, call: wrap(device_update) },
 	device_delete: { args: { id: '' }, call: wrap((a) => devices.remove(a.id, { by: 'admin' })) },
-	device_rotate: { args: { id: '' }, call: wrap((a) => devices.rotate(a.id, { by: 'admin' })) },
+	// New keys: the device is set up again, as with the portal's Reconnect.
+	device_rotate: { args: { id: '' }, call: wrap((a) => devices.reconnect(a.id, { by: 'admin' })) },
 };

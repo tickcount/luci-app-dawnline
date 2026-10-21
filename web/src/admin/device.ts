@@ -1,8 +1,9 @@
 // Device drawer: a right-hand panel with the device's status, connection
 // (QR / key / file, from its server's core), details and actions; the ⋯ menu
-// on a device card; and the admin's Add device dialog.
+// on a device card; and the admin's Add device dialog. Its own link (link
+// state, MTU, keep-alive, LAN Bypass) is ./device-link.
 
-import type { Device, Geo, Kind, LogEvent, Person } from '../shared/types';
+import type { ClientConfig, Device, Geo, Kind, LogEvent, Person, Server } from '../shared/types';
 import { E } from './e';
 import { api } from './api';
 import { button } from './ui/button';
@@ -12,10 +13,12 @@ import { dropdown, type MenuItem } from './ui/menu';
 import { drawer } from './ui/drawer';
 import { attempt, notify } from './ui/toast';
 import { liveField, warnNote } from './ui/layout';
+import { isOn, sw } from './ui/controls';
 import { qrCode } from './ui/qr';
-import { nameHelp } from './netcheck';
+import { deviceNameHelp, type Help } from './netcheck';
 import { deviceStatus } from './ui/badges';
-import { ago, bytes, isoDay, kindLabel, KINDS, todayOf } from '../shared/format';
+import { ago, bytes, defaultName, fitName, homeOf, isoDay, kindLabel, KINDS, netsLabel, todayOf } from '../shared/format';
+import { guardDeviceName } from '../shared/name-guard';
 import { fill, fmt, locale, num } from '../shared/i18n';
 import { icon } from '../shared/icons';
 import { eventBy } from './events/model';
@@ -27,6 +30,7 @@ import { onLiveChange } from './state/live';
 import { ConnectionMap, rangeControl, type Range } from './map';
 import { PlacesView } from './places/render';
 import { personUrl } from './urls';
+import { linkRows, linkStatus } from './device-link';
 
 /** What the page that opens a device hands over. */
 export interface DeviceOpts {
@@ -38,6 +42,8 @@ export interface DeviceOpts {
   today?: string;
   /** The device's server's core (AmneziaWG when not given). */
   core?: Core;
+  /** The device's server: what an empty MTU or keep-alive of its own gives. */
+  server?: Server;
   /** The page's activity log, when it keeps one: the drawer reads it instead of fetching its own. */
   events?: () => LogEvent[] | null;
 }
@@ -128,11 +134,38 @@ async function reopen(personId: string, deviceId: string, o: DeviceOpts) {
   const p2 = st?.people.find((x) => x.id === personId);
   const d2 = p2?.devices.find((x) => x.id === deviceId);
   if (st && p2 && d2)
-    void openDevice(p2, d2, { ...o, geo: st.geo, now: st.now, today: todayOf(st.series), core: coreFor(st.servers, p2.server) });
+    void openDevice(p2, d2, {
+      ...o,
+      geo: st.geo,
+      now: st.now,
+      today: todayOf(st.series),
+      core: coreFor(st.servers, p2.server),
+      server: st.servers.find((s) => s.id === p2.server),
+    });
+}
+
+/**
+ * The connection of a device that holds an older configuration, behind a button: showing the new one is what
+ * counts as giving it out (it clears "Update config"), never opening the drawer. `shown` runs once it is out.
+ */
+function newConfigGate(id: string, show: (cfg: ClientConfig) => Promise<HTMLElement>, shown: () => unknown): HTMLElement {
+  const box = E('div', { class: 'dl-row-actions' });
+  dom.content(
+    box,
+    button([icon('qr'), ' ', _('Show the new configuration')], async () => {
+      const cfg = await attempt(() => api.deviceConfig(id, true));
+      if (!cfg) return;
+      box.className = '';
+      dom.content(box, await show(cfg));
+      void shown();
+    }),
+  );
+  return box;
 }
 
 /** Device drawer. */
 export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
+  // A look: only a delivery (a code, a file, a key handed to the device) clears "Update config".
   const cfg = await attempt(() => api.deviceConfig(dev.id));
   if (!cfg) return;
   const core = o.core ?? coreOf(null);
@@ -141,8 +174,20 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
   let geo = o.geo;
   let now = o.now;
   let today = o.today ?? isoDay(new Date());
+  let srv = o.server;
   // Phones and tablets are set up by scanning; computers and routers by a file.
-  const connect = await core.connectBlock(cfg, dev.kind === 'phone' || dev.kind === 'tablet' ? 'qr' : 'file');
+  const block = (c: ClientConfig) => core.connectBlock(c, dev.kind === 'phone' || dev.kind === 'tablet' ? 'qr' : 'file');
+  // An older configuration on the device: the new one waits for a click (the inline QR code is itself a delivery).
+  // `relinked`: its MTU or keep-alive was just changed here, which outdates the configuration on screen even where
+  // the router keeps no record of what the device got (never "stale" then, e.g. after a JSON import).
+  let gated = dev.config_stale;
+  let relinked = false;
+  const gate = () =>
+    newConfigGate(dev.id, block, () => {
+      gated = false;
+      return changed();
+    });
+  const connect = gated ? gate() : await block(cfg);
   const titleEl = E('div', { class: 'dl-drawer-title' });
   const stats = E('div', {});
   const details = E('div', {});
@@ -184,7 +229,8 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
       E('div', { class: 'dl-dstats' }, [
         E('div', { class: 'dl-dstats-cell wide' }, [
           E('span', { class: 'dl-metric-label' }, _('Status')),
-          deviceStatus(d, now, _('Waiting for the first connection'), p),
+          // Its link failing in a named way says so, with what it means; otherwise its usual status.
+          (d.link && !d.disabled && linkStatus(d.link)) || deviceStatus(d, now, _('Waiting for the first connection'), p),
         ]),
         E('div', { class: 'dl-dstats-cell' }, [
           E('span', { class: 'dl-metric-label' }, _('This month')),
@@ -202,6 +248,10 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
       details,
       E('div', { class: 'dl-kv2' }, [
         copyRow(_('Tunnel address'), d.address),
+        ...linkRows(d, p, srv, () => {
+          relinked = true;
+          return changed();
+        }).map(([k, v]) => row(k, v)),
         d.hostname && p.access !== 'internet' ? copyRow(_('Local address'), d.hostname) : '',
         // Where it connects from is under Locations (with the place and network); from home
         // (not on the map) or without locations, here.
@@ -287,7 +337,15 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
     geo = st.geo;
     now = st.now;
     today = todayOf(st.series);
+    srv = st.servers.find((s) => s.id === p2.server);
     paint();
+    // A change made here (its MTU or keep-alive) or elsewhere left the configuration on screen behind: the new one
+    // waits behind the button.
+    if ((d.config_stale || relinked) && !gated) {
+      gated = true;
+      dom.content(connectSec, connectBody(gate()));
+    }
+    relinked = false;
     view?.update({ geo: st.geo, now: st.now, person: p, device: d });
   };
   /** After a change made here: this drawer and the page. */
@@ -297,9 +355,10 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
   };
 
   const rename = () => {
-    const input = E('input', { type: 'text', class: 'cbi-input-text', value: d.name, maxlength: 48 }) as HTMLInputElement;
+    const input = E('input', { type: 'text', class: 'cbi-input-text', value: d.name }) as HTMLInputElement;
+    const said = nameGuard(input, () => nameRow.refresh());
     const taken = p.devices.filter((x) => x.id !== d.id).map((x) => x.name);
-    const nameRow = liveField(_('Name'), input, () => nameHelp(input.value, taken, _('Shown in the portal and in the app.')));
+    const nameRow = liveField(_('Name'), input, () => said(deviceNameHelp(input.value, taken, _('Shown in the portal and in the app.'))));
     modal(
       fmt(_('Rename %s'), d.name),
       [nameRow],
@@ -327,7 +386,7 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
   };
 
   const foot = E('div', { class: 'dl-drawer-actions' });
-  const connectSec = E('section', { class: 'dl-dsec' }, [
+  const connectBody = (c: HTMLElement) => [
     // Whether it is connected (or still waiting) is in Status above.
     E('div', { class: 'dl-dsec-head' }, [E('h4', {}, _('Connect', 'section'))]),
     d.config_stale
@@ -337,8 +396,9 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
           ),
         )
       : '',
-    connect,
-  ]);
+    c,
+  ];
+  const connectSec = E('section', { class: 'dl-dsec' }, connectBody(connect));
   const activitySec = E('section', { class: 'dl-dsec' }, [
     E('div', { class: 'dl-dsec-head' }, [
       E('h4', {}, _('Activity')),
@@ -429,7 +489,8 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
 /** ⋯ on a device card: quick actions (everything else is in the panel; click the card). */
 export function quickMenu(anchor: HTMLElement, p: Person, d: Device, o: DeviceOpts) {
   const core = o.core ?? coreOf(null);
-  const cfg = () => attempt(() => api.deviceConfig(d.id));
+  // Each of these gives the configuration out.
+  const cfg = () => attempt(() => api.deviceConfig(d.id, true));
   const items: (MenuItem | null)[] = [
     {
       label: _('Show QR code'),
@@ -519,23 +580,49 @@ export function quickMenu(anchor: HTMLElement, p: Person, d: Device, o: DeviceOp
   dropdown(anchor, items);
 }
 
+/**
+ * A device's name field guarded as the portal's are (shared/name-guard.ts): a refused character shakes the input,
+ * and the row's help says why until a change gets in or the field is left (Save never reads a stale reason).
+ * Returns what the row's help passes its own through.
+ */
+function nameGuard(input: HTMLInputElement, refresh: () => void): (help: Help) => Help {
+  let why: string | null = null;
+  guardDeviceName(input, input, (w) => {
+    why = w;
+    refresh();
+  });
+  input.addEventListener('blur', () => {
+    if (!why) return;
+    why = null;
+    refresh();
+  });
+  return (help) => (why ? { text: why, bad: true } : help);
+}
+
 /** Admin "Add device" dialog for a person; opens the new device's drawer. */
 export function addDevice(person: Person, o: DeviceOpts) {
   const taken = person.devices.map((x) => x.name);
   // The name a type gives when none is typed: "Phone", then "Phone 2" (as the portal does).
   const suggest = (k: Kind) => {
-    const base = kindLabel(k);
+    const base = defaultName(k);
     let n = 1;
-    let name = base;
-    while (taken.some((t) => t.toLowerCase() === name.toLowerCase())) name = `${base} ${++n}`;
+    let name = fitName(base);
+    while (taken.some((t) => t.toLowerCase() === name.toLowerCase())) name = fitName(base, ` ${++n}`);
     return name;
   };
   let kind: Kind = 'phone';
-  const nameInput = E('input', { type: 'text', class: 'cbi-input-text', placeholder: suggest(kind), maxlength: 48 }) as HTMLInputElement;
+  const nameInput = E('input', {
+    type: 'text',
+    class: 'cbi-input-text',
+    placeholder: suggest(kind),
+  }) as HTMLInputElement;
+  const said = nameGuard(nameInput, () => nameRow.refresh());
   const nameRow = liveField(_('Name'), nameInput, () =>
-    nameInput.value.trim()
-      ? nameHelp(nameInput.value, taken, _('Shown in the portal and in the app.'))
-      : { text: fmt(_('Named after its type: %s.'), suggest(kind)), bad: false },
+    said(
+      nameInput.value.trim()
+        ? deviceNameHelp(nameInput.value, taken, _('Shown in the portal and in the app.'))
+        : { text: fmt(_('Named after its type: %s.'), suggest(kind)), bad: false },
+    ),
   );
   const kinds = E(
     'div',
@@ -564,6 +651,8 @@ export function addDevice(person: Person, o: DeviceOpts) {
       ),
     ),
   );
+  // LAN Bypass: off unless chosen (the person chooses it on the portal, the admin here).
+  const bypass = sw(false, _('LAN Bypass'));
   const over = person.devices.length >= person.device_limit;
   modal(
     fmt(_('Add a device for %s'), person.name),
@@ -585,6 +674,23 @@ export function addDevice(person: Person, o: DeviceOpts) {
           )
         : '',
       E('div', { class: 'dl-fld' }, [E('span', { class: 'dl-fld-label' }, _('Type')), kinds]),
+      // As the portal's Add a device: between the type and the name.
+      E('div', { class: 'cbi-value dl-live' }, [
+        E('div', { class: 'cbi-value-title' }, [
+          E('label', {}, _('LAN Bypass')),
+          E(
+            'div',
+            { class: 'dl-sub' },
+            homeOf(person, o.server).length
+              ? fmt(
+                  _('The device’s local network stays reachable while connected, except %s: your home network.'),
+                  netsLabel(homeOf(person, o.server)),
+                )
+              : _('The device’s local network stays reachable while connected.'),
+          ),
+        ]),
+        E('div', { class: 'cbi-value-field' }, bypass),
+      ]),
       nameRow,
     ],
     [
@@ -599,7 +705,7 @@ export function addDevice(person: Person, o: DeviceOpts) {
             return;
           }
           const name = nameInput.value.trim() || suggest(kind);
-          const r = await attempt(() => api.deviceCreate(person.id, name, kind));
+          const r = await attempt(() => api.deviceCreate(person.id, name, kind, isOn(bypass)));
           if (!r) return;
           closeModal();
           notify(fmt(_('%s added'), name), 'success', 3000);

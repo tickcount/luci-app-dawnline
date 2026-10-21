@@ -6,6 +6,7 @@
 				"luci.dawnline": [
 					"rev",
 					"status",
+					"meter",
 					"setup_defaults",
 					"health",
 					"service_log",

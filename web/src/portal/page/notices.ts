@@ -1,14 +1,18 @@
 // What stops the person's devices, said once at the top of the page: paused,
 // ended, out of data, outside the hours, the server off or missing, or access
-// ending soon. A notice wears its tone (orange or red) in its tint.
+// ending soon. A notice wears its tone (orange or red) in its tint. On a
+// repaint it comes, goes or changes in place while its slot glides to its new
+// height, so the page under it moves instead of jumping.
 
 import type { Person } from '../../shared/types';
 import { daysLeft, date, endsIn, endsSoon } from '../../shared/format';
 import { fmt } from '../../shared/i18n';
-import { h } from '../dom';
+import { h, put } from '../dom';
+import { SMOOTH, play } from '../motion';
 import { clockOf, hoursFor } from '../days';
 import { state, today } from '../state';
 import { glass } from '../ui/glass';
+import { appear, morphInto } from '../ui/morph';
 
 export type Tone = 'warn' | 'bad';
 
@@ -54,4 +58,24 @@ export function pageNotice(p: Person): HTMLElement | null {
   return endsSoon(p, left)
     ? notice('warn', 'calendar', fmt(_('Access %s'), endsIn(left as number)), fmt(_('On %s.'), date(p.expires)))
     : null;
+}
+
+/**
+ * The page's notice in its slot. On a repaint one that comes blurs in, one that
+ * goes fades where it stood, one that changes morphs in place (ui/morph.ts),
+ * and the slot glides from its height on screen to the new one (the slot holds
+ * the notice's margin and clips it on the way: page.css).
+ */
+export function fillNotice(slot: HTMLElement, p: Person, repainting: boolean) {
+  const n = pageNotice(p);
+  if (!repainting) return put(slot, n);
+  const h0 = slot.getBoundingClientRect().height;
+  // A notice that was there (one fading out lies over the slot, hidden from screen readers).
+  const had = !!slot.querySelector(':scope > .notice:not([aria-hidden])');
+  slot.getAnimations().forEach((a) => a.cancel());
+  morphInto(slot, n);
+  if (n && !had) appear(n);
+  const h1 = slot.getBoundingClientRect().height;
+  if (Math.abs(h1 - h0) > 0.5)
+    play(slot, [{ height: `${h0}px` }, { height: `${h1}px` }], { duration: SMOOTH.duration, easing: SMOOTH.easing });
 }

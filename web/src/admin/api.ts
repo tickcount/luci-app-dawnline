@@ -3,7 +3,19 @@
 // that did not load, a server that refused its devices) as { warning }.
 
 import type { Network, PortHold } from './netcheck';
-import type { AwgCaps, AwgState, Circle, ClientConfig, DayUsage, HealthCheck, LogEvent, MeshMode, Person, Status } from '../shared/types';
+import type {
+  AwgCaps,
+  AwgState,
+  Circle,
+  ClientConfig,
+  DayUsage,
+  HealthCheck,
+  LogEvent,
+  MeshMode,
+  Pair,
+  Person,
+  Status,
+} from '../shared/types';
 import { notify } from './ui/toast';
 import { lang } from '../shared/i18n';
 
@@ -62,6 +74,44 @@ export interface EndpointProbe {
   v6_only: boolean;
   status: 'ok' | 'warn' | 'error';
   text: string;
+  /** The router's public IPv6 addresses ([]: none; null: not read, the name has no IPv6). */
+  router6?: string[] | null;
+  /** The name's IPv6 addresses that are not the router's (null while router6 is). */
+  foreign6?: string[] | null;
+  /** The name has IPv6 and every address is the router's. */
+  here6?: boolean;
+}
+
+/** One second of the live meter: each server whose tunnel was read, [rx, tx] in bytes/s (rx = from devices, as Server.rate). */
+export interface MeterPoint {
+  ts: number;
+  servers: Record<string, Pair>;
+}
+
+/**
+ * The live meter (rpc meter): each call keeps the router sampling for `want`
+ * seconds more; the first point comes about 2 s after the first call.
+ */
+export interface Meter {
+  /** Router time. */
+  now: number;
+  /** Seconds the router keeps sampling after a call. */
+  want: number;
+  /** Points it keeps: one a second, the last 2 minutes. */
+  keep: number;
+  /** The newest point's time (0: none yet); it stops moving when the agent does. */
+  ts: number;
+  /** Oldest first; only those newer than `since` when it was given. */
+  points: MeterPoint[];
+}
+
+/**
+ * A device's own link values for device_update; left out = kept. Numbers go as text: '' = the server's, keep-alive
+ * '0' = off. LAN Bypass stays as chosen when the device was added (the RPC takes it, the admin UI never changes it).
+ */
+export interface DeviceLinkPatch {
+  mtu?: string;
+  keepalive?: string;
 }
 
 export interface Backup {
@@ -400,6 +450,11 @@ async function personUpdate(id: string, patch: PersonPatch): Promise<{ person: P
 
 const status = call<Status>('status', ['days']);
 
+const deviceUpdateRaw = call<unknown>('device_update', ['id', 'name', 'disabled', 'mtu', 'keepalive']);
+/** Rename, turn off or on, or change how a device connects; what is undefined stays as it is. */
+const deviceUpdate = (id: string, name?: string, disabled?: boolean, link: DeviceLinkPatch = {}) =>
+  deviceUpdateRaw(id, name, disabled, link.mtu, link.keepalive);
+
 /** One line of the service log: tunnel and service starts, stops, watchdog repairs, errors. */
 export interface ServiceLogEntry {
   ts: number;
@@ -433,6 +488,8 @@ export type Health = { checks: HealthCheck[] } & ServiceLog;
 
 export const api = {
   rev: call<{ rev: number; version?: string }>('rev'),
+  /** The live meter's points newer than `since` (0: all); polled while the Overview shows it. */
+  meter: call<Meter>('meter', ['since']),
   personUpdate,
   settingsGet: call<SettingsData>('settings_get'),
   portalInfo: call<PortalInfo>('portal_info'),
@@ -501,9 +558,11 @@ export const api = {
   personRegen: call<{ link: string | null; removed: number }>('person_regen', ['id', 'remove']),
   personDelete: call<unknown>('person_delete', ['id']),
   personUsage: call<{ person: DayUsage[]; devices: Record<string, DayUsage[]> }>('person_usage', ['id', 'days']),
-  deviceCreate: call<{ id: string; config: ClientConfig }>('device_create', ['person', 'name', 'kind']),
-  deviceConfig: call<ClientConfig>('device_config', ['id']),
-  deviceUpdate: call<unknown>('device_update', ['id', 'name', 'disabled']),
+  /** A new device; `lan_bypass` (true) keeps its own local network outside the tunnel. */
+  deviceCreate: call<{ id: string; config: ClientConfig }>('device_create', ['person', 'name', 'kind', 'lan_bypass']),
+  /** A device's configuration; `issue` (true) when it goes to the device as a code, a file or a key: only that clears "Update config". */
+  deviceConfig: call<ClientConfig>('device_config', ['id', 'issue']),
+  deviceUpdate,
   deviceDelete: call<unknown>('device_delete', ['id']),
   deviceRotate: call<ClientConfig>('device_rotate', ['id']),
   apply: call<unknown>('apply'),

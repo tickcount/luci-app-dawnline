@@ -1,10 +1,29 @@
 #!/bin/sh
 # Stand-in for amneziawg-tools in the ucode tests (no kernel module in a
-# container): `genkey` prints one fixed key, `show all dump` prints the fixture
-# a test has put at /tmp/dawnline-tests/awg-dump (or fails, as the tool does
-# when no interface is up). Anything else fails.
+# container): `genkey` prints one fixed key, `pubkey` (a key on stdin) the
+# fixture server's public key, its pair; `show <ifname> dump` prints that
+# interface's lines of the fixture a test has put at /tmp/dawnline-tests/awg-dump
+# (written as `awg show all dump` prints them: the ifname first, left out here,
+# as the tool does), fails as the tool does for an interface that is not there,
+# and fails with the text of /tmp/dawnline-tests/awg-fail-<ifname> when a test
+# put one. Every call is appended to /tmp/dawnline-tests/awg-calls. Anything
+# else fails.
+T=/tmp/dawnline-tests
+echo "$*" >> "$T/awg-calls"
 case "$1 ${2:-} ${3:-}" in
 	'genkey  ') echo 'yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk=' ;;
-	'show all dump') cat /tmp/dawnline-tests/awg-dump ;;
+	'pubkey  ') cat >/dev/null; echo 'xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg=' ;;
+	'show '*' dump')
+		if [ -e "$T/awg-fail-$2" ]; then
+			cat "$T/awg-fail-$2" >&2
+			exit 1
+		fi
+		out="$(awk -F '\t' -v i="$2" '$1 == i { sub(/^[^\t]*\t/, ""); print }' "$T/awg-dump" 2>/dev/null)"
+		if [ -z "$out" ]; then
+			echo 'Unable to access interface: No such device' >&2
+			exit 1
+		fi
+		printf '%s\n' "$out"
+		;;
 	*) echo "awg stand-in: unsupported arguments: $*" >&2; exit 1 ;;
 esac

@@ -84,7 +84,7 @@
   align-items: center;
   gap: 8px;
 }
-.acc-row.open .acc-val.hide-open {
+.acc-row.open > .acc-head > .acc-val.hide-open {
   opacity: 0;
   filter: blur(4px);
   transform: translateX(8px);
@@ -97,15 +97,17 @@
   transform: rotate(90deg);
   transition: transform var(--spring-soft-dur, 470ms) var(--spring-soft, ease);
 }
-.acc-row.open .acc-chev {
+/* Only the row's own head and body: a row inside an open row keeps its own state (the router's
+   "Configuration" inside "Set it up again"). */
+.acc-row.open > .acc-head > .acc-chev {
   transform: rotate(-90deg);
 }
 .acc-body {
   display: none;
   padding: 0 8px 16px 40px;
 }
-.acc-row.open .acc-body,
-.acc-row.closing .acc-body {
+.acc-row.open > .acc-body,
+.acc-row.closing > .acc-body {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -127,6 +129,33 @@
 }
 .acc.inset .seg {
   background: color-mix(in srgb, var(--knob) 65%, var(--field));
+}
+/* Steps inside an inset row ("Set it up again") sit on field: their badges step up as the picker
+   does, and one step more on hover. */
+.acc.inset .badge {
+  background: color-mix(in srgb, var(--knob) 65%, var(--field));
+}
+.acc.inset .badge:hover {
+  background: var(--knob);
+}
+/* The router's file step inside an inset row: its card, its inset "Configuration" row and what
+   that row opens step up one the same way; its buttons one more, and one more again on hover. */
+.acc.inset .filecard,
+.acc.inset .acc.inset .acc-row {
+  background: color-mix(in srgb, var(--knob) 65%, var(--field));
+}
+.acc.inset .acc.inset .acc-row:not(.open):not(.still):hover {
+  background: var(--knob);
+}
+.acc.inset .filecard-ic,
+.acc.inset .acc.inset .btn.soft {
+  background: color-mix(in srgb, var(--knob), var(--text) 6%);
+}
+.acc.inset .acc.inset .btn.soft:hover {
+  background: color-mix(in srgb, var(--knob), var(--text) 12%);
+}
+.acc.inset .acc.inset .conf {
+  background: var(--knob);
 }
 
 @media (prefers-reduced-motion: reduce) {

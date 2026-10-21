@@ -93,6 +93,11 @@ export function rubber(dist: number, dim: number): number {
   return dist <= 0 || dim <= 0 ? 0 : (1 - 1 / ((dist * 0.55) / dim + 1)) * dim;
 }
 
+/** How far a pull goes for an edge to stand `d` past it: rubber() undone (a sheet taken while it settles back). */
+export function unrubber(d: number, dim: number): number {
+  return d <= 0 || dim <= 0 ? 0 : (d * dim) / (0.55 * Math.max(1, dim - d));
+}
+
 /**
  * Does a pulled sheet go away? A flick down (px/ms, as Vaul) or a pull past a
  * third of its height does; a flick back up keeps it, however far it went.

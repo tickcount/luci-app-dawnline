@@ -7,8 +7,11 @@ import {
   categoryOf,
   changedText,
   daysOf,
+  deviceChangedText,
   eventBy,
   isProblem,
+  linkStatesText,
+  linkStateText,
   logText,
   noteText,
   reasonText,
@@ -71,6 +74,39 @@ describe('events', () => {
     expect(
       text(eventText(st, ev({ type: 'roam', person: 'p1', device: 'd1', detail: '10.0.0.2 → 5.6.7.8', hosts: { '10.0.0.2': 'nas' } }))),
     ).toBe('Device Myata · Phone changed network nas (10.0.0.2) → 5.6.7.8');
+  });
+});
+
+describe('a device’s link', () => {
+  const people = [{ id: 'p1', name: 'Myata', devices: [{ id: 'd1', name: 'Phone' }] }] as unknown as Person[];
+  const ev = (e: Partial<LogEvent>) => ({ ts: 1, person: 'p1', device: 'd1', ...e }) as LogEvent;
+  it('says what its state means', () => {
+    expect(linkStateText('trying')).toEqual({
+      title: 'Unable to complete the handshake',
+      line: 'The device’s network may be blocking the connection.',
+    });
+    expect(linkStateText('dropped')?.title).toBe('Handshake complete, but no data');
+    expect(linkStateText('shared')?.title).toBe('On two devices at once');
+    expect(linkStateText('unstable')?.title).toBe('Connection keeps dropping');
+    expect(linkStateText('flowing')).toBeNull();
+    expect(linkStatesText('trying, unstable')).toBe('Unable to complete the handshake, Connection keeps dropping');
+    expect(linkStatesText('later')).toBe('later');
+  });
+  it('puts its failing and recovering into Activity', () => {
+    expect(categoryOf('device_failing')).toBe('problems');
+    expect(categoryOf('device_recovered')).toBe('problems');
+    const st = { people };
+    expect(text(eventText(st, ev({ type: 'device_failing', detail: 'trying, shared' })))).toBe(
+      'Device Myata · Phone has a connection problem · Unable to complete the handshake, On two devices at once',
+    );
+    expect(text(eventText(st, ev({ type: 'device_recovered', detail: 'unstable' })))).toBe('Device Myata · Phone connects normally again');
+  });
+  it('names the link options the admin changed', () => {
+    expect(deviceChangedText('mtu, keepalive, lan_bypass')).toBe('MTU, keep-alive, LAN Bypass');
+    expect(deviceChangedText('something new')).toBe('something new');
+    expect(text(eventText({ people }, ev({ type: 'device_changed', by: 'admin', detail: 'mtu' })))).toBe(
+      'You changed device Phone of Myata · MTU',
+    );
   });
 });
 

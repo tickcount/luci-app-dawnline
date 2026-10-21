@@ -17,13 +17,13 @@ import type { PersonPage } from './index';
 
 /** Setting up a device: its QR code (key and file one tap away). */
 async function showDeviceQr(page: PersonPage, d: Device) {
-  const cfg = await attempt(() => api.deviceConfig(d.id));
+  const cfg = await attempt(() => api.deviceConfig(d.id, true));
   if (!cfg) return;
   modal(fmt(_('Set up %s'), d.name), [await page.core.connectBlock(cfg, 'qr')], [cancelButton(_('Close'))]);
 }
 
 async function downloadConfig(page: PersonPage, d: Device) {
-  const cfg = await attempt(() => api.deviceConfig(d.id));
+  const cfg = await attempt(() => api.deviceConfig(d.id, true));
   if (!cfg) return;
   if (!cfg.has_private_key) {
     notify(_('This device made its own keys in the browser; its configuration only exists there.'), 'warning');

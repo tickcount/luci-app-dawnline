@@ -4,7 +4,7 @@
 
 import { cursor } from 'uci';
 import {
-	valid_name, valid_key, valid_host, valid_iface, valid_date, slugify, host_label, ucut, name_rule, parse_cidr, cidr_overlaps, int2ip, ip2int,
+	valid_name, valid_device_name, DEVICE_NAME_MAX, valid_key, valid_host, valid_iface, valid_date, slugify, host_label, ucut, name_rule, parse_cidr, cidr_overlaps, int2ip, ip2int,
 	rand_hex, rand_bytes, date_end, month_key, read_json, DATA_DIR, RUN_DIR, uniq
 } from 'dawnline.util';
 import { _, N_ } from 'dawnline.i18n';
@@ -199,6 +199,13 @@ export function load(c) {
 			created: toint(r.created, 0),
 			created_by: r.created_by ?? 'admin',
 			disabled: bool(r.disabled, false),
+			// The device's own link values (admin only): 0 / null = the server's
+			// (device_mtu, device_keepalive). Out of range is kept as read, so
+			// model_errors can name it; the configuration then uses the server's.
+			mtu: toint(r.mtu, 0),
+			keepalive: r.keepalive == null || r.keepalive == '' ? null : toint(r.keepalive, null),
+			// Its own local network stays outside the tunnel (awg.allowed_ips).
+			lan_bypass: bool(r.lan_bypass, false),
 		};
 		m.devices[id] = d;
 		if (m.people[d.person])
@@ -367,16 +374,38 @@ export function alloc_address(m, srv) {
  */
 const AUTO_MTU = 1380;
 const MOBILE_MTU = 1280;
+/** What an MTU set by hand may be (the server's and a device's alike). */
+export const MTU_RANGE = [ 1280, 1500 ];
+/** What a keep-alive set by hand may be, in seconds (0 = off). */
+export const KEEPALIVE_RANGE = [ 0, 600 ];
+
+function in_range(n, r) {
+	return type(n) == 'int' && n >= r[0] && n <= r[1];
+}
 
 /** The server's tunnel MTU: the one set, or automatic for its disguise. */
 export function tunnel_mtu(srv) {
 	return srv.mtu || max(MOBILE_MTU, AUTO_MTU - toint(srv.obf?.s4, 0));
 };
 
-/** The MTU a device's configuration carries: the tunnel's, at most 1280 for phones and tablets. */
+/**
+ * The MTU a device's configuration carries: the device's own when the admin
+ * set one, else the tunnel's, at most 1280 for phones and tablets.
+ */
 export function device_mtu(srv, dev) {
+	if (in_range(dev.mtu, MTU_RANGE))
+		return dev.mtu;
 	let mtu = tunnel_mtu(srv);
 	return index(MOBILE_KINDS, dev.kind) >= 0 ? min(mtu, MOBILE_MTU) : mtu;
+};
+
+/**
+ * The keep-alive a device's configuration carries, in seconds (0 = off): the
+ * device's own when the admin set one, else the server's. Both ends never
+ * have to agree on it (the server's peers carry none), so it is the device's.
+ */
+export function device_keepalive(srv, dev) {
+	return in_range(dev?.keepalive, KEEPALIVE_RANGE) ? dev.keepalive : srv.keepalive;
 };
 
 export function endpoint_host(m, srv) {
@@ -649,6 +678,8 @@ export function update_person(c, m, id, a) {
  * Add a device for a person. `opts.keys` = { private_key?, public_key,
  * preshared_key } from dawnline.awg (or a public key the browser generated).
  * `opts.by` is 'admin' or 'portal'; the portal is held to the device limit.
+ * `opts.lan_bypass` true keeps the device's own local network outside the
+ * tunnel (awg.allowed_ips).
  */
 export function create_device(c, m, person_id, name, kind, opts) {
 	opts ??= {};
@@ -659,8 +690,8 @@ export function create_device(c, m, person_id, name, kind, opts) {
 	if (!srv)
 		fail(_('The person has no server.'));
 	name = trim(name ?? '');
-	if (!valid_name(name))
-		fail(_('Enter a device name (up to 48 characters).'));
+	if (!valid_device_name(name))
+		fail(sprintf(_('Enter a device name: up to %d letters, digits, spaces and - _ .'), DEVICE_NAME_MAX));
 	if (index(KINDS, kind) < 0)
 		kind = 'other';
 	if (opts.by == 'portal' && length(p.devices) >= p.device_limit)
@@ -677,10 +708,15 @@ export function create_device(c, m, person_id, name, kind, opts) {
 	for (let o, d in m.devices)
 		if (d.public_key == k.public_key)
 			fail(_('This key is already in use.'));
+	// A server's own key (it is in every configuration): the kernel would silently ignore such a peer.
+	for (let sid, s in m.servers)
+		if (s.public_key == k.public_key)
+			fail(_('This key is already in use.'));
 
 	let id = `d_${rand_hex(4)}`;
 	let dev = { id, person: person_id, name, kind, address: addr, public_key: k.public_key, private_key: k.private_key ?? '',
-		preshared_key: k.preshared_key ?? '', created: time(), created_by: opts.by ?? 'admin', disabled: false };
+		preshared_key: k.preshared_key ?? '', created: time(), created_by: opts.by ?? 'admin', disabled: false,
+		mtu: 0, keepalive: null, lan_bypass: opts.lan_bypass === true };
 	c.set(CONFIG, id, 'device');
 	c.set(CONFIG, id, 'person', person_id);
 	c.set(CONFIG, id, 'name', name);
@@ -691,6 +727,8 @@ export function create_device(c, m, person_id, name, kind, opts) {
 			c.set(CONFIG, id, f, dev[f]);
 	c.set(CONFIG, id, 'created', `${dev.created}`);
 	c.set(CONFIG, id, 'created_by', dev.created_by);
+	if (dev.lan_bypass)
+		c.set(CONFIG, id, 'lan_bypass', '1');
 
 	// Keep the in-memory model consistent for callers that continue.
 	m.devices[id] = dev;
@@ -703,13 +741,52 @@ export function rename_device(c, m, id, name) {
 	if (!d)
 		fail(_('Unknown device.'));
 	name = trim(name ?? '');
-	if (!valid_name(name))
-		fail(_('Enter a device name (up to 48 characters).'));
+	if (!valid_device_name(name))
+		fail(sprintf(_('Enter a device name: up to %d letters, digits, spaces and - _ .'), DEVICE_NAME_MAX));
 	for (let o in m.people[d.person]?.devices ?? [])
 		if (o != id && lc(m.devices[o].name) == lc(name))
 			fail(sprintf(_('"%s" already exists.'), name));
 	c.set(CONFIG, id, 'name', name);
 	d.name = name;
+};
+
+/**
+ * The admin's link settings of a device: `a` = { mtu?, keepalive?,
+ * lan_bypass? }, only keys present change; '' takes a number back to the
+ * server's (0 is a keep-alive of its own: off). Each is in the device's
+ * configuration alone (the server's peers carry neither), so a change asks
+ * that device to import again and touches nothing on the router. Returns the
+ * names of the options that changed.
+ */
+export function set_device_link(c, m, id, a) {
+	let d = m.devices[id];
+	if (!d)
+		fail(_('Unknown device.'));
+	let changed = [];
+	let put = (k, v, was) => {
+		if (v == was)
+			return;
+		if (v == null)
+			c.delete(CONFIG, id, k);
+		else
+			c.set(CONFIG, id, k, `${v}`);
+		push(changed, k);
+	};
+	let number = (v, r, msg) => {
+		let s = trim(`${v}`);
+		if (s == '')
+			return null;
+		if (!match(s, /^[0-9]{1,4}$/) || +s < r[0] || +s > r[1])
+			fail(msg);
+		return +s;
+	};
+	if (a.mtu != null)
+		put('mtu', number(a.mtu, MTU_RANGE, _('MTU must be 1280-1500.')), d.mtu || null);
+	if (a.keepalive != null)
+		put('keepalive', number(a.keepalive, KEEPALIVE_RANGE, _('Keep-alive must be 0-600 seconds.')), d.keepalive);
+	if (a.lan_bypass != null)
+		put('lan_bypass', a.lan_bypass === true ? 1 : null, d.lan_bypass ? 1 : null);
+	return changed;
 };
 
 export function delete_device(c, m, id) {
@@ -781,10 +858,12 @@ export function server_errors(m, srv, others_subnets) {
  * an address outside their server's subnet, the server's own address, a
  * prefix on it or one shared with another device (the access sets are keyed
  * by address, and one bad peer line makes `awg syncconf` refuse the whole
- * server), malformed keys, people and devices pointing at servers, people,
- * circles or services that do not exist, and two people with one link. [] when
- * it is consistent. Import, restore and Health check it; the runtime sync
- * skips what it would reject (dawnline.awg, dawnline.nft).
+ * server), malformed keys, an MTU or keep-alive of their own out of range,
+ * people and devices pointing at servers, people, circles or services that do
+ * not exist, and two people with one link. [] when it is consistent. Import,
+ * restore and Health check it; the runtime sync skips what it would reject
+ * (dawnline.awg, dawnline.nft), and a configuration takes the server's value
+ * for a link value out of range (device_mtu, device_keepalive).
  */
 export function model_errors(m) {
 	let errs = [];
@@ -816,6 +895,11 @@ export function model_errors(m) {
 			say(_('Device %s of %s: the private key is not a key.'));
 		if (d.preshared_key != '' && !valid_key(d.preshared_key))
 			say(_('Device %s of %s: the preshared key is not a key.'));
+		// Its own link values (0 / null: the server's); one out of range is never used.
+		if (d.mtu && !in_range(d.mtu, MTU_RANGE))
+			say(_('Device %s of %s: MTU %d is not between 1280 and 1500.'), d.mtu);
+		if (d.keepalive != null && !in_range(d.keepalive, KEEPALIVE_RANGE))
+			say(_('Device %s of %s: keep-alive %d is not between 0 and 600 seconds.'), d.keepalive);
 		let n = ip2int(d.address);
 		if (n == null) {
 			if (d.address)
@@ -825,6 +909,9 @@ export function model_errors(m) {
 			continue;
 		}
 		let srv = m.servers[p.server];
+		// AmneziaWG ignores a peer with the interface's own key (dawnline.awg tunnel_devices leaves it out).
+		if (srv?.public_key && d.public_key == srv.public_key)
+			say(_("Device %s of %s: the public key is the server's own."));
 		let t = srv ? parse_cidr(srv.subnet) : null;
 		if (t && (n < t.first || n > t.last))
 			say(_("Device %s of %s: address %s is outside %s's tunnel %s."), d.address, srv.name, srv.subnet);

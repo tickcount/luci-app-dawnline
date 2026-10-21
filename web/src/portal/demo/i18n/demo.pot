@@ -18,6 +18,10 @@ msgstr ""
 msgid "Access only at certain hours of the day."
 msgstr ""
 
+#: web/src/portal/demo/way-pick.ts
+msgid "Auto"
+msgstr ""
+
 #: web/src/portal/demo/crumbs.ts
 msgid "Dawnline on GitHub"
 msgstr ""
@@ -50,8 +54,16 @@ msgstr ""
 msgid "How the page looks in each case. Nothing here connects."
 msgstr ""
 
+#: web/src/portal/demo/way-pick.ts
+msgid "No data"
+msgstr ""
+
 #: web/src/portal/demo/data.ts
 msgid "No free slots"
+msgstr ""
+
+#: web/src/portal/demo/way-pick.ts
+msgid "Online"
 msgstr ""
 
 #: web/src/portal/demo/data.ts
@@ -76,6 +88,10 @@ msgstr ""
 
 #: web/src/portal/demo/data.ts
 msgid "Plain WireGuard"
+msgstr ""
+
+#: web/src/portal/demo/way-pick.ts
+msgid "Set-up state"
 msgstr ""
 
 #: web/src/portal/demo/data.ts
@@ -120,6 +136,14 @@ msgstr ""
 
 #: web/src/portal/demo/picker.ts
 msgid "Try a scenario"
+msgstr ""
+
+#: web/src/portal/demo/way-pick.ts
+msgid "Trying"
+msgstr ""
+
+#: web/src/portal/demo/way-pick.ts
+msgid "Waiting"
 msgstr ""
 
 #: web/src/portal/demo/data.ts

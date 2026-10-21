@@ -3,7 +3,7 @@
 //   GET  /<code>                          the app shell
 //   GET  /<code>/assets/<file>            its script, styles and fonts
 //   GET  /<code>/api/state
-//   POST /<code>/api/devices              { name, kind, public_key? }
+//   POST /<code>/api/devices              { name, kind, public_key?, lan_bypass? }
 //   GET  /<code>/api/devices/<id>/config
 //   POST /<code>/api/devices/<id>         { action: rename|rotate|delete, name? }
 //
@@ -368,7 +368,8 @@ function tz_offset() {
 function state(r) {
 	let m = r.m, person = r.person;
 	let usage = core.load_usage();
-	let v = view.person_view(m, person, usage, live.dump(m), view.states(m, usage));
+	// Only their server's tunnel: one `awg` process per request, however many servers there are.
+	let v = view.person_view(m, person, usage, live.dump(m, person.server ?? ''), view.states(m, usage));
 	v.state = person_state(m, person, usage);
 	// Day by day this month, for the page's chart (the admin's views have no use for it).
 	v.month_days = view.month_days(usage.people?.[person.id]);
@@ -384,6 +385,9 @@ function state(r) {
 			awg_disguise: srv ? !awg.obf_neutral(srv.obf) : false,
 			// Which apps (and versions) connect: off, balanced (2.0), max (3.1); legacy = the old junk-only presets.
 			preset: !srv || awg.obf_neutral(srv.obf) ? 'off' : index([ 'balanced', 'max' ], srv.preset) >= 0 ? srv.preset : 'legacy',
+			// The home networks a device with LAN Bypass still sends into the tunnel (home and internet access):
+			// its own local network on the same addresses is out of reach (Add a device says so).
+			home: srv && person.access == 'both' ? core.person_home(srv, person).nets : [],
 		},
 		can_add: length(person.devices) < person.device_limit,
 		locked: index(LOCKED, v.state) >= 0,
@@ -419,7 +423,8 @@ function api_add(r) {
 	if (!devices.ready())
 		fail(r, '503 Service Unavailable', not_ready());
 	rate_action(r);
-	let res = guard(r, () => devices.add(r.person.id, b.name, b.kind, { by: 'portal', public_key: b.public_key }));
+	// lan_bypass: JSON true keeps the device's own local network out of the tunnel; anything else is off.
+	let res = guard(r, () => devices.add(r.person.id, b.name, b.kind, { by: 'portal', public_key: b.public_key, lan_bypass: b.lan_bypass === true }));
 	reload(r);
 	send_json(r, '200 OK', { id: res.id, config: res.config, state: state(r) });
 }

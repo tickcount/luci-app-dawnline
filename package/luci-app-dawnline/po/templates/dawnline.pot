@@ -95,6 +95,18 @@ msgstr ""
 msgid "%s - not repaired again (%d repairs didn't help)"
 msgstr ""
 
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/health.uc
+msgid "%s AAAA → %s is not a public address of this router: devices that prefer IPv6 will fail to connect. Fix or remove this AAAA record."
+msgid_plural "%s AAAA → %s are not public addresses of this router: devices that prefer IPv6 will fail to connect. Fix or remove these AAAA records."
+msgstr[0] ""
+msgstr[1] ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/health.uc
+msgid "%s AAAA → %s, but this router has no public IPv6 address: devices that prefer IPv6 will fail to connect. Remove this AAAA record or set up IPv6 on the router."
+msgid_plural "%s AAAA → %s, but this router has no public IPv6 address: devices that prefer IPv6 will fail to connect. Remove these AAAA records or set up IPv6 on the router."
+msgstr[0] ""
+msgstr[1] ""
+
 #: web/src/admin/cores/awg.ts
 msgid "%s AmneziaWG device stops connecting until it imports its configuration again (from their personal link or from you)."
 msgid_plural "%s AmneziaWG devices stop connecting until they import their configuration again (from their personal link or from you)."
@@ -146,6 +158,10 @@ msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/access.uc
 msgid "%s and %s are not in one circle"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "%s and %s overlap: each packet type needs values of its own."
 msgstr ""
 
 #: web/src/admin/cores/awg.ts
@@ -421,6 +437,10 @@ msgid "%s has Internet only: only DNS and the portal on the router."
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "%s has a tag that is not closed with >."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
 msgid "%s has an invalid interface name \"%s\"."
 msgstr ""
 
@@ -524,6 +544,10 @@ msgid "%s is kept down."
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "%s is kept down: its disguise has values AmneziaWG cannot take. %s"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
 msgid "%s is kept down: its disguise needs AmneziaWG %s (installed: %s)."
 msgstr ""
 
@@ -539,6 +563,10 @@ msgstr[1] ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/loop.uc
 msgid "%s is not a bridge, so Dawnline cannot join the LAN as a device."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/health.uc
+msgid "%s is not a common home subnet: the networks people connect from rarely use the same addresses."
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/rpc/updates.uc
@@ -572,6 +600,10 @@ msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/access.uc
 msgid "%s is on the internet"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/health.uc
+msgid "%s is one of the most common home subnets. On a network with the same addresses, people with home access reach your home instead of their own: their printer or TV there is out of reach while connected, with LAN Bypass too. A rarer subnet for your home network avoids it, for example 10.37.12.0/24."
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/rpc/servers.uc
@@ -629,6 +661,10 @@ msgstr[1] ""
 msgid "%s left"
 msgstr ""
 
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "%s may not contain # or a line break."
+msgstr ""
+
 #: web/src/shared/format.ts
 msgid "%s min ago"
 msgstr ""
@@ -648,7 +684,31 @@ msgid "%s moves to %s with OpenWrt %s."
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
-msgid "%s must be a number or range"
+msgid "%s must be a number or a range like 10-100, up to 65535."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "%s must be a number or a range like 100-200, up to 4294967295."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "%s must be a number or a range like 5-15, from 1 to 65535."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "%s must be a whole number from 0 to 65535."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "%s must be at least 12 with header protection."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "%s must be from %d to %d."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "%s must be on or off."
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/libexec/dawnline/updater
@@ -805,6 +865,10 @@ msgstr[1] ""
 msgid "%s resumed"
 msgstr ""
 
+#: web/src/admin/device-link.ts
+msgid "%s s"
+msgstr ""
+
 #: web/src/admin/pages/settings/logs.ts
 msgid "%s since %s"
 msgstr ""
@@ -883,6 +947,10 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/watchdog.uc
+msgid "%s · interface settings"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/watchdog.uc
 msgid "%s · restored"
 msgstr ""
 
@@ -896,6 +964,16 @@ msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/health.uc
 msgid "%s → %s (this router)."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/health.uc
+msgid "%s → %s: IPv6 only, and not a public address of this router: no device can connect. Check your DNS / DDNS."
+msgid_plural "%s → %s: IPv6 only, and not public addresses of this router: no device can connect. Check your DNS / DDNS."
+msgstr[0] ""
+msgstr[1] ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/health.uc
+msgid "%s → %s: IPv6 only, but this router has no public IPv6 address: no device can connect. Check your DNS / DDNS, or set up IPv6 on the router."
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/health.uc
@@ -933,6 +1011,10 @@ msgstr[1] ""
 
 #: web/src/admin/disguise.ts
 msgid "%s: %s of 4"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "%s: <%s> is not a tag AmneziaWG apps accept: use <b 0x…> with an even number of hex digits, <r N>, <rc N> or <rd N> with N from 1 to 1000, or <t>."
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/access.uc
@@ -1597,6 +1679,10 @@ msgstr ""
 msgid "As soon as found"
 msgstr ""
 
+#: web/src/admin/device-link.ts
+msgid "As the server: %s"
+msgstr ""
+
 #: web/src/admin/pages/settings/updates.ts
 msgid "At a set time"
 msgstr ""
@@ -1644,6 +1730,10 @@ msgstr ""
 
 #: web/src/admin/pages/components/index.ts
 msgid "Automatic update: system packages"
+msgstr ""
+
+#: web/src/admin/device-link.ts
+msgid "Automatic: %s"
 msgstr ""
 
 #: web/src/admin/cores/awg.ts
@@ -1753,7 +1843,7 @@ msgid "Blocked"
 msgstr ""
 
 #: web/src/admin/events/model.ts
-msgid "Blocked portal sign-ins (tunnels and services are in the service log)"
+msgid "Blocked portal sign-ins and devices that can’t connect properly (tunnels and services are in the service log)"
 msgstr ""
 
 #: web/src/admin/access.ts
@@ -1840,6 +1930,7 @@ msgid "Certificates (ACME)"
 msgstr ""
 
 #: web/src/admin/cores/awg.ts
+#: web/src/admin/device-link.ts
 #: web/src/admin/pages/person/limits.ts
 #: web/src/admin/pages/person/pickers.ts
 #: web/src/admin/pages/server.ts
@@ -1851,12 +1942,24 @@ msgstr ""
 msgid "Change limit"
 msgstr ""
 
+#: web/src/admin/device-link.ts
+msgid "Change the MTU"
+msgstr ""
+
+#: web/src/admin/device-link.ts
+msgid "Change the keep-alive"
+msgstr ""
+
 #: web/src/admin/pages/server.ts
 msgid "Change the tunnel network"
 msgstr ""
 
 #: web/src/admin/device.ts
 msgid "Changed network"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/watchdog.uc
+msgid "Changed: %s."
 msgstr ""
 
 #: web/src/admin/pages/server.ts
@@ -1950,6 +2053,10 @@ msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/access.uc
 msgid "Choose a device on at least one side."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "Choose a disguise on the Server page: it replaces the values set by hand."
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/rpc/common.uc
@@ -2046,6 +2153,10 @@ msgstr ""
 msgid "Collecting… 1 point a minute"
 msgstr ""
 
+#: web/src/admin/widgets/tiles.ts
+msgid "Collecting… 1 point a second"
+msgstr ""
+
 #: web/src/admin/access.ts
 msgid "Colour"
 msgstr ""
@@ -2099,6 +2210,10 @@ msgstr ""
 
 #: web/src/admin/pages/server.ts
 msgid "Connection"
+msgstr ""
+
+#: web/src/admin/events/model.ts
+msgid "Connection keeps dropping"
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/libexec/dawnline/agent
@@ -2173,6 +2288,10 @@ msgstr ""
 
 #: web/src/admin/access.ts
 msgid "Couldn't read the devices at home."
+msgstr ""
+
+#: web/src/admin/widgets/tiles.ts
+msgid "Couldn't read the live speed: %s"
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/store.uc
@@ -2400,6 +2519,7 @@ msgstr ""
 
 #: web/src/admin/logs.ts
 #: web/src/admin/map.ts
+#: web/src/shared/format.ts
 msgid "Device"
 msgstr ""
 
@@ -2413,6 +2533,18 @@ msgstr ""
 
 #: web/src/admin/events/render.ts
 msgid "Device %s connected from %s"
+msgstr ""
+
+#: web/src/admin/events/render.ts
+msgid "Device %s connects normally again"
+msgstr ""
+
+#: web/src/admin/events/render.ts
+msgid "Device %s has a connection problem"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Device %s of %s: MTU %d is not between 1280 and 1500."
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
@@ -2436,6 +2568,10 @@ msgid "Device %s of %s: address (none) is not a plain IPv4 address."
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Device %s of %s: keep-alive %d is not between 0 and 600 seconds."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
 msgid "Device %s of %s: the preshared key is not a key."
 msgstr ""
 
@@ -2445,6 +2581,10 @@ msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
 msgid "Device %s of %s: the public key is not a key."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Device %s of %s: the public key is the server's own."
 msgstr ""
 
 #: web/src/admin/events/render.ts
@@ -2715,6 +2855,10 @@ msgstr ""
 msgid "Empty = the portal’s address."
 msgstr ""
 
+#: web/src/admin/netcheck.ts
+msgid "Empty: automatic. Lower it when big pages hang on this device."
+msgstr ""
+
 #: web/src/admin/device.ts
 msgid "Enable"
 msgstr ""
@@ -2752,7 +2896,7 @@ msgid "Enter a circle name: up to 32 characters, without < > \" or \\."
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
-msgid "Enter a device name (up to 48 characters)."
+msgid "Enter a device name: up to %d letters, digits, spaces and - _ ."
 msgstr ""
 
 #: web/src/admin/netcheck.ts
@@ -2975,6 +3119,14 @@ msgstr ""
 msgid "From"
 msgstr ""
 
+#: web/src/admin/netcheck.ts
+msgid "From 0 to 600 seconds."
+msgstr ""
+
+#: web/src/admin/netcheck.ts
+msgid "From 1280 to 1500."
+msgstr ""
+
 #: web/src/admin/access.ts
 msgid "From the rules on this server"
 msgstr ""
@@ -3060,6 +3212,10 @@ msgstr ""
 msgid "Handshake and key timers vary within these ranges instead of WireGuard’s fixed values."
 msgstr ""
 
+#: web/src/admin/events/model.ts
+msgid "Handshake complete, but no data"
+msgstr ""
+
 #: web/src/admin/pages/diagnostics/index.ts
 #: web/src/admin/pages/overview.ts
 msgid "Health"
@@ -3137,6 +3293,10 @@ msgstr ""
 msgid "Home network + Internet"
 msgstr ""
 
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/health.uc
+msgid "Home network addresses"
+msgstr ""
+
 #: web/src/admin/pages/person/pickers.ts
 msgid "Home networks %s reaches. Networks added to the server later stay out."
 msgstr ""
@@ -3191,6 +3351,10 @@ msgstr ""
 
 #: web/src/admin/pages/settings/portal.ts
 msgid "How the portal listens (80 and 443 stay free)"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "I1-I5 together must be at most 2000 characters, not %d."
 msgstr ""
 
 #: web/src/admin/pages/overview.ts
@@ -3283,6 +3447,10 @@ msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/netifd.uc
 msgid "Install it in Dawnline → Components."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "Install that AmneziaWG build in Dawnline → Components, or switch the disguise on the Server page."
 msgstr ""
 
 #: web/src/admin/pkgs.ts
@@ -3468,6 +3636,10 @@ msgstr ""
 msgid "Invite card for %s"
 msgstr ""
 
+#: web/src/admin/events/model.ts
+msgid "It connects, but the connection breaks every few minutes: the network may be cutting it."
+msgstr ""
+
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/access.uc
 msgid "It is in the tunnel network %s."
 msgstr ""
@@ -3494,6 +3666,10 @@ msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/access.uc
 msgid "Its configuration sends it to the router"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "Jmin must not be larger than Jmax."
 msgstr ""
 
 #: web/src/admin/cores/awg.ts
@@ -3533,11 +3709,17 @@ msgid "Keep the previous version"
 msgstr ""
 
 #: web/src/admin/cores/awg.ts
+#: web/src/admin/device-link.ts
 msgid "Keep-alive"
 msgstr ""
 
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/rpc/servers.uc
 msgid "Keep-alive must be 0-600 seconds."
+msgstr ""
+
+#: web/src/admin/device-link.ts
+msgid "Keep-alive of %s"
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/upd_awg.uc
@@ -3586,6 +3768,12 @@ msgstr ""
 msgid "Key generation failed."
 msgstr ""
 
+#: web/src/admin/device-link.ts
+#: web/src/admin/device.ts
+#: web/src/admin/events/model.ts
+msgid "LAN Bypass"
+msgstr ""
+
 #: web/src/admin/widgets/tiles.ts
 msgid "Last 30 days"
 msgstr ""
@@ -3618,6 +3806,10 @@ msgstr ""
 
 #: web/src/admin/netcheck.ts
 msgid "Leave out https:// - just the name."
+msgstr ""
+
+#: web/src/admin/netcheck.ts
+msgid "Letters, digits, spaces and - _ . only."
 msgstr ""
 
 #: web/src/admin/pages/components/packages.ts
@@ -3785,12 +3977,17 @@ msgstr ""
 msgid "MTU is now automatic"
 msgstr ""
 
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/rpc/servers.uc
 msgid "MTU must be 1280-1500."
 msgstr ""
 
 #: web/src/admin/netcheck.ts
 msgid "MTU must be 1280–1500, or empty for automatic."
+msgstr ""
+
+#: web/src/admin/device-link.ts
+msgid "MTU of %s"
 msgstr ""
 
 #: web/src/admin/pages/settings/portal.ts
@@ -4428,6 +4625,7 @@ msgstr ""
 msgid "OK"
 msgstr ""
 
+#: web/src/admin/device-link.ts
 #: web/src/admin/disguise.ts
 #: web/src/admin/interfaces.ts
 #: web/src/admin/pages/components/hero.ts
@@ -4473,6 +4671,7 @@ msgstr ""
 msgid "Older →"
 msgstr ""
 
+#: web/src/admin/device-link.ts
 #: web/src/admin/pages/components/hero.ts
 #: web/src/admin/pages/server.ts
 msgid "On"
@@ -4484,6 +4683,14 @@ msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/access.uc
 msgid "On one of the networks %s reaches."
+msgstr ""
+
+#: web/src/admin/events/model.ts
+msgid "On two devices at once"
+msgstr ""
+
+#: web/src/admin/device-link.ts
+msgid "On, except %s (home)"
 msgstr ""
 
 #: web/src/admin/pages/server.ts
@@ -4515,8 +4722,16 @@ msgstr ""
 msgid "Only home devices reach people's devices."
 msgstr ""
 
+#: web/src/shared/name-guard.ts
+msgid "Only letters, digits, - _ ."
+msgstr ""
+
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/access.uc
 msgid "Only people with home access reach other devices."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/devices.uc
+msgid "Only the admin can change how a device connects."
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/devices.uc
@@ -4674,6 +4889,10 @@ msgstr ""
 
 #: web/src/admin/cores/awg.ts
 msgid "Parameters copied"
+msgstr ""
+
+#: web/src/admin/cores/awg.ts
+msgid "Parameters copied. The header protection key is in each device’s file."
 msgstr ""
 
 #: web/src/admin/pages/settings/portal.ts
@@ -5156,6 +5375,10 @@ msgstr ""
 msgid "Reinstalling Dawnline"
 msgstr ""
 
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "RejectAfterTime must be at most 180 seconds."
+msgstr ""
+
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/upd_app.uc
 msgid "Release %s has no %s: it stays as it is"
 msgstr ""
@@ -5475,8 +5698,13 @@ msgstr ""
 msgid "Russian translation"
 msgstr ""
 
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "S2 must not be S1 + 56: the handshake initiation and response would have the same size."
+msgstr ""
+
 #: web/src/admin/access.ts
 #: web/src/admin/cores/awg.ts
+#: web/src/admin/device-link.ts
 #: web/src/admin/device.ts
 #: web/src/admin/interfaces.ts
 #: web/src/admin/pages/person/dialogs.ts
@@ -5499,6 +5727,7 @@ msgid "Save to flash"
 msgstr ""
 
 #: web/src/admin/access.ts
+#: web/src/admin/device-link.ts
 #: web/src/admin/pages/person/dialogs.ts
 #: web/src/admin/pages/server.ts
 #: web/src/admin/pages/settings/defaults.ts
@@ -5529,6 +5758,10 @@ msgstr ""
 
 #: web/src/admin/access.ts
 msgid "Screen sharing"
+msgstr ""
+
+#: web/src/admin/netcheck.ts
+msgid "Seconds. Empty: as the server. Longer saves battery; behind some NATs it then drops."
 msgstr ""
 
 #: web/src/admin/pages/overview.ts
@@ -5711,6 +5944,10 @@ msgstr ""
 
 #: web/src/admin/pages/components/index.ts
 msgid "Show progress"
+msgstr ""
+
+#: web/src/admin/device.ts
+msgid "Show the new configuration"
 msgstr ""
 
 #: web/src/admin/pages/settings/map.ts
@@ -5958,6 +6195,15 @@ msgstr ""
 msgid "The %s build, %s."
 msgstr ""
 
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/health.uc
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/upd_awg.uc
+msgid "The AmneziaWG update is installed and starts after a reboot."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/health.uc
+msgid "The AmneziaWG update waits for a reboot"
+msgstr ""
+
 #: web/src/admin/pages/server.ts
 msgid "The ISP shares one address: devices can only connect if the ISP gives you a public address or IPv6. Ask them, or use a DDNS name that points at an IPv6 address."
 msgstr ""
@@ -6014,8 +6260,24 @@ msgstr ""
 msgid "The device is disconnected immediately and its configuration stops working."
 msgstr ""
 
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/health.uc
+msgid "The devices in AmneziaWG could not be checked"
+msgstr ""
+
 #: web/src/admin/netcheck.ts
 msgid "The device’s address at home."
+msgstr ""
+
+#: web/src/admin/device.ts
+msgid "The device’s local network stays reachable while connected, except %s: your home network."
+msgstr ""
+
+#: web/src/admin/device.ts
+msgid "The device’s local network stays reachable while connected."
+msgstr ""
+
+#: web/src/admin/events/model.ts
+msgid "The device’s network may be blocking the connection."
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/access.uc
@@ -6024,6 +6286,10 @@ msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/health.uc
 msgid "The firmware changed (kernel %s → %s): the AmneziaWG build installed for it is gone. Install the build for this firmware."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "The header protection key is not a key."
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
@@ -6087,7 +6353,7 @@ msgid "The new version did not answer in LuCI or its agent did not start. Try ag
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/upd_awg.uc
-msgid "The old AmneziaWG kernel module is still loaded (another AmneziaWG interface may use it): reboot the router to finish the update"
+msgid "The old kernel module stays loaded (another AmneziaWG interface may use it): the AmneziaWG update is installed and starts after a reboot."
 msgstr ""
 
 #: web/src/admin/pages/person/dialogs.ts
@@ -6150,6 +6416,10 @@ msgstr ""
 msgid "The router stopped answering. The job may still finish: reopen Components in a minute."
 msgstr ""
 
+#: web/src/admin/events/model.ts
+msgid "The same configuration connects from two places in turn. Give the other device its own."
+msgstr ""
+
 #: web/src/admin/pages/overview.ts
 msgid "The server is turned off"
 msgstr ""
@@ -6172,6 +6442,10 @@ msgstr ""
 
 #: web/src/admin/updater/operation.ts
 msgid "The translation is removed."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/health.uc
+msgid "The tunnel could not be read, so its devices could not be checked."
 msgstr ""
 
 #: web/src/admin/pages/server.ts
@@ -6240,6 +6514,10 @@ msgstr ""
 
 #: web/src/admin/device.ts
 msgid "This device has an older configuration: networks or DNS changed since it was set up. Import it again with the QR code, key or file below."
+msgstr ""
+
+#: web/src/admin/events/model.ts
+msgid "This device is using an outdated configuration."
 msgstr ""
 
 #: web/src/admin/pages/person/devices.ts
@@ -6487,6 +6765,10 @@ msgstr ""
 msgid "UDP port: %s"
 msgstr ""
 
+#: web/src/admin/events/model.ts
+msgid "Unable to complete the handshake"
+msgstr ""
+
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/backup.uc
 msgid "Unexpected entry in backup: %s"
 msgstr ""
@@ -6613,6 +6895,10 @@ msgid "Up to %s character (%s now)."
 msgid_plural "Up to %s characters (%s now)."
 msgstr[0] ""
 msgstr[1] ""
+
+#: web/src/shared/name-guard.ts
+msgid "Up to %s characters."
+msgstr ""
 
 #: web/src/admin/pages/components/index.ts
 msgid "Up to date"
@@ -7205,6 +7491,10 @@ msgid "answers again"
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/pkg.uc
+msgid "apk did not install %s %s (installed: %s)"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/pkg.uc
 msgid "apk did not reinstall the version that is already installed"
 msgstr ""
 
@@ -7230,6 +7520,14 @@ msgstr ""
 
 #: web/src/admin/pages/components/hero.ts
 msgid "as soon as found"
+msgstr ""
+
+#: web/src/admin/device-link.ts
+msgid "as the server"
+msgstr ""
+
+#: web/src/admin/device-link.ts
+msgid "automatic"
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/libexec/dawnline/updater
@@ -7452,10 +7750,6 @@ msgid "from the portal"
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
-msgid "h1-h4 must be distinct"
-msgstr ""
-
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
 msgid "has an invalid interface name \"%s\""
 msgstr ""
 
@@ -7503,12 +7797,24 @@ msgstr ""
 msgid "interface %s"
 msgstr ""
 
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/watchdog.uc
+msgid "interface %s has Dawnline's settings again"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/watchdog.uc
+msgid "interface %s was changed outside Dawnline"
+msgstr ""
+
 #: web/src/admin/access.ts
 msgid "internet"
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
 msgid "is kept down"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "is kept down: its disguise has values AmneziaWG cannot take"
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
@@ -7572,6 +7878,10 @@ msgid "keep access"
 msgstr ""
 
 #: web/src/admin/events/model.ts
+msgid "keep-alive"
+msgstr ""
+
+#: web/src/admin/events/model.ts
 msgid "kept in memory only (lost on reboot)"
 msgstr ""
 
@@ -7589,6 +7899,10 @@ msgstr ""
 
 #: web/src/admin/widgets/tiles.ts
 msgid "last 15 min"
+msgstr ""
+
+#: web/src/admin/widgets/tiles.ts
+msgid "last 2 min"
 msgstr ""
 
 #: web/src/admin/pages/person/header.ts
@@ -7909,7 +8223,17 @@ msgstr ""
 msgid "services"
 msgstr ""
 
+#: web/src/admin/cores/awg.ts
+msgctxt "key"
+msgid "set"
+msgstr ""
+
+#: web/src/admin/device-link.ts
+msgid "set when it was added"
+msgstr ""
+
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/watchdog.uc
 msgid "setting it up again"
 msgstr ""
 

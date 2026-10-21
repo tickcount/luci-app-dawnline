@@ -58,6 +58,7 @@ export function device_view(m, d, usage, dmp) {
 	m._reconnect ??= awg.reconnects();
 	let hs = awg.handshake_since(peer?.handshake || u?.handshake || 0, m._reconnect[d.id]);
 	let p = m.people[d.person];
+	let srv = m.servers[p?.server];
 	// The same label /tmp/hosts carries (core.device_labels), so what is shown resolves.
 	let label = '';
 	if (m.settings.hostnames && p) {
@@ -65,6 +66,7 @@ export function device_view(m, d, usage, dmp) {
 		m._labels[p.id] ??= core.device_labels(m, p);
 		label = m._labels[p.id][d.id] ?? 'device';
 	}
+	let online = hs > 0 && live.online(dmp, d.id, peer);
 	let v = {
 		id: d.id,
 		name: d.name,
@@ -73,7 +75,7 @@ export function device_view(m, d, usage, dmp) {
 		disabled: d.disabled,
 		created: d.created,
 		created_by: d.created_by,
-		online: hs > 0 && live.online(dmp, d.id, peer),
+		online,
 		handshake: hs,
 		endpoint: live.endpoint_ip(peer?.endpoint) || u?.endpoint || '',
 		active: !!peer,
@@ -84,6 +86,21 @@ export function device_view(m, d, usage, dmp) {
 		browser_key: d.private_key == '',
 		// Its configuration changed since it was last shown or downloaded.
 		config_stale: config_stale(m, d),
+		// How it connects: its own local network outside the tunnel, its own MTU
+		// and keep-alive (0 / null: the server's) and what its configuration carries.
+		lan_bypass: d.lan_bypass,
+		mtu: d.mtu,
+		keepalive: d.keepalive,
+		mtu_used: srv ? core.device_mtu(srv, d) : null,
+		keepalive_used: srv ? core.device_keepalive(srv, d) : null,
+		// Its link failing in a named way, as the agent's watcher shows it
+		// (dawnline.link): { state, since }, or null.
+		link: dmp.link?.[d.id] ?? null,
+		// What its link does right now, for the set-up sheet (dawnline.link
+		// setup_state): { state: 'trying' | 'flowing' | 'nodata', since }, or null.
+		// Without the agent nobody tells data from a bare handshake: a session
+		// that lives counts as data flowing, so the sheet still sees it arrive.
+		setup: dmp.setup != null ? (dmp.setup[d.id] ?? null) : online ? { state: 'flowing', since: hs } : null,
 	};
 	return v;
 };

@@ -14,8 +14,9 @@ import { ConnectionMap, rangeControl, type Range } from '../map';
 import { personUrl } from '../urls';
 import { eventRow } from '../events/render';
 import { scoped } from '../state/scope';
-import { repaint } from '../state/poller';
-import { daysTile, speedTile } from '../widgets/tiles';
+import { focusInside, repaint } from '../state/poller';
+import type { LiveMeter } from '../state/meter';
+import { daysTile, LiveSpeedTile } from '../widgets/tiles';
 import { coreOf } from '../cores';
 import { healthNotices, runFix } from '../widgets/health';
 import { attempt } from '../ui/toast';
@@ -128,10 +129,13 @@ export class ServerOverview {
   range: Range = 'online';
   parts: Record<string, HTMLElement> = {};
   healthAt = 0;
+  /** Speed now, live: one tile for this Overview's life, its numbers put in place each second. */
+  speed = new LiveSpeedTile();
 
-  /** `go` switches the Servers page to another section in place. */
+  /** `meter` is the Servers page's live meter (it polls it); `go` switches the page to another section in place. */
   constructor(
     readonly srvId: string,
+    private meter: LiveMeter,
     private go?: (section: string, filter?: string) => void,
   ) {}
 
@@ -249,11 +253,13 @@ export class ServerOverview {
     const srv = st.servers[0];
 
     this.paintMap();
-    repaint(
-      this.parts.bento,
-      E('div', { class: 'dl-bento' }, [this.onlineTile(), this.speedTile(), coreOf(srv).overviewTile(srv), this.monthTile()]),
-      quiet,
-    );
+    // The live speed tile moves into a new bento: one is made only when it is put on the page.
+    if (quiet && focusInside(this.parts.bento)) this.paintSpeed();
+    else
+      dom.content(
+        this.parts.bento,
+        E('div', { class: 'dl-bento' }, [this.onlineTile(), this.speedTile(), coreOf(srv).overviewTile(srv), this.monthTile()]),
+      );
 
     const att = attention(st);
     repaint(
@@ -446,12 +452,19 @@ export class ServerOverview {
   }
 
   /**
-   * Throughput right now (from the agent's minute samples): download and
-   * upload side by side, the last 15 minutes as a small chart, today's total.
+   * Throughput right now (the live meter, one point a second): download and
+   * upload side by side, the last 2 minutes as a small chart, today's total.
    */
   speedTile(): HTMLElement {
+    this.paintSpeed();
+    return this.speed.el;
+  }
+
+  /** The speed tile from the meter as it stands (the Servers page calls this with each answer). */
+  paintSpeed() {
+    if (!this.st) return;
     const srv = this.st.servers[0];
-    return speedTile(srv?.rate ?? [], this.st.now, this.st.totals.today, srv ? !srv.enabled : false);
+    this.speed.update(this.meter.speed(this.srvId, Date.now()), this.st.totals.today, srv ? !srv.enabled : false);
   }
 
   /** The last 30 days, today on the right, with the peak. */

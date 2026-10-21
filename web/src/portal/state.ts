@@ -11,7 +11,8 @@ export interface State {
   person: Person;
   /** device_mesh: devices with home access reach each other through the tunnel. */
   /** awg_disguise: false = plain WireGuard, any WireGuard app connects. */
-  server: { name?: string; endpoint: string; device_mesh?: boolean; awg_disguise?: boolean; preset?: Preset };
+  /** home: the home networks a device with LAN Bypass still sends into the tunnel (home and internet access). */
+  server: { name?: string; endpoint: string; device_mesh?: boolean; awg_disguise?: boolean; preset?: Preset; home?: string[] };
   /** The device this page was opened from (through the tunnel), if any. */
   here?: string | null;
   can_add: boolean;

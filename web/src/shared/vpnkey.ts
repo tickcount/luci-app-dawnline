@@ -4,14 +4,19 @@
 
 import type { ClientConfig } from './types';
 
+/**
+ * What a parameter the server does not set reads as. S3 and S4 stay empty: the
+ * app names a key "AmneziaWG (version 2)" when either is there (awgVersionOf in
+ * amnezia-client), and every platform skips an empty one.
+ */
 const DEFAULTS: Record<string, string> = {
   jc: '0',
   jmin: '0',
   jmax: '0',
   s1: '0',
   s2: '0',
-  s3: '0',
-  s4: '0',
+  s3: '',
+  s4: '',
   h1: '1',
   h2: '2',
   h3: '3',
@@ -94,8 +99,11 @@ export function amneziaJson(cfg: ClientConfig, description: string): Record<stri
     description,
     hostName: host,
   };
-  if (a.dns[0]) out.dns1 = a.dns[0];
-  if (a.dns[1]) out.dns2 = a.dns[1];
+  // Without a dns2 the app adds its own (Cloudflare by default), which bypasses the home DNS: one server goes in as both.
+  if (a.dns[0]) {
+    out.dns1 = a.dns[0];
+    out.dns2 = a.dns[1] || a.dns[0];
+  }
   return out;
 }
 

@@ -176,6 +176,12 @@ body.scrolled .edge-fade.top {
   line-height: 18px;
 }
 
+/* The notice's slot holds its margin (flow-root) and clips it while its height glides, so a notice that comes or
+   goes is uncovered or folded away instead of hanging over what follows (page/notices.ts). */
+.notice-slot {
+  display: flow-root;
+  overflow-y: clip;
+}
 /* A notice wears its tone: the fill tinted, the rim a little stronger. */
 .notice {
   display: flex;

@@ -596,6 +596,10 @@ function server_ports(a) {
 function server_obfuscation(a) {
 	let preset = str(a.preset) || default_method();
 	let o = awg.obf_preset(check_method(preset));
+	// A cheap self-check: new values pass what a restore would be held to.
+	let errs = awg.obf_errors(o);
+	if (length(errs))
+		die(join(' ', errs));
 	let srv = store.transact((c, m) => {
 		let srv = m.servers[a.id];
 		if (!srv)

@@ -1,7 +1,7 @@
 // Formatting helpers shared by the admin UI and the portal, in the page's
 // language (shared/i18n.ts): units, relative times, dates, labels.
 
-import type { Access, Kind, PersonState } from './types';
+import type { Access, Kind, Person, PersonState, Server } from './types';
 import { fmt, locale, num, plural } from './i18n';
 
 /** A size with its unit: one decimal from 1 KB up to 100 of a unit ("1.5 GB", "120 MB"). */
@@ -155,6 +155,73 @@ export function accessLabel(a: Access): string {
   return { lan: _('Home network'), internet: _('Internet'), both: _('Home network + Internet') }[a];
 }
 
+/** The longest name a device takes, in characters (the router's DEVICE_NAME_MAX, util.uc). */
+export const DEVICE_NAME_MAX = 20;
+
+/**
+ * Past ASCII, the blocks a device's name doesn't take: symbols, punctuation, arrows, maths, emoji and invisibles
+ * (the router refuses the same, util.uc NAME_SYMBOLS). Code point ranges, both ends in.
+ */
+const NAME_SYMBOLS: [number, number][] = [
+  [0x80, 0xbf],
+  [0xd7, 0xd7],
+  [0xf7, 0xf7],
+  [0x2000, 0x2bff],
+  [0x3000, 0x303f],
+  [0xd800, 0xf8ff],
+  [0xfe00, 0xfe0f],
+  [0xfe30, 0xfe4f],
+  [0xfeff, 0xfeff],
+  [0xfff0, 0xffff],
+  [0x1f000, 0x1fbff],
+  [0xe0000, 0xe007f],
+];
+const ASCII_NAME = /^[A-Za-z0-9 ._-]$/;
+const LETTER = /^[\p{L}\p{M}\p{N}]$/u;
+
+/**
+ * One character a device's name may hold: a letter of any language (with its marks) or a digit, a space, - _ or
+ * . (the router checks the ASCII ones and refuses the symbol blocks past it; this also asks Unicode it is a letter).
+ */
+export function deviceNameChar(ch: string): boolean {
+  const cp = ch.codePointAt(0) ?? 0;
+  if (cp < 0x80) return ASCII_NAME.test(ch);
+  return !NAME_SYMBOLS.some(([a, b]) => cp >= a && cp <= b) && LETTER.test(ch);
+}
+
+/** `s` could still become a device's name as it is typed: only those characters, no more than DEVICE_NAME_MAX. */
+export function deviceNameFits(s: string): boolean {
+  const chars = [...s];
+  return chars.length <= DEVICE_NAME_MAX && chars.every(deviceNameChar);
+}
+
+/** A device's name the router takes: not blank, and it fits (spaces around are trimmed). */
+export const validDeviceName = (s: string): boolean => !!s.trim() && deviceNameFits(s.trim());
+
+/**
+ * A name made up for a device (its kind, the phone's model), as the router takes it: what it refuses stripped
+ * ("Galaxy S24+" → "Galaxy S24"), cut to fit with `suffix` after it ("Phone 2"), not left ending in a space.
+ * Nothing left: the kind-less "Device".
+ */
+export function fitName(base: string, suffix = ''): string {
+  const clean =
+    [...base]
+      .map((c) => (deviceNameChar(c) ? c : ' '))
+      .join('')
+      .replace(/\s+/g, ' ')
+      .trim() || _('Device');
+  const cut = [...clean]
+    .slice(0, Math.max(1, DEVICE_NAME_MAX - [...suffix].length))
+    .join('')
+    .trimEnd();
+  return cut + suffix;
+}
+
+/** The name a device of kind `k` gets when nobody gives it one, in the page's language: "Phone", "Device". */
+export function defaultName(k: Kind): string {
+  return k === 'other' ? _('Device') : kindLabel(k);
+}
+
 /** In picker order. */
 export const KINDS: Kind[] = ['computer', 'phone', 'tablet', 'router', 'other'];
 
@@ -206,4 +273,19 @@ export function byDeviceState<T extends { online: boolean; handshake: number; di
     .map((d, i) => [d, i] as const)
     .sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1])
     .map(([d]) => d);
+}
+
+/** Networks as people read them: a /24 as its first three numbers and x ("10.0.1.x"), others as they are. */
+export function netsLabel(nets: string[]): string {
+  return nets.map((n) => (n.endsWith('.0/24') ? `${n.slice(0, -5)}.x` : n)).join(', ');
+}
+
+/**
+ * The home networks a device of `p` with LAN Bypass still sends into the tunnel: with home and internet access,
+ * the server's home networks they reach (all of them, or the ones picked for them). None otherwise.
+ */
+export function homeOf(p: Person, srv: Server | undefined): string[] {
+  if (p.access !== 'both' || !srv) return [];
+  const pick = p.home_nets ?? [];
+  return srv.home.filter((h) => !pick.length || pick.includes(h.dev)).flatMap((h) => h.nets);
 }

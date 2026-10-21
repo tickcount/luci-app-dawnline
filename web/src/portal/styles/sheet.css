@@ -1,5 +1,6 @@
-/* The sheet: a drawer floating at the bottom on every width, × and a view's own buttons pinned in its
-   corner, the views inside (head, line under it), and the question look (Remove, Reconnect). */
+/* The sheet: a drawer floating at the bottom of a phone, a dialog in the middle of a computer, × and a view's
+   own buttons pinned in its corner, the views inside (head, line under it), and the question look (Remove,
+   Reconnect). */
 
 /* Closed, the sheet is out of the page (display, not visibility): each open computes its styles
    afresh. Hidden by visibility, Chromium could keep the inherited "hidden" on the views' box after a
@@ -60,6 +61,8 @@
   right: 22px;
   top: 22px;
 }
+/* The viewport: as tall as its view, give or take the gap or overhang under the view while it glides to a new height
+   (ui/sheet.ts); what does not fit yet, and a view on its way out, is clipped. */
 .vp {
   position: relative;
   overflow: hidden;
@@ -115,9 +118,6 @@
   margin: -6px auto 24px;
   max-width: 32ch;
   text-wrap: balance;
-}
-.kinds-note {
-  margin: 14px 2px 16px;
 }
 .view > .hint.bad-t {
   margin-top: 8px;

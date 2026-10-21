@@ -18,6 +18,38 @@ test('valid_name', () => {
 	ok(!util.valid_name('a\tb'), 'control character');
 });
 
+test('valid_device_name', () => {
+	eq(util.DEVICE_NAME_MAX, 20, 'the limit');
+	ok(util.valid_device_name('9999999999999999999'), '19 characters');
+	ok(util.valid_device_name('99999999999999999999'), '20 characters');
+	ok(!util.valid_device_name('999999999999999999999'), '21 characters');
+	ok(util.valid_device_name('Kitchen iPad'), 'letters and a space');
+	ok(util.valid_device_name('my-pc_2.home'), 'dash, underscore and dot');
+	ok(util.valid_device_name('Мой ноутбук'), 'Cyrillic');
+	ok(util.valid_device_name('ЙЦУКЕНГШЩЗХЪФЫВАПРОЛ'), '20 Cyrillic letters (40 bytes) are 20 characters');
+	ok(!util.valid_device_name('ЙЦУКЕНГШЩЗХЪФЫВАПРОЛД'), '21 Cyrillic letters');
+	ok(util.valid_device_name('Ordinateur de Zoé'), 'Latin with an accent');
+	ok(util.valid_device_name('客厅电视'), 'Chinese');
+	ok(util.valid_device_name('Ελένη'), 'Greek');
+	ok(!util.valid_device_name('Phone 📱'), 'emoji');
+	ok(!util.valid_device_name('Офис™'), 'trade mark sign');
+	ok(!util.valid_device_name('«Дом»'), 'guillemets');
+	ok(!util.valid_device_name('a\u200bb'), 'zero-width space');
+	ok(!util.valid_device_name('a×b'), 'multiplication sign');
+	// Raw bytes by chr(): a "\xd0" in a literal is the character Ð to some ucode releases.
+	ok(!util.valid_device_name('a' + chr(0xc0) + chr(0xaf) + 'b'), 'a slash spelled long');
+	ok(!util.valid_device_name('a' + chr(0xd0)), 'a character cut short');
+	ok(!util.valid_device_name("Bob's iPhone"), 'apostrophe');
+	ok(!util.valid_device_name('a;rm -rf /'), 'semicolon and slash');
+	ok(!util.valid_device_name('$(reboot)'), 'shell');
+	ok(!util.valid_device_name('a<b'), 'angle bracket');
+	ok(!util.valid_device_name('a\nb'), 'newline');
+	ok(!util.valid_device_name('a\u0000b'), 'NUL');
+	ok(!util.valid_device_name(''), 'empty');
+	ok(!util.valid_device_name('   '), 'blank');
+	ok(!util.valid_device_name(null), 'null');
+});
+
 test('valid_host', () => {
 	ok(util.valid_host('vpn.example.com'), 'name');
 	ok(util.valid_host('router'), 'single label');

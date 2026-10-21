@@ -2,9 +2,11 @@
 // bottom edges (the top fade only once it scrolls, so the breadcrumb at rest
 // stays crisp), and opens with a breadcrumb: the Dawnline mark, the place (the
 // server's name) and the person, then the language and this page's code. The
-// content goes in `body`.
+// content goes in `body`, which holds its height while a fold near the page's
+// foot takes the scroll down with it (`holdFoot`).
 
 import { h, ic, markup } from '../dom';
+import { EASE_OUT, SOFT, play } from '../motion';
 import { placeName, state } from '../state';
 import { showPageCode } from '../flows/page-code';
 import { openMenu } from '../ui/menu';
@@ -33,6 +35,34 @@ export function frame(app: HTMLElement): HTMLElement {
   addEventListener('scroll', onScroll, { passive: true });
   onScroll();
   return bodyEl;
+}
+
+/**
+ * The page keeps its height while something in it takes a shorter shape (an
+ * access row folding): with no scroll anchoring (base.css), a page scrolled
+ * near its foot would drop to its new end on the frame that shape is measured.
+ * Held at what the scroll needs, it lets go once the new shape is known (what
+ * this returns), on an ease that never overshoots, so the scroll follows the
+ * fold down frame by frame and stops at the new foot. Still tall enough, it
+ * lets go at once.
+ */
+export function holdFoot(): () => void {
+  const body = bodyEl;
+  if (!body) return () => {};
+  // Read as it stands (a hold still letting go included), then taken over.
+  const r = body.getBoundingClientRect();
+  // Tall enough for the page's foot to stay at the bottom of the screen: the scroll and the screen, less what is
+  // above the body and under it.
+  const need = innerHeight - r.top - (document.documentElement.scrollHeight - scrollY - r.bottom);
+  body.getAnimations().forEach((a) => a.cancel());
+  body.style.minHeight = `${need}px`;
+  return () => {
+    const last = body.lastElementChild;
+    const end = last ? last.getBoundingClientRect().bottom - body.getBoundingClientRect().top : 0;
+    body.style.minHeight = '';
+    if (end < need - 0.5)
+      play(body, [{ minHeight: `${need}px` }, { minHeight: `${end}px` }], { duration: SOFT.duration, easing: EASE_OUT });
+  };
 }
 
 /** One card in place of the page (the link gone, nothing loaded, access paused): it and the breadcrumb sit in the middle of the screen. */

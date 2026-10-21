@@ -2,6 +2,7 @@
 // them (rpc/servers.uc) and said in plain words for the setup wizard. The
 // addresses are three numbers ("10.77.0"): the tunnel is that /24.
 
+import { DEVICE_NAME_MAX, deviceNameFits } from '../shared/format';
 import { fmt, locale, num, plural } from '../shared/i18n';
 
 /** A network on the router, by name: an interface ("lan") or a server ("Home"). */
@@ -122,6 +123,16 @@ export function nameHelp(s: string, taken: string[] = [], good = ''): Help {
   return { text: good, bad: false };
 }
 
+/**
+ * A device's name (util.valid_device_name): up to DEVICE_NAME_MAX of letters (any language), digits, spaces and - _ .
+ * (an old name from before the rule says what to change in it).
+ */
+export function deviceNameHelp(s: string, taken: string[] = [], good = ''): Help {
+  if (chars(s.trim()) > DEVICE_NAME_MAX) return { text: tooLong(DEVICE_NAME_MAX, s.trim()), bad: true };
+  if (!deviceNameFits(s.trim())) return { text: _('Letters, digits, spaces and - _ . only.'), bad: true };
+  return nameHelp(s, taken, good);
+}
+
 /** A circle's name: like a name, up to 32 characters. */
 export function circleNameHelp(s: string, taken: string[] = []): Help {
   if (chars(s) > 32) return { text: tooLong(32, s), bad: true };
@@ -196,6 +207,20 @@ export function keepaliveHelp(s: string): Help {
   if (!/^\d{1,3}$/.test(t) || Number(t) > 600) return { text: _('Use 0–600 seconds.'), bad: true };
   if (Number(t) === 0) return { text: _('Off: NAT may close the tunnel when idle, and “Connected” lags.'), bad: false };
   return { text: fmt(_('Devices send a packet every %s s to keep NAT open (a little battery on phones).'), t), bad: false };
+}
+
+/** A device's own MTU (core.set_device_link): empty = automatic (the server's for its kind), else 1280–1500. */
+export function deviceMtuHelp(s: string): Help {
+  const t = s.trim();
+  if (t && (!/^\d{1,4}$/.test(t) || Number(t) < 1280 || Number(t) > 1500)) return { text: _('From 1280 to 1500.'), bad: true };
+  return { text: _('Empty: automatic. Lower it when big pages hang on this device.'), bad: false };
+}
+
+/** A device's own keep-alive (core.set_device_link): empty = the server's, else 0–600 s (0 = off). */
+export function deviceKeepaliveHelp(s: string): Help {
+  const t = s.trim();
+  if (t && (!/^\d{1,4}$/.test(t) || Number(t) > 600)) return { text: _('From 0 to 600 seconds.'), bad: true };
+  return { text: _('Seconds. Empty: as the server. Longer saves battery; behind some NATs it then drops.'), bad: false };
 }
 
 /** Device limit (core.create_person): 1–32; `have` is how many they have now (an edit). */

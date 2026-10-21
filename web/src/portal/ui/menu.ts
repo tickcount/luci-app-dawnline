@@ -34,11 +34,22 @@ export function closeMenu(now = false) {
     m.remove();
     return;
   }
-  play(m, [{ opacity: 1 }, { opacity: 0, transform: 'scale(.96)', filter: 'blur(3px)' }], {
-    duration: 120,
-    easing: EASE_IN,
-    fill: 'forwards',
-  }).onfinish = () => m.remove();
+  // From where it stands: one closed while it still pops in (a scroll, a second press) goes from there.
+  const s = getComputedStyle(m);
+  const a = play(
+    m,
+    [
+      { opacity: s.opacity, transform: s.transform, filter: s.filter },
+      { opacity: 0, transform: 'scale(.96)', filter: 'blur(3px)' },
+    ],
+    {
+      duration: 120,
+      easing: EASE_IN,
+      fill: 'forwards',
+    },
+  );
+  m.getAnimations().forEach((x) => x !== a && x.cancel());
+  a.onfinish = () => m.remove();
 }
 
 /** `items`: null is a separator, kept only between items. */
@@ -68,9 +79,12 @@ export function openMenu(anchor: HTMLElement, all: (MenuItem | null)[]) {
       it.checked === undefined ? ic(it.icon ?? '') : ic('check', it.checked ? 'i' : 'i off'),
       h('span', {}, it.label),
     );
-    // The highlight comes in where the pointer is, then glides from item to item.
+    // The highlight comes in where the pointer is, then glides from item to item. Whether it shows is read off the
+    // screen: one still fading out (the pointer left and came back) turns back and glides from where it stands;
+    // only one gone altogether is placed at once.
     b.addEventListener('pointerenter', () => {
-      hl.className = `menu-hl${hl.style.opacity === '1' ? ' moving' : ''} ${it.tone ?? ''}`;
+      const seen = +getComputedStyle(hl).opacity > 0.01;
+      hl.className = `menu-hl${seen ? ' moving' : ''} ${it.tone ?? ''}`;
       hl.style.transform = `translateY(${b.offsetTop - 6}px)`;
       hl.style.opacity = '1';
     });

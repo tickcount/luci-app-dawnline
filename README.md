@@ -407,7 +407,8 @@ scripts/lint-ucode.py                    # static ucode checks
 scripts/check-ucode.sh root@router       # compile every ucode file on a router
 scripts/deploy.sh root@router            # install the working tree (backs up configs first)
 scripts/build-packages.sh all            # .ipk and .apk with the OpenWrt SDK in Docker
-scripts/capture-screenshots.mjs --demo   # README screenshots from a router, a demo cast in place of its people
+scripts/capture-screenshots.mjs --demo   # the admin's README screenshots from a router, a demo cast in place of its people
+scripts/capture-portal.mjs               # the portal's from its demo, in English and Russian
 scripts/frame-screenshots.py             # frame them for this README
 ```
 

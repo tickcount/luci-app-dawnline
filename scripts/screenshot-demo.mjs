@@ -129,16 +129,31 @@ const seen = (when, now) => {
     }[k] ?? 0
   );
 };
-/** A week of daily totals that adds up to about a quarter of the month, today last (nothing before it was first seen). */
+/**
+ * A week of daily [rx, tx] that adds up to about a quarter of the month, today last (nothing before it was first
+ * seen), rx (from the device) about an eighth.
+ */
 const week = (gb, last, now) =>
-  [0.8, 1.3, 0.6, 1.1, 1.6, 0.9, 1].map((f, i) => (!gb || now - (6 - i) * DAY < last - DAY ? 0 : Math.round(((gb / 4) * f * GB) / 7)));
+  [0.8, 1.3, 0.6, 1.1, 1.6, 0.9, 1].map((f, i) => {
+    const b = !gb || now - (6 - i) * DAY < last - DAY ? 0 : Math.round(((gb / 4) * f * GB) / 7);
+    return [Math.round(b * 0.12), b - Math.round(b * 0.12)];
+  });
+/**
+ * One second of the cast's traffic through a server (the k-th), [rx, tx] in bytes/s: a few devices streaming,
+ * their uploads small. The same for a second whichever call asks, so the live chart keeps its shape.
+ */
+const meterRate = (ts, k) => {
+  const wave = (a, b) => Math.sin(ts / a + k) * 0.45 + Math.sin(ts / b + 2 * k) * 0.25;
+  const noise = (((ts * 7919 + k * 104729) % 1000) / 1000 - 0.5) * 0.35;
+  return [Math.round(Math.max(0, 1.8e5 * (1 + wave(7, 17) + noise))), Math.round(Math.max(0, 1.6e6 * (1 + wave(9, 23) + noise)))];
+};
 let ipN = 10;
 /** A documentation address (the capture swaps public addresses for these anyway). */
 const ip = () => `203.0.113.${ipN++}`;
 const where = (city) => `${city} · ${CITIES[city][4]}`;
 
-/** What the last status made of the router's ids, for the calls that come after it (events, usage). */
-const demo = { events: [], people: new Map(), days: [], now: 0 };
+/** What the last status made of the router's ids, for the calls that come after it (events, usage, the meter). */
+const demo = { events: [], people: new Map(), days: [], now: 0, servers: [] };
 
 /**
  * Daily traffic over `days` (oldest first) for `gb` this month: busier some days of the week, today
@@ -255,6 +270,12 @@ function demoStatus(st, first) {
         total: [Math.round(gb * 0.3 * GB), Math.round(gb * 2.2 * GB)],
         spark: week(gb, hs, now),
         hostname: hs ? `${slug(name)}.${slug(c.name.split(' ')[0])}.lan` : '',
+        // As set up: nothing failing, its own link values the server's, its data flowing while online.
+        link: null,
+        setup: online ? { state: 'flowing', since: hs } : null,
+        lan_bypass: false,
+        mtu: 0,
+        keepalive: null,
       };
     });
     for (const [name, ago, by] of c.added ?? []) {
@@ -313,6 +334,7 @@ function demoStatus(st, first) {
   demo.events = events;
   points.sort((a, b) => b.ts - a.ts);
   demo.now = now;
+  demo.servers = (st.servers ?? []).map((x) => x.id);
   demo.days = (st.series ?? []).map((x) => x.day);
   if (!demo.days.length) for (let k = 29; k >= 0; k--) demo.days.push(date(now - k * DAY));
   const all = CAST.reduce((s, c) => s + c.devices.reduce((t, d) => t + d[3], 0), 0);
@@ -384,6 +406,16 @@ export function demoRpc(request, response, first) {
           },
         ],
       };
+    // Speed now, live: the last two minutes of the cast's traffic, not the router's.
+    if (method === 'meter' && Array.isArray(data.points)) {
+      const ids = demo.servers.length ? demo.servers : [...new Set(data.points.flatMap((p) => Object.keys(p.servers ?? {})))];
+      const keep = data.keep > 1 ? data.keep : 120;
+      const since = +args?.since || 0;
+      const points = [];
+      for (let ts = data.now - keep + 1; ts <= data.now; ts++)
+        if (ts > since) points.push({ ts, servers: Object.fromEntries(ids.map((id, k) => [id, meterRate(ts, k)])) });
+      return { ...r, result: [r.result[0], { ...data, ts: data.now, points }] };
+    }
     if (method === 'events' && Array.isArray(data.events)) {
       const mine = demo.events.filter((e) => !args?.person || e.person === args.person);
       return {

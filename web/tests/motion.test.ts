@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BOUNCY, SMOOTH, dismisses, rubber, spring } from '../src/portal/motion';
+import { BOUNCY, SMOOTH, dismisses, rubber, spring, unrubber } from '../src/portal/motion';
 
 describe('motion', () => {
   it('pulls past an edge with growing resistance, never further than the box', () => {
@@ -10,6 +10,12 @@ describe('motion', () => {
     // Each further step gives less than the one before.
     expect(rubber(200, 400) - rubber(100, 400)).toBeLessThan(rubber(100, 400) - rubber(0, 400));
     expect(rubber(100_000, 400)).toBeLessThan(400);
+  });
+
+  it('undoes the rubber: the pull that puts an edge where it stands', () => {
+    for (const d of [1, 40, 200, 1000]) expect(unrubber(rubber(d, 400), 400)).toBeCloseTo(d, 6);
+    expect(unrubber(0, 400)).toBe(0);
+    expect(unrubber(-5, 400)).toBe(0);
   });
 
   it('dismisses a sheet on a flick down or a pull past a third, not on a flick back up', () => {

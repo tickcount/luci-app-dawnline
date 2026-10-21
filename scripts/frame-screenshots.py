@@ -2,7 +2,8 @@
 """Frame the README screenshots the way the portal draws its own surfaces.
 
 Raw captures live in docs/screenshots/raw/<name>.png at SCALE device pixels
-per CSS pixel (scripts/capture-screenshots.mjs takes them); the framed images
+per CSS pixel (scripts/capture-screenshots.mjs takes the admin's from a router,
+scripts/capture-portal.mjs the portal's from its demo); the framed images
 are written to docs/screenshots/<name>.png at the same scale. Each page sits on
 a panel like the portal's sheets (#121212, radius 36, 16px around it, the page
 inside at radius 20) on the portal's own black. A shot in FLOWS gets its steps
@@ -25,11 +26,12 @@ OUT = os.path.join(ROOT, 'docs', 'screenshots')
 FONT = os.path.join(ROOT, 'package', 'luci-app-dawnline', 'root', 'usr', 'share', 'dawnline', 'portal', 'assets',
                     'geist-latin-wght-normal.woff2')
 
-SHOTS = ['overview', 'people', 'person', 'portal']
-# name -> the steps in front of its page, in order (raw captures). Taken with demo data, not on a router:
-# adding a device there would add one.
+SHOTS = ['overview', 'people', 'person', 'portal', 'overview-ru', 'people-ru', 'person-ru', 'portal-ru']
+# name -> the steps in front of its page, in order (raw captures). The portal's come from its demo
+# (scripts/capture-portal.mjs), not a router: adding a device there would add one. -ru: README_ru's.
 FLOWS = {
     'portal': ['portal-add-1', 'portal-add-2', 'portal-add-3'],
+    'portal-ru': ['portal-add-1-ru', 'portal-add-2-ru', 'portal-add-3-ru'],
 }
 PAD_X, PAD_Y, INSET = 96, 80, 16  # canvas around the panel; panel around the page
 FLOW_MARGIN = (56, 40, 56, 72)  # around a step's sheet in its capture: left, top, right, bottom

@@ -68,6 +68,25 @@ describe('setup', () => {
     expect(sameDevice('phone', 'unknown')).toBe(false);
   });
 
+  it('sets something else (a TV, a NAS) up from a phone as a device elsewhere, and on a computer’s system as itself', () => {
+    expect(sameDevice('other', 'ios')).toBe(false);
+    expect(sameDevice('other', 'android')).toBe(false);
+    expect(sameDevice('other', 'windows')).toBe(true);
+    expect(sameDevice('other', 'mac')).toBe(true);
+    expect(sameDevice('other', 'linux')).toBe(true);
+    expect(sameDevice('other', 'unknown')).toBe(false);
+  });
+
+  it('sets something else up as itself when the page came from its own set-up link (an Android TV)', () => {
+    expect(sameDevice('other', 'android', true)).toBe(true);
+    expect(sameDevice('other', 'ios', true)).toBe(true);
+    expect(sameDevice('other', 'unknown', true)).toBe(false);
+    // A phone's, a computer's or a router's link opened elsewhere: the platform still decides.
+    expect(sameDevice('phone', 'mac', true)).toBe(false);
+    expect(sameDevice('computer', 'android', true)).toBe(false);
+    expect(sameDevice('router', 'linux', true)).toBe(false);
+  });
+
   it('lists the apps a disguise allows, AmneziaVPN first', () => {
     expect(appsFor('max').map((a) => a.id)).toEqual(['vpn', 'awg']);
     expect(appsFor('off').map((a) => a.id)).toEqual(['vpn', 'awg', 'wg']);

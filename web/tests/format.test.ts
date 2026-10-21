@@ -1,5 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, addMonthsClamped, date, dayDiff, daysLeft, endsIn, endsSoon, fmtDay, kb, shiftDay, todayOf } from '../src/shared/format';
+import {
+  addDays,
+  addMonthsClamped,
+  date,
+  dayDiff,
+  daysLeft,
+  defaultName,
+  DEVICE_NAME_MAX,
+  deviceNameFits,
+  endsIn,
+  endsSoon,
+  fitName,
+  fmtDay,
+  kb,
+  shiftDay,
+  todayOf,
+  validDeviceName,
+} from '../src/shared/format';
 import { plural } from '../src/shared/i18n';
 
 describe('months', () => {
@@ -62,5 +79,50 @@ describe('numbers', () => {
     expect(kb(512)).toBe('512 B');
     expect(kb(1536)).toBe('1.5 KB');
     expect(kb(3 * 1048576)).toBe('3.0 MB');
+  });
+});
+
+describe('device names', () => {
+  it('take letters of any language, digits, spaces and - _ . up to the limit', () => {
+    expect(DEVICE_NAME_MAX).toBe(20);
+    expect(validDeviceName('Kitchen iPad')).toBe(true);
+    expect(validDeviceName('my-pc_2.home')).toBe(true);
+    expect(validDeviceName('Мой ноутбук')).toBe(true);
+    expect(validDeviceName('Ordinateur de Zoé')).toBe(true);
+    expect(validDeviceName('客厅电视')).toBe(true);
+    expect(validDeviceName('99999999999999999999')).toBe(true);
+    expect(validDeviceName('999999999999999999999')).toBe(false);
+    expect(validDeviceName('ЙЦУКЕНГШЩЗХЪФЫВАПРОЛ')).toBe(true);
+    expect(validDeviceName('ЙЦУКЕНГШЩЗХЪФЫВАПРОЛД')).toBe(false);
+    expect(validDeviceName('  Kitchen iPad  ')).toBe(true);
+    expect(validDeviceName("Bob's iPhone")).toBe(false);
+    expect(validDeviceName('$(reboot)')).toBe(false);
+    expect(validDeviceName('Phone 📱')).toBe(false);
+    expect(validDeviceName('Офис™')).toBe(false);
+    expect(validDeviceName('«Дом»')).toBe(false);
+    expect(validDeviceName('a\u200bb')).toBe(false);
+    expect(validDeviceName('')).toBe(false);
+    expect(validDeviceName('   ')).toBe(false);
+    // As it is typed: empty is fine (a submit says so), a space at the end too.
+    expect(deviceNameFits('')).toBe(true);
+    expect(deviceNameFits('Kitchen ')).toBe(true);
+    expect(deviceNameFits('Kitchen!')).toBe(false);
+  });
+
+  it('strips a made-up name of what the router refuses and cuts it to fit, the number too', () => {
+    expect(fitName('Phone')).toBe('Phone');
+    expect(fitName('Phone', ' 2')).toBe('Phone 2');
+    expect(fitName('Galaxy S24+')).toBe('Galaxy S24');
+    expect(fitName('Samsung Galaxy S24 Ultra')).toBe('Samsung Galaxy S24 U');
+    expect(fitName('Pixel 9 Pro (XL)', ' 2')).toBe('Pixel 9 Pro XL 2');
+    expect(fitName('Компьютер с Windows', ' 2')).toBe('Компьютер с Window 2');
+    // Not left ending in a space before the number.
+    expect(fitName('Living room TV ab xy', ' 2')).toBe('Living room TV ab 2');
+    expect(validDeviceName(fitName('Redmi Note 13 Pro+ 5G', ' 12'))).toBe(true);
+  });
+
+  it('names a device after its kind', () => {
+    expect(defaultName('phone')).toBe('Phone');
+    expect(defaultName('other')).toBe('Device');
   });
 });

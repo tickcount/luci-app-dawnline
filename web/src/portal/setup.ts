@@ -26,12 +26,18 @@ export function platformOf(ua: string, touchPoints = 0): Platform {
 /** A browser inside another app (Telegram, Instagram…): vpn:// and the share sheet do not work there. */
 export const inWebview = (ua: string): boolean => /Telegram|FBAN|FBAV|Instagram|VKClient|Line\//i.test(ua);
 
-/** Is the page open on the device being set up? A router never is; an unknown platform never counts. */
-export function sameDevice(kind: Kind, platform: Platform): boolean {
+/**
+ * Is the page open on the device being set up? A router never is; an unknown
+ * platform never counts. Something else (a TV, a box, a NAS) counts when the
+ * page came from its own set-up link (`here`: it is open there, an Android TV
+ * included) or on a computer's system: added from a phone, it is not the
+ * phone in hand.
+ */
+export function sameDevice(kind: Kind, platform: Platform, here = false): boolean {
   if (kind === 'router' || platform === 'unknown') return false;
   if (kind === 'phone' || kind === 'tablet') return platform === 'ios' || platform === 'android';
   if (kind === 'computer') return platform === 'windows' || platform === 'mac' || platform === 'linux';
-  return true;
+  return here || platform === 'windows' || platform === 'mac' || platform === 'linux';
 }
 
 export interface AppChoice {

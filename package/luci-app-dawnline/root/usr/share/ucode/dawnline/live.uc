@@ -11,11 +11,14 @@ import {
 	iface_status as util_iface_status, RUN_DIR, DATA_DIR
 } from 'dawnline.util';
 import * as awg from 'dawnline.awg';
+import * as core from 'dawnline.core';
 import * as schema from 'dawnline.schema';
 
 // Online while the WireGuard session lives: it is dropped 180 s after its
 // handshake, and a device that is there renews it every 2 min (a little slack
 // for a renewal that needs a retry). One that left goes offline 1-3 min later.
+// The shortest window: a device whose keep-alive is longer gets more
+// (online_window), or it would flap between its handshakes.
 export const ONLINE_WINDOW = 190;
 /** A restore put other counters on flash: the agent reloads from there (dawnline.backup writes it). */
 export const USAGE_RELOAD = `${RUN_DIR}/usage.reload`;
@@ -31,6 +34,8 @@ export const CATEGORY = {
 	person_added: 'people', person_removed: 'people', person_changed: 'people',
 	paused: 'people', resumed: 'people', expiring: 'people', expired_kept: 'people',
 	server_down: 'problems', server_up: 'problems', portal_blocked: 'problems',
+	// A device's link (dawnline.link): failing in a named way, and working again.
+	device_failing: 'problems', device_recovered: 'problems',
 };
 export const CATEGORIES = [ 'connections', 'people', 'problems' ];
 
@@ -95,24 +100,90 @@ export const PRESENCE = `${RUN_DIR}/presence.json`;
 const BEAT = `${RUN_DIR}/agent.beat`;
 const BEAT_STALE = 180;
 
+/** The agent runs (its heartbeat is fresh): what its watcher wrote counts. */
+function agent_running() {
+	let beat = +(read_json(BEAT, 0) ?? 0);
+	return beat > 0 && time() - beat <= BEAT_STALE;
+}
+
 /** What the watcher sees, or null when the agent isn't running. */
 export function presence() {
-	let beat = +(read_json(BEAT, 0) ?? 0);
-	if (!beat || time() - beat > BEAT_STALE)
-		return null;
-	return read_json(PRESENCE, null);
+	return agent_running() ? read_json(PRESENCE, null) : null;
 };
 
 /**
- * Peers of every tunnel: { ok, ifaces, peers: { public key: { ifname, endpoint,
- * handshake, rx, tx } }, presence }. See dawnline.awg.
+ * Written by the agent's watcher when what it shows changes (dawnline.link):
+ * { device id: { state: 'trying' | 'shared' | 'dropped' | 'unstable', since } },
+ * only devices whose link fails in one of these ways (link.classify()).
  */
-export function dump(m) {
-	// Only Dawnline's own tunnels decide `ok`: another AmneziaWG interface on
-	// the router that cannot be read is not our trouble.
-	let mine = m ? map(filter(values(m.servers), (s) => s.private_key && s.enabled), (s) => s.ifname) : null;
-	let d = awg.dump(mine);
-	d.presence = presence();
+export const LINK = `${RUN_DIR}/link.json`;
+
+/**
+ * Written by the agent's watcher when it changes (dawnline.link.setup, at
+ * once, without LINK's hold): what each device's link does right now, for the
+ * set-up sheet: { device id: { state: 'trying' | 'flowing' | 'nodata', since } },
+ * devices with none of these left out.
+ */
+export const SETUP = `${RUN_DIR}/setup.json`;
+
+/**
+ * The interfaces of the servers that run: enabled, with keys and an
+ * interface that is Dawnline's (core.tunnels: never another tunnel that
+ * took the name); with `sid`, only that server's. What dawnline.awg.dump()
+ * reads; an empty list when none.
+ */
+export function tunnel_ifnames(m, sid) {
+	let out = [];
+	for (let id, srv in m.servers)
+		if (srv.enabled && (sid == null || id == sid))
+			for (let t in core.tunnels(srv))
+				push(out, t.ifname);
+	return out;
+};
+
+/**
+ * How long after its last handshake a device still counts as online, in
+ * seconds: ONLINE_WINDOW, or 30 s more than an idle device with its
+ * keep-alive goes between handshakes (awg.idle_handshake) when that is
+ * longer. A device that sends nothing renews its session only with its
+ * keep-alive: with one of about 95-120 s, or over 160 s, the fixed window
+ * would see it leave and come back between two handshakes. Keep-alive off:
+ * ONLINE_WINDOW.
+ */
+export function online_window(srv, dev) {
+	let h = srv ? awg.idle_handshake(srv, dev) : null;
+	return h != null ? max(ONLINE_WINDOW, h + 30) : ONLINE_WINDOW;
+};
+
+/** online_window() of every device (with `sid`, of that server's): { device id: seconds }. */
+export function online_windows(m, sid) {
+	let out = {};
+	for (let id, d in m.devices) {
+		let s = m.people[d.person]?.server;
+		if (sid == null || s == sid)
+			out[id] = online_window(m.servers[s], d);
+	}
+	return out;
+};
+
+/**
+ * Dawnline's tunnels as dawnline.awg.dump() reads them (only those, each on
+ * its own: { ok, reads, ifaces, peers: { public key: { ifname, endpoint,
+ * handshake, rx, tx } } }), plus `presence`, the agent watcher's, `windows`,
+ * each device's online_window() (online() without the agent), `link`, the
+ * watcher's LINK ({} without the agent: its states would be stale), and
+ * `setup`, its SETUP (null without the agent: nobody tells data from a bare
+ * handshake then, view.device_view goes by the handshake). With `sid` only
+ * that server's tunnel is read (one person's page needs no other: one `awg`
+ * process, not one per server).
+ */
+export function dump(m, sid) {
+	let d = awg.dump(tunnel_ifnames(m, sid));
+	let up = agent_running();
+	d.presence = up ? read_json(PRESENCE, null) : null;
+	d.windows = online_windows(m, sid);
+	d.link = up ? (read_json(LINK, null) ?? {}) : {};
+	d.setup = up ? (read_json(SETUP, null) ?? {}) : null;
 	return d;
 };
 
@@ -121,7 +192,7 @@ export function online(dmp, id, peer) {
 	let p = dmp?.presence?.online;
 	if (p)
 		return !!(peer && p[id]);
-	return !!(peer && peer.handshake > 0 && time() - peer.handshake < ONLINE_WINDOW);
+	return !!(peer && peer.handshake > 0 && time() - peer.handshake < (dmp?.windows?.[id] ?? ONLINE_WINDOW));
 };
 
 // "203.0.113.7:41821", "[2001:db8::1]:41821". A module constant, compiled once:
@@ -218,34 +289,36 @@ function offline(rec) {
 
 /**
  * Fold the current kernel counters into `usage`. Counters restart from zero
- * when a peer is re-added or the interface restarts; a drop is treated as a
- * reset. Returns the per-device live view keyed by device id.
+ * when a peer is re-added or its tunnel is set up again; a drop is treated
+ * as a reset, and so is a new link (each record keeps the interface index
+ * its counters were read on: new counters that already passed the old ones
+ * would be counted short). Returns the per-device live view keyed by device id.
  *
  * A device missing from the dump had its counters reset only when its tunnel
- * was actually read: an interface the tool couldn't read says nothing, and
- * forgetting the last counters there would count them again on the next good
- * read. A failed read with nothing in it changes nothing at all.
+ * was read or is down (dawnline.awg.dump's `reads`): one the tool couldn't
+ * read says nothing, and forgetting the last counters there would count them
+ * again on the next good read.
  */
 export function collect(m, usage, d) {
 	d ??= dump(m);
 	let ts = time();
 	let live = {};
-	if (d.ok === false && !length(d.peers)) {
-		for (let id in keys(m.devices))
-			live[id] = offline(usage.devices[id]);
-		return live;
-	}
 	for (let id, dev in m.devices) {
 		let rec = usage.devices[id] ??= { raw: [ 0, 0 ] };
 		let peer = d.peers[dev.public_key];
 		if (!peer) {
 			let ifname = m.servers[m.people[dev.person]?.server]?.ifname;
-			if (d.ok !== false || d.ifaces[ifname] != null)
+			if (d.reads[ifname] != 'error')
 				rec.raw = [ 0, 0 ];
 			live[id] = offline(rec);
 			continue;
 		}
 		let raw = rec.raw ?? [ 0, 0 ];
+		let link = d.ifaces[peer.ifname]?.ifindex;
+		if (link != null && rec.ifindex != null && link != rec.ifindex)
+			raw = [ 0, 0 ];
+		if (link != null)
+			rec.ifindex = link;
 		let drx = peer.rx >= raw[0] ? peer.rx - raw[0] : peer.rx;
 		let dtx = peer.tx >= raw[1] ? peer.tx - raw[1] : peer.tx;
 		rec.raw = [ peer.rx, peer.tx ];
@@ -266,7 +339,7 @@ export function collect(m, usage, d) {
 				delete rec.ips[ips[i]];
 		}
 		live[id] = {
-			online: peer.handshake > 0 && ts - peer.handshake < ONLINE_WINDOW,
+			online: peer.handshake > 0 && ts - peer.handshake < online_window(m.servers[m.people[dev.person]?.server], dev),
 			handshake: peer.handshake || rec.handshake || 0,
 			endpoint: endpoint_ip(peer.endpoint) || rec.endpoint || '',
 			present: true,
@@ -373,7 +446,10 @@ export function add_event(e) {
 	add_events([ e ]);
 };
 
-/** Like add_event, but folds into the previous event of the same kind and person within `window` s. */
+/**
+ * Like add_event, but folds into the previous event of the same kind, person
+ * and device (when it has one) within `window` s.
+ */
 export function add_event_merged(e, window) {
 	let pol = policy();
 	if (index(pol.categories, category_of(e.type)) < 0)
@@ -382,7 +458,7 @@ export function add_event_merged(e, window) {
 	let ev = load_events();
 	let last = ev[length(ev) - 1];
 	let ts = time();
-	if (last && last.type == e.type && last.person == e.person && ts - last.ts < (window ?? 120)) {
+	if (last && last.type == e.type && last.person == e.person && last.device == e.device && ts - last.ts < (window ?? 120)) {
 		let parts = uniq([ ...split(last.detail ?? '', ', '), ...split(e.detail ?? '', ', ') ]);
 		last.detail = join(', ', filter(parts, (x) => x != ''));
 		last.ts = ts;

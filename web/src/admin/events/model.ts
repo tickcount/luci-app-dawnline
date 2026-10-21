@@ -25,6 +25,8 @@ const CATEGORY: Record<string, LogCategory> = {
   expiring: 'people',
   expired_kept: 'people',
   portal_blocked: 'problems',
+  device_failing: 'problems',
+  device_recovered: 'problems',
 };
 
 export const CATEGORIES: LogCategory[] = ['connections', 'people', 'problems'];
@@ -37,7 +39,7 @@ export function categoryHelp(c: LogCategory): string {
   return {
     connections: _('Connects, disconnects and IP changes'),
     people: _('People and their devices added, changed, paused, removed'),
-    problems: _('Blocked portal sign-ins (tunnels and services are in the service log)'),
+    problems: _('Blocked portal sign-ins and devices that can’t connect properly (tunnels and services are in the service log)'),
   }[c];
 }
 
@@ -131,6 +133,42 @@ export function changedText(detail: string): string {
       const to = /^moved to (.+)$/.exec(k)?.[1];
       return to ? fmt(_('moved to %s'), to) : (f[k] ?? k.replace(/_/g, ' '));
     })
+    .join(', ');
+}
+
+/** A device's settings a device_changed event lists (its link options, "mtu, keepalive"); anything else as written. */
+export function deviceChangedText(detail: string): string {
+  const f: Record<string, string> = { mtu: 'MTU', keepalive: _('keep-alive'), lan_bypass: _('LAN Bypass') };
+  return detail
+    .split(', ')
+    .map((k) => f[k] ?? k)
+    .join(', ');
+}
+
+/**
+ * A device's link failing in a named way (dawnline.link's states), said about
+ * the device: its title and what it means (the device drawer's Status, the
+ * title also in Activity). Null for a state this page does not know.
+ */
+export function linkStateText(state: string): { title: string; line: string } | null {
+  const t: Record<string, [string, string]> = {
+    trying: [_('Unable to complete the handshake'), _('The device’s network may be blocking the connection.')],
+    dropped: [_('Handshake complete, but no data'), _('This device is using an outdated configuration.')],
+    shared: [_('On two devices at once'), _('The same configuration connects from two places in turn. Give the other device its own.')],
+    unstable: [
+      _('Connection keeps dropping'),
+      _('It connects, but the connection breaks every few minutes: the network may be cutting it.'),
+    ],
+  };
+  const w = t[state];
+  return w ? { title: w[0], line: w[1] } : null;
+}
+
+/** The states a device_failing event names ("trying, unstable" when two came within an hour), by their titles. */
+export function linkStatesText(detail: string): string {
+  return detail
+    .split(', ')
+    .map((s) => linkStateText(s)?.title ?? s)
     .join(', ');
 }
 

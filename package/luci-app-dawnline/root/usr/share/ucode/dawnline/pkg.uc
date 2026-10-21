@@ -47,13 +47,28 @@ export function version(name) {
 	return found ? trim(found[2]) : null;
 };
 
+/**
+ * The package a control text names: { name, version }, each null when it
+ * does not say. Pure: an ipk's control file (ipk true), else `apk adbdump`
+ * of an apk, whose first name and version are the package's own (its files
+ * are "- name:" entries further down).
+ */
+export function control_info(text, ipk) {
+	if (ipk)
+		return { name: match(text, /(^|\n)Package: *([^\n]+)/)?.[2], version: match(text, /(^|\n)Version: *([^\n]+)/)?.[2] };
+	return { name: match(text, /\n *name: *([^\n]+)/)?.[1], version: match(text, /\n *version: *([^\n]+)/)?.[1] };
+};
+
+/** The package inside a file: { name, version }, each null when the file does not say. */
+export function file_info(path) {
+	if (match(path, /\.ipk$/))
+		return control_info(run(`tar -xzOf ${q(path)} ./control.tar.gz | tar -xzO ./control`).out, true);
+	return control_info(run(`apk adbdump ${q(path)}`).out, false);
+};
+
 /** The version inside a package file, or null. */
 export function file_version(path) {
-	if (match(path, /\.ipk$/)) {
-		let o = run(`tar -xzOf ${q(path)} ./control.tar.gz | tar -xzO ./control`).out;
-		return match(o, /(^|\n)Version: *([^\n]+)/)?.[2];
-	}
-	return match(run(`apk adbdump ${q(path)}`).out, /\n *version: *([^\n]+)/)?.[1];
+	return file_info(path).version;
 };
 
 /**
@@ -105,22 +120,54 @@ function preflight(files, need_kb, log) {
 	log?.('  ' + sprintf(_('%d MB free on the overlay'), int(free / 1024)));
 }
 
-/** Package files (from a release): force also reinstalls the same version or goes back to an older one. */
+/** Dawnline's own package: a file of it tells whether apk really reinstalled it. */
+const SELF = 'luci-app-dawnline', SELF_MARKER = '/usr/share/ucode/dawnline/util.uc';
+
+/**
+ * The packages an apk install did not leave at their file's version: apk
+ * takes a given file as it is (an older version too, a rollback) but leaves
+ * an installed version alone, whatever the file. Pure: want [{ name,
+ * version, file }] from the files (file_info()), have { name: installed
+ * version }. [] when every package took.
+ */
+export function mismatched(want, have) {
+	return filter(want, (w) => w.name == null || w.version == null || have?.[w.name] != w.version);
+};
+
+/**
+ * Package files (from a release): true when every one is installed. force
+ * also reinstalls the same version or goes back to an older one (opkg; apk
+ * takes a file as it is: Dawnline's own package is checked by a file of it,
+ * any other by its installed version).
+ */
 export function install_files(files, force, log) {
 	preflight(files, 0, log);
 	let args = join(' ', map(files, q));
 	if (!is_apk())
 		return logged(`opkg install ${force ? '--force-reinstall --force-downgrade ' : ''}${args}`, log).code == 0;
-	// apk leaves an installed version alone, whatever the file: a reinstall
-	// that changed nothing is a failure, not a silent "done".
-	let marker = '/usr/share/ucode/dawnline/util.uc';
-	let before = force ? stat(marker)?.mtime : null;
-	let ok = logged(`apk add --allow-untrusted ${args}`, log).code == 0;
-	if (ok && force && before != null && stat(marker)?.mtime == before) {
-		log?.('  ' + _('apk did not reinstall the version that is already installed'));
-		die(_("apk doesn't reinstall an installed version. Install a different release, or run install.sh on the router"));
+	let want = map(files, (f) => ({ ...file_info(f), file: f }));
+	let own = length(filter(want, (w) => w.name == SELF)) > 0;
+	// Dawnline's own reinstall that changed nothing is a failure, not a silent "done".
+	let before = own && force ? stat(SELF_MARKER)?.mtime : null;
+	if (logged(`apk add --allow-untrusted ${args}`, log).code != 0)
+		return false;
+	if (own) {
+		if (force && before != null && stat(SELF_MARKER)?.mtime == before) {
+			log?.('  ' + _('apk did not reinstall the version that is already installed'));
+			die(_("apk doesn't reinstall an installed version. Install a different release, or run install.sh on the router"));
+		}
+		return true;
 	}
-	return ok;
+	// Any other package took when it is at its file's version (the same
+	// version again counts: apk keeps the installed one).
+	let have = {};
+	for (let w in want)
+		if (w.name != null)
+			have[w.name] = version(w.name);
+	let bad = mismatched(want, have);
+	for (let w in bad)
+		log?.('  ' + sprintf(_('apk did not install %s %s (installed: %s)'), w.name ?? w.file, w.version ?? '?', have[w.name] ?? '-'));
+	return !length(bad);
 };
 
 /** Packages by name from the feeds. */

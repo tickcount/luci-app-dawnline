@@ -5,7 +5,7 @@
 import { open, readfile, writefile, rename, mkdir, stat, unlink, popen, lsdir } from 'fs';
 import { _ } from 'dawnline.i18n';
 
-export const VERSION = '0.13.0';
+export const VERSION = '0.14.0';
 /** GitHub repository with Dawnline releases (updates and the installer). */
 export const REPO = 'tickcount/luci-app-dawnline';
 export const RUN_DIR = '/var/run/dawnline';
@@ -561,6 +561,76 @@ export function name_rule() {
 // with one fails these checks (a regex looks only up to it).
 const ASCII_ALNUM = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 const B64 = `${ASCII_ALNUM}+/`;
+
+/**
+ * The longest name a device takes, in characters: ordinary words fill a portal card's line about as far as its
+ * status ("Return to save, Esc to cancel"), and fit the server list in the AmneziaVPN app. Names set before the rule stay as they are; it holds when a name is set.
+ */
+export const DEVICE_NAME_MAX = 20;
+// What a device's name may hold of ASCII: letters, digits, spaces and - _ . It goes into configurations, file
+// names and the AmneziaVPN key: nothing there to escape.
+const DEVICE_NAME_CHARS = `${ASCII_ALNUM} ._-`;
+// Past ASCII, letters of any language are welcome; these blocks are not: symbols, punctuation, arrows, maths,
+// emoji and invisibles (code point ranges, both ends in; web/src/shared/format.ts NAME_SYMBOLS is the same list,
+// and the page asks Unicode besides that a character is a letter or a digit).
+const NAME_SYMBOLS = [
+	[ 0x80, 0xbf ], [ 0xd7, 0xd7 ], [ 0xf7, 0xf7 ], [ 0x2000, 0x2bff ], [ 0x3000, 0x303f ], [ 0xd800, 0xf8ff ],
+	[ 0xfe00, 0xfe0f ], [ 0xfe30, 0xfe4f ], [ 0xfeff, 0xfeff ], [ 0xfff0, 0xffff ], [ 0x1f000, 0x1fbff ],
+	[ 0xe0000, 0xe007f ]
+];
+
+function name_symbol(cp) {
+	for (let r in NAME_SYMBOLS)
+		if (cp >= r[0] && cp <= r[1])
+			return true;
+	return false;
+}
+
+/**
+ * A device's name (trimmed by the caller): 1-DEVICE_NAME_MAX characters, not blank, each one of
+ * DEVICE_NAME_CHARS or past ASCII outside NAME_SYMBOLS. Read by code points: broken UTF-8, and an
+ * ASCII character spelled long (0xC0 0xAF for "/"), are refused.
+ */
+export function valid_device_name(s) {
+	if (type(s) != 'string' || length(trim(s)) == 0 || ulength(s) > DEVICE_NAME_MAX)
+		return false;
+	let i = 0, n = length(s);
+	while (i < n) {
+		let b = ord(s, i), cp, len;
+		if (b < 0x80) {
+			if (index(DEVICE_NAME_CHARS, substr(s, i, 1)) < 0)
+				return false;
+			i++;
+			continue;
+		}
+		if ((b & 0xe0) == 0xc0) {
+			len = 2;
+			cp = b & 0x1f;
+		}
+		else if ((b & 0xf0) == 0xe0) {
+			len = 3;
+			cp = b & 0x0f;
+		}
+		else if ((b & 0xf8) == 0xf0) {
+			len = 4;
+			cp = b & 0x07;
+		}
+		else
+			return false;
+		if (i + len > n)
+			return false;
+		for (let k = 1; k < len; k++) {
+			let c = ord(s, i + k);
+			if ((c & 0xc0) != 0x80)
+				return false;
+			cp = (cp << 6) | (c & 0x3f);
+		}
+		if (cp < 0xc0 || cp > 0x10ffff || name_symbol(cp))
+			return false;
+		i += len;
+	}
+	return true;
+};
 // 32 bytes are 43 base64 characters: the last holds four bits of the key and two zero bits.
 const KEY_LAST = 'AEIMQUYcgkosw048';
 
@@ -568,7 +638,7 @@ const KEY_LAST = 'AEIMQUYcgkosw048';
  * A (Amnezia)WireGuard key: 32 bytes in base64, 43 characters and "=", the
  * same as /^[A-Za-z0-9+\/]{42}[AEIMQUYcgkosw048]=$/ without its 1.7 ms
  * compile on the WR3000P: the agent's watcher checks two keys per line of
- * `awg show all dump` every second. This takes about 0.03 ms.
+ * `awg show <ifname> dump` every second. This takes about 0.03 ms.
  */
 export function valid_key(s) {
 	return type(s) == 'string' && length(s) == 44 && substr(s, 43) == '=' &&

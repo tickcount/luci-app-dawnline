@@ -1,29 +1,33 @@
 #!/usr/bin/env node
-// Capture the raw README screenshots from a live router into
+// Capture the raw README screenshots of the admin pages from a live router into
 // docs/screenshots/raw/<name>.png (2x PNG); scripts/frame-screenshots.py then
-// puts them into a browser window for the README.
+// frames them for the README. The portal's come from its demo instead
+// (scripts/capture-portal.mjs): no one's real page, and adding a device there adds none.
 //
 // Drives a headless Chromium (BROWSER=/path/to/chrome, default: Brave or Chrome
-// on macOS) over the DevTools protocol, no npm packages. Signs in to LuCI with
+// on macOS) over the DevTools protocol (scripts/cdp.mjs). Signs in to LuCI with
 // the password from LUCI_PASSWORD or asked on the terminal; the session lives
 // only in a throwaway profile (LUCI_USER picks another user than root). Nothing on the router is changed.
 //
 //   scripts/capture-screenshots.mjs [--router https://router.lan] [--person id]
 //                                   [--mask real=shown ...] [--name real=shown ...]
-//                                   [--only overview,people] [--demo]
+//                                   [--only overview,people] [--demo] [--lang ru]
 //
+// --lang asks LuCI for the pages in that language (its catalog, po/<lang>/dawnline.po;
+// the router's LuCI language left on auto) and names the captures <name>-<lang>.png
+// for that README (README_ru.md); English (the default) keeps <name>.png.
 // --mask replaces text on every page before the capture (a domain, a name);
 // --name does the same for a person's name in any case, and for their initials.
 // Public IPv4 addresses are always swapped for documentation ones (203.0.113.x).
 // --demo shows a made-up cast instead of the router's people (scripts/screenshot-demo.mjs):
 // the router's answers are rewritten in the headless browser on their way to the page.
 
-import { execFileSync, spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { execFileSync } from 'node:child_process';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createInterface } from 'node:readline';
+import { die, launch, sleep } from './cdp.mjs';
 import { demoRpc } from './screenshot-demo.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -37,6 +41,7 @@ const args = {
   names: [],
   only: [],
   demo: false,
+  lang: 'en',
 };
 for (let i = 2; i < process.argv.length; i++) {
   const a = process.argv[i];
@@ -47,8 +52,26 @@ for (let i = 2; i < process.argv.length; i++) {
   else if (a === '--name') args.names.push(v().split('=', 2));
   else if (a === '--only') args.only = v().split(',');
   else if (a === '--demo') args.demo = true;
+  else if (a === '--lang') args.lang = v();
   else die(`unknown argument ${a}`);
 }
+const SUFFIX = args.lang === 'en' ? '' : `-${args.lang}`;
+
+/** The admin's catalog for --lang: msgid -> msgstr, the entries without a context (English: none). */
+const CATALOG = (() => {
+  const out = new Map();
+  if (args.lang === 'en') return out;
+  let po;
+  try {
+    po = readFileSync(join(ROOT, 'package', 'luci-app-dawnline', 'po', args.lang, 'dawnline.po'), 'utf8');
+  } catch {
+    die(`no admin catalog for --lang ${args.lang}`);
+  }
+  for (const m of po.matchAll(/^(msgctxt .*\n)?msgid "(.*)"\nmsgstr "(.*)"$/gm)) if (!m[1] && m[3]) out.set(m[2], m[3]);
+  return out;
+})();
+/** A button's words as the page shows them in --lang (the pages are clicked by what they say). */
+const tr = (id) => CATALOG.get(id) ?? id;
 if ([...args.mask, ...args.names].some((m) => m.length !== 2 || !m[0])) die('--mask and --name take real=shown');
 
 /** As shared/format initials(): first letters of the first and last word, or the first two of one word. */
@@ -59,11 +82,6 @@ const initials = (name) => {
 for (const [real, shown] of args.names)
   args.mask.push([real, shown], [real.toLowerCase(), shown.toLowerCase()], [real.toUpperCase(), shown.toUpperCase()]);
 const INITIALS = args.names.map(([real, shown]) => [initials(real), initials(shown)]);
-
-function die(msg) {
-  console.error(msg);
-  process.exit(1);
-}
 
 const LUCI = `${args.router}/cgi-bin/luci/admin/network/dawnline`;
 const USER = process.env.LUCI_USER || 'root';
@@ -93,7 +111,7 @@ const SHOTS = [
     ready: '.dl-srvov .dl-panel.flush .maplibregl-canvas',
     // The map shows the last 30 days, not only who is online now.
     prep: `(() => {
-      const b = [...document.querySelectorAll('.dl-srvov .dl-panel.flush button')].find((x) => x.textContent.trim() === '30 days');
+      const b = [...document.querySelectorAll('.dl-srvov .dl-panel.flush button')].find((x) => x.textContent.trim() === ${JSON.stringify(tr('30 days'))});
       b?.click();
     })()`,
     settle: 6000,
@@ -113,7 +131,7 @@ const SHOTS = [
     ready: '.dl-grid-person .dl-row',
     // Where they connected from, on the map.
     prep: `(() => {
-      const b = [...document.querySelectorAll('.dl-grid-person button')].find((x) => x.textContent.trim() === 'Show map');
+      const b = [...document.querySelectorAll('.dl-grid-person button')].find((x) => x.textContent.trim() === ${JSON.stringify(tr('Show map'))});
       b?.click();
     })()`,
     settle: 6000,
@@ -129,25 +147,6 @@ const SHOTS = [
       const act = cols[0].children[3];
       if (act && act.getBoundingClientRect().top > cut - 120) act.style.visibility = 'hidden';
       return { x: c.x, y: 0, width: c.w, height: cut };
-    })()`,
-  },
-  {
-    name: 'portal',
-    url: (s) => s.portal,
-    width: 1320,
-    ready: 'body',
-    settle: 3000,
-    // The content: everything but full-width or full-height wrappers, 36px around it.
-    clip: `(() => {
-      let l = innerWidth, r = 0, b = 0;
-      for (const e of document.body.querySelectorAll('*')) {
-        const x = e.getBoundingClientRect();
-        if (!x.width || !x.height || x.width > innerWidth - 40 || x.height > innerHeight - 40) continue;
-        l = Math.min(l, x.left);
-        r = Math.max(r, x.right);
-        b = Math.max(b, x.bottom);
-      }
-      return { x: l - 36, y: 0, width: r - l + 72, height: b + 40 };
     })()`,
   },
 ];
@@ -198,87 +197,20 @@ async function password() {
   }
 }
 
-function findBrowser() {
-  const c = [
-    process.env.BROWSER,
-    '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
-    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-    '/usr/bin/chromium',
-    '/usr/bin/google-chrome',
-  ];
-  return c.find((b) => b && existsSync(b)) ?? die('No Chromium-based browser found; set BROWSER=/path/to/chrome');
-}
-
-/** A page over the DevTools protocol: send(method, params) and waitFor(event). */
-async function connect(wsUrl) {
-  const ws = new WebSocket(wsUrl);
-  await new Promise((ok, fail) => {
-    ws.onopen = ok;
-    ws.onerror = fail;
-  });
-  let id = 0;
-  const pending = new Map();
-  const waiters = [];
-  const listeners = [];
-  ws.onmessage = (m) => {
-    const msg = JSON.parse(m.data);
-    if (msg.id && pending.has(msg.id)) {
-      const { ok, fail } = pending.get(msg.id);
-      pending.delete(msg.id);
-      msg.error ? fail(new Error(msg.error.message)) : ok(msg.result);
-    } else if (msg.method) {
-      for (const l of listeners.filter((x) => x.method === msg.method)) l.fn(msg.params);
-      for (const w of waiters.filter((x) => x.method === msg.method)) {
-        waiters.splice(waiters.indexOf(w), 1);
-        w.ok(msg.params);
-      }
-    }
-  };
-  const send = (method, params = {}) =>
-    new Promise((ok, fail) => {
-      pending.set(++id, { ok, fail });
-      ws.send(JSON.stringify({ id, method, params }));
-    });
-  const waitFor = (method) => new Promise((ok) => waiters.push({ method, ok }));
-  const on = (method, fn) => listeners.push({ method, fn });
-  return { send, waitFor, on, close: () => ws.close() };
-}
-
-const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms));
-
 async function main() {
   const pass = await password();
-  const profile = mkdtempSync(join(tmpdir(), 'dawnline-shots-'));
-  const chrome = spawn(
-    findBrowser(),
-    [
-      '--headless=new',
-      '--remote-debugging-port=0',
-      `--user-data-dir=${profile}`,
-      // The router's certificate is usually for its public name, not router.lan.
-      '--ignore-certificate-errors',
-      '--hide-scrollbars',
-      '--no-first-run',
-      '--no-default-browser-check',
-      // MapLibre needs WebGL; headless gets it from SwiftShader.
-      '--use-angle=swiftshader',
-      '--enable-unsafe-swiftshader',
-      'about:blank',
-    ],
-    { stdio: 'ignore' },
-  );
+  // The router's certificate is usually for its public name, not router.lan.
+  const b = await launch(['--ignore-certificate-errors', `--lang=${args.lang}`]);
+  const { page, evaluate, go, waitSel } = b;
   try {
-    const portFile = join(profile, 'DevToolsActivePort');
-    for (let i = 0; i < 100 && !existsSync(portFile); i++) await sleep(100);
-    const port = readFileSync(portFile, 'utf8').split('\n')[0];
-    const pages = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
-    const page = await connect(pages.find((p) => p.type === 'page').webSocketDebuggerUrl);
-    await page.send('Page.enable');
+    // LuCI on auto speaks the browser's language: this one, whatever this computer's is.
+    await page.send('Network.enable');
+    await page.send('Network.setExtraHTTPHeaders', { headers: { 'Accept-Language': args.lang } });
     await page.send('Emulation.setEmulatedMedia', {
       features: [{ name: 'prefers-color-scheme', value: 'dark' }],
     });
     // The person shown on the Person page; known once People has loaded (or from --person).
-    const s = { person: args.person, portal: '' };
+    const s = { person: args.person };
     if (args.demo) {
       page.on('Fetch.requestPaused', async (e) => {
         try {
@@ -302,27 +234,6 @@ async function main() {
       });
     }
 
-    const evaluate = async (expression) => {
-      const r = await page.send('Runtime.evaluate', {
-        expression,
-        awaitPromise: true,
-        returnByValue: true,
-      });
-      if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description ?? r.exceptionDetails.text);
-      return r.result.value;
-    };
-    const go = async (url) => {
-      const loaded = page.waitFor('Page.loadEventFired');
-      await page.send('Page.navigate', { url });
-      await loaded;
-    };
-    const waitSel = async (sel, ms = 20000) => {
-      for (let t = 0; t < ms; t += 250) {
-        if (await evaluate(`!!document.querySelector(${JSON.stringify(sel)})`)) return;
-        await sleep(250);
-      }
-      throw new Error(`timed out waiting for ${sel}`);
-    };
     // A tall window: Outline scrolls #maincontent, not the page, so it must hold everything.
     const viewport = (width, height = 2600) =>
       page.send('Emulation.setDeviceMetricsOverride', {
@@ -350,24 +261,16 @@ async function main() {
         );
     }
 
-    // The person to show (the first one on People unless --person) and their personal link.
+    // The person to show: the first one on People unless --person.
     await go(`${LUCI}/server?section=people`);
     await waitSel('.dl-srvbody a[href*="dawnline/person"]');
     if (!s.person)
       s.person = await evaluate(`new URL(document.querySelector('.dl-srvbody a[href*="dawnline/person"]').href).searchParams.get('id')`);
-    s.portal = await evaluate(`L.require('rpc').then((rpc) =>
-      rpc.declare({ object: 'luci.dawnline', method: 'person_links', params: ['id'] })(${JSON.stringify(s.person)}))
-      .then((r) => r.link ?? r.links?.[0] ?? '')`);
 
     for (const shot of SHOTS) {
       if (args.only.length && !args.only.includes(shot.name)) continue;
-      const url = shot.url(s);
-      if (!url) {
-        console.log(`skip ${shot.name}: no URL (the portal is off?)`);
-        continue;
-      }
       await viewport(shot.width);
-      await go(url);
+      await go(shot.url(s));
       await waitSel(shot.ready);
       await sleep(2000);
       if (shot.prep) await evaluate(shot.prep);
@@ -379,14 +282,12 @@ async function main() {
         clip: { ...clip, scale: 1 },
         captureBeyondViewport: true,
       });
-      writeFileSync(join(RAW, `${shot.name}.png`), Buffer.from(data, 'base64'));
-      console.log(`${shot.name}: ${Math.round(clip.width)}x${Math.round(clip.height)} (x${SCALE})`);
+      writeFileSync(join(RAW, `${shot.name}${SUFFIX}.png`), Buffer.from(data, 'base64'));
+      console.log(`${shot.name}${SUFFIX}: ${Math.round(clip.width)}x${Math.round(clip.height)} (x${SCALE})`);
     }
     page.close();
   } finally {
-    chrome.kill();
-    await sleep(300);
-    rmSync(profile, { recursive: true, force: true });
+    await b.close();
   }
 }
 

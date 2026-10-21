@@ -72,6 +72,46 @@
 .dev-stat.here-t {
   color: var(--accent);
 }
+/* Why a name it was given won't do (flows/rename.ts). */
+.dev-stat.bad-t {
+  color: var(--bad);
+}
+
+/* A name the person may change (flows/rename.ts): it hugs its words, a faint wash under the pointer says it can
+   be clicked; editing, it gives way to its own input in the same font and place, with nothing around it but the
+   field's caret and selection. */
+.dev-name.can-edit {
+  align-self: flex-start;
+  max-width: calc(100% + 12px);
+  margin: 0 -6px;
+  padding: 0 6px;
+  border-radius: 8px;
+  cursor: text;
+  outline: none;
+  transition: background-color 150ms var(--ease-out);
+}
+.dev-name.can-edit:hover {
+  background: color-mix(in srgb, var(--raised), var(--text) 6%);
+}
+/* Not when an edit gave focus back to it (flows/rename.ts): only reached with Tab. */
+.dev-name.can-edit:focus-visible:not(.quiet) {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+.field.inline,
+.field.inline:focus-within {
+  height: 30px;
+  margin: -4px -6px;
+  padding: 0 6px;
+  gap: 0;
+  border-radius: 8px;
+  background: none;
+  box-shadow: none;
+  overflow: visible;
+}
+.field.inline input {
+  font: 500 16px/22px var(--font);
+  letter-spacing: -0.02em;
+}
 .dev-use {
   margin-top: auto;
   background: var(--field);

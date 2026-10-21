@@ -62,7 +62,14 @@ export interface DemoDevice {
   created: number;
   by: 'admin' | 'portal';
   stale: boolean;
+  /** A set-up state the visitor picked in the sheet (way-pick.ts), held until they pick another; none: as it comes. */
+  way?: DemoWay;
+  /** When it was picked: the knocks' or the handshake's time. */
+  wayAt?: number;
 }
+
+/** The set-up states the visitor can hold a device in (connected is a real handshake: router.ts). */
+export type DemoWay = 'waiting' | 'trying' | 'nodata';
 
 /** The scenario's own devices, as it starts. */
 export function seedDevices(s: ScenarioId, t: number, id: () => string): DemoDevice[] {
@@ -135,8 +142,12 @@ export function hoursAway(t: number): string {
 export const handshakeOf = (d: DemoDevice, t: number) => (d.connectAt && t >= d.connectAt ? d.connectAt : d.hs);
 
 function device(d: DemoDevice, t: number, st: Person['state']): Device {
-  const hs = handshakeOf(d, t);
+  // Held waiting or knocking: no handshake; no data: one handshake when it was picked, nothing after it.
+  const at = d.wayAt ?? t;
+  const hs = d.way === 'nodata' ? at : d.way ? 0 : handshakeOf(d, t);
   const month = d.gb * GB;
+  // A stopped person's tunnels are down; the rest count as online for three minutes after a handshake.
+  const online = !!hs && t - hs < 180 && st !== 'paused' && st !== 'expired';
   return {
     id: d.id,
     name: d.name,
@@ -145,8 +156,7 @@ function device(d: DemoDevice, t: number, st: Person['state']): Device {
     disabled: false,
     created: d.created,
     created_by: d.by,
-    // A stopped person's tunnels are down; the rest count as online for three minutes after a handshake.
-    online: !!hs && t - hs < 180 && st !== 'paused' && st !== 'expired',
+    online,
     handshake: hs,
     endpoint: hs ? `203.0.113.${20 + d.n}` : '',
     active: true,
@@ -158,6 +168,22 @@ function device(d: DemoDevice, t: number, st: Person['state']): Device {
     hostname: `${label(d.name)}.user.lan`,
     browser_key: false,
     config_stale: d.stale,
+    lan_bypass: false,
+    mtu: 0,
+    keepalive: null,
+    // The server's for its kind, as the router works it out (the portal never shows it).
+    mtu_used: d.kind === 'phone' || d.kind === 'tablet' ? 1280 : 1368,
+    keepalive_used: 25,
+    link: null,
+    // The demo's devices pass data whenever they are connected: the set-up sheet sees one arrive.
+    setup:
+      d.way === 'trying'
+        ? { state: 'trying', since: at }
+        : d.way === 'nodata'
+          ? { state: 'nodata', since: at }
+          : online
+            ? { state: 'flowing', since: hs }
+            : null,
   };
 }
 
@@ -204,6 +230,8 @@ export function pageState(s: ScenarioId, devs: DemoDevice[], t: number, secureUr
       device_mesh: true,
       awg_disguise: s !== 'plain',
       preset: s === 'plain' ? 'off' : 'max',
+      // A home network as most routers come with it: LAN Bypass then says those addresses still lead home.
+      home: ['192.168.1.0/24'],
     },
     can_add: devs.length < limit,
     locked: locked(s),

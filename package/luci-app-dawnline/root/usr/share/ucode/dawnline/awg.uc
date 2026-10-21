@@ -1,8 +1,9 @@
-// Dawnline — the AmneziaWG core: keys, disguise (obfuscation), client
-// configurations (.conf, AmneziaVPN key), the netifd options of a server's
-// tunnel, its peers (`awg syncconf`, no restart), live counters, the words for
-// why a tunnel is kept down (blocked_text) and what the watchdog and Health
-// check about it. Plain WireGuard is AmneziaWG with the disguise off.
+// Dawnline — the AmneziaWG core: keys, disguise (obfuscation) and the values
+// AmneziaWG refuses, client configurations (.conf, AmneziaVPN key), the
+// netifd options of a server's tunnel, its peers (`awg syncconf`, no
+// restart), live counters, the words for why a tunnel is kept down
+// (blocked_text) and what the watchdog and Health check about it. Plain
+// WireGuard is AmneziaWG with the disguise off.
 
 import { readfile, stat, unlink } from 'fs';
 import {
@@ -11,6 +12,7 @@ import {
 } from 'dawnline.util';
 import * as core from 'dawnline.core';
 import * as net from 'dawnline.net';
+import { ipv6_groups } from 'dawnline.schema';
 import * as pkg from 'dawnline.pkg';
 import * as builds from 'dawnline.awg_builds';
 import { _, L_ } from 'dawnline.i18n';
@@ -29,7 +31,7 @@ const TOOL = '/usr/bin/awg', PROTO = '/lib/netifd/proto/amneziawg.sh';
 /** The packages AmneziaWG comes in (the Components tab installs them). */
 const PACKAGES = [ 'kmod-amneziawg', 'amneziawg-tools' ];
 // A module constant, compiled once (a literal is compiled each time it runs):
-// dump() checks it on every line of `awg show all dump`, every second.
+// dump() checks it on every line of each tunnel's `awg show <ifname> dump`, every second.
 const DIGITS = /^[0-9]+$/;
 
 /** netifd knows the amneziawg protocol (it reads the proto scripts when it starts). */
@@ -138,7 +140,9 @@ function rand_h(used) {
 	}
 }
 
-// caps() answers from here while the tool, the protocol script and the module file are the same.
+// caps() answers from here while the tool, the protocol script, the module
+// file, the install record and the loaded module are the same (tmpfs: a
+// reboot starts over).
 const CAPS = `${RUN_DIR}/awg-caps.json`;
 
 /**
@@ -146,15 +150,20 @@ const CAPS = `${RUN_DIR}/awg-caps.json`;
  * options it passes on) and the `awg` tool (the keys it accepts) say what the
  * tools know, the kernel module's package version what the kernel runs, and
  * a feature counts only when both have it (tools 3.1 over a 2.0 module would
- * configure header protection that the kernel silently lacks):
+ * configure header protection that the kernel silently lacks). While an
+ * update waits for a reboot (its old module stayed loaded) the kernel runs
+ * the generation from before it, as the install recorded it:
  *   v2 — S3/S4, I1-I5, header ranges (AWG 1.5/2.0)
  *   v3 — header protection, trailers, padding, timing (AWG 3.1)
  *   tools / kmod — their generations ('1.0', '2.0', '3.1'; null unknown)
  *   mismatch — the two differ
+ *   pending — an installed module waits for a reboot (dawnline.awg_builds)
  */
 export function caps() {
 	let rel = trim(readfile('/proc/sys/kernel/osrelease') ?? '');
-	let key = `${stat(`/lib/modules/${rel}/amneziawg.ko`)?.mtime ?? 0}/${stat(TOOL)?.mtime ?? 0}/${stat(PROTO)?.mtime ?? 0}`;
+	let core = builds.module_core();
+	let key = `${stat(`/lib/modules/${rel}/amneziawg.ko`)?.mtime ?? 0}/${stat(TOOL)?.mtime ?? 0}/${stat(PROTO)?.mtime ?? 0}` +
+		`/${stat(builds.RECORD)?.mtime ?? 0}/${core ?? 0}`;
 	let cached = read_json(CAPS, null);
 	if (cached?.key == key && cached.caps)
 		return cached.caps;
@@ -163,12 +172,15 @@ export function caps() {
 	let t2 = index(script, 'awg_s3') >= 0 && index(script, 'awg_i1') >= 0;
 	let t3 = t2 && index(script, 'awg_header_protection_key') >= 0 && tool != '';
 	let tools = !stat(TOOL) ? null : t3 ? '3.1' : t2 ? '2.0' : '1.0';
-	// A module installed by hand has no package: then the tools are believed.
-	let kmod = builds.gen(pkg.version('kmod-amneziawg'));
+	// A module installed by hand has no package, so no generation (also when
+	// a pending update replaces it): then the tools are believed.
+	let rec = read_json(builds.RECORD, null), boot = builds.boot_id();
+	let kmod = builds.running_gen(rec, boot, core, pkg.version('kmod-amneziawg'));
 	let out = {
 		v2: t2 && (kmod == null || kmod != '1.0'),
 		v3: t3 && (kmod == null || kmod == '3.1'),
 		tools, kmod, mismatch: tools != null && kmod != null && tools != kmod,
+		pending: builds.pending(rec, boot, core),
 	};
 	ensure_dir(RUN_DIR);
 	write_json(CAPS, { key, caps: out }, 0o644);
@@ -241,18 +253,24 @@ function dns_answer() {
  * offers Balanced or Maximum instead.
  */
 export function obf_preset(name) {
-	if (name == 'max')
+	if (name == 'max') {
+		// 32 random bytes, as `awg genkey` makes them (no process). Without
+		// one the server would come up with weak or no header protection.
+		let hpk = genpsk();
+		if (!valid_key(hpk))
+			die(_('Key generation failed (no random data).'));
 		return {
 			jc: `${rand_int(4, 6)}`, jmin: '10', jmax: '50',
 			s1: '12', s2: '12', s3: '12', s4: '12',
 			h1: '1', h2: '2', h3: '3', h4: '4',
 			i1: dns_query(), i2: dns_answer(),
-			header_protection_key: sh_out('awg genkey'),
+			header_protection_key: hpk,
 			content_padding_addition: '10-100',
 			rekey_after_time: '100-120', rekey_timeout: '3-7', reject_after_time: '150-180',
 			keepalive_timeout: '5-15', max_handshake_attempts: '15-20',
 			random_trailers: 'on', disable_cookies: 'on',
 		};
+	}
 	if (name == 'off')
 		return { jc: '0', jmin: '0', jmax: '0', s1: '0', s2: '0', h1: '1', h2: '2', h3: '3', h4: '4' };
 	let o = {};
@@ -278,38 +296,222 @@ export function obf_preset(name) {
 	return o;
 };
 
+/* ---------- disguise values AmneziaWG refuses ---------- */
 
-export function obf_errors(o) {
+// Checked with ltrim, not regexes: this module loads with every portal request.
+const DEC = '0123456789', HEX = '0123456789abcdefABCDEF';
+
+/** A whole number in digits up to `top`, or null (no spaces: callers trim where the tools drop them). */
+function uint(v, top) {
+	let s = `${v}`;
+	if (s == '' || length(s) > 10 || ltrim(s, DEC) != '')
+		return null;
+	return +s <= top ? +s : null;
+}
+
+/** A number or a range as AmneziaWG writes them ("5", "5-15"), each end up to `top`: [ lo, hi ], or null. */
+function uint_range(v, top) {
+	let p = split(trim(`${v}`), '-');
+	let lo = length(p) <= 2 ? uint(p[0], top) : null;
+	let hi = length(p) == 2 ? uint(p[1], top) : lo;
+	return lo != null && hi != null && lo <= hi ? [ lo, hi ] : null;
+}
+
+/** Value `k` of disguise values `o` is set. */
+function given(o, k) {
+	return o[k] != null && o[k] != '';
+}
+
+/**
+ * Packet types H1-H4: a number or a range each, apart from the others (the
+ * kernel refuses an overlap). One not given keeps WireGuard's own type, 1-4.
+ */
+function headers_unsafe(o, errs) {
+	let hs = [];
+	for (let i = 1; i <= 4; i++) {
+		let r = given(o, `h${i}`) ? uint_range(o[`h${i}`], 4294967295) : [ i, i ];
+		if (!r)
+			push(errs, sprintf(_('%s must be a number or a range like 100-200, up to 4294967295.'), OBF_CONF[`h${i}`]));
+		push(hs, r);
+	}
+	for (let i = 0; i < 4; i++)
+		for (let j = i + 1; j < 4; j++)
+			if (hs[i] && hs[j] && hs[i][0] <= hs[j][1] && hs[j][0] <= hs[i][1])
+				push(errs, sprintf(_('%s and %s overlap: each packet type needs values of its own.'), OBF_CONF[`h${i + 1}`], OBF_CONF[`h${j + 1}`]));
+}
+
+/**
+ * One tag of a signature packet as both the kernel and amneziawg-go read it:
+ * <b 0x..> fixed bytes (an even number of hex digits), <r N>, <rc N>, <rd N>
+ * (N random bytes, letters, digits; a negative N writes past the packet in
+ * the kernel, kmod #267) or <t> (the time). <c> is the kernel's alone and
+ * <d>, <ds>, <dz> amneziawg-go's: devices on the other refuse them.
+ */
+function itag_ok(tag) {
+	if (tag == 't')
+		return true;
+	let sp = index(tag, ' ');
+	if (sp < 0)
+		return false;
+	let key = substr(tag, 0, sp), val = substr(tag, sp + 1);
+	if (key == 'b')
+		return length(val) > 2 && length(val) % 2 == 0 && substr(val, 0, 2) == '0x' && ltrim(substr(val, 2), HEX) == '';
+	if (key == 'r' || key == 'rc' || key == 'rd')
+		return (uint(val, 1000) ?? 0) >= 1;
+	return false;
+}
+
+/** What is wrong with signature packet `name` (I1-I5) holding `s`, as a sentence; null when nothing. */
+function itag_error(name, s) {
+	// In a .conf file `#` starts a comment and a line break ends the line: the rest would be lost.
+	if (index(s, '#') >= 0 || index(s, '\n') >= 0 || index(s, '\r') >= 0)
+		return sprintf(_('%s may not contain # or a line break.'), name);
+	// Text between tags is skipped by both parsers.
+	for (let a = index(s, '<'); a >= 0; a = index(s, '<')) {
+		let b = index(substr(s, a), '>');
+		if (b < 0)
+			return sprintf(_('%s has a tag that is not closed with >.'), name);
+		let tag = substr(s, a + 1, b - 1);
+		if (!itag_ok(tag))
+			return sprintf(_('%s: <%s> is not a tag AmneziaWG apps accept: use <b 0x…> with an even number of hex digits, <r N>, <rc N> or <rd N> with N from 1 to 1000, or <t>.'),
+				name, length(tag) > 24 ? `${substr(tag, 0, 24)}…` : tag);
+		s = substr(s, a + b + 1);
+	}
+	return null;
+}
+
+/** Signature packets I1-I5: their tags, and all of them in one device's configuration (one QR code). */
+function itags_unsafe(o, errs) {
+	let total = 0;
+	for (let k in [ 'i1', 'i2', 'i3', 'i4', 'i5' ]) {
+		if (!given(o, k))
+			continue;
+		total += length(`${o[k]}`);
+		let e = itag_error(OBF_CONF[k], `${o[k]}`);
+		if (e)
+			push(errs, e);
+	}
+	if (total > 2000)
+		push(errs, sprintf(_('I1-I5 together must be at most 2000 characters, not %d.'), total));
+}
+
+/**
+ * What in disguise values `o` AmneziaWG would refuse, crash on or break
+ * devices with: what an import, a restore or a hand edit in uci must never
+ * hand to the kernel (dawnline.backup, dawnline.netifd). Only those rules,
+ * none of Dawnline's own bounds (obf_errors): a backup the kernel takes stays
+ * usable. Sentences in the reader's language; [] when the values are safe.
+ */
+export function obf_unsafe(o) {
+	o ??= {};
 	let errs = [];
-	for (let k, r in OBF_SPEC) {
-		let v = o[k];
-		if (v == null || v == '')
-			continue;
-		if (!match(v, DIGITS) || +v < r[0] || +v > r[1])
-			push(errs, `${k}=${v} (${r[0]}-${r[1]})`);
+	let num = (k) => given(o, k) ? uint(trim(`${o[k]}`), 65535) : 0;
+	// 16-bit numbers for the tools; Jmin above Jmax sizes junk past its buffer (kmod #225).
+	for (let k in [ 'jc', 'jmin', 'jmax', 's1', 's2', 's3', 's4' ])
+		if (num(k) == null)
+			push(errs, sprintf(_('%s must be a whole number from 0 to 65535.'), OBF_CONF[k]));
+	if (given(o, 'jmin') && given(o, 'jmax') && num('jmin') != null && num('jmax') != null && num('jmin') > num('jmax'))
+		push(errs, _('Jmin must not be larger than Jmax.'));
+	headers_unsafe(o, errs);
+	// Header protection: a 32-byte key, and every padding at least the 12 bytes of its nonce (the kernel checks).
+	if (given(o, 'header_protection_key')) {
+		if (!valid_key(o.header_protection_key))
+			push(errs, _('The header protection key is not a key.'));
+		for (let k in [ 's1', 's2', 's3', 's4' ])
+			if (num(k) != null && num(k) < 12)
+				push(errs, sprintf(_('%s must be at least 12 with header protection.'), OBF_CONF[k]));
 	}
-	if (o.jmin != null && o.jmax != null && +o.jmin > +o.jmax)
-		push(errs, 'jmin > jmax');
-	if (o.s1 != null && o.s2 != null && +o.s1 + 56 == +o.s2)
-		push(errs, 's1 + 56 = s2');
-	let hs = {};
-	for (let k in [ 'h1', 'h2', 'h3', 'h4' ]) {
-		let v = o[k];
-		if (v == null || v == '')
-			continue;
-		if (!match(v, /^[0-9]+(-[0-9]+)?$/))
-			push(errs, sprintf(_('%s must be a number or range'), k));
-		else if (hs[v])
-			push(errs, _('h1-h4 must be distinct'));
-		hs[v] = true;
+	// 3.1 timers and counts: 0 alone is the kernel's default; a 0 in a range
+	// would fire at once. Keys are dropped after 180 seconds whatever is set.
+	for (let k in [ 'rekey_after_time', 'rekey_timeout', 'reject_after_time', 'keepalive_timeout', 'max_handshake_attempts' ]) {
+		let r = given(o, k) ? uint_range(o[k], 65535) : [ 0, 0 ];
+		if (!r || (r[0] == 0 && r[1] > 0))
+			push(errs, sprintf(_('%s must be a number or a range like 5-15, from 1 to 65535.'), OBF_CONF[k]));
+		else if (k == 'reject_after_time' && r[1] > 180)
+			push(errs, _('RejectAfterTime must be at most 180 seconds.'));
 	}
+	if (given(o, 'content_padding_addition') && !uint_range(o.content_padding_addition, 65535))
+		push(errs, sprintf(_('%s must be a number or a range like 10-100, up to 65535.'), OBF_CONF.content_padding_addition));
+	// What both netifd and the .conf parser read as a switch.
+	for (let k in [ 'random_trailers', 'disable_cookies' ])
+		if (given(o, k) && index([ 'on', 'off', '1', '0' ], `${o[k]}`) < 0)
+			push(errs, sprintf(_('%s must be on or off.'), OBF_CONF[k]));
+	itags_unsafe(o, errs);
 	return errs;
 };
 
+/**
+ * What is wrong with the disguise values of a server Dawnline sets up: what
+ * AmneziaWG refuses (obf_unsafe), and Dawnline's own bounds on top (junk that
+ * stays under the path MTU, a handshake initiation and response that never
+ * share a size). Its presets pass it. Sentences in the reader's language; []
+ * when the values are fine.
+ */
+export function obf_errors(o) {
+	o ??= {};
+	let errs = obf_unsafe(o);
+	for (let k, r in OBF_SPEC) {
+		let n = given(o, k) ? uint(trim(`${o[k]}`), 65535) : null;
+		if (n != null && (n < r[0] || n > r[1]))
+			push(errs, sprintf(_('%s must be from %d to %d.'), OBF_CONF[k], r[0], r[1]));
+	}
+	if (o.s1 != null && o.s2 != null && +o.s1 + 56 == +o.s2)
+		push(errs, _('S2 must not be S1 + 56: the handshake initiation and response would have the same size.'));
+	return errs;
+};
 
+/**
+ * Disguise values `o` as anyone who may read the status sees them: all but
+ * the header protection key, a secret every device of the server shares
+ * (with it and the server's public key, captured traffic can be unmasked).
+ * Devices get it in their own configuration (client_config).
+ */
+export function obf_public(o) {
+	let out = { ...(o ?? {}) };
+	delete out.header_protection_key;
+	return out;
+};
 
-export function allowed_ips(m, srv, p) {
-	if (p.access == 'lan') {
+/*
+ * Everything but a device's own local network, for a device whose local
+ * network stays outside the tunnel (lan_bypass): every IPv4 address outside
+ * the private ranges the access table drops for internet people anyway
+ * (dawnline.nft PRIVATE4: 10/8, 172.16/12, 192.168/16, 100.64/10,
+ * 169.254/16, 224/3), and every IPv6 address outside fc00::/7, fe80::/10
+ * and ff00::/8. Fixed lists (tests/ucode/awg.test.uc proves each is exactly
+ * that complement); what of the private ranges goes through the tunnel after
+ * all (DNS, home) is added to them.
+ */
+export const BYPASS4 = [
+	'0.0.0.0/5', '8.0.0.0/7', '11.0.0.0/8', '12.0.0.0/6', '16.0.0.0/4', '32.0.0.0/3', '64.0.0.0/3', '96.0.0.0/6',
+	'100.0.0.0/10', '100.128.0.0/9', '101.0.0.0/8', '102.0.0.0/7', '104.0.0.0/5', '112.0.0.0/4', '128.0.0.0/3', '160.0.0.0/5',
+	'168.0.0.0/8', '169.0.0.0/9', '169.128.0.0/10', '169.192.0.0/11', '169.224.0.0/12', '169.240.0.0/13', '169.248.0.0/14',
+	'169.252.0.0/15', '169.255.0.0/16', '170.0.0.0/7', '172.0.0.0/12', '172.32.0.0/11', '172.64.0.0/10', '172.128.0.0/9',
+	'173.0.0.0/8', '174.0.0.0/7', '176.0.0.0/4', '192.0.0.0/9', '192.128.0.0/11', '192.160.0.0/13', '192.169.0.0/16',
+	'192.170.0.0/15', '192.172.0.0/14', '192.176.0.0/12', '192.192.0.0/10', '193.0.0.0/8', '194.0.0.0/7', '196.0.0.0/6',
+	'200.0.0.0/5', '208.0.0.0/4',
+];
+export const BYPASS6 = [ '::/1', '8000::/2', 'c000::/3', 'e000::/4', 'f000::/5', 'f800::/6', 'fe00::/9', 'fec0::/10' ];
+
+/** An IPv6 address BYPASS6 leaves out: in fc00::/7, fe80::/10 or ff00::/8 (the first 16 bits decide). False for anything else. */
+function private6(a) {
+	let g = ipv6_groups(a)?.[0];
+	return g != null && ((g & 0xfe00) == 0xfc00 || (g & 0xffc0) == 0xfe80 || (g & 0xff00) == 0xff00);
+}
+
+/**
+ * What a device sends into the tunnel (its AllowedIPs; the server's peer
+ * line stays its address/32). Home only: the person's home networks, the
+ * tunnel network or the router's address, and the DNS. Internet: everything,
+ * or with `dev.lan_bypass` everything but the device's own local network
+ * (BYPASS4, BYPASS6), every DNS server it is given (IPv4 and IPv6) and for
+ * home access what Home only gets. Without `dev`, as for a device without
+ * lan_bypass.
+ */
+export function allowed_ips(m, srv, p, dev) {
+	if (p.access != 'lan' && !dev?.lan_bypass)
+		return [ '0.0.0.0/0', '::/0' ];
+	let home = () => {
 		let nets = core.person_home(srv, p).nets;
 		// With devices reaching each other, the whole tunnel network (the router's
 		// address is in it); otherwise only the router's own address.
@@ -318,13 +520,27 @@ export function allowed_ips(m, srv, p) {
 			push(nets, srv.subnet);
 		else if (a)
 			push(nets, `${a}/32`);
+		return nets;
+	};
+	let dns = core.client_dns(m, srv, p);
+	if (p.access == 'lan') {
 		// The resolver address must be reachable through the tunnel too (not the fallback).
-		let dns = core.client_dns(m, srv, p)[0];
-		if (dns)
-			push(nets, `${dns}/32`);
+		let nets = home();
+		if (dns[0])
+			push(nets, `${dns[0]}/32`);
 		return net.collapse(nets);
 	}
-	return [ '0.0.0.0/0', '::/0' ];
+	// Every DNS server stays in the tunnel: a private one left out would be
+	// asked on whatever network the device is on (a public one is in the rest).
+	let nets = [ ...BYPASS4 ], nets6 = [];
+	for (let a in dns)
+		if (ip2int(a) != null)
+			push(nets, `${a}/32`);
+		else if (private6(a))
+			push(nets6, `${a}/128`);
+	if (p.access == 'both')
+		push(nets, ...home());
+	return [ ...net.collapse(nets), ...BYPASS6, ...uniq(nets6) ];
 };
 
 
@@ -372,6 +588,48 @@ function client_obf(srv, dev) {
 	return o;
 }
 
+/**
+ * The keep-alive `dev` gets (its own or the server's, core.device_keepalive)
+ * as [ lo, hi ] seconds; null when it is off (0). With 3.1 (header
+ * protection: its apps take ranges) jittered over ten seconds like the other
+ * timers, since a fixed beat would be the one regular thing left. The online
+ * window follows its upper end (dawnline.live).
+ */
+export function keepalive_range(srv, dev) {
+	let k = core.device_keepalive(srv, dev);
+	if (!(k > 0))
+		return null;
+	return srv.obf?.header_protection_key ? [ k, k + 10 ] : [ k, k ];
+};
+
+/**
+ * The longest an idle device goes between two handshakes, in seconds; null
+ * when its keep-alive is off (an idle device then sends nothing at all). Its
+ * keep-alive packets are what it sends, and the first one after its key's
+ * rekey time (RekeyAfterTime, WireGuard's 120 s; past 180 s the key is
+ * refused anyway) starts a handshake (kmod send.c keep_key_fresh): up to one
+ * keep-alive past that time, or each keep-alive once they are further apart.
+ */
+export function idle_handshake(srv, dev) {
+	let ka = keepalive_range(srv, dev);
+	if (!ka)
+		return null;
+	let rekey = min(uint_range(srv.obf?.rekey_after_time ?? '', 65535)?.[1] || 120, 180);
+	return ka[0] > rekey ? ka[1] : rekey + ka[1];
+};
+
+/**
+ * keepalive_range() as the apps write it ("25-35", "25"); null when off. The
+ * .conf and the AmneziaVPN key carry the same text (AmneziaVPN hands it on as
+ * written, ranges included).
+ */
+function keepalive_text(srv, dev) {
+	let r = keepalive_range(srv, dev);
+	if (!r)
+		return null;
+	return r[0] == r[1] ? `${r[0]}` : `${r[0]}-${r[1]}`;
+}
+
 export function client_config(m, dev) {
 	let p = m.people[dev.person];
 	let srv = p ? m.servers[p.server] : null;
@@ -379,7 +637,7 @@ export function client_config(m, dev) {
 		return null;
 	let host = core.endpoint_host(m, srv);
 	let ep = index(host, ':') >= 0 && substr(host, 0, 1) != '[' ? `[${host}]` : host;
-	let allowed = allowed_ips(m, srv, p);
+	let allowed = allowed_ips(m, srv, p, dev);
 	let dns = core.client_dns(m, srv, p);
 	let mtu = core.device_mtu(srv, dev);
 	let lines = [ '[Interface]' ];
@@ -401,10 +659,9 @@ export function client_config(m, dev) {
 		push(lines, `PresharedKey = ${dev.preshared_key}`);
 	push(lines, `AllowedIPs = ${join(', ', allowed)}`);
 	push(lines, `Endpoint = ${ep}:${srv.port}`);
-	// With 3.1 (its apps take ranges) the keep-alive is jittered like the
-	// other timers; a fixed beat would be the one regular thing left.
-	if (srv.keepalive > 0)
-		push(lines, `PersistentKeepalive = ${srv.obf.header_protection_key ? `${srv.keepalive}-${srv.keepalive + 10}` : srv.keepalive}`);
+	let keepalive = keepalive_text(srv, dev);
+	if (keepalive)
+		push(lines, `PersistentKeepalive = ${keepalive}`);
 	return {
 		name: dev.name,
 		person: p.name,
@@ -424,7 +681,7 @@ export function client_config(m, dev) {
 			client_pub_key: dev.public_key,
 			psk_key: dev.preshared_key,
 			server_pub_key: srv.public_key,
-			persistent_keep_alive: `${srv.keepalive}`,
+			persistent_keep_alive: keepalive ?? '0',
 			obfuscation: obf,
 		},
 	};
@@ -448,11 +705,62 @@ export function netifd_options(srv) {
 	};
 	for (let k in core.OBF_KEYS)
 		o[`awg_${k}`] = srv.obf[k];
+	// DisableCookies is the devices' alone (their .conf and key keep it): on
+	// the server it would turn off WireGuard's own defence against a flood of
+	// handshakes (cookie replies and a per-address limit, only ever under
+	// load), and anyone who held a configuration could keep both cores busy.
+	// Null takes it off an interface that had it.
+	o.awg_disable_cookies = null;
 	return o;
 };
 
 /** Person states whose devices stay in the tunnel: active, and the limits the portal explains. */
 export const SOFT_STATES = [ 'active', 'quota', 'hours' ];
+
+/**
+ * The devices sync_peers() loads into server `sid`'s tunnel, in the model's
+ * order (an empty list when none). Pure: the model and the people's states
+ * (apply.states_for). Health and the agent compare a running tunnel with it.
+ */
+export function tunnel_devices(m, sid, states) {
+	let out = [];
+	let own = m.servers?.[sid]?.public_key;
+	for (let did, d in m.devices) {
+		let p = m.people[d.person];
+		// One malformed line makes syncconf refuse the whole server: such a device
+		// stays out (Health's Data check names it), and so does one with the
+		// server's own key, which the kernel silently ignores (it would look
+		// missing for ever). Over the data limit or outside the allowed hours the
+		// tunnel stays: the access table blocks everything but the portal, which
+		// says why (a silent handshake failure would look like a broken VPN).
+		if (p && p.server == sid && !d.disabled && index(SOFT_STATES, states[p.id]) >= 0 && valid_key(d.public_key) && ip2int(d.address) != null &&
+			(!own || d.public_key != own))
+			push(out, d);
+	}
+	return out;
+};
+
+/**
+ * How the peers dump() read on `ifname` differ from the devices that belong
+ * there (tunnel_devices): { loaded, missing, extra }, counted by key, not by
+ * number (a stale peer standing in for a missing one would make the numbers
+ * match). Pure.
+ */
+export function peer_diff(devs, dmp, ifname) {
+	let want = {};
+	for (let d in devs)
+		want[d.public_key] = true;
+	let loaded = 0, extra = 0, found = 0;
+	for (let k, p in dmp.peers)
+		if (p.ifname == ifname) {
+			loaded++;
+			if (want[k])
+				found++;
+			else
+				extra++;
+		}
+	return { loaded, missing: length(keys(want)) - found, extra };
+};
 
 /** Push the peer list of every server to the kernel without restarting it. */
 export function sync_peers(m, states) {
@@ -467,15 +775,7 @@ export function sync_peers(m, states) {
 			continue;
 		}
 		let lines = [ '[Interface]', `PrivateKey = ${srv.private_key}`, `ListenPort = ${srv.port}`, '' ];
-		for (let did, d in m.devices) {
-			let p = m.people[d.person];
-			// One malformed line makes syncconf refuse the whole server: such a device
-			// stays out (Health's Data check names it). Over the data limit or
-			// outside the allowed hours the tunnel stays: the access table blocks
-			// everything but the portal, which says why (a silent handshake failure
-			// would look like a broken VPN).
-			if (!p || p.server != id || d.disabled || index(SOFT_STATES, states[p.id]) < 0 || !valid_key(d.public_key) || ip2int(d.address) == null)
-				continue;
+		for (let d in tunnel_devices(m, id, states)) {
 			push(lines, '[Peer]', `PublicKey = ${d.public_key}`);
 			if (d.preshared_key)
 				push(lines, `PresharedKey = ${d.preshared_key}`);
@@ -492,39 +792,83 @@ export function sync_peers(m, states) {
 	return res;
 };
 
-/**
- * Parse `awg show all dump`. Returns { ok, ifaces: { ifname: {...} }, peers: { pubkey: {...} } }.
- * Lines are told apart by their shape, not their length (each AmneziaWG
- * generation adds fields to the interface line): an interface line carries
- * its private and public key and a port, a peer line the peer's key, a
- * preshared key or "(none)" and an endpoint. The tool fails when any one
- * interface can't be read, but still prints the others: with `wanted` (the
- * ifnames that matter) `ok` means those were all read, so another tunnel's
- * trouble is not ours.
+/** The interface's index while it exists (a new one each time netifd sets the tunnel up), else null. */
+function ifindex(ifname) {
+	let s = trim(readfile(`/sys/class/net/${ifname}/ifindex`) ?? '');
+	return s != '' ? +s : null;
+}
+
+/*
+ * One interface's `awg show <ifname> dump` into `out` (see dump()). Lines are
+ * told apart by their shape, not their length (each AmneziaWG generation adds
+ * fields to the interface line): an interface line carries its private and
+ * public key and a port, a peer line the peer's key, a preshared key or
+ * "(none)" and an endpoint. Unlike `show all`, the lines have no ifname.
  */
-export function dump(wanted) {
-	let r = sh('awg show all dump');
-	let out = { ok: r.code == 0, ifaces: {}, peers: {} };
-	for (let line in split(r.out, '\n')) {
-		let f = split(line, '\t');
-		if (length(f) < 5 || !valid_key(f[1]))
-			continue;
-		let key2 = valid_key(f[2]);
-		if (key2 && match(f[3] ?? '', DIGITS))
-			out.ifaces[f[0]] = { public_key: f[2], port: +f[3] };
-		else if (length(f) >= 9 && (key2 || f[2] == '(none)')) {
-			let ep = f[3] == '(none)' ? '' : f[3];
-			out.peers[f[1]] = {
-				ifname: f[0],
-				endpoint: ep,
-				handshake: +f[5],
-				rx: +f[6],
-				tx: +f[7],
-			};
-		}
+function read_iface(out, ifname) {
+	// Read around the call: a link set up again in between gave counters of either one.
+	let before = ifindex(ifname);
+	// Not there (a tunnel netifd could not bring up, AmneziaWG gone after an
+	// upgrade): no process to learn it. One that appears is read next time.
+	if (before == null) {
+		out.reads[ifname] = 'down';
+		return;
 	}
-	if (!out.ok && type(wanted) == 'array')
-		out.ok = length(filter(wanted, (n) => !out.ifaces[n])) == 0;
+	let r = sh(`awg show ${q(ifname)} dump`);
+	let ix = ifindex(ifname);
+	let iface = null, peers = {};
+	if (r.code == 0)
+		for (let line in split(r.out, '\n')) {
+			let f = split(line, '\t');
+			if (length(f) < 4 || !valid_key(f[0]))
+				continue;
+			let key2 = valid_key(f[1]);
+			if (key2 && match(f[2], DIGITS))
+				iface = { public_key: f[1], port: +f[2], ifindex: ix };
+			else if (length(f) >= 8 && (key2 || f[1] == '(none)'))
+				peers[f[0]] = {
+					ifname,
+					endpoint: f[2] == '(none)' ? '' : f[2],
+					handshake: +f[4],
+					rx: +f[5],
+					tx: +f[6],
+				};
+		}
+	let read = iface != null;
+	// Gone during the read: its peers and their counters are gone with it.
+	if (ix == null) {
+		out.reads[ifname] = 'down';
+		return;
+	}
+	if (!read || ix != before) {
+		out.reads[ifname] = 'error';
+		out.ok = false;
+		return;
+	}
+	out.reads[ifname] = 'read';
+	out.ifaces[ifname] = iface;
+	for (let k, p in peers)
+		out.peers[k] = p;
+}
+
+/**
+ * Dawnline's own tunnels, one `awg show <ifname> dump` each for `ifnames`
+ * (live.tunnel_ifnames): never `all`, so another AmneziaWG interface on the
+ * router (a client tunnel with long I1-I5, say) neither slows the 1-second
+ * watcher down nor has its keys read. Returns { ok, reads: { ifname: 'read' |
+ * 'down' | 'error' }, ifaces: { ifname: { public_key, port, ifindex } },
+ * peers: { pubkey: { ifname, endpoint, handshake, rx, tx } } }, with only
+ * what was read in `ifaces` and `peers`:
+ *   down   the interface does not exist (/sys/class/net has no such link;
+ *          no process is started for it): its peers and counters are gone
+ *   error  it exists but could not be read (or was set up again during the
+ *          read): that says nothing about its peers
+ * `ok` is false when any of them is 'error' (true for an empty list).
+ */
+export function dump(ifnames) {
+	let out = { ok: true, reads: {}, ifaces: {}, peers: {} };
+	for (let ifn in ifnames ?? [])
+		read_iface(out, ifn);
 	return out;
 };
 
@@ -544,6 +888,8 @@ export function server_state(srv) {
  *   { code: 'ifname', ifname }             the interface name is invalid
  *   { code: 'taken', ifname }              network.<ifname> exists and isn't Dawnline's
  *   { code: 'disguise', need, installed }  obf_unsupported()
+ *   { code: 'disguise_invalid' }           obf_unsafe() finds values AmneziaWG refuses
+ *                                          (said again from the server's values when read)
  * Files written by older versions hold the English fragment ("has an invalid
  * interface name …"), shown as it is.
  */
@@ -559,7 +905,18 @@ export function blocked_note(r) {
 	if (r.code == 'disguise')
 		return r.installed ? sprintf(L_('is kept down: its disguise needs AmneziaWG %s (installed: %s)'), r.need, r.installed)
 			: sprintf(L_('is kept down: its disguise needs AmneziaWG %s (installed: none)'), r.need);
+	if (r.code == 'disguise_invalid')
+		return L_('is kept down: its disguise has values AmneziaWG cannot take');
 	return L_('is kept down');
+};
+
+/** What to do about a reason (blocked_note), for the service log's details. */
+export function blocked_fix(r) {
+	if (r?.code == 'disguise')
+		return L_('Install that AmneziaWG build in Dawnline → Components, or switch the disguise on the Server page.');
+	if (r?.code == 'disguise_invalid')
+		return L_('Choose a disguise on the Server page: it replaces the values set by hand.');
+	return L_('Choose another interface name in the server settings.');
 };
 
 /**
@@ -581,6 +938,9 @@ export function blocked_text(srv) {
 		return r.installed
 			? sprintf(_('%s is kept down: its disguise needs AmneziaWG %s (installed: %s).'), srv.name, r.need, r.installed)
 			: sprintf(_('%s is kept down: its disguise needs AmneziaWG %s (installed: none).'), srv.name, r.need);
+	// Which values, from the server's own (the reason is kept as a code).
+	if (r.code == 'disguise_invalid')
+		return trim(sprintf(_('%s is kept down: its disguise has values AmneziaWG cannot take. %s'), srv.name, join(' ', obf_unsafe(srv.obf))));
 	return sprintf(_('%s is kept down.'), srv.name);
 };
 
@@ -637,7 +997,7 @@ export function probes(m, ctx) {
 			push(out, {
 				id: `up_${srv.id}`, src: 'awg', name: `${srv.name} · AmneziaWG`, who: srv.name, ok: false, repair: null,
 				problem: blocked_note(why), back: L_('AmneziaWG is running again'),
-				detail: () => L_('Choose another interface name in the server settings.'),
+				detail: () => blocked_fix(why),
 			});
 			continue;
 		}

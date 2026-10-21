@@ -7,7 +7,7 @@
 import type { ClientConfig, Device } from '../../shared/types';
 import { fill, fmt } from '../../shared/i18n';
 import { h, ic, type Kid } from '../dom';
-import { EASE_OUT, POP, SMOOTH, play } from '../motion';
+import { EASE_IN, EASE_OUT, POP, SMOOTH, play } from '../motion';
 import {
   APP_NAME,
   importPath,
@@ -24,7 +24,7 @@ import {
   type Store,
 } from '../setup';
 import { accordion } from '../ui/accordion';
-import { copy, download, sendFile, shareFile, swapIcon } from '../ui/feedback';
+import { copy, download, sendFile, shareFile } from '../ui/feedback';
 import { glass } from '../ui/glass';
 import { menuLine, morphText, setText } from '../ui/morph';
 import { hint } from '../ui/sheet';
@@ -200,25 +200,68 @@ export function sendKids(c: SetupCtx): Kid[] {
   ];
 }
 
-/** One configuration line, highlighted; private and preshared keys masked unless shown. */
-function confLine(line: string, reveal: boolean): Node {
+/** At rest out of sight: it keeps its place, with nothing to see, select or read out. */
+function rest(el: HTMLElement | SVGElement) {
+  el.style.opacity = '0';
+  el.style.visibility = 'hidden';
+}
+
+/**
+ * Both looks in one place (a key and its mask, two icons): the one showing and
+ * the other at rest under it, so a press cross-fades them and nothing is
+ * rebuilt. The cell is as wide as the wider of the two.
+ */
+function stack(shown: HTMLElement | SVGElement, other: HTMLElement | SVGElement): HTMLElement {
+  const cell = h('span', {}, shown, other);
+  cell.style.display = 'inline-grid';
+  for (const x of [shown, other]) x.style.gridArea = '1 / 1';
+  rest(other);
+  return cell;
+}
+
+/**
+ * Shown or not: it comes into focus out of a blur, or blurs away and rests out
+ * of sight, from where it stands now (pressed again half-way, it turns back).
+ */
+function turn(el: HTMLElement | SVGElement, on: boolean, off: Keyframe) {
+  const s = getComputedStyle(el);
+  const from = { opacity: s.opacity, filter: s.filter === 'none' ? 'blur(0px)' : s.filter, transform: s.transform };
+  const old = el.getAnimations();
+  el.style.opacity = on ? '' : '0';
+  el.style.visibility = '';
+  const a = on
+    ? play(el, [from, { opacity: 1, filter: 'blur(0px)', transform: 'none' }], { duration: 320, easing: EASE_OUT })
+    : play(el, [from, off], { duration: 200, easing: EASE_IN });
+  if (!on) a.onfinish = () => (el.style.visibility = 'hidden');
+  old.forEach((x) => x.cancel());
+}
+
+/** A key masked, or a mask lifted: they blur through each other. */
+const SECRET_OFF: Keyframe = { opacity: 0, filter: 'blur(4px)', transform: 'none' };
+/** The button's icon (a key, or × to hide it again) turns the way a copy's check comes in (ui/feedback.ts). */
+const ICON_OFF: Keyframe = { opacity: 0, filter: 'blur(3px)', transform: 'scale(.6)' };
+
+/** One configuration line, highlighted; private and preshared keys masked until shown. */
+function confLine(line: string): Node {
   if (/^\s*\[.+\]\s*$/.test(line)) return h('span', { class: 'sec' }, line);
   const m = /^(\s*[A-Za-z0-9]+\s*=)\s*(.*)$/.exec(line);
   if (!m) return document.createTextNode(line);
   const secret = /^(\s*)(PrivateKey|PresharedKey)\b/.test(line);
-  const value = !secret ? m[2] : reveal ? h('span', { class: 'secret' }, m[2]) : h('span', { class: 'mask' }, '••••••••••••••••');
+  const value = secret ? stack(h('span', { class: 'mask' }, '••••••••••••••••'), h('span', { class: 'secret' }, m[2])) : m[2];
   return h('span', {}, h('span', { class: 'k' }, m[1]), ' ', value);
 }
 
 /** The .conf for a router: a file card to download (or share), and the configuration folded, its keys hidden. */
 export function filePane(cfg: ClientConfig): HTMLElement {
   let reveal = false;
-  const pre = h('pre', { class: 'conf' });
-  const paint = () =>
-    pre.replaceChildren(...cfg.conf.split('\n').flatMap((l, i) => (i ? ['\n', confLine(l, reveal)] : [confLine(l, reveal)])));
-  paint();
+  const pre = h(
+    'pre',
+    { class: 'conf' },
+    cfg.conf.split('\n').flatMap((l, i) => (i ? ['\n', confLine(l)] : [confLine(l)])),
+  );
   const share = !!shareFile(cfg.filename, cfg.conf);
-  let icon = ic('key');
+  const key = ic('key') as SVGElement;
+  const hide = ic('x') as SVGElement;
   const label = h('span', {}, _('Show key'));
   const eye = h(
     'button',
@@ -227,23 +270,15 @@ export function filePane(cfg: ClientConfig): HTMLElement {
       class: 'btn soft sm',
       onclick: () => {
         reveal = !reveal;
-        icon = swapIcon(icon, reveal ? 'x' : 'key');
         morphText(label, reveal ? _('Hide key') : _('Show key'));
-        paint();
-        // A key shown comes into focus out of a blur; hidden again, the mask fades back.
-        pre.querySelectorAll('.mask, .secret').forEach((x) =>
-          play(
-            x,
-            [
-              { filter: 'blur(4px)', opacity: 0.4 },
-              { filter: 'none', opacity: 1 },
-            ],
-            { duration: 320, easing: EASE_OUT },
-          ),
-        );
+        // A key shown comes into focus out of a blur as its mask blurs away; hidden again, the other way round.
+        pre.querySelectorAll<HTMLElement>('.secret').forEach((x) => turn(x, reveal, SECRET_OFF));
+        pre.querySelectorAll<HTMLElement>('.mask').forEach((x) => turn(x, !reveal, SECRET_OFF));
+        turn(key, !reveal, ICON_OFF);
+        turn(hide, reveal, ICON_OFF);
       },
     },
-    icon,
+    stack(key, hide),
     label,
   );
   const cp = h(
@@ -303,7 +338,9 @@ export interface ConnPill {
  * Beside ×: the connection itself, to download or copy, where the sheet offers
  * neither (a phone or a tablet set up from elsewhere). One tooltip for both
  * keys, under them: the first waits a beat; once one is up the next comes at
- * once and the tooltip glides across. Copied: a check, and the tooltip says so.
+ * once and the tooltip glides across (by Tab too, and back to a key while it
+ * still fades out), each move from where it stands. Copied: a check, and the
+ * tooltip says so.
  */
 export function connPill(get: () => { text: string; msg: string; file: string; app: string }): ConnPill {
   const tt = h('span', { class: 'tt' });
@@ -324,11 +361,22 @@ export function connPill(get: () => { text: string; msg: string; file: string; a
     return Math.min(b.offsetLeft + b.offsetWidth / 2, el.offsetWidth + 46 - w / 2);
   };
   const at = (x: number) => `translateX(${x}px) translateX(-50%)`;
+  /** Where the tooltip stands now: mid-fade and mid-glide included. */
+  const now = (): Keyframe => {
+    const s = getComputedStyle(tip);
+    return { opacity: s.opacity, filter: s.filter === 'none' ? 'blur(0px)' : s.filter, transform: s.transform };
+  };
+  /** Its next motion takes over from where the last one stands; the last one stops once it is in place. */
+  const move = (frames: Keyframe[], o: KeyframeAnimationOptions) => {
+    const old = tip.getAnimations();
+    play(tip, frames, o);
+    old.forEach((a) => a.cancel());
+  };
+  // To another key, or back while it fades out: it glides there and comes up whole on the way.
   const glideTo = (x: number) => {
-    const from = getComputedStyle(tip).transform;
-    tip.getAnimations().forEach((a) => a.cancel());
+    const from = now();
     tip.style.transform = at(x);
-    play(tip, [{ transform: from }, { transform: at(x) }], { duration: SMOOTH.duration, easing: SMOOTH.easing });
+    move([from, { opacity: 1, filter: 'blur(0px)', transform: at(x) }], { duration: SMOOTH.duration, easing: SMOOTH.easing });
   };
   // Another key's words, or "Copied": what the two share slides, the rest morphs; the pill glides with it.
   const reword = (t: string) => morphText(tt, t);
@@ -336,20 +384,20 @@ export function connPill(get: () => { text: string; msg: string; file: string; a
     clearTimeout(tipT);
     if (tipFor === b && tip.classList.contains('on')) return;
     tipFor = b;
-    if (tip.classList.contains('on')) {
+    if (tip.classList.contains('on') || +getComputedStyle(tip).opacity > 0) {
       const t = words(b);
+      tip.classList.add('on');
       glideTo(centre(b, t));
       return reword(t);
     }
+    // Out of sight: it comes up under the key out of a blur.
     const up = () => {
       const t = words(b);
       setText(tt, t);
       const x = centre(b, t);
-      tip.getAnimations().forEach((a) => a.cancel());
       tip.style.transform = at(x);
       tip.classList.add('on');
-      play(
-        tip,
+      move(
         [
           { opacity: 0, transform: `${at(x)} translateY(-3px) scale(.96)`, filter: 'blur(3px)' },
           { opacity: 1, transform: at(x), filter: 'blur(0px)' },
@@ -368,8 +416,10 @@ export function connPill(get: () => { text: string; msg: string; file: string; a
     tipFor = null;
     if (!tip.classList.contains('on')) return;
     warmUntil = performance.now() + 500;
+    // It fades where it stands, mid-glide or still coming up.
+    const from = now();
     tip.classList.remove('on');
-    play(tip, [{ opacity: 1 }, { opacity: 0 }], { duration: 120, easing: 'ease-out' });
+    move([from, { ...from, opacity: 0 }], { duration: 120, easing: 'ease-out' });
   };
   for (const b of [dl, cp]) {
     b.addEventListener('pointerenter', (e) => {
@@ -378,7 +428,10 @@ export function connPill(get: () => { text: string; msg: string; file: string; a
     b.addEventListener('focus', () => {
       if (b.matches(':focus-visible')) show(b);
     });
-    b.addEventListener('blur', hide);
+    // Tab from one key to the other: the focus that follows glides the tooltip across instead.
+    b.addEventListener('blur', (e) => {
+      if (!el.contains(e.relatedTarget as Node | null)) hide();
+    });
   }
   el.addEventListener('pointerleave', hide);
 

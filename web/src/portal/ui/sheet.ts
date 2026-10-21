@@ -1,12 +1,13 @@
-// The sheet: one drawer floating at the bottom of the screen, on phones and
-// desktops alike. It holds a stack of views (go/back), glides to each view's
-// height, widens on a desktop for a dense QR code until the code gets its
-// pixels, pins a view's own buttons beside ×, and closes by ×, the scrim, a
+// The sheet: a drawer at the bottom of a phone's screen, a dialog in the
+// middle of a computer's. It holds a stack of views (go/back), glides to each
+// view's height, widens on a desktop for a dense QR code until the code gets
+// its pixels, pins a view's own buttons beside ×, and closes by ×, the scrim, a
 // pull down on its header, Escape, or the phone's back button (it is a history
-// entry). Views are built by the flows; this module only moves them.
+// entry). A flow that comes while it is on its way out opens once it is gone.
+// Views are built by the flows; this module only moves them.
 
 import { h, ic } from '../dom';
-import { BOUNCY, DRAWER, EASE_IN, EASE_OUT, SMOOTH, SOFT, dismisses, play, rubber } from '../motion';
+import { BOUNCY, DRAWER, EASE_IN, EASE_OUT, SMOOTH, SOFT, dismisses, play, rubber, unrubber } from '../motion';
 import { closeMenu } from './menu';
 
 /** A view: its root, and what the sheet reads from it. */
@@ -32,10 +33,18 @@ let vp: HTMLElement;
 let stack: ViewFactory[] = [];
 let closed: (() => void) | null = null;
 let left: (() => void) | null = null;
+/** A flow that came while the sheet was on its way out (an answer after Cancel): it opens once the sheet is gone. */
+let next: ViewFactory | null = null;
 let ownsHistory = false;
 let returnFocus: HTMLElement | null = null;
+/** Until then clicks in a sheet just opened are the second half of the double click that opened it. */
+let quietUntil = 0;
 
 export const sheetOpen = () => !!root?.classList.contains('open');
+
+/** What runs on `el` and moves one of `props`: stopped or waited for without touching the rest. */
+const running = (el: Element, ...props: string[]) =>
+  el.getAnimations().filter((a) => (a.effect as KeyframeEffect | null)?.getKeyframes().some((k) => props.some((p) => p in k)));
 
 /* ---------- width: a dense code scans from a screen at about 3 px a module ---------- */
 
@@ -56,8 +65,9 @@ export interface WidthPlan {
 
 /**
  * The width the sheet needs now, set at once so whatever measures the new
- * layout (an accordion, the height glide) measures it at the final width; the
- * plan then animates there on the same spring (`startWidth`), so nothing snaps.
+ * layout (an accordion) measures it at the final width; the plan then animates
+ * there on the same spring (`startWidth`), so nothing snaps. The sheet's own
+ * height follows its view through the glide (`glideHeight`).
  */
 export function planWidth(): WidthPlan | null {
   if (!root || !sheetOpen()) return null;
@@ -81,10 +91,7 @@ export function planWidth(): WidthPlan | null {
   if (Math.abs(want - sheetW) < 8) return reveal ? { from: want, want, reveal } : null;
   const from = parseFloat(getComputedStyle(sheetEl).maxWidth) || sheetW;
   sheetW = want;
-  sheetEl
-    .getAnimations()
-    .filter((a) => (a.effect as KeyframeEffect | null)?.getKeyframes().some((k) => 'maxWidth' in k))
-    .forEach((a) => a.cancel());
+  running(sheetEl, 'maxWidth').forEach((a) => a.cancel());
   sheetEl.style.maxWidth = `${want}px`;
   return { from, want, reveal };
 }
@@ -115,6 +122,17 @@ function build() {
   sheetEl = h('div', { class: 'sheet', role: 'dialog', 'aria-modal': 'true' }, closeBtn, actsEl, scroller);
   scrim = h('div', { class: 'scrim', onclick: () => closeSheet() });
   root = h('div', { class: 'sheet-root', 'aria-hidden': 'true' }, scrim, sheetEl);
+  // The second click of a double click lands on what the first one opened: the scrim would close the sheet again,
+  // a question's button would answer it.
+  root.addEventListener(
+    'click',
+    (e) => {
+      if (performance.now() >= quietUntil) return;
+      e.preventDefault();
+      e.stopPropagation();
+    },
+    true,
+  );
   document.body.appendChild(root);
   new ResizeObserver(() => startWidth(planWidth())).observe(vp);
   pullToClose();
@@ -148,6 +166,11 @@ export function onClosed(fn: () => void) {
 export function openSheet(factory: ViewFactory) {
   if (!root) build();
   closeMenu(true);
+  if (root.dataset.closing) {
+    // Still on its way out: the new flow opens once it is gone, as it would have a moment later.
+    next = factory;
+    return;
+  }
   leave();
   if (sheetOpen()) {
     // Already open: the new flow takes the place of the old one, history and all.
@@ -156,6 +179,7 @@ export function openSheet(factory: ViewFactory) {
     return;
   }
   returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  quietUntil = performance.now() + 320;
   stack = [factory];
   closed = null;
   sheetW = SHEET_W;
@@ -194,6 +218,9 @@ export function openSheet(factory: ViewFactory) {
   if (!ownsHistory) {
     try {
       history.pushState({ sheet: true }, '');
+      // The sheet's own entry never moves the page: left behind once the sheet closes, a step forward onto it (Safari's
+      // swipe in from the right edge) would put the page back where it stood when the sheet opened.
+      history.scrollRestoration = 'manual';
       ownsHistory = true;
     } catch {
       /* no history */
@@ -203,63 +230,91 @@ export function openSheet(factory: ViewFactory) {
 
 /** `now`: gone at once (Escape: what the keyboard does never animates). */
 export function closeSheet(now = false) {
-  if (!sheetOpen() || root.dataset.closing) return;
+  if (!sheetOpen()) return;
+  if (root.dataset.closing) {
+    // Escape while it goes, or the link stopped working: gone at once, and nothing opens after it.
+    if (now) {
+      next = null;
+      gone();
+    }
+    return;
+  }
   leave();
   if (ownsHistory) {
     ownsHistory = false;
     history.back();
   }
   document.body.classList.remove('locked');
-  const done = () => {
-    root.classList.remove('open');
-    root.setAttribute('aria-hidden', 'true');
-    delete root.dataset.closing;
-    sheetEl.style.transform = '';
-    scrim.style.opacity = '';
-    sheetEl.getAnimations().forEach((a) => a.cancel());
-    scrim.getAnimations().forEach((a) => a.cancel());
-    vp.getAnimations().forEach((a) => a.cancel());
-    vp.replaceChildren();
-    actsEl.replaceChildren();
-    sheetEl.classList.remove('arrived');
-    sheetEl.style.maxWidth = '';
-    sheetW = SHEET_W;
-    stack = [];
-    if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
-    returnFocus = null;
-    const f = closed;
-    closed = null;
-    f?.();
-  };
-  if (now) return done();
+  if (now) return gone();
   root.dataset.closing = '1';
-  const from = getComputedStyle(sheetEl).transform;
-  sheetEl.getAnimations().forEach((a) => a.cancel());
+  // From where it stands: a dialog still coming up leaves from its present fade, blur and scale.
+  const cs = getComputedStyle(sheetEl);
+  const at = cs.transform;
+  const op = cs.opacity;
+  const blur = cs.filter === 'none' ? 'blur(0px)' : cs.filter;
+  const dim = getComputedStyle(scrim).opacity;
+  running(sheetEl, 'transform', 'opacity').forEach((a) => a.cancel());
+  scrim.getAnimations().forEach((a) => a.cancel());
   play(
     scrim,
-    [{ opacity: getComputedStyle(scrim).opacity }, { opacity: 0 }],
+    [{ opacity: dim }, { opacity: 0 }],
     wide() ? { duration: 120, easing: EASE_IN, fill: 'forwards' } : { duration: 320, easing: 'ease-out', fill: 'forwards' },
   );
-  const at = from === 'none' ? 'none' : from;
   // A dialog goes the way a ⋯ menu does, quick and soft into its centre; the drawer goes down past the edge.
   play(
     sheetEl,
     wide()
       ? [
-          { opacity: 1, transform: at, filter: 'blur(0px)' },
+          { opacity: op, transform: at, filter: blur },
           { opacity: 0, transform: `${at === 'none' ? '' : at} scale(.96)`.trim(), filter: 'blur(3px)' },
         ]
       : [{ transform: at }, { transform: 'translateY(calc(100% + 40px))' }],
     wide() ? { duration: 120, easing: EASE_IN, fill: 'forwards' } : { duration: 420, easing: DRAWER, fill: 'forwards' },
-  ).onfinish = done;
+  ).onfinish = gone;
 }
 
-// The phone's back button closes the sheet instead of leaving the page.
+/** The sheet is out of the page: emptied, focus back on what opened it, then whatever waited for it. */
+function gone() {
+  // Nothing a view holds (a poll) outlives the sheet.
+  leave();
+  root.classList.remove('open');
+  root.setAttribute('aria-hidden', 'true');
+  delete root.dataset.closing;
+  sheetEl.style.transform = '';
+  scrim.style.opacity = '';
+  sheetEl.getAnimations().forEach((a) => a.cancel());
+  scrim.getAnimations().forEach((a) => a.cancel());
+  vp.replaceChildren();
+  actsEl.replaceChildren();
+  sheetEl.classList.remove('arrived');
+  sheetEl.style.maxWidth = '';
+  sheetW = SHEET_W;
+  stack = [];
+  if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
+  returnFocus = null;
+  const f = closed;
+  closed = null;
+  f?.();
+  const n = next;
+  next = null;
+  if (n) openSheet(n);
+}
+
+/** On the history entry a sheet pushed (openSheet): closing it steps back to the page's own. */
+export const onSheetEntry = () => !!(history.state as { sheet?: boolean } | null)?.sheet;
+
+// The phone's back button closes the sheet instead of leaving the page. A sheet's entry is current only while its
+// sheet is open: one left behind (a reload with a sheet open, a step forward onto it) is stepped back off at once, so
+// Back from there leaves the page instead of putting it back where it stood when that sheet opened.
 addEventListener('popstate', () => {
-  if (!sheetOpen()) return;
+  if (!sheetOpen()) {
+    if (onSheetEntry()) history.back();
+    return;
+  }
   ownsHistory = false;
   closeSheet();
 });
+if (onSheetEntry()) history.back();
 
 /** A view's own buttons beside ×: pinned with it while the sheet scrolls, they come and go with the view. */
 function setActs(v: View, anim = true) {
@@ -301,17 +356,38 @@ function setActs(v: View, anim = true) {
   }
 }
 
+/**
+ * The viewport glides from `h0`, its height on screen, to its view's: as a gap under the view that closes, or an
+ * overhang the viewport clips, so what changes inside meanwhile (a row opening, a fold, a poll) carries the sheet's
+ * edge along instead of landing when the glide ends.
+ */
+function glideHeight(view: Element | null, h0: number, o: KeyframeAnimationOptions) {
+  if (!view) return;
+  running(view, 'marginBottom').forEach((a) => a.cancel());
+  const d = h0 - vp.getBoundingClientRect().height;
+  if (Math.abs(d) > 1) play(view, [{ marginBottom: `${d}px` }, { marginBottom: '0px' }], o);
+}
+
 /** Another view in the open sheet: the old one fades out over the new one, the sheet glides to its height. */
 function swapView(v: View) {
   label(v);
   setActs(v);
   sheetEl.classList.remove('arrived');
-  const old = [...vp.children] as HTMLElement[];
   const h0 = vp.getBoundingClientRect().height;
-  vp.getAnimations().forEach((a) => a.cancel());
-  old.forEach((o) => {
+  // What goes stays where it stands on screen while the scroll goes back to the top under it (the viewport clips it);
+  // a view already on its way out keeps its own fade.
+  const st = scroller.scrollTop;
+  const views = [...vp.children] as HTMLElement[];
+  const tops = views.map((o) => (o.classList.contains('leaving') ? parseFloat(o.style.top) || 0 : 0) - st);
+  const old = views.filter((o) => !o.classList.contains('leaving'));
+  // It fades from how it shows: one still coming in (Back right after a step) goes from as far as it came.
+  const shown = old.map((o) => {
+    const cs = getComputedStyle(o);
+    return { opacity: cs.opacity, transform: cs.transform, filter: cs.filter };
+  });
+  views.forEach((o, i) => {
     o.classList.add('leaving');
-    Object.assign(o.style, { position: 'absolute', left: '0', right: '0', top: '0', pointerEvents: 'none' });
+    Object.assign(o.style, { position: 'absolute', left: '0', right: '0', top: `${tops[i]}px`, pointerEvents: 'none' });
     o.inert = true;
   });
   vp.appendChild(v.el);
@@ -319,25 +395,17 @@ function swapView(v: View) {
   v.el.style.pointerEvents = 'none';
   setTimeout(() => (v.el.style.pointerEvents = ''), 320);
   scroller.scrollTop = 0;
-  const plan = planWidth();
-  const h1 = v.el.getBoundingClientRect().height;
-  play(vp, [{ height: `${h0}px` }, { height: `${h1}px` }], { duration: 360, easing: 'cubic-bezier(.25,1,.5,1)' });
-  startWidth(plan);
-  old.forEach(
-    (o) =>
-      (play(
-        o,
-        [
-          { opacity: 1, transform: 'none', filter: 'none' },
-          { opacity: 0, transform: 'scale(.96)', filter: 'blur(2px)' },
-        ],
-        {
-          duration: 200,
-          easing: 'cubic-bezier(.2,0,0,1)',
-          fill: 'forwards',
-        },
-      ).onfinish = () => o.remove()),
-  );
+  startWidth(planWidth());
+  glideHeight(v.el, h0, { duration: 360, easing: 'cubic-bezier(.25,1,.5,1)' });
+  old.forEach((o, i) => {
+    const prior = o.getAnimations();
+    play(o, [shown[i], { opacity: 0, transform: 'scale(.96)', filter: 'blur(2px)' }], {
+      duration: 200 * +shown[i].opacity,
+      easing: 'cubic-bezier(.2,0,0,1)',
+      fill: 'forwards',
+    }).onfinish = () => o.remove();
+    prior.forEach((a) => a.cancel());
+  });
   play(
     v.el,
     [
@@ -355,14 +423,14 @@ function swapView(v: View) {
 
 /** Further into a flow (Add → Open on the device). */
 export function go(factory: ViewFactory) {
-  if (!sheetOpen()) return openSheet(factory);
+  if (!sheetOpen() || root.dataset.closing) return openSheet(factory);
   leave();
   stack.push(factory);
   swapView(factory());
 }
 
 export function back() {
-  if (stack.length < 2) return;
+  if (stack.length < 2 || root.dataset.closing) return;
   leave();
   stack.pop();
   swapView(stack[stack.length - 1]());
@@ -375,19 +443,17 @@ export function back() {
  */
 export function glide(change: () => void, focus: (Element | null | undefined)[] = []) {
   if (!sheetOpen()) return change();
-  const h0 = vp.getBoundingClientRect().height;
-  vp.getAnimations().forEach((a) => a.cancel());
   const view = vp.lastElementChild;
+  // As it all stands on screen, the sheet's own glides under way included.
   const was = new Map<Element, DOMRect>();
   view?.querySelectorAll('*').forEach((e) => {
     if (!(e instanceof SVGElement) || e instanceof SVGSVGElement) was.set(e, e.getBoundingClientRect());
   });
+  const h0 = vp.getBoundingClientRect().height;
   change();
-  const plan = planWidth();
-  const h1 = vp.getBoundingClientRect().height;
-  if (Math.abs(h1 - h0) > 1) play(vp, [{ height: `${h0}px` }, { height: `${h1}px` }], { duration: SMOOTH.duration, easing: SMOOTH.easing });
-  startWidth(plan);
-  // Measured with the sheet back at its old size (its glides have just started): only what moved inside it moves.
+  startWidth(planWidth());
+  glideHeight(view, h0, { duration: SMOOTH.duration, easing: SMOOTH.easing });
+  // Measured with the sheet back at its size on screen (its glides have just started): only what moved inside it moves.
   const moved = new Set<Element>();
   for (const [e, r] of was) {
     if (!e.isConnected || !r.width || !r.height) continue;
@@ -401,7 +467,13 @@ export function glide(change: () => void, focus: (Element | null | undefined)[] 
     let p = e.parentElement;
     while (p && p !== view && !moved.has(p)) p = p.parentElement;
     if (p && p !== view) continue;
-    play(e, [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], { duration: SMOOTH.duration, easing: SMOOTH.easing });
+    // Added to a glide still under way (a quick second pick), which runs on to its end underneath: both rects held
+    // its offset, so this is only the new move, and nothing it had left to go is dropped.
+    play(e, [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], {
+      duration: SMOOTH.duration,
+      easing: SMOOTH.easing,
+      composite: 'add',
+    });
   }
   for (const el of focus)
     if (el)
@@ -415,9 +487,12 @@ export function glide(change: () => void, focus: (Element | null | undefined)[] 
       );
 }
 
-/** The view's job is done (a device connected): ×, and the view's own buttons, step away. */
-export function settle() {
-  sheetEl?.classList.add('arrived');
+/**
+ * The view's job is done (a device connected): ×, and the view's own buttons, step away. `false`: it turned out
+ * not to be (the device left that state): they come back.
+ */
+export function settle(done = true) {
+  sheetEl?.classList.toggle('arrived', done);
 }
 
 /** The sheet scrolls back to the top (a device connected under a scrolled sheet). */
@@ -428,12 +503,27 @@ export const showing = (el: Element) => sheetOpen() && vp.contains(el) && !el.cl
 
 /* ---------- pull down by the header to close ---------- */
 
+/** The dim a pull alone leaves: it fades as the sheet goes down. */
+const dimAt = (dy: number) => Math.max(0, 1 - Math.max(0, dy) / 420);
+
 function pullToClose() {
-  let drag: { y: number; t: number; dy: number; v: number } | null = null;
+  // `y`: where the finger would stand with the sheet at rest; `y0`: where the sheet was taken; `off`: how far the dim
+  // was then from what the pull alone gives (a sheet taken while it still opens).
+  let drag: { y: number; t: number; dy: number; v: number; y0: number; off: number } | null = null;
   sheetEl.addEventListener('pointerdown', (e) => {
     const t = e.target as Element;
     if (!t.closest('.vhead') || t.closest('button, a, input')) return;
-    drag = { y: e.clientY, t: performance.now(), dy: 0, v: 0 };
+    // Not while it leaves, nor while a dialog pops up: its fade and blur ride the same animation as its scale.
+    if (root.dataset.closing || running(sheetEl, 'opacity').length) return;
+    // Taken where it stands (still rising, or settling back from the last pull), and the dim with it.
+    const y0 = new DOMMatrixReadOnly(getComputedStyle(sheetEl).transform).m42;
+    const o = +getComputedStyle(scrim).opacity;
+    running(sheetEl, 'transform').forEach((a) => a.cancel());
+    scrim.getAnimations().forEach((a) => a.cancel());
+    if (y0) sheetEl.style.transform = `translateY(${y0}px)`;
+    if (o !== 1) scrim.style.opacity = String(o);
+    const raw = y0 < 0 ? -unrubber(-y0, sheetEl.offsetHeight) : y0;
+    drag = { y: e.clientY - raw, t: performance.now(), dy: y0, v: 0, y0, off: o - dimAt(y0) };
     sheetEl.setPointerCapture(e.pointerId);
   });
   sheetEl.addEventListener('pointermove', (e) => {
@@ -446,17 +536,22 @@ function pullToClose() {
     drag.dy = dy;
     drag.t = t;
     sheetEl.style.transform = `translateY(${dy}px)`;
-    scrim.style.opacity = String(Math.max(0, 1 - Math.max(0, dy) / 420));
+    scrim.style.opacity = String(Math.min(1, Math.max(0, dimAt(dy) + drag.off)));
   });
   const end = () => {
     if (!drag) return;
-    const { dy, v } = drag;
+    const { dy, v, y0 } = drag;
     drag = null;
-    if (dismisses(dy, v, sheetEl.offsetHeight)) return closeSheet();
+    // A touch that never moved (on a sheet still rising) only lets it settle.
+    if (dy !== y0 && dismisses(dy, v, sheetEl.offsetHeight)) return closeSheet();
+    // Back to rest from where the pull left it, the dim with it on the same spring.
     const from = sheetEl.style.transform;
+    const dim = getComputedStyle(scrim).opacity;
     sheetEl.style.transform = '';
     scrim.style.opacity = '';
-    if (dy !== 0) play(sheetEl, [{ transform: from }, { transform: 'none' }], { duration: SMOOTH.duration, easing: SMOOTH.easing });
+    const o = { duration: SMOOTH.duration, easing: SMOOTH.easing };
+    if (dy !== 0) play(sheetEl, [{ transform: from }, { transform: 'none' }], o);
+    if (+dim !== 1) play(scrim, [{ opacity: dim }, { opacity: 1 }], o);
   };
   sheetEl.addEventListener('pointerup', end);
   sheetEl.addEventListener('pointercancel', end);

@@ -1,5 +1,6 @@
 // Dawnline rpcd methods: the live revision, the Overview status (servers,
-// people, totals, map, recent activity), the activity log and traffic history.
+// people, totals, map, recent activity), the live meter, the activity log and
+// traffic history.
 
 import { readfile } from 'fs';
 import { _ } from 'dawnline.i18n';
@@ -13,6 +14,7 @@ import * as loop from 'dawnline.loop';
 import * as awg from 'dawnline.awg';
 import * as lookup from 'dawnline.lookup';
 import * as health from 'dawnline.health';
+import * as meter from 'dawnline.meter';
 import { wrap, str, clamp_days } from 'dawnline.rpc.common';
 
 /** The router's public IPv4 (null when none or private). */
@@ -127,7 +129,8 @@ function server_view(m, srv, usage, dmp, rates, days) {
 		blocked: awg.blocked_text(srv),
 		// Home networks (interfaces) for the per-person picker.
 		home: map(net.server_net(srv).home, (h) => ({ dev: h.dev, nets: h.nets })),
-		peers, online, obf: srv.obf,
+		// The header protection key is a secret every device shares: whether there is one.
+		peers, online, obf: awg.obf_public(srv.obf), hpk: !!srv.obf.header_protection_key,
 		// Bytes per second, one point a minute: [ts, rx, tx] (rx = from devices).
 		rate: rates[srv.id] ?? [],
 		// Daily traffic of the people on this server (its Overview chart).
@@ -137,7 +140,8 @@ function server_view(m, srv, usage, dmp, rates, days) {
 
 /*
  * Everything the pages show at once. Readable by read-only users: no personal
- * codes or links here (person_links has them).
+ * codes or links here (person_links has them), and no keys but public ones
+ * (device_config has the rest).
  */
 function status(a) {
 	let m = core.load();
@@ -282,8 +286,21 @@ function rev() {
 	return { rev: +(live.presence()?.rev ?? 0), version: VERSION };
 }
 
+/*
+ * The live meter (Overview): each call keeps the agent's watcher writing out
+ * the points it keeps for meter.WANT_FOR seconds more (a first call finds
+ * none yet: the watcher writes the last two minutes within a second) and
+ * returns them (dawnline.meter.read), those newer than `since` when given. Read-only users may look: server ids
+ * and bytes per second only, no keys or personal codes.
+ */
+function meter_points(a) {
+	meter.want();
+	return meter.read(+a.since || 0);
+}
+
 export const methods = {
 	rev: { call: wrap(rev) },
+	meter: { args: { since: 0 }, call: wrap(meter_points) },
 	status: { args: { days: 30 }, call: wrap(status) },
 	events: { args: { limit: 300, person: '', since: 0 }, call: wrap(events_list) },
 	logs_clear: { args: { person: '', device: '', category: '', older_days: '' }, call: wrap(logs_clear) },

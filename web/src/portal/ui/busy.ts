@@ -39,14 +39,18 @@ function hand(btn: HTMLElement, next: Animation[]) {
 }
 
 export function busyOn(btn: HTMLElement) {
-  btn.querySelector(':scope > .orb')?.remove();
   const parts = content(btn);
   const from = parts.map(now);
-  const orb = h('span', { class: 'orb', 'aria-hidden': 'true' }, h('i'), h('i'));
-  btn.append(orb);
+  // An orb still on its way out (pressed again right after an answer) turns back from where it stands, at once.
+  const was = btn.querySelector<HTMLElement>(':scope > .orb');
+  const orb = was ?? h('span', { class: 'orb', 'aria-hidden': 'true' }, h('i'), h('i'));
+  if (!was) btn.append(orb);
   btn.classList.add('busy');
   btn.setAttribute('aria-busy', 'true');
-  hand(btn, [...parts.map((p, i) => play(p, [from[i], GONE], OUT)), play(orb, [ORB_GONE, SHOWN], IN)]);
+  hand(btn, [
+    ...parts.map((p, i) => play(p, [from[i], GONE], OUT)),
+    play(orb, [was ? now(was) : ORB_GONE, SHOWN], was ? { ...IN, delay: 0 } : IN),
+  ]);
 }
 
 export function busyOff(btn: HTMLElement) {

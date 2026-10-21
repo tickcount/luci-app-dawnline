@@ -154,6 +154,7 @@ export class PeoplePage {
       now: this.st.now,
       today: this.today,
       core: coreFor(this.st.servers, p.server),
+      server: this.st.servers.find((s) => s.id === p.server),
     };
   }
 

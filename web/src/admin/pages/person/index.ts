@@ -161,6 +161,7 @@ export class PersonPage {
       now: this.st.now,
       today: this.today,
       core: this.core,
+      server: this.st.servers.find((s) => s.id === this.p.server),
       events: () => this.events,
     };
   }

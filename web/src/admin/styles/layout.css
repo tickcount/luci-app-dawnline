@@ -44,5 +44,8 @@
 .dl-seg button b.warn { background: var(--dl-warn-wash); color: var(--dl-warn); }
 .dl-seg.sm button { padding: 2px 9px; font-size: 11px; }
 .dl-seg.wide { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-radius: 12px; padding: 4px; }
-.dl-seg.wide button { flex-direction: column; justify-content: center; padding: 8px 6px; border-radius: 9px; gap: 3px; }
+/* Three equal columns: a label longer than its column (Russian "Дом и интернет") wraps under its icon instead of
+   running out of the button. */
+.dl-seg.wide button { flex-direction: column; justify-content: center; padding: 8px 6px; border-radius: 9px; gap: 3px;
+  white-space: normal; text-align: center; line-height: 16px; }
 .dl-seg.wide button.on { background: var(--dl-primary); color: var(--dl-primary-fg); }

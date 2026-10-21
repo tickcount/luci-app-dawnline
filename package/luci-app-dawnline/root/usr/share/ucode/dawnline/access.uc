@@ -115,9 +115,9 @@ function peer_of(dmp, d) {
 	return dmp.peers[d.public_key];
 }
 
-/** What the device sends to the router: its configuration's AllowedIPs. */
+/** What the device sends to the router: its configuration's AllowedIPs (its own, with lan_bypass). */
 function routed(m, srv, p, d) {
-	return awg.allowed_ips(m, srv, p);
+	return awg.allowed_ips(m, srv, p, d);
 }
 
 /** The home network (interface) of a server that holds an address. */
@@ -203,6 +203,12 @@ function from_device(m, d, t, states, dmp, snap) {
 		push(steps, connected(dmp, t.dev, who));
 		return steps;
 	}
+
+	// A device that keeps its own local network out of the tunnel (lan_bypass;
+	// Home only is the same either way) sends a private address there, router
+	// or home address alike: it never reaches this router's rules.
+	if (d.lan_bypass && p.access != 'lan' && !in_nets(t.ip, allowed))
+		return stop(steps, via(t.ip));
 
 	// The router itself.
 	if (index(router_addrs(snap), t.ip) >= 0) {
@@ -301,17 +307,20 @@ function to_device(m, ip, d, states, dmp, snap) {
 	return steps;
 }
 
-/** `from` and `to`: a device id, or an IPv4 address (optionally :port). */
-export function check(m, from, to) {
+/**
+ * `from` and `to`: a device id, or an IPv4 address (optionally :port).
+ * `ctx` = { states, dmp, snap } (a test's own); read from the router when not
+ * given. Returns { ok, steps: [{ ok, title, detail }] }.
+ */
+export function check(m, from, to, ctx) {
 	let a = parse_target(m, from), b = parse_target(m, to);
 	if (!a)
 		die(sprintf(_('"%s" is not a device or an IPv4 address.'), from));
 	if (!b)
 		die(sprintf(_('"%s" is not a device or an IPv4 address.'), to));
-	let usage = core.load_usage();
-	let states = view.states(m, usage);
-	let dmp = live.dump(m);
-	let snap = net.snapshot(true);
+	let states = ctx?.states ?? view.states(m, core.load_usage());
+	let dmp = ctx?.dmp ?? live.dump(m);
+	let snap = ctx?.snap ?? net.snapshot(true);
 	let steps;
 	if (a.dev)
 		steps = from_device(m, a.dev, b, states, dmp, snap);

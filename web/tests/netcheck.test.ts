@@ -66,6 +66,8 @@ describe('netcheck', () => {
 import {
   chars,
   circleNameHelp,
+  deviceKeepaliveHelp,
+  deviceMtuHelp,
   dnsHelp,
   domainHelp,
   expiresHelp,
@@ -111,6 +113,18 @@ describe('field helps', () => {
     expect(mtuHelp('1400', { computer: 1368, phone: 1280 }).text).toContain('phones and tablets 1280');
     expect(keepaliveHelp('601').bad).toBe(true);
     expect(keepaliveHelp('0').bad).toBe(false);
+  });
+  it('checks a device’s own MTU and keep-alive like the router', () => {
+    expect(deviceMtuHelp('')).toEqual({ text: 'Empty: automatic. Lower it when big pages hang on this device.', bad: false });
+    expect(deviceMtuHelp(' 1400 ').bad).toBe(false);
+    expect(deviceMtuHelp('1279')).toEqual({ text: 'From 1280 to 1500.', bad: true });
+    expect(deviceMtuHelp('1501').bad).toBe(true);
+    expect(deviceMtuHelp('14OO').bad).toBe(true);
+    expect(deviceKeepaliveHelp('').bad).toBe(false);
+    expect(deviceKeepaliveHelp('0').bad).toBe(false);
+    expect(deviceKeepaliveHelp('600').bad).toBe(false);
+    expect(deviceKeepaliveHelp('601')).toEqual({ text: 'From 0 to 600 seconds.', bad: true });
+    expect(deviceKeepaliveHelp('-1').bad).toBe(true);
   });
   it('checks limits, quota and dates', () => {
     expect(limitHelp('0').bad).toBe(true);

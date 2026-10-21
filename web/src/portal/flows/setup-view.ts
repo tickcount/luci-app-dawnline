@@ -2,10 +2,12 @@
 // on the device itself, two steps (get the app, add the connection) with a way
 // round folded under the wait; a router, its packages and the file; a phone or
 // a tablet set up from elsewhere, its link as a code or the connection as a
-// code for an app it has; a computer set up from elsewhere, its link or the
-// connection to send there. Which app and where it comes from follow the
+// code for an app it has (the link again where the key is too long for one); a
+// computer, or another device added from a phone, its link or the connection
+// to send there. Which app and where it comes from follow the
 // server's disguise and the platform (setup.ts). The wait for the first
-// connection sits on top the whole time (wait.ts).
+// connection sits on top the whole time (wait.ts); on the device itself and for
+// a router the steps regroup under it as it goes (can't finish, no data).
 
 import type { ClientConfig, Device } from '../../shared/types';
 import { fmt } from '../../shared/i18n';
@@ -15,7 +17,7 @@ import { h, put } from '../dom';
 import { SMOOTH, play } from '../motion';
 import { APP_NAME, appsFor, deviceNoun, inWebview, keyFileName, sameDevice, setupLink, type AppId } from '../setup';
 import { pageUrl, platform, preset, repaint } from '../state';
-import { accordion } from '../ui/accordion';
+import { accordion, regrow, type Accordion } from '../ui/accordion';
 import { codeRow, linkRow, type CodeRow } from '../ui/codes';
 import { once, toast } from '../ui/feedback';
 import { glass } from '../ui/glass';
@@ -37,7 +39,8 @@ import {
   storeBlock,
   type SetupCtx,
 } from './setup-parts';
-import { arrive, waitWay, watchFirstConnection } from './wait';
+import type { WayState } from '../way';
+import { follow, waitWay, watchFirstConnection } from './wait';
 
 async function getConfig(d: Device): Promise<ClientConfig | null> {
   try {
@@ -49,14 +52,17 @@ async function getConfig(d: Device): Promise<ClientConfig | null> {
   }
 }
 
-/** Set up a device from its card: the configuration first (the button waits for it), then the sheet. */
-export async function openSetup(d: Device, from?: EventTarget | null) {
+/**
+ * Set up a device from its card: the configuration first (the button waits for it), then the sheet. `here`: the
+ * page came from the device's own set-up link, so it is open on that device (setup.ts sameDevice).
+ */
+export async function openSetup(d: Device, from?: EventTarget | null, here = false) {
   if (secureFirst()) return;
   const run = async () => {
     const cfg = await getConfig(d);
     if (!cfg) return;
     const key = await vpnKey(cfg, cfg.server);
-    openSheet(() => setupView(d, cfg, key));
+    openSheet(() => setupView(d, cfg, key, here));
   };
   if (from instanceof HTMLButtonElement) await once(from, run);
   else await run();
@@ -78,42 +84,104 @@ function step(n: string, title: Node | string, kids: (Node | null)[]): HTMLEleme
   );
 }
 
-/** Fold a block away (height, then gone) or bring it back; `instant` without motion. */
+/** A block folded away: no height, blurred out. */
+const FOLDED: Keyframe = { height: '0px', opacity: 0, filter: 'blur(4px)' };
+
+/**
+ * Fold a block away (height, then gone) or bring it back, from where it stands
+ * now: a fold turned round half-way (a double click) never jumps. What holds it
+ * (a row still opening) glides on to its new height with it.
+ * `instant` without motion.
+ */
 function foldBlock(el: HTMLElement, fold: boolean, instant: boolean) {
-  const cur = el.hidden ? 0 : el.getBoundingClientRect().height;
+  const cs = getComputedStyle(el);
+  const cur: Keyframe = el.hidden
+    ? FOLDED
+    : { height: `${el.getBoundingClientRect().height}px`, opacity: cs.opacity, filter: cs.filter === 'none' ? 'blur(0px)' : cs.filter };
   el.getAnimations().forEach((a) => a.cancel());
+  el.hidden = fold;
+  regrow(el.parentElement);
   if (instant) {
-    el.hidden = fold;
+    el.style.overflow = '';
     return;
   }
   el.style.overflow = 'hidden';
   el.hidden = false;
-  const to = fold ? 0 : el.getBoundingClientRect().height;
-  const [a, b] = fold ? [1, 0] : [0, 1];
-  play(
-    el,
-    [
-      { height: `${cur}px`, opacity: a, filter: `blur(${4 - a * 4}px)` },
-      { height: `${to}px`, opacity: b, filter: `blur(${4 - b * 4}px)` },
-    ],
-    {
-      duration: SMOOTH.duration,
-      easing: SMOOTH.easing,
-    },
-  ).onfinish = () => {
+  const to = fold ? FOLDED : { height: `${el.getBoundingClientRect().height}px`, opacity: 1, filter: 'blur(0px)' };
+  play(el, [cur, to], { duration: SMOOTH.duration, easing: SMOOTH.easing }).onfinish = () => {
     el.style.overflow = '';
     el.hidden = fold;
   };
 }
 
+/** The first control in `el` that can take focus now (shown, not disabled). */
+const firstControl = (el: Element | null | undefined) =>
+  [...(el?.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], input:not([disabled])') ?? [])].find(
+    (x) => x.getClientRects().length > 0,
+  );
+
+/**
+ * The steps on the device itself or for a router, as the way goes (way.ts); the
+ * layouts set up from elsewhere have rows, no steps. Waiting: the steps as
+ * built (connected is never asked: what shows folds shut as it is, wait.ts
+ * follow). Can't finish: the network is the likely cause, so they fold
+ * into one closed row, "Set it up again". No data: only what fixes it, open in
+ * one row, "Add the connection again" ("Import the configuration again" for a
+ * router): the connection step without its number and title. A router that
+ * knocks has AmneziaWG on it already, so its row holds that step alone in both.
+ * What sits on field inside the row steps up one (accordion.css). "Not on the X
+ * right now?" (`round`, on the device itself) goes in both: the device is in
+ * hand. Focus inside what moves (a badge just used) stays in the sheet: on that
+ * control where it still shows, else on the first one of what holds the steps
+ * now. Returns whether anything changed.
+ */
+function regroup(body: HTMLElement, steps: HTMLElement, round: Accordion | null, router: boolean): (st: WayState) => boolean {
+  const [s1, s2] = [...steps.children].slice(-2) as HTMLElement[];
+  const gap = steps.querySelector<HTMLElement>(':scope > .steps-gap');
+  const head2 = [...s2.querySelectorAll<HTMLElement>(':scope > .step-n, :scope > .step-b > .step-t')];
+  let look: 'steps' | 'again' | 'conn' = 'steps';
+  let row: HTMLElement | null = null;
+  return (st) => {
+    const next = st === 'trying' ? 'again' : st === 'nodata' ? 'conn' : 'steps';
+    if (next === look) return false;
+    look = next;
+    // Moving a focused control out of the page and back drops its focus (to the page under the sheet).
+    const had = document.activeElement;
+    const inside = had instanceof HTMLElement && (steps.contains(had) || !!round?.el.contains(had) || !!row?.contains(had));
+    row?.remove();
+    row = null;
+    // The steps show whole wherever they go: opened, the way round folds them away.
+    round?.setOpen(-1);
+    if (round) round.el.hidden = next !== 'steps';
+    const alone = next === 'conn' || (next === 'again' && router);
+    for (const e of [gap, s1, ...head2]) if (e) e.hidden = alone;
+    if (next === 'steps') body.append(steps);
+    else {
+      const title = next === 'again' ? _('Set it up again') : router ? _('Import the configuration again') : _('Add the connection again');
+      row = accordion([{ icon: glass('refresh', 'blue'), title, body: [steps] }], { inset: true, open: next === 'conn' ? 0 : -1 }).el;
+      body.append(row);
+    }
+    if (inside) {
+      const to =
+        had.isConnected && had.getClientRects().length
+          ? had
+          : next === 'again'
+            ? row?.querySelector<HTMLElement>('.acc-head')
+            : firstControl(alone ? s2 : steps);
+      to?.focus({ preventScroll: true });
+    }
+    return true;
+  };
+}
+
 type Layout = 'same' | 'router' | 'away' | 'pc-away';
 
-export function setupView(d: Device, cfg: ClientConfig, key: string): View {
+export function setupView(d: Device, cfg: ClientConfig, key: string, here = false): View {
   const pf = platform();
   const apps = appsFor(preset());
   const handheld = d.kind === 'phone' || d.kind === 'tablet';
   const router = d.kind === 'router';
-  const same = sameDevice(d.kind, pf);
+  const same = sameDevice(d.kind, pf, here);
   const layout: Layout = same ? 'same' : router ? 'router' : handheld ? 'away' : 'pc-away';
   const there = deviceNoun(d.kind);
   const thereOn = deviceNoun(d.kind, true);
@@ -135,8 +203,10 @@ export function setupView(d: Device, cfg: ClientConfig, key: string): View {
         app = v;
         rememberApp(d, v);
         segs.forEach((x) => x.sync(v));
-        // The sheet glides to its new height; inside, what changed morphs (morphInto).
+        // The sheet glides to its new height; inside, what changed morphs (morphInto). A row still opening
+        // around what changed glides on to its new height, and the sheet with it.
         glide(fill);
+        regrow(title1, getBox, addBox, codeBox, sendBox);
       },
     );
     segs.push(s);
@@ -147,6 +217,22 @@ export function setupView(d: Device, cfg: ClientConfig, key: string): View {
   const addBox = h('div', { class: 'step-box' });
   const codeBox = h('div', { class: 'step-box' });
   const sendBox = h('div', { class: 'step-box' });
+  // Not on the device: the link goes there (as a code for a phone's camera); the page there does the rest.
+  const linkThere = setupLink(pageUrl(), d.id);
+  // A connection too long for a camera (a key this browser cannot compress, a configuration with a long list of
+  // networks): the code is the link instead; the page there hands it over. The words follow the app picked.
+  const tooLong = {
+    text: linkThere,
+    words: () => [
+      h(
+        'span',
+        {},
+        app === 'vpn'
+          ? fmt(_('The key is too long for a code. Scan this one to open your link on the %s instead.'), thereOn)
+          : fmt(_('The configuration is too long for a code. Scan this one to open your link on the %s instead.'), thereOn),
+      ),
+    ],
+  };
   let code: CodeRow | null = null;
   let scan: ScanLine | null = null;
   let codeApp: AppId | null = null;
@@ -167,26 +253,27 @@ export function setupView(d: Device, cfg: ClientConfig, key: string): View {
     // The router's file is the same for either app: it stays as it is (a folded configuration stays folded).
     if (!router) morphInto(addBox, connectKids(c));
     else if (!addBox.firstChild) put(addBox, filePane(cfg));
-    const text = app === 'vpn' ? vpnQrText(key) : cfg.conf;
-    // Another app: its words morph in place, the code changes only when it holds something else (codes.ts).
-    if (code && scan && code.el.isConnected) {
-      if (codeApp !== app) {
-        code.swap(text);
-        scan.set(app);
+    // The connection as a code: only a phone or a tablet set up from here shows one.
+    if (layout === 'away') {
+      const text = app === 'vpn' ? vpnQrText(key) : cfg.conf;
+      // Another app: its words morph in place, the code changes only when it holds something else (codes.ts).
+      if (code && scan && code.el.isConnected) {
+        if (codeApp !== app) {
+          code.swap(text);
+          scan.set(app);
+        }
+      } else {
+        scan = scanLine(app);
+        code = codeRow(text, [scan.el], tooLong);
+        codeBox.replaceChildren(code.el);
       }
-    } else {
-      scan = scanLine(app);
-      code = codeRow(text, [scan.el]);
-      codeBox.replaceChildren(code.el);
+      codeApp = app;
     }
-    codeApp = app;
     morphInto(sendBox, sendKids(c));
     pill?.sync();
   }
   fill();
 
-  // Not on the device: the link goes there (as a code for a phone's camera); the page there does the rest.
-  const linkThere = setupLink(pageUrl(), d.id);
   const linkBody = () => [
     handheld
       ? codeRow(linkThere, [h('span', {}, _('Point its camera at the code: the link opens there.'))]).el
@@ -201,6 +288,7 @@ export function setupView(d: Device, cfg: ClientConfig, key: string): View {
     body.appendChild(
       notice('warn', 'shield', null, _('Open this page in Safari or Chrome: the store opens from here, but the app handoff does not.')),
     );
+  let shape: (st: WayState) => boolean = () => false;
   if (layout === 'same') {
     // Opened, the way round folds the steps away: the device is not in hand.
     const steps = h('div', { class: 'steps-wrap' }, h('div', { class: 'steps-gap' }), step1(), step2());
@@ -209,7 +297,12 @@ export function setupView(d: Device, cfg: ClientConfig, key: string): View {
       onToggle: (_i, open, instant) => foldBlock(steps, open, instant),
     });
     body.append(round.el, steps);
-  } else if (layout === 'router') body.append(step1(), step2());
+    shape = regroup(body, steps, round, false);
+  } else if (layout === 'router') {
+    const steps = h('div', { class: 'steps-wrap' }, step1(), step2());
+    body.append(steps);
+    shape = regroup(body, steps, null, true);
+  }
   // A phone or a tablet set up from here: its link as a code, or the connection as a code for an app it has.
   else if (layout === 'away')
     body.appendChild(
@@ -221,7 +314,8 @@ export function setupView(d: Device, cfg: ClientConfig, key: string): View {
         { inset: true, open: 1 },
       ).el,
     );
-  // A computer set up from somewhere else: its system is not known here, so the link goes there and the page there does both steps.
+  // A computer set up from somewhere else, or something else (a TV, a box, a NAS) set up from a phone: its system is
+  // not known here, so the link goes there and the page there does both steps.
   else
     body.appendChild(
       accordion(
@@ -233,29 +327,20 @@ export function setupView(d: Device, cfg: ClientConfig, key: string): View {
       ).el,
     );
 
-  const way = waitWay(d);
-  let finished = false;
-  onLeave(
-    watchFirstConnection(
-      d,
-      () => {
-        if (finished) return;
-        finished = true;
-        void arrive(way, body, d);
-      },
-      way.gaveUp,
-    ),
-  );
-  // Closed before the device connected: the page shows what the polls brought.
-  onClosed(() => repaint());
-
-  const subline =
+  const subline = sub(
     layout === 'same'
       ? _('Two steps, about a minute')
       : router
         ? _('The packages and the file for OpenWrt')
-        : fmt(_('The app goes on the %s.'), there);
+        : fmt(_('The app goes on the %s.'), there),
+  );
+  const way = waitWay(d);
+  const wait = follow(d, way, { sub: subline, rest: body, shape });
+  onLeave(watchFirstConnection(d, wait.seen, wait.gaveUp));
+  // Closed before the device connected: the page shows what the polls brought.
+  onClosed(() => repaint());
+
   const title = fmt(_('Set up %s'), d.name);
-  const el = h('div', { class: 'view' }, head(title, { acts: !!pill }), sub(subline), way.el, body);
+  const el = h('div', { class: 'view' }, head(title, { acts: !!pill }), subline, way.el, body);
   return { el, label: title, acts: pill?.el ?? null };
 }

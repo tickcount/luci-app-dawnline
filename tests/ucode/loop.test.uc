@@ -1,5 +1,7 @@
 // dawnline.loop: the "like a home device" link's errors, stored as codes and
-// put into words when read; the netns's MAC and which LAN address it may use.
+// put into words when read; the netns's MAC and which LAN address it may use;
+// the policy rules for the servers that send their devices this way, and the
+// commands that bring the rules the kernel shows to them.
 import * as loop from 'dawnline.loop';
 import { ip2int, parse_cidr } from 'dawnline.util';
 
@@ -55,4 +57,53 @@ test('ns_rules', () => {
 	ok(index(fast, 'ct state established meta l4proto { tcp, udp } flow add @ft') >= 0, 'established flows added');
 	ok(index(plain, 'flowtable') < 0 && index(plain, 'flow add') < 0, 'plain: no flowtable');
 	eq(replace(fast, /\n\tflowtable ft \{(\n\t\t[^\n]*)*\n\t\}|\n\t\tct state established meta l4proto \{ tcp, udp \} flow add @ft/g, ''), plain, 'otherwise the same rules');
+});
+
+// A plan with one server sending its devices like a home device (plan() makes
+// it, from the server's interface, its tunnel and its home networks).
+const PLAN = { address: '192.168.1.250', table: 2077,
+	servers: [ { ifname: 'awghome', subnet: '10.9.0.0/29', direct: [ '10.9.0.0/29', '192.168.1.0/24' ] } ] };
+
+test('rules', () => {
+	eq(loop.rules(PLAN), [
+		{ pref: 5205, iif: 'awghome', to: '192.168.1.250/32', table: '2077' },
+		{ pref: 5210, iif: 'awghome', to: '10.9.0.0/29', table: 'main' },
+		{ pref: 5210, iif: 'awghome', to: '192.168.1.0/24', table: 'main' },
+		{ pref: 5290, iif: 'awghome', to: null, table: '2077' },
+	], 'DNS into the netns, home and the tunnel by main, the rest into the netns');
+	eq(loop.rules({ servers: [] }), [], 'no server sends anyone');
+	eq(loop.rules(null), [], 'no plan');
+});
+
+// What `ip -j -4 rule show` prints for the rules of PLAN: "src": "all" for a
+// rule without a source, a /32 without its length (iproute2 iprule.c).
+const HOME_SHOWN = [
+	{ priority: 5205, src: 'all', iif: 'awghome', dst: '192.168.1.250', table: '2077' },
+	{ priority: 5210, src: 'all', iif: 'awghome', dst: '10.9.0.0', dstlen: 29, table: 'main' },
+	{ priority: 5210, src: 'all', iif: 'awghome', dst: '192.168.1.0', dstlen: 24, table: 'main' },
+	{ priority: 5290, src: 'all', iif: 'awghome', table: '2077' },
+];
+
+test('rule_cmds: the rules the kernel shows, against the plan', () => {
+	eq(loop.rule_cmds(PLAN, HOME_SHOWN), [], 'as wanted: nothing to do (no rule added again, none removed)');
+	eq(loop.rule_cmds(PLAN, slice(HOME_SHOWN, 0, 3)), [ "ip -4 rule add priority 5290 iif 'awghome' lookup 2077" ], 'one gone: only it comes back');
+	eq(loop.rule_cmds(PLAN, [ ...HOME_SHOWN, HOME_SHOWN[3] ]), [ "ip -4 rule del priority 5290 iif 'awghome' lookup 2077" ], 'one twice: one of them goes');
+	eq(loop.rule_cmds(PLAN, []), [
+		"ip -4 rule add priority 5205 iif 'awghome' to 192.168.1.250/32 lookup 2077",
+		"ip -4 rule add priority 5210 iif 'awghome' to 10.9.0.0/29 lookup main",
+		"ip -4 rule add priority 5210 iif 'awghome' to 192.168.1.0/24 lookup main",
+		"ip -4 rule add priority 5290 iif 'awghome' lookup 2077",
+	], 'none yet: all of them');
+	eq(loop.rule_cmds({ servers: [] }, HOME_SHOWN), [
+		"ip -4 rule del priority 5205 iif 'awghome' to 192.168.1.250 lookup 2077",
+		"ip -4 rule del priority 5210 iif 'awghome' to 10.9.0.0/29 lookup main",
+		"ip -4 rule del priority 5210 iif 'awghome' to 192.168.1.0/24 lookup main",
+		"ip -4 rule del priority 5290 iif 'awghome' lookup 2077",
+	], 'none wanted: each removed as shown, without "from all"');
+	eq(loop.rule_cmds({ ...PLAN, servers: [ { ...PLAN.servers[0], direct: [ '10.9.0.0/29', '192.168.2.0/24' ] } ] }, HOME_SHOWN), [
+		"ip -4 rule add priority 5210 iif 'awghome' to 192.168.2.0/24 lookup main",
+		"ip -4 rule del priority 5210 iif 'awghome' to 192.168.1.0/24 lookup main",
+	], 'another home network: the new rule first, then the old one goes');
+	eq(loop.rule_cmds(PLAN, [ ...HOME_SHOWN, { priority: 5290, src: '10.9.0.2', iif: 'awghome', table: '2077' } ]),
+		[ "ip -4 rule del priority 5290 from 10.9.0.2 iif 'awghome' lookup 2077" ], 'a rule of ours with a source is not one of them: it goes');
 });

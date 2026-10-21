@@ -2,20 +2,23 @@
 // access reaches (home and internet as two tiles, and the names devices at
 // home reach this person's devices by); the data, as a ring in the head and
 // the month day by day inside; and until when, as the days left over a
-// calendar of the weeks, with the admin's hours as a bar of the day.
+// calendar of the weeks, with the admin's hours as a bar of the day. A repaint
+// keeps the rows on the page and changes what they hold in place.
 
 import type { Pair, Person } from '../../shared/types';
 import { accessLabel, byDeviceState, bytes, date, daysLeft, endsSoon, parseDay } from '../../shared/format';
 import { fill, fmt, locale, num, plural } from '../../shared/i18n';
 import { h, ic, markup } from '../dom';
 import { calendar, clockOf, hoursFor, minuteAt, monthOf, stretches } from '../days';
+import { SMOOTH, play } from '../motion';
 import { now, today, type State } from '../state';
-import { accordion, type Accordion } from '../ui/accordion';
+import { accordion, regrow, type Accordion } from '../ui/accordion';
 import { bars, upDown } from '../ui/bars';
 import { copy } from '../ui/feedback';
 import { glass } from '../ui/glass';
-import { morphChanged, setText, textsOf } from '../ui/morph';
+import { morphChanged, morphInto, setText, textOf, textsOf } from '../ui/morph';
 import { reachableFromHome } from './devices';
+import { holdFoot } from './frame';
 
 const desc = (text: string) => h('p', { class: 'desc' }, text);
 /** A share of a length, as a CSS percentage. */
@@ -266,7 +269,7 @@ export function accessAccordion(st: State, open = 1): Accordion {
       // No end date and no hours: nothing to open, the row just says so.
       { icon: glass('calendar'), title: _('Access until'), val: untilVal, valHide: !!p.expires && (left ?? 0) >= 0, body: untilBody },
     ],
-    { open },
+    { open, hold: holdFoot },
   );
 }
 
@@ -280,13 +283,115 @@ export function accessSection(): HTMLElement {
   );
 }
 
+/**
+ * Markup to compare: each keyed value as the words it says (one still morphing, those it turns into), less the ids
+ * each glass icon makes up (the same icon twice is the same).
+ */
+function plain(el: Element, inner = false): string {
+  const c = el.cloneNode(true) as Element;
+  const keyed = el.querySelectorAll<HTMLElement>('[data-t]');
+  c.querySelectorAll<HTMLElement>('[data-t]').forEach((k, i) => {
+    k.textContent = textOf(keyed[i]);
+    k.classList.remove('mt', 'mt-ib');
+  });
+  return (inner ? c.innerHTML : c.outerHTML).replace(/\bgl\d+/g, 'gl');
+}
+
+/**
+ * The rows on the page take the new rows' content in place, so what moves in
+ * them goes on (a row opening or folding, the calendar's days coming in, a
+ * value still morphing into the same words): keyed values in a head take their
+ * new words (they morph afterwards, morphChanged), a head swaps only the parts
+ * that changed (its click stays the row's own), and a body takes its new
+ * content (`refillBody`). Rows of another shape (an end date set or taken
+ * away) can't: null. Returns what came in whole.
+ */
+function refill(acc: HTMLElement, next: HTMLElement): Element[] | null {
+  const rows = [...acc.children] as HTMLElement[];
+  const news = [...next.children] as HTMLElement[];
+  if (rows.length !== news.length || rows.some((r, i) => r.classList.contains('still') !== news[i].classList.contains('still')))
+    return null;
+  const fresh: Element[] = [];
+  rows.forEach((r, i) => {
+    const [head, body] = [...r.children] as HTMLElement[];
+    const [nh, nb] = [...news[i].children] as HTMLElement[];
+    for (const el of head.querySelectorAll<HTMLElement>('[data-t]')) {
+      const n = nh.querySelector(`[data-t="${el.dataset.t}"]`);
+      if (n && textOf(el) !== n.textContent) setText(el, n.textContent ?? '');
+    }
+    if (head.children.length !== nh.children.length) head.replaceChildren(...nh.childNodes);
+    else
+      [...nh.children].forEach((y, k) => {
+        const x = head.children[k];
+        if (plain(x) === plain(y)) return;
+        // The same box (the value that hides while the row is open) keeps its own fade and takes the new content.
+        if (x.tagName === y.tagName && x.className === y.className) x.replaceChildren(...y.childNodes);
+        else x.replaceWith(y);
+      });
+    fresh.push(...refillBody(r, body, nb));
+  });
+  return fresh;
+}
+
+/** Open bodies whose days are still coming in, with what each shows once they are in. */
+const waiting = new WeakMap<HTMLElement, HTMLElement>();
+
+/**
+ * A row's body takes the new one's content: shut, at once; open or still
+ * closing, where it stands (morphInto: a crossing piece keeps its old words as
+ * it fades) while the row glides to its new height. The calendar's days still
+ * coming in finish their cascade first: the body changes once they are in, to
+ * what the last repaint brought. Returns what came in whole.
+ */
+function refillBody(r: HTMLElement, body: HTMLElement, nb: HTMLElement): Element[] {
+  if (waiting.has(body)) {
+    waiting.set(body, nb);
+    return [];
+  }
+  if (plain(body, true) === plain(nb, true)) return [];
+  if (!r.classList.contains('open') && !r.classList.contains('closing')) {
+    body.replaceChildren(...nb.childNodes);
+    return [];
+  }
+  const days = [...body.querySelectorAll('.cal-g i')].flatMap((c) => c.getAnimations());
+  if (days.length) {
+    waiting.set(body, nb);
+    void Promise.all(days.map((a) => a.finished.catch(() => undefined))).then(() => {
+      const n = waiting.get(body)!;
+      waiting.delete(body);
+      if (!r.isConnected) return;
+      const said = textsOf(body);
+      morphChanged(body, said, refillBody(r, body, n));
+    });
+    return [];
+  }
+  // Its days came in when it opened: what comes now is the change alone.
+  r.classList.remove('opened');
+  const h0 = r.getBoundingClientRect().height;
+  const moving = r.getAnimations().length > 0;
+  const came = morphInto(body, [...nb.childNodes]);
+  // Opening or folding still: that glide heads for the new height instead.
+  if (moving) regrow(body);
+  else {
+    const h1 = r.getBoundingClientRect().height;
+    if (Math.abs(h1 - h0) > 0.5)
+      play(r, [{ height: `${h0}px` }, { height: `${h1}px` }], { duration: SMOOTH.duration, easing: SMOOTH.easing });
+  }
+  return came;
+}
+
 let shown: Accordion | null = null;
-/** The accordion for this state, the same row open as before. */
+/** The accordion for this state, the same row open as before: the rows on the page stay when they can (`refill`). */
 export function fillAccess(section: HTMLElement, st: State) {
+  const slot = section.querySelector('.acc-slot') as HTMLElement;
   const acc = accessAccordion(st, shown ? shown.openIndex() : 1);
   // The values it showed: what changed morphs from it.
   const said = textsOf(section);
-  section.querySelector('.acc-slot')!.replaceChildren(acc.el);
-  if (shown) morphChanged(section, said);
-  shown = acc;
+  const had = !!shown;
+  const fresh = shown && slot.contains(shown.el) ? refill(shown.el, acc.el) : null;
+  if (!fresh) {
+    slot.replaceChildren(acc.el);
+    shown = acc;
+  }
+  if (had) morphChanged(section, said, fresh ?? []);
 }

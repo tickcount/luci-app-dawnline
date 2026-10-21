@@ -5,6 +5,35 @@ export type Kind = 'computer' | 'phone' | 'tablet' | 'router' | 'other';
 export type PersonState = 'active' | 'paused' | 'expired' | 'quota' | 'hours' | 'no_server' | 'server_off';
 export type Pair = [number, number]; // [rx, tx] from the router's point of view
 
+/**
+ * A device's link failing in a named way (the agent's watcher), shown once it
+ * held 3 minutes: trying (it knocks, never finishes connecting), shared (one
+ * configuration on two devices), dropped (connected, but the router drops
+ * what it sends), unstable (the connection keeps breaking).
+ */
+export type LinkState = 'trying' | 'shared' | 'dropped' | 'unstable';
+
+export interface DeviceLink {
+  state: LinkState;
+  /** When it began (router clock). */
+  since: number;
+}
+
+/**
+ * What a device's link does right now, without that hold, for the set-up
+ * sheet: trying (its initiations reach the router, no handshake follows),
+ * flowing (online, data came in during this session), nodata (online for
+ * 15 s with nothing but handshakes and keepalives in, and the router
+ * answering what it dropped: an old address in its configuration).
+ */
+export type SetupState = 'trying' | 'flowing' | 'nodata';
+
+export interface DeviceSetup {
+  state: SetupState;
+  /** When the watcher first saw it (router clock). */
+  since: number;
+}
+
 export interface Device {
   id: string;
   name: string;
@@ -25,6 +54,23 @@ export interface Device {
   browser_key: boolean;
   /** Its configuration changed (networks, DNS, keys...) since it was last shown or downloaded. */
   config_stale: boolean;
+  // How it connects (set by the admin, LAN Bypass also by the person when adding it).
+  /** LAN Bypass: its own local network stays outside the tunnel (chosen when it was added). */
+  lan_bypass: boolean;
+  /** Its own MTU; 0 = the server's (automatic by kind and disguise). */
+  mtu: number;
+  /** Its own keep-alive in seconds (0 = off); null = the server's. */
+  keepalive: number | null;
+  /** The MTU and keep-alive its configuration carries now; null without a server. */
+  mtu_used: number | null;
+  keepalive_used: number | null;
+  /** Its link failing in a named way; null when it is not. */
+  link: DeviceLink | null;
+  /**
+   * What its link does right now (the set-up sheet); null for none of these. Without the router's agent a session
+   * that lives counts as flowing (nobody tells data from a bare handshake then).
+   */
+  setup: DeviceSetup | null;
 }
 
 export interface Person {
@@ -122,7 +168,10 @@ export interface Server {
   /** The newest handshake from a public address that is not the router's own (0: never). */
   reached?: number;
   online: number;
+  /** The disguise parameters, without the header protection key: only device configurations carry it. */
   obf: Record<string, string>;
+  /** The disguise has a header protection key (AmneziaWG 3.1). */
+  hpk: boolean;
 }
 
 export interface DayUsage {
@@ -182,6 +231,8 @@ export interface AwgCaps {
   kmod?: string | null;
   /** The two differ: a feature counts only when both have it. */
   mismatch?: boolean;
+  /** An installed kernel module waits for a reboot (kmod is the one that runs until then). */
+  pending?: boolean;
 }
 
 /** Whether AmneziaWG can run here: tools and kernel module installed, the module loaded, netifd's proto handler present. */

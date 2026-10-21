@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createRouter, type DemoDb, type Keep } from '../src/portal/demo/router';
 import { SCENARIOS, hoursAway, monthDays } from '../src/portal/demo/data';
+import { wayState } from '../src/portal/way';
 import type { State } from '../src/portal/state';
 import type { AwgConfig } from '../src/shared/types';
 
@@ -103,6 +104,35 @@ describe('demo data', () => {
     const days = monthDays(1000, t);
     expect(days).toHaveLength(19);
     expect(Math.abs(days.reduce((a, [rx, tx]) => a + rx + tx, 0) - 1000)).toBeLessThanOrEqual(19);
+  });
+
+  it('holds the device being set up in the state the visitor picks', () => {
+    const { r, state, later } = demo('normal');
+    const { id } = r.answer('POST', 'devices', { name: 'Laptop', kind: 'computer' }).body as { id: string };
+    expect(r.settingUp()).toBe(id);
+    const opened = (state() as State & { now: number }).now;
+    later(1);
+    const way = () =>
+      wayState(
+        state().person.devices.find((d) => d.id === id),
+        opened,
+      );
+    r.holdWay(id, 'trying');
+    later(60);
+    expect(way()).toBe('trying');
+    expect(r.wayOf(id)).toBe('trying');
+    r.holdWay(id, 'nodata');
+    later(1);
+    expect(way()).toBe('nodata');
+    r.holdWay(id, 'waiting');
+    later(60);
+    expect(way()).toBe('waiting');
+    r.holdWay(id, 'connected');
+    expect(way()).toBe('connected');
+    expect(r.wayOf(id)).toBe('auto');
+    // Removed: nothing is being set up.
+    r.answer('POST', `devices/${id}`, { action: 'delete' });
+    expect(r.settingUp()).toBe(null);
   });
 
   it('keeps the hours scenario outside its window', () => {

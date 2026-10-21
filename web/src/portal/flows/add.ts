@@ -1,21 +1,27 @@
 // Adding a device: what it is (four kinds; phones and tablets are one choice,
-// the same apps and the same smaller packets) and its name, guessed from the
-// browser when it is this device; then straight on to its set-up. Or the page
-// opens on the device itself, from a code, ready to add it there.
+// the same apps and the same smaller packets), whether the local network it is
+// on stays reachable while connected (LAN Bypass, off unless they turn it on;
+// it stays as chosen: the admin's drawer shows it, neither page changes it)
+// and its name, guessed from the browser when it is this device; then straight
+// on to its set-up. Or the page opens on the device itself, from a code, ready
+// to add it there.
 
 import type { ClientConfig, Kind } from '../../shared/types';
-import { kindLabel } from '../../shared/format';
+import { defaultName, fitName, kindLabel, netsLabel } from '../../shared/format';
+import { guardDeviceName } from '../../shared/name-guard';
+import { shake } from '../../shared/shake';
 import { fmt, num, plural } from '../../shared/i18n';
 import { ApiError, call } from '../api';
 import { h, ic } from '../dom';
-import { EASE_OUT, play } from '../motion';
+import { SMOOTH, play } from '../motion';
 import { addLink } from '../setup';
 import { pageUrl, repaint, setState, state, type State } from '../state';
+import { smoothCaret } from '../ui/caret';
 import { linkRow, qrBox } from '../ui/codes';
 import { once, toast } from '../ui/feedback';
+import { badLine } from '../ui/bad-line';
 import { glass } from '../ui/glass';
-import { morphText } from '../ui/morph';
-import { go, head, hint, openSheet, sub, type View } from '../ui/sheet';
+import { go, head, openSheet, sub, type View } from '../ui/sheet';
 import { secureFirst, showSecure } from './secure';
 import { continueSetup } from './setup-view';
 
@@ -68,7 +74,7 @@ function guessName(kind: Kind): string {
   if (/Mac OS X/.test(UA)) return 'Mac';
   if (/Windows/.test(UA)) return _('Windows PC');
   if (/Linux/.test(UA)) return _('Linux PC');
-  return kindLabel(kind);
+  return defaultName(kind);
 }
 
 /*
@@ -81,6 +87,44 @@ const pickLabel = (p: Pick): string => (p === 'mobile' ? _('Mobile') : kindLabel
 const pickOf = (k: Kind): Pick => (k === 'phone' || k === 'tablet' ? 'mobile' : k);
 const kindOf = (p: Pick): Kind => (p !== 'mobile' ? p : guessKind() === 'tablet' ? 'tablet' : 'phone');
 
+/**
+ * What they chose so far, kept outside the view: Back from "Open on the device"
+ * builds the view again, and it comes back as they left it. `name`: what they
+ * typed (unset while the name is still the guess).
+ */
+interface Draft {
+  pick?: Pick;
+  bypass: boolean;
+  name?: string;
+}
+
+/**
+ * A line in a block opens or folds away: height, opacity and blur on SMOOTH, as the set-up steps fold, from
+ * where it is on screen (flicking the switch never snaps). The block's 1 px gap goes with it.
+ */
+function foldLine(el: HTMLElement, open: boolean) {
+  const cs = getComputedStyle(el);
+  const from = el.hidden
+    ? { h: 0, o: 0, b: 4, m: -1 }
+    : {
+        h: el.getBoundingClientRect().height,
+        o: +cs.opacity,
+        b: +(cs.filter.match(/blur\(([\d.]+)px\)/)?.[1] ?? 0),
+        m: parseFloat(cs.marginTop) || 0,
+      };
+  el.getAnimations().forEach((a) => a.cancel());
+  el.hidden = false;
+  el.style.overflow = 'hidden';
+  const to = open ? { h: el.scrollHeight, o: 1, b: 0, m: 0 } : { h: 0, o: 0, b: 4, m: -1 };
+  const frame = (v: typeof from) => ({ height: `${v.h}px`, opacity: v.o, filter: v.b ? `blur(${v.b}px)` : 'none', marginTop: `${v.m}px` });
+  const a = play(el, [frame(from), frame(to)], { duration: SMOOTH.duration, easing: SMOOTH.easing, fill: 'forwards' });
+  a.onfinish = () => {
+    el.hidden = !open;
+    el.style.overflow = '';
+    a.cancel();
+  };
+}
+
 export function startAdd() {
   const st = state();
   if (!st || st.locked) return;
@@ -90,22 +134,24 @@ export function startAdd() {
       true,
     );
   if (secureFirst()) return;
-  openSheet(vAdd);
+  const draft: Draft = { bypass: false };
+  openSheet(() => vAdd(draft));
 }
 
-function vAdd(): View {
+function vAdd(draft: Draft): View {
   const st = state()!;
   const p = st.person;
   // The kinds this router takes, as the four choices.
   const picks = (['computer', 'mobile', 'router', 'other'] as Pick[]).filter((k) => st.kinds.some((x) => pickOf(x) === k));
-  let pick: Pick = picks.includes(pickOf(guessKind())) ? pickOf(guessKind()) : picks[0];
-  let edited = false;
+  const guess = picks.includes(pickOf(guessKind())) ? pickOf(guessKind()) : picks[0];
+  let pick: Pick = draft.pick && picks.includes(draft.pick) ? draft.pick : guess;
   const taken = new Set(p.devices.map((d) => d.name.toLowerCase()));
   const suggest = (k: Pick) => {
-    const n = k === pickOf(guessKind()) ? guessName(kindOf(k)) : kindLabel(k === 'mobile' ? 'phone' : k);
-    if (!taken.has(n.toLowerCase())) return n;
-    for (let i = 2; i < 20; i++) if (!taken.has(`${n} ${i}`.toLowerCase())) return `${n} ${i}`;
-    return n;
+    const n = k === pickOf(guessKind()) ? guessName(kindOf(k)) : defaultName(k === 'mobile' ? 'phone' : k);
+    // Stripped of what the router refuses and cut to its limit, the number after it too ("Galaxy S24+ 2").
+    if (!taken.has(fitName(n).toLowerCase())) return fitName(n);
+    for (let i = 2; i < 20; i++) if (!taken.has(fitName(n, ` ${i}`).toLowerCase())) return fitName(n, ` ${i}`);
+    return fitName(n);
   };
 
   const kinds = h('div', { class: 'kinds', role: 'radiogroup', 'aria-label': _('What is it?') });
@@ -120,48 +166,78 @@ function vAdd(): View {
     kinds.appendChild(t);
     return t;
   });
+  // With home access, the home networks still go into the tunnel: a local network on the same addresses is out
+  // of reach, and the row says so while LAN Bypass is on.
+  const home = st.server.home ?? [];
+  const except = home.length
+    ? h(
+        'span',
+        { class: 'sw-sub sw-note', hidden: !draft.bypass },
+        fmt(_('Except %s: those addresses lead to the home network.'), netsLabel(home)),
+      )
+    : null;
+  // The whole row is the switch. Built as they left it, before it is on the page: nothing slides.
+  const lan = h(
+    'button',
+    {
+      type: 'button',
+      class: draft.bypass ? 'swrow on' : 'swrow',
+      role: 'switch',
+      'aria-checked': String(draft.bypass),
+      onclick: () => {
+        draft.bypass = !draft.bypass;
+        lan.classList.toggle('on', draft.bypass);
+        lan.setAttribute('aria-checked', String(draft.bypass));
+        if (except) foldLine(except, draft.bypass);
+      },
+    },
+    glass('lan', 'blue'),
+    h(
+      'span',
+      { class: 'sw-t' },
+      h('b', {}, _('LAN Bypass')),
+      h('span', { class: 'sw-sub' }, _('Your local network stays reachable while connected.')),
+      except,
+    ),
+    h('span', { class: 'sw', 'aria-hidden': 'true' }),
+  );
   const input = h('input', {
     type: 'text',
-    maxlength: 48,
-    required: true,
+    // Not `required`: the browser's own check would stop an empty submit before the field can shake.
     'aria-label': _('Name'),
     autocomplete: 'off',
+    // Not a login: no password manager offering itself here.
+    'data-1p-ignore': true,
   }) as HTMLInputElement;
   const goBtn = h('button', { class: 'go ready', type: 'submit', 'aria-label': _('Create connection') }, ic('arrow')) as HTMLButtonElement;
-  const err = h('p', { class: 'hint bad-t', hidden: true });
-  const say = (msg: string) => {
-    // Already showing: its words change in place.
-    if (!err.hidden) return morphText(err, msg);
-    err.textContent = msg;
-    err.hidden = false;
-    play(
-      err,
-      [
-        { opacity: 0, transform: 'translateY(-4px)' },
-        { opacity: 1, transform: 'none' },
-      ],
-      { duration: 220, easing: EASE_OUT },
-    );
-  };
-  input.value = suggest(pick);
+  // The red line under the field: why a name is refused (the router's word, or the field's own as it is typed).
+  const { el: err, say, unsay } = badLine();
+  // What the router won't take never gets in: the field shakes instead (shared/name-guard.ts).
+  guardDeviceName(
+    input,
+    () => form,
+    (w) => (w ? say(w) : unsay()),
+  );
+  input.value = draft.name ?? suggest(pick);
+  goBtn.classList.toggle('ready', !!input.value.trim());
   input.addEventListener('input', () => {
-    edited = true;
+    draft.name = input.value;
     goBtn.classList.toggle('ready', !!input.value.trim());
-    err.hidden = true;
+    unsay();
   });
   // The Android model arrives a moment later: use it unless they started typing.
   void modelReady.then(() => {
-    if (!edited && pick === pickOf(guessKind())) input.value = suggest(pick);
+    if (draft.name === undefined && pick === pickOf(guessKind())) input.value = suggest(pick);
   });
   // The picked tile rings itself where it stands (the ring does not travel between tiles).
   function choose(k: Pick) {
-    pick = k;
+    pick = draft.pick = k;
     tiles.forEach((t, i) => {
       const on = picks[i] === k;
       t.classList.toggle('on', on);
       t.setAttribute('aria-checked', String(on));
     });
-    if (!edited) {
+    if (draft.name === undefined) {
       input.value = suggest(k);
       goBtn.classList.add('ready');
     }
@@ -169,20 +245,30 @@ function vAdd(): View {
   choose(pick);
 
   const form = h('form', { class: 'field', autocomplete: 'off' }, input, goBtn);
+  smoothCaret(form);
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     const name = input.value.trim();
-    if (!name) return;
-    if (taken.has(name.toLowerCase())) return say(_('You already have a device with this name.'));
+    // Nothing to name it: the field shakes (only now, not as it empties).
+    if (!name) return shake(form);
+    if (taken.has(name.toLowerCase())) {
+      shake(form);
+      return say(_('You already have a device with this name.'));
+    }
     void once(goBtn, async () => {
       try {
-        const r = await call<{ id: string; config: ClientConfig; state: State }>('devices', { name, kind: kindOf(pick) });
+        const r = await call<{ id: string; config: ClientConfig; state: State }>('devices', {
+          name,
+          kind: kindOf(pick),
+          lan_bypass: draft.bypass,
+        });
         setState(r.state);
         repaint({ pop: r.id });
         const dev = r.state.person.devices.find((d) => d.id === r.id)!;
         await continueSetup(dev, r.config);
       } catch (er) {
         if (er instanceof ApiError && er.httpsUrl) return showSecure(er.httpsUrl);
+        shake(form);
         say((er as Error).message);
       }
     });
@@ -200,13 +286,12 @@ function vAdd(): View {
     head(_('Add a device')),
     sub(fmt(N_(p.device_limit, '%s of %s slot free', '%s of %s slots free'), num(free), num(p.device_limit))),
     kinds,
-    hint(_('Phones and tablets get a smaller packet size that suits mobile networks.')),
+    lan,
     form,
     err,
     h('div', { class: 'or' }, _('OR')),
     viaLink,
   );
-  el.querySelector('.hint')!.classList.add('kinds-note');
   return { el, label: _('Add a device') };
 }
 

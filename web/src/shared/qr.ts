@@ -27,6 +27,39 @@ const ROUND: Record<'night' | 'day', [bg: string, fg: string]> = { night: [NIGHT
 /** Long content: fewer modules matter more than the mark. */
 export const denseQr = (text: string): boolean => text.length > 300;
 
+/** The last code made: qrSvg right after qrFits on the same text does not make it again. */
+let made: { text: string; qr: ReturnType<typeof qrcode> } | null = null;
+
+/** The code for a text, at the level qrSvg draws it with; throws when no version holds the text. */
+function make(text: string) {
+  if (made?.text === text) return made.qr;
+  const qr = qrcode(0, denseQr(text) ? 'L' : 'H');
+  qr.addData(text, 'Byte');
+  qr.make();
+  made = { text, qr };
+  return qr;
+}
+
+/** Does the text fit in a code at all? Version 40 holds 2953 bytes at level L; past that the library throws. */
+export function qrFits(text: string): boolean {
+  try {
+    make(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Past about 1.6 KB (version 29-L, 133 modules) a code on a phone's screen is
+ * too fine for another phone's camera, even before it stops fitting at all
+ * (an AmneziaVPN key on Maximum without compression is about 3.3 KB).
+ */
+const SCAN_MAX = 1600;
+
+/** Can a camera read this text from a code on a screen? */
+export const scannable = (text: string): boolean => text.length <= SCAN_MAX && qrFits(text);
+
 const n2 = (v: number) => +v.toFixed(2);
 /** A rounded rectangle as a sub-path. */
 function rrect(x: number, y: number, w: number, h: number, r: number): string {
@@ -41,9 +74,7 @@ export function qrSvg(text: string, margin = 3, logo = true, look: QrLook = 'pla
   // The night and day looks draw the same round dots and eyes; only their colours differ.
   const round = look !== 'plain';
   const [bg, fg] = round ? ROUND[look] : ['#fff', '#000'];
-  const qr = qrcode(0, dense ? 'L' : 'H');
-  qr.addData(text, 'Byte');
-  qr.make();
+  const qr = make(text);
   const n = qr.getModuleCount();
   const size = n + margin * 2;
   // A centred, module-aligned hole for the mark (same parity as n).

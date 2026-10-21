@@ -8,7 +8,20 @@ import { E } from '../e';
 import { icon } from '../../shared/icons';
 import { ago, fmtDay } from '../../shared/format';
 import { fill, fmt, locale, num } from '../../shared/i18n';
-import { adminName, adminSentence, changedText, daysOf, eventBy, logText, noteText, plainDetail, reasonText, sourceName } from './model';
+import {
+  adminName,
+  adminSentence,
+  changedText,
+  daysOf,
+  deviceChangedText,
+  eventBy,
+  linkStatesText,
+  logText,
+  noteText,
+  plainDetail,
+  reasonText,
+  sourceName,
+} from './model';
 
 /** What the people and servers in the log are called now. */
 export type Names = Pick<Status, 'people' | 'servers'>;
@@ -28,6 +41,8 @@ const EVENT_TONE: Record<string, string> = {
   portal_blocked: 'bad',
   person_changed: '',
   devices_removed: 'warn',
+  device_failing: 'warn',
+  device_recovered: 'ok',
 };
 
 /** The icon in an event's tile: the device's kind for device events, else what happened. */
@@ -93,7 +108,8 @@ export function eventText(st: Pick<Status, 'people'>, e: LogEvent): Node[] {
           return [...you(_('You renamed device %s of %s'), d, b(who)), m(` · ${fmt(_('was %s'), detail.slice(13))}`)];
         if (detail === 'turned off') return you(_('You turned off device %s of %s'), d, b(who));
         if (detail === 'turned on') return you(_('You turned on device %s of %s'), d, b(who));
-        return [...you(_('You changed device %s of %s'), d, b(who)), ...(detail ? [m(` · ${detail}`)] : [])];
+        // Its own link options by name ("mtu, keepalive"), as person_changed lists a person's.
+        return [...you(_('You changed device %s of %s'), d, b(who)), ...(detail ? [m(` · ${deviceChangedText(detail)}`)] : [])];
       }
       case 'device_keys':
         return [...you(_('You issued new keys for device %s of %s'), devName, b(who)), m(` · ${_('it needs its new configuration')}`)];
@@ -157,6 +173,10 @@ export function eventText(st: Pick<Status, 'people'>, e: LogEvent): Node[] {
       );
     case 'devices_removed':
       return say(_('Person %s - all devices removed, end date reached'), b(who));
+    case 'device_failing':
+      return [...say(_('Device %s has a connection problem'), wd), ...(e.detail ? [m(` · ${linkStatesText(e.detail)}`)] : [])];
+    case 'device_recovered':
+      return say(_('Device %s connects normally again'), wd);
     default:
       return [m(`${e.type}${e.detail ? `: ${e.detail}` : ''}`)];
   }

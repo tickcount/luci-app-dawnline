@@ -1,6 +1,7 @@
 // dawnline.core: the model read from the fixture config (real libuci), access
 // hours, quotas and the derived person state at an explicit time, address
-// allocation, the automatic MTU, and other packages' port forwards.
+// allocation, the automatic MTU, a device's own MTU, keep-alive and local
+// network, and other packages' port forwards.
 import { readfile, writefile, unlink } from 'fs';
 import * as core from 'dawnline.core';
 
@@ -28,6 +29,8 @@ test('load reads the fixture', () => {
 	eq(m.settings.updates.interval, '7d', 'update policy from the same section');
 	eq(m.settings.updates.targets, [ 'app' ], 'update targets list');
 	eq(m.settings.retention.log_connections, '0', 'raw retention values');
+	let d = m.devices.alice_phone;
+	eq([ d.mtu, d.keepalive, d.lan_bypass ], [ 0, null, false ], 'a device without link values of its own');
 });
 
 test('parse_hours', () => {
@@ -129,6 +132,82 @@ test('tunnel_mtu / device_mtu', () => {
 	eq(core.device_mtu({ mtu: 0, obf: {} }, { kind: 'phone' }), 1280, 'phone');
 	eq(core.device_mtu({ mtu: 0, obf: {} }, { kind: 'computer' }), 1380, 'computer');
 	eq(core.device_mtu({ mtu: 1200 }, { kind: 'tablet' }), 1200, 'a smaller tunnel MTU stays');
+	eq(core.device_mtu({ mtu: 0, obf: {} }, { kind: 'phone', mtu: 1420 }), 1420, 'the device\'s own, also above 1280 on a phone');
+	eq(core.device_mtu({ mtu: 1420 }, { kind: 'computer', mtu: 1280 }), 1280, 'the device\'s own below the tunnel\'s');
+	eq(core.device_mtu({ mtu: 0, obf: {} }, { kind: 'computer', mtu: 9000 }), 1380, 'out of range (a hand edit): the automatic one');
+	eq(core.device_mtu({ mtu: 0, obf: {} }, { kind: 'phone', mtu: 0 }), 1280, '0: as before');
+});
+
+test('device_keepalive', () => {
+	let srv = { keepalive: 25 };
+	eq(core.device_keepalive(srv, { keepalive: null }), 25, 'the server\'s');
+	eq(core.device_keepalive(srv, {}), 25, 'none read');
+	eq(core.device_keepalive(srv, { keepalive: 0 }), 0, 'off for this device');
+	eq(core.device_keepalive(srv, { keepalive: 120 }), 120, 'its own');
+	eq(core.device_keepalive(srv, { keepalive: 700 }), 25, 'out of range: the server\'s');
+	eq(core.device_keepalive({ keepalive: 0 }, { keepalive: 15 }), 15, 'its own on a server without keep-alive');
+});
+
+/** A uci cursor that records what is written: { 'section.option': value or null (deleted) }. */
+function recorder() {
+	let w = {};
+	return { w, c: { set: (cfg, s, k, v) => { w[`${s}.${k}`] = v; }, delete: (cfg, s, k) => { w[`${s}.${k}`] = null; } } };
+}
+
+test('set_device_link', () => {
+	let mm = { devices: { d: { id: 'd', mtu: 0, keepalive: null, lan_bypass: false } } };
+	let r = recorder();
+	eq(core.set_device_link(r.c, mm, 'd', { mtu: '1400', keepalive: '0', lan_bypass: true }), [ 'mtu', 'keepalive', 'lan_bypass' ], 'what changed');
+	eq(r.w, { 'd.mtu': '1400', 'd.keepalive': '0', 'd.lan_bypass': '1' }, 'written');
+	r = recorder();
+	mm.devices.d = { id: 'd', mtu: 1400, keepalive: 0, lan_bypass: true };
+	eq(core.set_device_link(r.c, mm, 'd', { mtu: '', keepalive: '', lan_bypass: false }), [ 'mtu', 'keepalive', 'lan_bypass' ], 'back');
+	eq(r.w, { 'd.mtu': null, 'd.keepalive': null, 'd.lan_bypass': null }, 'removed: the server\'s again');
+	r = recorder();
+	eq(core.set_device_link(r.c, mm, 'd', { mtu: '1400', keepalive: ' 0 ' }), [], 'the same values change nothing');
+	eq(r.w, {}, 'nothing written');
+	eq(core.set_device_link(r.c, mm, 'd', {}), [], 'nothing asked');
+	throws(() => core.set_device_link(r.c, mm, 'd', { mtu: '1279' }), /^MTU must be 1280-1500\.$/, 'MTU too small');
+	throws(() => core.set_device_link(r.c, mm, 'd', { mtu: '1501' }), /^MTU must be 1280-1500\.$/, 'MTU too large');
+	throws(() => core.set_device_link(r.c, mm, 'd', { mtu: '1400.5' }), /^MTU/, 'not a whole number');
+	throws(() => core.set_device_link(r.c, mm, 'd', { keepalive: '601' }), /^Keep-alive must be 0-600 seconds\.$/, 'keep-alive too long');
+	throws(() => core.set_device_link(r.c, mm, 'd', { keepalive: '-1' }), /^Keep-alive/, 'negative');
+	throws(() => core.set_device_link(r.c, mm, 'x', { mtu: '' }), /^Unknown device\.$/, 'unknown device');
+});
+
+test('create_device: the local network outside the tunnel', () => {
+	let mm = core.load();
+	let r = recorder();
+	let keys = { public_key: 'a8Z2wq0b8rQx3mN6kYyQ2G3bQm2kq5tY5m7Q0yq3m3c=', preshared_key: '' };
+	let id = core.create_device(r.c, mm, 'bob', 'Laptop', 'computer', { keys, lan_bypass: true });
+	eq([ r.w[`${id}.lan_bypass`], mm.devices[id].lan_bypass, mm.devices[id].mtu, mm.devices[id].keepalive ], [ '1', true, 0, null ], 'set');
+	r = recorder();
+	id = core.create_device(r.c, mm, 'bob', 'Tablet', 'tablet', { keys: { ...keys, public_key: 'b8Z2wq0b8rQx3mN6kYyQ2G3bQm2kq5tY5m7Q0yq3m3c=' } });
+	ok(!(`${id}.lan_bypass` in r.w) && !mm.devices[id].lan_bypass, 'off unless asked');
+});
+
+test('create_device: not with the server\'s own key', () => {
+	let mm = core.load();
+	let keys = { public_key: mm.servers.main.public_key, preshared_key: '' };
+	throws(() => core.create_device(recorder().c, mm, 'bob', 'Laptop', 'computer', { keys }), /^This key is already in use\.$/,
+		'it is in every configuration of the server');
+	mm.devices.alice_phone.public_key = mm.servers.main.public_key;
+	eq(core.model_errors(mm), [ "Device Phone of Alice: the public key is the server's own." ], 'one set by hand is named');
+});
+
+test('model_errors: a device\'s own MTU and keep-alive', () => {
+	let mm = core.load();
+	eq(core.model_errors(mm), [], 'the fixture is consistent');
+	let d = mm.devices.alice_phone;
+	d.mtu = 1400;
+	d.keepalive = 0;
+	eq(core.model_errors(mm), [], 'values of its own in range');
+	d.mtu = 9000;
+	d.keepalive = 601;
+	eq(core.model_errors(mm), [
+		'Device Phone of Alice: MTU 9000 is not between 1280 and 1500.',
+		'Device Phone of Alice: keep-alive 601 is not between 0 and 600 seconds.',
+	], 'named');
 });
 
 test('names and codes', () => {

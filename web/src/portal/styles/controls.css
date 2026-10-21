@@ -1,6 +1,7 @@
 /* The controls every part uses: round knobs, buttons (and their busy orb), the field with its
-   go button, the icon picker, the kinds with their ring, badges, hints and menu paths, the link row,
-   QR codes and the row that puts a code beside its words. */
+   go button and its own caret and selection, the icon picker, the kinds with their ring, the option
+   row with its switch, badges, hints and menu paths, the link row, QR codes and the row that puts a
+   code beside its words. */
 
 .knob {
   width: 32px;
@@ -199,7 +200,7 @@
   gap: 12px;
   padding: 0 4px 0 16px;
   overflow: hidden;
-  transition: box-shadow 200ms var(--ease-out);
+  transition: box-shadow var(--spring-smooth-dur, 524ms) var(--spring-smooth, ease);
 }
 .field:focus-within {
   box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--text) 16%, transparent);
@@ -228,8 +229,8 @@
   place-items: center;
   flex: none;
   transition:
-    background-color 200ms var(--ease-out),
-    color 200ms var(--ease-out),
+    background-color var(--spring-smooth-dur, 524ms) var(--spring-smooth, ease),
+    color var(--spring-smooth-dur, 524ms) var(--spring-smooth, ease),
     transform 200ms var(--ease-out);
 }
 .go .i {
@@ -245,6 +246,142 @@
 }
 .go:not(.ready) {
   cursor: not-allowed;
+}
+
+/* The field's own caret (ui/caret.ts): the input's is hidden, ours glides to where the next letter
+   goes. As macOS draws it (Sonoma, NSTextInsertionIndicator): the accent, a 2 px capsule the line's
+   height, on for 0.6 s and off for 0.6 s with a soft fade either way; solid while typing, blinking
+   again 0.5 s after the last key. */
+.field.own-caret {
+  position: relative;
+}
+.field.own-caret input {
+  caret-color: transparent;
+}
+.caret {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 2px;
+  height: 20px;
+  margin-top: -10px;
+  border-radius: 1px;
+  background: var(--accent);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 100ms linear;
+  will-change: transform;
+}
+.caret.on {
+  opacity: 1;
+}
+.caret.on.blink {
+  animation: caret-blink 1.2s ease-in-out infinite;
+}
+@keyframes caret-blink {
+  0%,
+  38% {
+    opacity: 1;
+  }
+  50%,
+  88% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+/* Where the caret measures the text: the input's font, out of sight. */
+.caret-mirror {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  visibility: hidden;
+  white-space: pre;
+}
+/* With a mouse or trackpad, an iOS-style selection: the native one is see-through (the text keeps
+   its colour) and ours is drawn under the text, an accent wash a little taller than the line with a
+   handle at each end (2 px, the knob on top at the start and under it at the end). They fade in as
+   a selection starts and out as it collapses. */
+.field.own-sel input {
+  position: relative;
+  z-index: 1;
+}
+.field.own-sel input::selection {
+  background: transparent;
+  color: var(--text);
+}
+.caret-sel {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  height: 22px;
+  margin-top: -11px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 26%, transparent);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 140ms linear;
+}
+.caret-hd {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  top: 50%;
+  width: 2px;
+  height: 22px;
+  margin-top: -11px;
+  border-radius: 1px;
+  background: var(--accent);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 140ms linear;
+}
+.caret-hd::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  width: 9px;
+  height: 9px;
+  margin-left: -4.5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.caret-hd.s::after {
+  top: -7px;
+}
+.caret-hd.e::after {
+  bottom: -7px;
+}
+.field.selecting .caret-sel,
+.field.selecting .caret-hd {
+  opacity: 1;
+}
+
+/* Words on their way to the router (ui/shimmer.ts): the input's own are hidden under a copy that dims and lets a
+   light band sweep across it, the band the words' colour over a muted base; the caret steps aside meanwhile. */
+.field.saving input {
+  color: transparent;
+}
+.field.saving .caret {
+  opacity: 0 !important;
+  animation: none !important;
+}
+.shim-clip {
+  position: absolute;
+  z-index: 2;
+  overflow: hidden;
+  pointer-events: none;
+}
+.shim {
+  --shim-high: var(--text);
+  --shim-base: color-mix(in oklab, var(--text) 38%, var(--raised));
+  position: absolute;
+  top: 0;
+  white-space: pre;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 /* The icon picker (skiper21's tabs): icons only, the picked one widens and shows its name. */
@@ -398,6 +535,98 @@
     font-size: 11.5px;
   }
 }
+
+/* An option with a switch (Add a device's LAN Bypass): a field-coloured block on the raised sheet,
+   its glass icon grey while off, the whole row the switch. Hover tints it; it does not shrink. */
+.swrow {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 12px 12px 14px;
+  border-radius: 16px;
+  background: var(--field);
+  color: var(--text);
+  text-align: left;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: background-color 200ms;
+}
+.swrow:hover {
+  background: color-mix(in srgb, var(--field), var(--knob) 50%);
+}
+.kinds + .swrow {
+  margin: 16px 0 12px;
+}
+.swrow .gi {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  transition:
+    filter var(--spring-smooth-dur, 524ms) var(--spring-smooth, ease),
+    opacity var(--spring-smooth-dur, 524ms) var(--spring-smooth, ease);
+}
+.swrow:not(.on) .gi {
+  filter: grayscale(1);
+  opacity: 0.55;
+}
+.sw-t {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.sw-t b {
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+}
+.sw-sub {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+/* The switch: a knob-coloured track on the field, the accent when on. Held down, the knob reaches
+   halfway toward where it goes (as iOS switches do: off it stretches to the right, on to the left);
+   let go and it finishes the move. */
+.sw {
+  position: relative;
+  flex: none;
+  width: 44px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--knob);
+  transition: background-color var(--spring-smooth-dur, 524ms) var(--spring-smooth, ease);
+}
+.sw::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  background: var(--text-2);
+  transition:
+    transform var(--spring-smooth-dur, 524ms) var(--spring-smooth, ease),
+    width var(--spring-smooth-dur, 524ms) var(--spring-smooth, ease),
+    background-color var(--spring-smooth-dur, 524ms) var(--spring-smooth, ease);
+}
+.swrow.on .sw {
+  background: var(--accent);
+}
+.swrow.on .sw::after {
+  transform: translateX(18px);
+  background: var(--accent-ink);
+}
+.swrow:active .sw::after {
+  width: 27px;
+}
+.swrow.on:active .sw::after {
+  transform: translateX(11px);
+}
 .or {
   display: flex;
   align-items: center;
@@ -499,6 +728,11 @@
   line-height: 18px;
   color: var(--text-2);
 }
+/* A hint that says what is wrong (under a name field): red, over the hint's own grey (this file comes after
+   base.css's .bad-t). */
+.hint.bad-t {
+  color: var(--bad);
+}
 .hint a,
 .hint button {
   color: var(--accent);
@@ -595,7 +829,8 @@
   width: 100%;
   height: 100%;
 }
-/* A code swapping for another: the old one lies over the new one while it fades. */
+/* A code swapping for another: the old one lies over the new one while it fades, and one turned back to while it
+   fades up again where it lies. */
 .qrbox > svg.old {
   position: absolute;
   inset: 0;
@@ -656,5 +891,9 @@
   .orb i:first-child {
     opacity: 1;
     filter: none;
+  }
+  /* The caret stands still: a blink is motion the visitor asked to be spared. */
+  .caret.on.blink {
+    animation: none;
   }
 }

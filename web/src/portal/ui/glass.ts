@@ -121,6 +121,11 @@ const GL: Record<string, Shape> = {
     f: '<rect x="2.5" y="6" width="13.5" height="16" rx="3.2"/>',
     d: '<path d="M6.2 11h6.5M6.2 14.5h6.5M6.2 18h4"/>',
   },
+  lan: {
+    b: '<circle cx="16" cy="8" r="6"/>',
+    f: '<rect x="2.5" y="7.5" width="14.5" height="14.5" rx="4.2"/>',
+    d: '<rect x="8.3" y="10.4" width="2.9" height="2.6" rx=".7"/><rect x="5.2" y="16.4" width="2.9" height="2.6" rx=".7"/><rect x="11.4" y="16.4" width="2.9" height="2.6" rx=".7"/><path d="M9.75 13v1.8M6.65 16.4v-1.6h6.2v1.6"/>',
+  },
 };
 
 /** The AmneziaVPN mark without its own svg: drawn on the "app" pane. */

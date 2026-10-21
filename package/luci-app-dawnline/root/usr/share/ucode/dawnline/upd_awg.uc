@@ -1,6 +1,8 @@
 // Dawnline updater: AmneziaWG — the builds published for this firmware by
 // each source, installing or switching a build (verified against GitHub's
 // sha256), the Russian LuCI translation, and rolling back to a kept build.
+// Every install and rollback is recorded (dawnline.awg_builds), with whether
+// the new kernel module runs or waits for the next boot.
 // ctx is the updater's job context (see usr/libexec/dawnline/updater).
 
 import { stat } from 'fs';
@@ -89,6 +91,8 @@ export function check(ctx) {
 			current = id;
 	let mine = current ? sources[current] : null;
 	let c = cur && mine?.version ? pkg.cmp(cur, mine.version) : null;
+	// An update that waits for a reboot: Components says so after a check.
+	let pending = builds.waits_for_reboot();
 	let st = c == null ? '' : c < 0 ? 'outdated' : c > 0 ? 'dev' : 'latest';
 	ctx.log(cur == null ? _('AmneziaWG is not installed')
 		: !current ? sprintf(_('AmneziaWG %s: no source publishes this build for this firmware any more'), cur)
@@ -99,13 +103,19 @@ export function check(ctx) {
 		update: cur == null || st == 'outdated',
 		// An update that changes the generation (2.0 → 3.1) breaks older apps: never automatic.
 		gen_change: cur != null && mine?.version != null && builds.gen(cur) != builds.gen(mine.version),
-		note: !length(filter(values(sources), (x) => x.version)) ? sprintf(_('No AmneziaWG build for OpenWrt %s yet'), substr(fw.tag, 1)) : null };
+		pending,
+		note: !length(filter(values(sources), (x) => x.version)) ? sprintf(_('No AmneziaWG build for OpenWrt %s yet'), substr(fw.tag, 1))
+			: pending ? _('The AmneziaWG update is installed and starts after a reboot.') : null };
 };
 
-/** Tunnels on a new kernel module: every AmneziaWG interface is brought down and up again. */
-function reload_module(ctx, before, after) {
-	if (!before['kmod-amneziawg'] || before['kmod-amneziawg'] == after['kmod-amneziawg'])
-		return;
+/**
+ * Tunnels on a new kernel module: every AmneziaWG interface is brought down,
+ * the module swapped and the interfaces brought up again. False when the old
+ * module stays loaded: the tunnels come back on it (the tools talk to an
+ * older module at its own netlink version) and the installed one starts
+ * with the next boot, which caps() and Health then wait for.
+ */
+function reload_module(ctx) {
 	let ifaces = [];
 	let c = cursor();
 	c.load('network');
@@ -119,33 +129,58 @@ function reload_module(ctx, before, after) {
 		iface_intent(i, 'update', c.get('network', i, '_dawnline_name') ?? i);
 		sh(`ifdown '${i}'`);
 	}
-	// Both steps must really happen: the new tools against the old module (or
-	// no module at all) leave every tunnel down while the job says "done".
-	ctx.run('rmmod amneziawg');
 	if (stat('/sys/module/amneziawg'))
-		die(_('The old AmneziaWG kernel module is still loaded (another AmneziaWG interface may use it): reboot the router to finish the update'));
-	ctx.run('modprobe amneziawg');
-	if (!stat('/sys/module/amneziawg'))
-		die(_("The new AmneziaWG kernel module doesn't load on this firmware: the tunnels stay down until it does (see the log above)"));
+		ctx.run('rmmod amneziawg');
+	let swapped = !stat('/sys/module/amneziawg');
+	if (swapped) {
+		ctx.run('modprobe amneziawg');
+		if (!stat('/sys/module/amneziawg'))
+			die(_("The new AmneziaWG kernel module doesn't load on this firmware: the tunnels stay down until it does (see the log above)"));
+	}
 	for (let i in ifaces)
 		sh(`ifup '${i}'`);
+	return swapped;
 }
 
-/** After packages changed: the module loaded, netifd knowing the protocol, Dawnline set up again. */
-function settle(ctx, before, after) {
-	if (!before['kmod-amneziawg'] && after['kmod-amneziawg']) {
+/**
+ * After packages changed: the module loaded, netifd knowing the protocol,
+ * Dawnline set up again. was: the module loaded before (builds.module_now()).
+ * Returns whether the module that runs is the installed one; false while the
+ * old one stays loaded until the next boot.
+ */
+function settle(ctx, before, after, was) {
+	let b = before['kmod-amneziawg'], a = after['kmod-amneziawg'];
+	let fresh = true;
+	// A new module package, one over a module loaded by hand, or an earlier
+	// update that still waits for a boot (Reinstall tries again).
+	if (a && (a != b || was.pending) && (b || was.core != null))
+		fresh = reload_module(ctx);
+	else if (a && !b) {
 		ctx.phase(_('Loading the kernel module'));
 		if (ctx.run('modprobe amneziawg').code != 0 && !stat('/sys/module/amneziawg'))
 			die(_("AmneziaWG is installed, but its kernel module doesn't load on this firmware"));
 	}
-	else
-		reload_module(ctx, before, after);
 	// netifd reads its protocol handlers when it starts.
 	if (index(ctx.run('ubus call network get_proto_handlers').out, '"amneziawg"') < 0) {
 		ctx.phase(_('Restarting the network so it knows AmneziaWG (connections drop for a few seconds)'));
 		ctx.run('/etc/init.d/network restart');
 	}
 	ctx.after('apply');
+	return fresh;
+}
+
+/**
+ * The packages are in: settle them and record the build (source, tag) with
+ * the module that ran before (was). An old module that stays loaded is no
+ * failure: the job says so, and Health until the next boot.
+ */
+function finish(ctx, out, source, tag, was) {
+	out.after = builds.installed();
+	out.reloaded = settle(ctx, out.before, out.after, was);
+	builds.record(source, tag, out.after, { prev_gen: was.gen, prev_core: was.core, reloaded: out.reloaded });
+	if (!out.reloaded)
+		ctx.log(_('The old kernel module stays loaded (another AmneziaWG interface may use it): the AmneziaWG update is installed and starts after a reboot.'));
+	return out;
 }
 
 /** The first source that publishes every package for this firmware. */
@@ -165,6 +200,7 @@ function pick(fw) {
 /** arg: [auto|slava|grey][:ru] | rollback */
 export function install(ctx, arg) {
 	let before = builds.installed();
+	let was = builds.module_now(before['kmod-amneziawg']);
 	let out = { from: before['amneziawg-tools'], to: null, before };
 	let fw = builds.firmware();
 	if (!fw)
@@ -182,9 +218,7 @@ export function install(ctx, arg) {
 		if (!pkg.install_files(k.files, true, ctx.log))
 			die(_('Package installation failed'));
 		upd.forget('amneziawg');
-		out.after = builds.installed();
-		settle(ctx, before, out.after);
-		return out;
+		return finish(ctx, out, k.build, fw.tag, was);
 	}
 	let parts = split(arg ?? '', ':');
 	let id = parts[0] || 'auto';
@@ -236,8 +270,5 @@ export function install(ctx, arg) {
 		die(_('Package installation failed'));
 	if (!want_ru && pkg.version(builds.RU))
 		pkg.remove([ builds.RU ], ctx.log);
-	out.after = builds.installed();
-	settle(ctx, before, out.after);
-	builds.record(id, fw.tag, out.after);
-	return out;
+	return finish(ctx, out, id, fw.tag, was);
 };

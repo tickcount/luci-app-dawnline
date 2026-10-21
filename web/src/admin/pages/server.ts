@@ -23,6 +23,7 @@ import { defaultMethod, methodPicker } from '../disguise';
 import { coreOf } from '../cores';
 import { installAwg } from '../pkgs';
 import { createPoller, focusInside, repaint, type Poller } from '../state/poller';
+import { LiveMeter, type MeterAnswer } from '../state/meter';
 import { ServerOverview } from './overview';
 import { PeoplePage } from './people';
 
@@ -64,6 +65,9 @@ export class ServerPage {
   secEl = E('div', {});
   bodyEl = E('div', { class: 'dl-srvbody' });
   poller?: Poller<Status>;
+  /** The live meter's last 2 minutes, every server's (the Overviews' Speed now), and its poller. */
+  meter = new LiveMeter();
+  meterPoller?: Poller<MeterAnswer>;
 
   async load(): Promise<[Status, SetupDefaults | null]> {
     const st = await api.status(31);
@@ -98,6 +102,23 @@ export class ServerPage {
         this.st = n;
         this.paintHead(quiet);
         this.ov[this.current().id]?.update(n, quiet);
+      },
+    });
+    // Speed now, live: one meter call a second while the Overview of a running server is on screen
+    // (the router keeps the last two minutes and writes them out while someone asks). A failed call is said in the tile, not in a
+    // second "not answering" toast beside the status poller's.
+    this.meterPoller?.stop();
+    this.meterPoller = createPoller<MeterAnswer>({
+      fetch: () =>
+        api.meter(this.meter.since(Date.now())).then(
+          (meter) => ({ meter }),
+          (e) => ({ error: errorText(e) }),
+        ),
+      every: 1,
+      active: () => this.section === 'overview' && this.root.isConnected && this.current().enabled,
+      apply: (r) => {
+        this.meter.take(r, Date.now());
+        this.ov[this.current().id]?.paintSpeed();
       },
     });
     return this.root;
@@ -229,7 +250,7 @@ export class ServerPage {
     const body: Record<Section, () => Node> = {
       overview: () => {
         const ov = this.ov[srv.id];
-        if (!ov) return (this.ov[srv.id] = new ServerOverview(srv.id, (k, f) => this.go(k as Section, f))).mount(st);
+        if (!ov) return (this.ov[srv.id] = new ServerOverview(srv.id, this.meter, (k, f) => this.go(k as Section, f))).mount(st);
         ov.update(st);
         return ov.el;
       },

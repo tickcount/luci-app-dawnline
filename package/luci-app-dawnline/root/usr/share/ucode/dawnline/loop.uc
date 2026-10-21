@@ -397,6 +397,23 @@ function load_ns_rules(p) {
 	return slow ? { fast: false, slow, err: load(false) } : { fast: true };
 }
 
+/**
+ * The policy rules plan `p` wants (pure), in order: [{ pref, iif, to, table }]
+ * (to null: all). Per server interface: DNS to the netns address through the
+ * netns, home networks and the tunnel network by main, the rest into the netns.
+ */
+export function rules(p) {
+	let out = [];
+	let rule = (pref, iif, to, table) => push(out, { pref, iif, to, table });
+	for (let s in p?.servers ?? []) {
+		rule(PREF_LOOP_DNS, s.ifname, `${p.address}/32`, `${p.table}`);
+		for (let n in s.direct)
+			rule(PREF_MAIN, s.ifname, n, 'main');
+		rule(PREF_LOOP, s.ifname, null, `${p.table}`);
+	}
+	return out;
+};
+
 /** Our policy rules: in our priority band and bound to a Dawnline tunnel interface. */
 function current_rules(ifnames) {
 	let out = [];
@@ -411,31 +428,58 @@ function current_rules(ifnames) {
 }
 
 
-function rule_key(pref, iif, to, table) {
-	// `ip -j rule` shows a /32 destination without its length.
-	if (to && index(to, '/') < 0)
-		to += '/32';
-	return `${pref} ${iif} ${to ?? 'all'} ${table}`;
+// A rule of ours with a source (none of rules() has one) is told apart, so it is removed.
+function rule_key(pref, from, iif, to, table) {
+	// `ip -j rule` shows a /32 source or destination without its length.
+	let full = (n) => n && index(n, '/') < 0 ? `${n}/32` : n;
+	return `${pref} ${full(from) ?? 'all'} ${iif} ${full(to) ?? 'all'} ${table}`;
 }
 
-function sync_rules(p, ifnames) {
-	let want = [];
-	for (let s in p?.servers ?? []) {
-		push(want, [ PREF_LOOP_DNS, s.ifname, `${p.address}/32`, `${p.table}` ]);
-		for (let n in s.direct)
-			push(want, [ PREF_MAIN, s.ifname, n, 'main' ]);
-		push(want, [ PREF_LOOP, s.ifname, null, `${p.table}` ]);
+/**
+ * A source or destination as `ip -j rule` has it ("10.9.0.2", or with its
+ * length), or null for all: a rule without a source shows `"src": "all"`
+ * (iproute2 prints "from all"), one without a destination no `dst`.
+ */
+function rule_net(addr, len) {
+	return addr && addr != 'all' ? `${addr}${len != null ? '/' + len : ''}` : null;
+}
+
+/** The command that removes one of current_rules(). */
+function rule_del(r) {
+	let from = rule_net(r.src, r.srclen), to = rule_net(r.dst, r.dstlen);
+	return `ip -4 rule del priority ${r.priority}${from ? ' from ' + from : ''} iif ${q(r.iif)}${to ? ' to ' + to : ''} lookup ${r.table}`;
+}
+
+/**
+ * The commands that turn rules `current` (ours, as `ip -j -4 rule show`
+ * prints them) into rules(p) (pure): the missing ones added first, then the
+ * ones no longer wanted removed, so a device's traffic never falls between
+ * two rules while others change. [] when they are as wanted.
+ */
+export function rule_cmds(p, current) {
+	let have = {}, want = {}, cmds = [], twice = [];
+	for (let r in current) {
+		let k = rule_key(r.priority, rule_net(r.src, r.srclen), r.iif, rule_net(r.dst, r.dstlen), r.table);
+		if (have[k])
+			push(twice, rule_del(r));
+		have[k] = r;
 	}
-	let have = map(current_rules(ifnames), (r) => rule_key(r.priority, r.iif, r.dst ? `${r.dst}${r.dstlen != null ? '/' + r.dstlen : ''}` : null, r.table));
-	let wantk = map(want, (w) => rule_key(w[0], w[1], w[2] ?? null, w[3]));
-	if (join('\n', sort(have)) == join('\n', sort(wantk)))
-		return [];
-	let cmds = [];
-	for (let r in current_rules(ifnames))
-		push(cmds, `ip -4 rule del priority ${r.priority} iif ${q(r.iif)}${r.dst ? ' to ' + r.dst + (r.dstlen != null ? '/' + r.dstlen : '') : ''} lookup ${r.table}`);
-	for (let w in want)
-		push(cmds, `ip -4 rule add priority ${w[0]} iif ${q(w[1])}${w[2] ? ' to ' + w[2] : ''} lookup ${w[3]}`);
+	for (let w in rules(p)) {
+		let k = rule_key(w.pref, null, w.iif, w.to, w.table);
+		if (!have[k] && !want[k])
+			push(cmds, `ip -4 rule add priority ${w.pref} iif ${q(w.iif)}${w.to ? ' to ' + w.to : ''} lookup ${w.table}`);
+		want[k] = true;
+	}
+	for (let k, r in have)
+		if (!want[k])
+			push(cmds, rule_del(r));
+	// The same rule twice (one deletion removes one of them).
+	push(cmds, ...twice);
 	return cmds;
+};
+
+function sync_rules(p, ifnames) {
+	return rule_cmds(p, current_rules(ifnames));
 }
 
 function tunnel_ifnames() {
@@ -455,9 +499,7 @@ export function remove(ifnames) {
 	// Read while the link is there: the entry is ours when it carries the netns's MAC.
 	let held = last?.dev ? used_addresses(last.dev)[last.address] : null;
 	let stale = type(held) == 'string' && index([ last.mac, our_mac() ], held) >= 0;
-	let cmds = [];
-	for (let r in current_rules(ifnames))
-		push(cmds, `ip -4 rule del priority ${r.priority} iif ${q(r.iif)}${r.dst ? ' to ' + r.dst + (r.dstlen != null ? '/' + r.dstlen : '') : ''} lookup ${r.table}`);
+	let cmds = map(current_rules(ifnames), rule_del);
 	if (last?.table)
 		push(cmds, `ip -4 route flush table ${last.table}`);
 	if (exists(TX_ROOT))

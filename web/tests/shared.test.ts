@@ -64,10 +64,48 @@ describe('vpn:// keys', () => {
     expect(j.dns1).toBe('10.0.1.1');
     const last = JSON.parse(j.containers[0].awg.last_config);
     expect(last.Jc).toBe('4');
-    expect(last.S3).toBe('0');
     expect(last.H1).toBe('11');
     expect(last.port).toBe(51830);
     expect(last.config).toContain('\r\n');
+  });
+
+  it('leaves S3 and S4 empty when the server sets none, so the app does not call the key version 2', () => {
+    const last = (c: ClientConfig) => JSON.parse((amneziaJson(c, 'x') as any).containers[0].awg.last_config);
+    expect(last(cfg).S3).toBe('');
+    expect(last(cfg).S4).toBe('');
+    expect(last(cfg).S1).toBe('20');
+    const off = {
+      ...cfg,
+      amnezia: { ...cfg.amnezia, obfuscation: { jc: '0', jmin: '0', jmax: '0', s1: '0', s2: '0', h1: '1', h2: '2', h3: '3', h4: '4' } },
+    };
+    expect(last(off).S3).toBe('');
+    expect(last(off).Jc).toBe('0');
+    expect(last(off).I1).toBe('');
+    const bal = { ...cfg, amnezia: { ...cfg.amnezia, obfuscation: { ...cfg.amnezia.obfuscation, s3: '24', s4: '8' } } };
+    expect(last(bal).S3).toBe('24');
+    expect(last(bal).S4).toBe('8');
+  });
+
+  it('gives the one DNS server as both, so the app adds none of its own', () => {
+    const json = (dns: string[]) => amneziaJson({ ...cfg, amnezia: { ...cfg.amnezia, dns } }, 'x') as any;
+    expect(json(['10.0.1.1'])).toMatchObject({ dns1: '10.0.1.1', dns2: '10.0.1.1' });
+    expect(json(['10.0.1.1', '1.1.1.1'])).toMatchObject({ dns1: '10.0.1.1', dns2: '1.1.1.1' });
+    // Home network only, without the home DNS: nothing to give.
+    expect(json([]).dns1).toBeUndefined();
+    expect(json([]).dns2).toBeUndefined();
+  });
+
+  it('passes the keep-alive through as the router sends it: a range on 3.1, a number before', () => {
+    const awg = (persistent_keep_alive: string, obfuscation: Record<string, string>) =>
+      (amneziaJson({ ...cfg, amnezia: { ...cfg.amnezia, persistent_keep_alive, obfuscation } }, 'x') as any).containers[0].awg;
+    const max = awg('25-35', { ...cfg.amnezia.obfuscation, header_protection_key: 'HPK=' });
+    expect(JSON.parse(max.last_config).persistent_keep_alive).toBe('25-35');
+    expect(JSON.parse(max.last_config).HeaderProtectionKey).toBe('HPK=');
+    expect(max.protocol_version).toBe('3.1');
+    const bal = awg('25', cfg.amnezia.obfuscation);
+    expect(JSON.parse(bal.last_config).persistent_keep_alive).toBe('25');
+    expect(bal.protocol_version).toBe('2');
+    expect(JSON.parse(awg('0', {}).last_config).persistent_keep_alive).toBe('0');
   });
 
   it('produces a qCompress payload AmneziaVPN can read', async () => {

@@ -7,7 +7,7 @@
 import { h, ic } from '../dom';
 import { call } from '../api';
 import { repaint, setState, type State } from '../state';
-import { closeSheet, head, openSheet, sub, type View } from '../ui/sheet';
+import { closeSheet, head, onSheetEntry, openSheet, sub, type View } from '../ui/sheet';
 import { glass, type Tone } from '../ui/glass';
 import { toast } from '../ui/feedback';
 import { EASE_OUT, play } from '../motion';
@@ -34,11 +34,16 @@ export function scenarioChip(router: DemoRouter): HTMLElement {
 
   /** Swap the page in place: it dims away and comes back drawn from the scenario, the link saying which. */
   async function pick(s: ScenarioId, done?: string) {
+    // The link goes on the page's own history entry, once the sheet's is stepped back off: a reload keeps the scenario.
+    const mark = () => {
+      const u = new URL(location.href);
+      u.searchParams.set('s', s);
+      history.replaceState(history.state, '', u);
+    };
+    if (onSheetEntry()) addEventListener('popstate', mark, { once: true });
+    else mark();
     closeSheet();
     router.use(s);
-    const u = new URL(location.href);
-    u.searchParams.set('s', s);
-    history.replaceState(history.state, '', u);
     const out = play(app, [{ opacity: 1 }, { opacity: 0, filter: 'blur(4px)' }], { duration: 160, easing: EASE_OUT, fill: 'forwards' });
     const st = await call<State>('state');
     await out.finished;

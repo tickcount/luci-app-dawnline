@@ -30,6 +30,10 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "%s and %s overlap: each packet type needs values of its own."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
 msgid "%s can't use the network interface %s: it exists and isn't Dawnline's."
 msgstr ""
 
@@ -52,6 +56,10 @@ msgid "%s h ago"
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "%s has a tag that is not closed with >."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
 msgid "%s has an invalid interface name \"%s\"."
 msgstr ""
 
@@ -68,6 +76,10 @@ msgid "%s is kept down."
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "%s is kept down: its disguise has values AmneziaWG cannot take. %s"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
 msgid "%s is kept down: its disguise needs AmneziaWG %s (installed: %s)."
 msgstr ""
 
@@ -79,12 +91,40 @@ msgstr ""
 msgid "%s left"
 msgstr ""
 
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "%s may not contain # or a line break."
+msgstr ""
+
 #: web/src/shared/format.ts
 msgid "%s min ago"
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
-msgid "%s must be a number or range"
+msgid "%s must be a number or a range like 10-100, up to 65535."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "%s must be a number or a range like 100-200, up to 4294967295."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "%s must be a number or a range like 5-15, from 1 to 65535."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "%s must be a whole number from 0 to 65535."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "%s must be at least 12 with header protection."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "%s must be from %d to %d."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "%s must be on or off."
 msgstr ""
 
 #: web/src/portal/page/devices.ts
@@ -119,6 +159,10 @@ msgstr ""
 
 #: web/src/portal/page/notices.ts
 msgid "%s your time"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "%s: <%s> is not a tag AmneziaWG apps accept: use <b 0x…> with an even number of hex digits, <r N>, <rc N> or <rd N> with N from 1 to 1000, or <t>."
 msgstr ""
 
 #: web/src/shared/format.ts
@@ -186,6 +230,10 @@ msgstr ""
 msgid "Add the connection"
 msgstr ""
 
+#: web/src/portal/flows/setup-view.ts
+msgid "Add the connection again"
+msgstr ""
+
 #: web/src/portal/page/devices.ts
 msgid "Add this device"
 msgstr ""
@@ -247,6 +295,10 @@ msgstr ""
 msgid "Cancel"
 msgstr ""
 
+#: web/src/portal/page/devices.ts
+msgid "Can’t finish connecting"
+msgstr ""
+
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
 msgid "Circle %s: server %s does not exist."
 msgstr ""
@@ -281,11 +333,19 @@ msgid "Connected"
 msgstr ""
 
 #: web/src/portal/page/devices.ts
+msgid "Connected, but no data"
+msgstr ""
+
+#: web/src/portal/page/devices.ts
 msgid "Connected, no data left"
 msgstr ""
 
 #: web/src/portal/page/devices.ts
 msgid "Connected, outside your hours"
+msgstr ""
+
+#: web/src/portal/page/devices.ts
+msgid "Connection keeps dropping"
 msgstr ""
 
 #: web/src/portal/flows/secure.ts
@@ -381,6 +441,14 @@ msgstr ""
 msgid "Data used"
 msgstr ""
 
+#: web/src/shared/format.ts
+msgid "Device"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Device %s of %s: MTU %d is not between 1280 and 1500."
+msgstr ""
+
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
 msgid "Device %s of %s: address %s is also used by device %s of %s."
 msgstr ""
@@ -402,6 +470,10 @@ msgid "Device %s of %s: address (none) is not a plain IPv4 address."
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Device %s of %s: keep-alive %d is not between 0 and 600 seconds."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
 msgid "Device %s of %s: the preshared key is not a key."
 msgstr ""
 
@@ -411,6 +483,10 @@ msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
 msgid "Device %s of %s: the public key is not a key."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Device %s of %s: the public key is the server's own."
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
@@ -425,7 +501,7 @@ msgstr ""
 msgid "Device limit reached (%d)."
 msgstr ""
 
-#: web/src/portal/flows/device-actions.ts
+#: web/src/portal/flows/rename.ts
 msgid "Device name"
 msgstr ""
 
@@ -503,7 +579,11 @@ msgid "Ends %s"
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
-msgid "Enter a device name (up to 48 characters)."
+msgid "Enter a device name: up to %d letters, digits, spaces and - _ ."
+msgstr ""
+
+#: web/src/portal/flows/add.ts
+msgid "Except %s: those addresses lead to the home network."
 msgstr ""
 
 #: web/src/shared/format.ts
@@ -542,6 +622,14 @@ msgstr ""
 msgid "Get it on"
 msgstr ""
 
+#: web/src/portal/flows/rename.ts
+msgid "Give the device a name."
+msgstr ""
+
+#: web/src/portal/flows/wait.ts
+msgid "Handshake complete, but no data"
+msgstr ""
+
 #: web/src/portal/flows/setup-parts.ts
 msgid "Hide key"
 msgstr ""
@@ -567,6 +655,10 @@ msgstr ""
 msgid "Hours, your time"
 msgstr ""
 
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "I1-I5 together must be at most 2000 characters, not %d."
+msgstr ""
+
 #: web/src/portal/page/devices.ts
 msgid "IP address copied"
 msgstr ""
@@ -583,6 +675,10 @@ msgstr ""
 
 #: web/src/portal/flows/setup-view.ts
 msgid "Import the configuration"
+msgstr ""
+
+#: web/src/portal/flows/setup-view.ts
+msgid "Import the configuration again"
 msgstr ""
 
 #: web/src/portal/setup.ts
@@ -624,6 +720,10 @@ msgstr ""
 msgid "Invalid public key."
 msgstr ""
 
+#: web/src/portal/page/devices.ts
+msgid "It connects, but the connection breaks every few minutes. Another network may help."
+msgstr ""
+
 #: web/src/portal/page/access.ts
 msgid "It ended on %s."
 msgstr ""
@@ -636,12 +736,24 @@ msgstr ""
 msgid "It gets new keys. This device is connected through its current settings: it disconnects a few seconds after you confirm. Add the new ones that open next."
 msgstr ""
 
+#: web/src/portal/page/devices.ts
+msgid "It reaches the router, but the connection never completes. The network may be blocking it."
+msgstr ""
+
 #: web/src/portal/flows/device-actions.ts
 msgid "Its connection stops working at once. You can add it again later."
 msgstr ""
 
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "Jmin must not be larger than Jmax."
+msgstr ""
+
 #: web/src/shared/format.ts
 msgid "KB"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Keep-alive must be 0-600 seconds."
 msgstr ""
 
 #: web/src/portal/flows/setup-parts.ts
@@ -660,6 +772,10 @@ msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
 msgid "Key generation failed."
+msgstr ""
+
+#: web/src/portal/flows/add.ts
+msgid "LAN Bypass"
 msgstr ""
 
 #: web/src/portal/page/frame.ts
@@ -684,6 +800,10 @@ msgstr ""
 
 #: web/src/shared/format.ts
 msgid "MB"
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "MTU must be 1280-1500."
 msgstr ""
 
 #: web/src/shared/format.ts
@@ -780,6 +900,18 @@ msgstr ""
 
 #: web/src/portal/setup.ts
 msgid "On GitHub"
+msgstr ""
+
+#: web/src/portal/page/devices.ts
+msgid "On two devices at once"
+msgstr ""
+
+#: web/src/shared/name-guard.ts
+msgid "Only letters, digits, - _ ."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/devices.uc
+msgid "Only the admin can change how a device connects."
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/devices.uc
@@ -893,10 +1025,6 @@ msgstr ""
 msgid "Phone"
 msgstr ""
 
-#: web/src/portal/flows/add.ts
-msgid "Phones and tablets get a smaller packet size that suits mobile networks."
-msgstr ""
-
 #: web/src/portal/flows/setup-parts.ts
 msgid "Pick AmneziaVPN in the share sheet. Not there? %s and add it in the app."
 msgstr ""
@@ -943,6 +1071,10 @@ msgstr ""
 msgid "Reconnect %s?"
 msgstr ""
 
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "RejectAfterTime must be at most 180 seconds."
+msgstr ""
+
 #: web/src/portal/flows/device-actions.ts
 #: web/src/portal/page/devices.ts
 msgid "Remove"
@@ -956,12 +1088,8 @@ msgstr ""
 msgid "Rename"
 msgstr ""
 
-#: web/src/portal/flows/device-actions.ts
+#: web/src/portal/page/devices.ts
 msgid "Rename %s"
-msgstr ""
-
-#: web/src/portal/flows/device-actions.ts
-msgid "Renamed"
 msgstr ""
 
 #: web/src/portal/api.ts
@@ -976,6 +1104,10 @@ msgstr ""
 msgid "Resets on the 1st."
 msgstr ""
 
+#: web/src/portal/flows/rename.ts
+msgid "Return to save, Esc to cancel"
+msgstr ""
+
 #: web/src/shared/format.ts
 msgid "Router"
 msgstr ""
@@ -984,8 +1116,8 @@ msgstr ""
 msgid "Run"
 msgstr ""
 
-#: web/src/portal/flows/device-actions.ts
-msgid "Save"
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "S2 must not be S1 + 56: the handshake initiation and response would have the same size."
 msgstr ""
 
 #: web/src/portal/setup.ts
@@ -1015,6 +1147,10 @@ msgstr ""
 
 #: web/src/shared/format.ts
 msgid "Server is turned off"
+msgstr ""
+
+#: web/src/portal/flows/setup-view.ts
+msgid "Set it up again"
 msgstr ""
 
 #: web/src/portal/flows/setup-view.ts
@@ -1078,6 +1214,10 @@ msgstr ""
 msgid "Tap “%s” and connect"
 msgstr ""
 
+#: web/src/portal/flows/rename.ts
+msgid "That name is taken."
+msgstr ""
+
 #: web/src/portal/setup.ts
 msgid "The APK is for phones without Google Play, or where the store hides the app."
 msgstr ""
@@ -1094,6 +1234,10 @@ msgstr ""
 msgid "The browser may warn that the certificate is not trusted: it is this router’s own. Choose to continue (“Advanced” → “Proceed”)."
 msgstr ""
 
+#: web/src/portal/flows/setup-view.ts
+msgid "The configuration is too long for a code. Scan this one to open your link on the %s instead."
+msgstr ""
+
 #: web/src/portal/flows/setup-parts.ts
 msgid "The connection"
 msgstr ""
@@ -1102,8 +1246,16 @@ msgstr ""
 msgid "The connection as one key"
 msgstr ""
 
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+msgid "The header protection key is not a key."
+msgstr ""
+
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
 msgid "The id may use lowercase letters, digits and underscores."
+msgstr ""
+
+#: web/src/portal/flows/setup-view.ts
+msgid "The key is too long for a code. Scan this one to open your link on the %s instead."
 msgstr ""
 
 #: web/src/portal/flows/setup-view.ts
@@ -1118,6 +1270,10 @@ msgstr ""
 msgid "The person has no server."
 msgstr ""
 
+#: web/src/portal/page/devices.ts
+msgid "The router can’t use what it sends: reconnect it."
+msgstr ""
+
 #: web/src/portal/flows/setup-parts.ts
 msgid "Then come back here and tap"
 msgstr ""
@@ -1127,7 +1283,15 @@ msgid "Then import it in the app"
 msgstr ""
 
 #: web/src/portal/page/devices.ts
+msgid "This connection is on two devices and they push each other out. Add the other one as its own device."
+msgstr ""
+
+#: web/src/portal/page/devices.ts
 msgid "This device"
+msgstr ""
+
+#: web/src/portal/flows/wait.ts
+msgid "This device is using an outdated configuration."
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
@@ -1163,6 +1327,10 @@ msgstr ""
 msgid "Two steps, about a minute: get the app, then add the connection."
 msgstr ""
 
+#: web/src/portal/flows/wait.ts
+msgid "Unable to complete the handshake"
+msgstr ""
+
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
 msgid "Unknown DNS choice."
 msgstr ""
@@ -1194,6 +1362,10 @@ msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
 msgid "Unknown service %s."
+msgstr ""
+
+#: web/src/shared/name-guard.ts
+msgid "Up to %s characters."
 msgstr ""
 
 #: web/src/portal/ui/bars.ts
@@ -1268,6 +1440,14 @@ msgstr ""
 msgid "Your devices can’t connect until it’s resumed."
 msgstr ""
 
+#: web/src/portal/flows/add.ts
+msgid "Your local network stays reachable while connected."
+msgstr ""
+
+#: web/src/portal/flows/wait.ts
+msgid "Your network may be blocking the connection."
+msgstr ""
+
 #: web/src/shared/format.ts
 msgid "bit/s"
 msgstr ""
@@ -1312,10 +1492,6 @@ msgstr ""
 
 #: web/src/shared/format.ts
 msgid "ends tomorrow"
-msgstr ""
-
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
-msgid "h1-h4 must be distinct"
 msgstr ""
 
 #: web/src/shared/format.ts

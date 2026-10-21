@@ -12,13 +12,22 @@ let slot: HTMLElement | null = null;
 let shown: HTMLElement | null = null;
 let timer = 0;
 
-const leave = (t: HTMLElement, frames: Keyframe[], ms: number) =>
-  (play(t, frames, { duration: ms, easing: EASE_IN, fill: 'forwards' }).onfinish = () => t.remove());
+/** A toast goes from where it stands: one still rising (a new one took its place) goes from there. */
+function leave(t: HTMLElement, to: Keyframe, ms: number) {
+  const s = getComputedStyle(t);
+  const a = play(t, [{ opacity: s.opacity, transform: s.transform, filter: s.filter }, to], {
+    duration: ms,
+    easing: EASE_IN,
+    fill: 'forwards',
+  });
+  t.getAnimations().forEach((x) => x !== a && x.cancel());
+  a.onfinish = () => t.remove();
+}
 
 /** One toast at a time: a new one sends the last away first. */
 export function toast(msg: string, bad = false) {
   slot ??= document.body.appendChild(h('div', { class: 'toasts' }));
-  if (shown) leave(shown, [{ opacity: 1 }, { opacity: 0, transform: 'scale(.96)', filter: 'blur(4px)' }], 140);
+  if (shown) leave(shown, { opacity: 0, transform: 'scale(.96)', filter: 'blur(4px)' }, 140);
   const t = h('div', { class: `toast${bad ? ' bad' : ''}`, role: 'status' }, ic(bad ? 'alert' : 'check'), h('span', {}, msg));
   slot.appendChild(t);
   shown = t;
@@ -37,13 +46,13 @@ export function toast(msg: string, bad = false) {
   timer = window.setTimeout(() => {
     if (shown !== t) return;
     shown = null;
-    leave(t, [{ opacity: 1 }, { opacity: 0, transform: 'translateY(6px) scale(.96)', filter: 'blur(4px)' }], 180);
+    leave(t, { opacity: 0, transform: 'translateY(6px) scale(.96)', filter: 'blur(4px)' }, 180);
   }, 2400);
 }
 
-/** An icon that changes in place: the new one pops in where the old one stood. */
-export function swapIcon(icon: Element, name: string): Element {
-  const next = ic(name, icon.getAttribute('class') ?? 'i');
+/** An icon that changes in place: the new one (by name, or one to put back) pops in where the old one stood. */
+export function swapIcon(icon: Element, to: string | Element): Element {
+  const next = typeof to === 'string' ? ic(to, icon.getAttribute('class') ?? 'i') : to;
   icon.replaceWith(next);
   play(
     next,
@@ -61,9 +70,9 @@ export function swapIcon(icon: Element, name: string): Element {
 
 /**
  * The control that copied says so for a moment: its icon turns into a check
- * and its "Copy…" label (`.lbl`, a badge's main line) into "Copied". Every
- * control that copies with a label says "Copy…" (in any language), so the
- * label is not read for the word.
+ * and its "Copy…" label (`.lbl`, a badge's main line) into "Copied", then both
+ * turn back the way they came. Every control that copies with a label says
+ * "Copy…" (in any language), so the label is not read for the word.
  */
 function copied(from: Element) {
   if (from.classList.contains('copied')) return;
@@ -74,7 +83,7 @@ function copied(from: Element) {
   const check = icon ? swapIcon(icon, 'check') : null;
   if (label) morphText(label, _('Copied'));
   setTimeout(() => {
-    if (check && icon) check.replaceWith(icon);
+    if (check && icon) swapIcon(check, icon);
     if (label) morphText(label, was);
     from.classList.remove('copied');
   }, 1600);
