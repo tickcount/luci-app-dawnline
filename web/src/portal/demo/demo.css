@@ -1,5 +1,5 @@
 /* The portal demo's stylesheet: the portal's own, then the demo's pieces in its tokens — the "Demo"
-   chip after the breadcrumb's path, the GitHub pill beside the page's QR knob, the scenario
+   chip after the breadcrumb's path, the GitHub knob before the page's language, the scenario
    rows in the drawer, and the set-up state switch beside the set-up sheet's ×. */
 @import '../styles/index.css';
 
@@ -40,20 +40,16 @@
   margin-right: 0;
 }
 
-/* GitHub: a pill of the QR knob's height and fill, just before it. On a phone it would crowd out the
-   names (the server's and the person's): there it is a button in the drawer instead. */
+/* GitHub: a knob with its mark only, as the QR knob, just before the language. On a phone it would crowd out
+   the names (the server's and the person's): there it is a button in the drawer instead. */
 .dm-gh {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
   height: 32px;
-  padding: 0 12px 0 10px;
-  border-radius: 999px;
+  border-radius: 50%;
   background: var(--knob);
   color: var(--text);
-  font-size: 14px;
-  font-weight: 500;
-  letter-spacing: -0.01em;
   text-decoration: none;
   flex: none;
   transition:
@@ -179,18 +175,8 @@
 .dm-way[aria-expanded='true'] {
   background: color-mix(in srgb, var(--knob), var(--text) 10%);
 }
-.dm-way .i {
-  width: 14px;
-  height: 14px;
-  color: var(--text-2);
-  transform: rotate(90deg);
-  transition: transform 240ms var(--ease-out);
-}
-.dm-way[aria-expanded='true'] .i {
-  transform: rotate(-90deg);
-}
 .dm-way .dot,
-.dm-way-pop .dot {
+.pp-pop .dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
@@ -200,103 +186,21 @@
     opacity 150ms;
 }
 .dm-way .dot.warn,
-.dm-way-pop .dot.warn {
+.pp-pop .dot.warn {
   background: var(--warn);
 }
 .dm-way .dot.ok,
-.dm-way-pop .dot.ok {
+.pp-pop .dot.ok {
   background: var(--ok);
 }
 
-/* Its popup: segments in one pill frame, a step above the sheet each (white on grey in light), a tail down
-   to the pill, and a dark, softly blurred halo behind that fades out around it. */
-.dm-way-pop {
-  --frame: color-mix(in srgb, var(--field), var(--knob) 55%);
-  --seg: color-mix(in srgb, var(--knob), var(--text) 2%);
-  --seg-hover: color-mix(in srgb, var(--knob), var(--text) 6%);
-  position: fixed;
-  z-index: 60;
-  display: flex;
-  gap: 3px;
-  padding: 3px;
-  border-radius: 999px;
-  background: var(--frame);
-  box-shadow: var(--pop-shadow);
-}
-.dm-way-pop::before {
-  content: '';
-  position: absolute;
-  bottom: -5px;
-  left: var(--tail, 50%);
-  width: 12px;
-  height: 12px;
-  margin-left: -6px;
-  border-radius: 0 0 3px 0;
-  background: var(--frame);
-  transform: rotate(45deg);
-}
-.dm-way-pop button {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 34px;
-  padding: 0 10px;
-  border-radius: 10px;
-  background: var(--seg);
-  color: color-mix(in srgb, var(--text-2), var(--text-3) 35%);
-  font-size: 12.5px;
-  font-weight: 500;
-  white-space: nowrap;
-  transition:
-    color 150ms,
-    background-color 150ms,
-    transform 150ms var(--ease-out);
-}
-/* The ends follow the frame: half the segment's height (a larger radius would shrink every corner). */
-.dm-way-pop button:first-of-type {
-  border-radius: 17px 10px 10px 17px;
-  padding-left: 13px;
-}
-.dm-way-pop button:last-of-type {
-  border-radius: 10px 17px 17px 10px;
-  padding-right: 13px;
-}
-.dm-way-pop button:hover {
-  color: color-mix(in srgb, var(--text-2), var(--text) 45%);
-  background: var(--seg-hover);
-}
-.dm-way-pop button:active {
-  transform: scale(0.96);
-}
-.dm-way-pop button[aria-checked='true'] {
-  color: var(--text);
-}
-.dm-way-pop .dot {
+/* The set-up state's dots in the shared popup (styles/pick.css): faint, full on the one picked or pointed at. */
+.pp-pop .dot {
   background: currentColor;
   opacity: 0.5;
 }
-.dm-way-pop button[aria-checked='true'] .dot,
-.dm-way-pop button:hover .dot {
+.pp-pop button[aria-checked='true'] .dot,
+.pp-pop button:hover .dot,
+.pp-pop button.hot .dot {
   opacity: 1;
-}
-.dm-way-halo {
-  position: fixed;
-  z-index: 59;
-  pointer-events: none;
-  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.35) 55%, transparent);
-  -webkit-backdrop-filter: blur(3px);
-  backdrop-filter: blur(3px);
-  -webkit-mask-image: radial-gradient(closest-side, #000 60%, transparent 92%);
-  mask-image: radial-gradient(closest-side, #000 60%, transparent 92%);
-}
-@media (prefers-color-scheme: light) {
-  .dm-way-pop {
-    --frame: var(--knob);
-    --seg: var(--raised);
-    --seg-hover: color-mix(in srgb, var(--raised), var(--text) 4%);
-  }
-  .dm-way-halo {
-    background: radial-gradient(closest-side, rgba(0, 0, 0, 0.14), rgba(0, 0, 0, 0.07) 55%, transparent);
-  }
 }

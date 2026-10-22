@@ -2,7 +2,10 @@
 // name. The pill stretches like skiper21's tabs: its leading edge reaches the
 // new item first and the trailing edge follows, so the name fading in is always
 // inside it. Items grow by flex-grow (a share of the track, not pixels), so
-// they stay right while the sheet around them changes width.
+// they stay right while the sheet around them changes width. At rest the pill
+// stands where CSS puts it (its item's place among the others: controls.css), so
+// a sheet changing width, a phone turned, carry it along with nothing to watch;
+// only a pick moves it from here.
 
 import { h, ic } from '../dom';
 import { EASE_OUT, LEAD, SMOOTH, calm, play } from '../motion';
@@ -64,11 +67,20 @@ export function iconSeg<T extends string>(items: SegItem<T>[], value: T, onPick:
     const b = btns.find((x) => x.dataset.v === value);
     return b && b.offsetWidth ? [b.offsetLeft, el.clientWidth - b.offsetLeft - b.offsetWidth] : null;
   };
+  /** At rest: its item's place, for CSS to keep (`--i` of `--n`), nothing inline. */
   const placePill = () => {
-    const e = edges();
-    if (!e) return;
-    pill.style.left = `${e[0]}px`;
-    pill.style.right = `${e[1]}px`;
+    pill.style.setProperty(
+      '--i',
+      String(
+        Math.max(
+          0,
+          btns.findIndex((b) => b.dataset.v === value),
+        ),
+      ),
+    );
+    pill.style.setProperty('--n', String(btns.length));
+    pill.style.left = '';
+    pill.style.right = '';
   };
 
   let raf = 0;
@@ -166,9 +178,7 @@ export function iconSeg<T extends string>(items: SegItem<T>[], value: T, onPick:
   }
 
   mark();
-  new ResizeObserver(() => {
-    if (!raf) placePill();
-  }).observe(el);
+  placePill();
   return {
     el,
     sync(v) {

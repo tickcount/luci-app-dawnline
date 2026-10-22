@@ -14,12 +14,12 @@
 .sheet-root.open {
   display: block;
 }
+/* The dim alone, no blur behind it: a blur of the whole page would be drawn again on every frame the sheet and
+   the dim move, and the system's own sheets dim too. */
 .scrim {
   position: absolute;
   inset: 0;
   background: var(--scrim);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
 }
 .sheet {
   position: absolute;
@@ -135,34 +135,31 @@
   top: 22px;
   right: 58px;
 }
+/* The connection's download and copy, on its row beside the chevron: quiet icons in the chevron's grey, a knob
+   circle behind one under the pointer. */
 .hpill {
   position: relative;
   display: flex;
-  gap: 2px;
 }
 .hp-b {
   display: grid;
   place-items: center;
-  width: 38px;
+  width: 32px;
   height: 32px;
-  background: var(--knob);
-  color: var(--text);
+  border-radius: 50%;
+  color: var(--text-2);
   transition:
     background-color 150ms,
+    color 150ms,
     transform 150ms var(--ease-out);
-}
-.hp-b:first-of-type {
-  border-radius: 16px 6px 6px 16px;
-}
-.hp-b:last-of-type {
-  border-radius: 6px 16px 16px 6px;
 }
 .hp-b .i {
   width: 16px;
   height: 16px;
 }
 .hp-b:hover {
-  background: color-mix(in srgb, var(--knob), var(--text) 6%);
+  background: var(--knob);
+  color: var(--text);
 }
 .hp-b:active {
   transform: scale(0.94);

@@ -8,7 +8,7 @@
 
 import { h, ic } from '../dom';
 import { BOUNCY, DRAWER, EASE_IN, EASE_OUT, SMOOTH, SOFT, dismisses, play, rubber, unrubber } from '../motion';
-import { closeMenu } from './menu';
+import { closeDrop } from './drop';
 
 /** A view: its root, and what the sheet reads from it. */
 export interface View {
@@ -134,7 +134,12 @@ function build() {
     true,
   );
   document.body.appendChild(root);
-  new ResizeObserver(() => startWidth(planWidth())).observe(vp);
+  // What changes the sheet's width says so itself (a view, a row opening, a code swapped: planWidth); left is the
+  // window, a phone turned or a desktop window crossing the dialog's width. Once a frame at most.
+  let resizing = 0;
+  addEventListener('resize', () => {
+    if (!resizing) resizing = requestAnimationFrame(() => ((resizing = 0), startWidth(planWidth())));
+  });
   pullToClose();
 }
 
@@ -158,6 +163,12 @@ export function onLeave(fn: () => void) {
   left = fn;
 }
 
+/** Who is told the sheet changed: a view shown in it, its work done (or not), the sheet gone. */
+const watchers: (() => void)[] = [];
+/** Told whenever the sheet changes (the demo's state switch: demo/way-pick.ts). */
+export const onSheetChange = (fn: () => void) => void watchers.push(fn);
+const changed = () => watchers.forEach((f) => f());
+
 /** After this sheet closes (once). */
 export function onClosed(fn: () => void) {
   closed = fn;
@@ -165,7 +176,7 @@ export function onClosed(fn: () => void) {
 
 export function openSheet(factory: ViewFactory) {
   if (!root) build();
-  closeMenu(true);
+  closeDrop(true);
   if (root.dataset.closing) {
     // Still on its way out: the new flow opens once it is gone, as it would have a moment later.
     next = factory;
@@ -226,6 +237,7 @@ export function openSheet(factory: ViewFactory) {
       /* no history */
     }
   }
+  changed();
 }
 
 /** `now`: gone at once (Escape: what the keyboard does never animates). */
@@ -295,6 +307,7 @@ function gone() {
   const f = closed;
   closed = null;
   f?.();
+  changed();
   const n = next;
   next = null;
   if (n) openSheet(n);
@@ -419,6 +432,7 @@ function swapView(v: View) {
       fill: 'backwards',
     },
   );
+  changed();
 }
 
 /** Further into a flow (Add → Open on the device). */
@@ -493,6 +507,7 @@ export function glide(change: () => void, focus: (Element | null | undefined)[] 
  */
 export function settle(done = true) {
   sheetEl?.classList.toggle('arrived', done);
+  changed();
 }
 
 /** The sheet scrolls back to the top (a device connected under a scrolled sheet). */

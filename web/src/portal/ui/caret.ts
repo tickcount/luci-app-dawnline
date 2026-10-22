@@ -3,10 +3,12 @@
 // and blinks as macOS draws it; a selection is an accent wash with a handle at
 // each end, as iOS draws it, growing out of the caret and fading back into it.
 // The input stays the browser's own (typing, IME, its native selection, made
-// see-through): this only draws over it. On a touch screen the system draws its
-// own selection and handles, so ours stays off and the caret steps aside while
-// one shows. The look is in styles/controls.css; like the rest of the page this
-// writes styles through `el.style` only (the CSP drops style attributes).
+// see-through): this only draws over it. With a mouse or trackpad only: on a
+// touch screen the system's caret stays (in the accent), with its own selection
+// and handles. iOS doesn't tell a page reliably where its caret went (a tap in
+// the words, a press-and-drag): a drawn one would wait for the first key. The
+// look is in styles/controls.css; like the rest of the page this writes styles
+// through `el.style` only (the CSP drops style attributes).
 //
 // Places come from a hidden mirror with the input's own font: the width of the
 // text up to a position, less how far the input has scrolled. The pure parts
@@ -87,15 +89,15 @@ export function places(f: FieldText, measure: (text: string) => number): Places 
 const FONT = ['fontFamily', 'fontSize', 'fontWeight', 'letterSpacing', 'fontFeatureSettings', 'fontVariationSettings'] as const;
 
 /**
- * Give the input of `field` (a `.field`) the glide caret and, with a fine pointer, the selection.
+ * Give the input of `field` (a `.field`) the glide caret and the selection, with a mouse or trackpad.
  * Call it once, as the field is built (it measures only once the field is on the page).
  */
 export function smoothCaret(field: HTMLElement) {
   const input = field.querySelector('input');
   if (!input) return;
-  const fine = matchMedia('(pointer: fine)').matches;
-  field.classList.add('own-caret');
-  if (fine) field.classList.add('own-sel');
+  // A touch screen: the system's caret (controls.css gives it the accent).
+  if (!matchMedia('(pointer: fine)').matches) return;
+  field.classList.add('own-caret', 'own-sel');
   const wash = h('span', { class: 'caret-sel' });
   const h0 = h('span', { class: 'caret-hd s' });
   const h1 = h('span', { class: 'caret-hd e' });
@@ -187,7 +189,7 @@ export function smoothCaret(field: HTMLElement) {
       all.forEach((g) => jump(g, p.start));
       first = false;
     }
-    if (p.range && fine) {
+    if (p.range) {
       // Selecting: the wash grows out of where the caret is, and the caret steps aside. A wash still fading from
       // the last selection turns back instead and glides from its old ends to the new ones.
       if (!selecting) {
@@ -204,10 +206,6 @@ export function smoothCaret(field: HTMLElement) {
       cur.t = p.caret;
       field.classList.add('selecting');
       caret.classList.remove('on', 'blink');
-    } else if (p.range) {
-      // A touch screen: the system's own selection shows.
-      caret.classList.remove('on', 'blink');
-      return;
     } else {
       // Collapsed: the wash fades where it stands, and its ends join the caret once it is gone.
       // A click puts the caret where it was clicked at once, as macOS does; typing and the arrows glide.

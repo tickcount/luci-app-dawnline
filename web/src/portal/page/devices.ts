@@ -56,6 +56,10 @@ function statusOf(d: Device, p: Person): [string, string, string?] {
   // "connected", so say here why nothing works.
   if (d.online && p.state === 'quota') return ['warn-t', _('Connected, no data left')];
   if (d.online && p.state === 'hours') return ['warn-t', _('Connected, outside your hours')];
+  // Connected, and what it sends is dropped: the set-up sheet's no data, right away (the router's watcher names it
+  // only once it held 3 minutes), so a sheet closed on it doesn't leave the card saying Connected.
+  if (d.online && d.setup?.state === 'nodata')
+    return ['warn-t', _('Connected, but no data'), _('The router drops its traffic: the address does not match.')];
   if (d.link) return ['warn-t', ...linkWords(d.link.state)];
   if (d.online) return ['ok-t', _('Connected')];
   if (!d.handshake) return ['warn-t', _('Not set up yet')];
@@ -93,8 +97,10 @@ function menuItems(d: Device, st: State): (MenuItem | null)[] {
     // How devices at home reach it: only where the router actually lets them through.
     ...(reachableFromHome(st.person, d)
       ? [
-          { label: _('Copy IP address'), icon: 'copy', run: () => copy(d.address, _('IP address copied')) },
-          ...(d.hostname ? [{ label: _('Copy local address'), icon: 'home', run: () => copy(d.hostname, _('Address copied')) }] : []),
+          { label: _('Copy IP address'), icon: 'copy', sub: d.address, run: () => copy(d.address, _('IP address copied')) },
+          ...(d.hostname
+            ? [{ label: _('Copy local address'), icon: 'home', sub: d.hostname, run: () => copy(d.hostname, _('Address copied')) }]
+            : []),
           null,
         ]
       : []),
@@ -171,7 +177,7 @@ function card(d: Device, st: State): HTMLElement {
           },
           ic('more'),
         );
-  more?.addEventListener('click', () => openMenu(more, items));
+  more?.addEventListener('click', () => openMenu(more, items, d.name));
   return h(
     'article',
     { class: `dev${here ? ' is-here' : ''}${d.disabled ? ' off' : ''}`, 'data-id': d.id },
@@ -258,19 +264,16 @@ export function devicesSection(): HTMLElement {
 /**
  * A card whose width jumps (the grid changed its columns: a window across 560 or 960 px, a phone turned)
  * takes its new shape with the layout, at once: gliding there from the old one, its numbers would not fit
- * for a moment and wrap. A threshold crossed while the window is resized a little at a time still glides
- * (devices.css). The class goes on before the frame is painted, so the glide that began never shows.
+ * for a moment and wrap. The columns change only there (devices.css, page.css), so those two crossings are what
+ * it listens for; a window resized between them still glides. The class goes on before the frame is painted, so
+ * the glide that began never shows.
  */
 function snapOnJump(grid: HTMLElement) {
-  let was = 0;
-  new ResizeObserver(() => {
-    const w = grid.querySelector('.dev')?.getBoundingClientRect().width ?? 0;
-    if (Math.abs(w - was) > 16) {
-      grid.classList.add('snap');
-      requestAnimationFrame(() => requestAnimationFrame(() => grid.classList.remove('snap')));
-    }
-    was = w;
-  }).observe(grid);
+  const snap = () => {
+    grid.classList.add('snap');
+    requestAnimationFrame(() => requestAnimationFrame(() => grid.classList.remove('snap')));
+  };
+  for (const q of ['(min-width: 560px)', '(min-width: 960px)']) matchMedia(q).addEventListener('change', snap);
 }
 
 /** The green ring of a device that just connected (its animation's id, to find it again on a repaint). */

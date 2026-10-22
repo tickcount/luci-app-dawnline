@@ -1,0 +1,137 @@
+/* A pick pill (ui/pick.ts): the pill's own look is its class's (the language in the breadcrumb, the demo's
+   set-up state); here what every one shares: what it leads with, its chevron, and its popup. */
+.pp {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.pp-lead {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+/* The one it led with before, blurring away over the new one. */
+.pp-lead > .pp-gone {
+  position: absolute;
+  inset: 0;
+}
+.pp-lead[hidden] {
+  display: none;
+}
+/* Turned by its own angle (ui/pick.ts), so shutting goes on round to down rather than back. */
+.pp-chev {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  color: var(--text-2);
+  rotate: 90deg;
+  transition: rotate 260ms var(--ease-out);
+}
+
+/* The popup: segments in one pill frame on Liquid Glass (tokens.css --glass-*), its tail one shape with it (a clip
+   path, ui/pick.ts) with a soft even edge traced round both.
+   The segments: clear on the glass as the menu's rows are; the dropdowns' highlight rests on the picked one (it is
+   what says which is picked) and glides to the one pointed at; the picked one and the one pointed at in full text
+   colour, the rest in the glass's subtitle colour. */
+.pp-pop {
+  position: fixed;
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+}
+/* Its edge and shadow are its own (the clip path would cut the dropdowns' off): the ring and the shade. */
+.pp-pop.drop {
+  box-shadow: none;
+}
+/* Room for the tail, towards the pill. */
+.pp-pop.above {
+  padding-bottom: 9px;
+}
+.pp-pop.below {
+  padding-top: 9px;
+}
+.pp-shade {
+  position: fixed;
+  z-index: 59;
+  border-radius: 999px;
+  pointer-events: none;
+  box-shadow: var(--glass-shadow);
+}
+.pp-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  fill: none;
+  stroke: var(--glass-edge);
+  stroke-width: 2;
+}
+.pp-pop button {
+  position: relative;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 10px;
+  color: var(--glass-sub);
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition:
+    color 150ms,
+    background-color 150ms,
+    transform 150ms var(--ease-out);
+}
+/* The ends follow the frame: half the segment's height (a larger radius would shrink every corner). */
+.pp-pop button:first-of-type {
+  border-radius: 17px 10px 10px 17px;
+  padding-left: 13px;
+}
+.pp-pop button:last-of-type {
+  border-radius: 10px 17px 17px 10px;
+  padding-right: 13px;
+}
+/* Under the pointer, or under a finger sliding over from the pill. */
+/* Under the pointer, or under a finger sliding over from the pill: the dropdowns' highlight is under it
+   (ui/glide.ts); its words come up. */
+.pp-pop button.hot {
+  color: var(--glass-text);
+}
+.pp-pop button:active {
+  transform: scale(0.96);
+}
+.pp-pop button[aria-checked='true'] {
+  color: var(--glass-text);
+}
+.kbd .pp-pop button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* A language's flag: a 16px disc with a hairline so a white stripe keeps its edge. */
+.flag {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex: none;
+}
+.flag svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.flag::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
+}
+.pp-pop button:not([aria-checked='true']):not(.hot) .flag {
+  opacity: 0.7;
+}

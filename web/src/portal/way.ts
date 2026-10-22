@@ -3,8 +3,9 @@
 // agent the router counts a session that lives as data flowing): waiting,
 // can't finish (its knocks reach the router, no handshake follows), connected
 // (a handshake since the sheet opened, and data coming through), no data (a
-// handshake since then, but nothing in except handshakes and keep-alives: an
-// outdated configuration). Pure: flows/wait.ts polls for it and draws it.
+// handshake since then, but nothing in except handshakes and keep-alives: it
+// sends from an address the router does not expect, so the router drops it).
+// Pure: flows/wait.ts polls for it and draws it.
 
 import type { Device } from '../shared/types';
 

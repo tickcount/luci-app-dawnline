@@ -6,7 +6,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-dawnline
-PKG_VERSION:=0.14.1
+PKG_VERSION:=0.15.0
 PKG_RELEASE:=1
 PKG_LICENSE:=MIT
 # po/<lang>/dawnline.po becomes luci-i18n-dawnline-<lang> (luci.mk), released

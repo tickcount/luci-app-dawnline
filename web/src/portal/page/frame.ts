@@ -8,8 +8,8 @@
 import { h, ic, markup } from '../dom';
 import { EASE_OUT, SOFT, play } from '../motion';
 import { placeName, state } from '../state';
-import { showPageCode } from '../flows/page-code';
-import { openMenu } from '../ui/menu';
+import { closePageCode, showPageCode } from '../flows/page-code';
+import { pickPill, type PickPill } from '../ui/pick';
 import { LANGS, lang, setLang } from '../i18n';
 
 // The sun rises from behind the horizon once, on the visit's first paint.
@@ -70,21 +70,50 @@ export function single(on: boolean) {
   pageEl?.classList.toggle('single', on);
 }
 
-/** The language: its code and a chevron; the menu lists the languages by their own names. */
+// Each language's flag, a disc (styles/pick.css): the Union Jack for English, the tricolour for Russian.
+const FLAGS: Record<string, string> = {
+  en:
+    '<svg viewBox="15 0 30 30" aria-hidden="true"><path fill="#012169" d="M0 0h60v30H0z"/>' +
+    '<path stroke="#fff" stroke-width="6" d="M0 0l60 30M60 0L0 30"/><path stroke="#c8102e" stroke-width="2" d="M0 0l60 30M60 0L0 30"/>' +
+    '<path stroke="#fff" stroke-width="10" d="M30 0v30M0 15h60"/><path stroke="#c8102e" stroke-width="6" d="M30 0v30M0 15h60"/></svg>',
+  ru:
+    '<svg viewBox="0 0 30 30" aria-hidden="true"><path fill="#fff" d="M0 0h30v10H0z"/><path fill="#0039a6" d="M0 10h30v10H0z"/>' +
+    '<path fill="#d52b1e" d="M0 20h30v10H0z"/></svg>',
+};
+const flag = (code: string) => h('span', { class: 'flag' }, FLAGS[code] ? markup(FLAGS[code]) : null);
+
+/**
+ * The language: its flag, its code and a chevron; the popup under it lists the languages by their own names. One
+ * pill for the visit, put back each time the breadcrumb is drawn, so a pick morphs its code after the page redraws.
+ */
+let langPill: PickPill<string> | null = null;
 function langPicker(): HTMLElement {
-  const b = h(
+  langPill ??= pickPill({
+    cls: 'cr-lang',
+    label: () => _('Language'),
+    options: LANGS.map((l) => ({ value: l.code, label: () => l.name, lead: () => flag(l.code) })),
+    value: lang(),
+    short: (c) => c.toUpperCase(),
+    prefer: 'below',
+    pick: (c) => setLang(c),
+  });
+  langPill.show(lang());
+  return langPill.el;
+}
+
+/**
+ * This page's code for another device: one knob for the visit, as the language's pill, so a card open from it
+ * (flows/page-code.ts) stays where it is as the page redraws.
+ */
+let qr: HTMLElement | null = null;
+function qrKnob(): HTMLElement {
+  qr ??= h(
     'button',
-    { type: 'button', class: 'cr-lang', 'aria-label': _('Language'), 'aria-haspopup': 'menu', 'aria-expanded': 'false' },
-    h('span', {}, lang().toUpperCase()),
-    ic('chevron', 'i cr-down'),
+    { type: 'button', class: 'knob cr-qr', 'aria-haspopup': 'dialog', 'aria-expanded': 'false', onclick: () => showPageCode(qr!) },
+    ic('qr'),
   );
-  b.addEventListener('click', () =>
-    openMenu(
-      b,
-      LANGS.map((l) => ({ label: l.name, checked: l.code === lang(), run: () => l.code !== lang() && setLang(l.code) })),
-    ),
-  );
-  return b;
+  qr.setAttribute('aria-label', _('Open on another device'));
+  return qr;
 }
 
 /**
@@ -93,6 +122,10 @@ function langPicker(): HTMLElement {
  * device, on the page itself only (not over a card: paused, link gone,
  * nothing loaded).
  */
+/** Who is told the breadcrumb was drawn again (the demo adds its chip and GitHub link to it: demo/crumbs.ts). */
+const drawnCrumbs: (() => void)[] = [];
+export const onCrumbs = (fn: () => void) => void drawnCrumbs.push(fn);
+
 export function crumbs(gone = false, card = false) {
   if (!crumbsEl) return;
   const p = gone ? null : state()?.person;
@@ -106,8 +139,9 @@ export function crumbs(gone = false, card = false) {
       p ? [ic('chevron'), h('span', { class: 'cur', 'aria-current': 'page' }, p.name)] : null,
     ),
     ...(card ? [] : [langPicker()]),
-    ...(p && !card
-      ? [h('button', { type: 'button', class: 'knob cr-qr', 'aria-label': _('Open on another device'), onclick: showPageCode }, ic('qr'))]
-      : []),
+    ...(p && !card ? [qrKnob()] : []),
   );
+  // No knob to fold back into: the card goes with it.
+  if (!qr?.isConnected) closePageCode(true);
+  drawnCrumbs.forEach((f) => f());
 }

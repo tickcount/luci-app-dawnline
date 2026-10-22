@@ -4,8 +4,9 @@
 // the sheet around it keeping pace. Connected, the way fills green and its line
 // morphs into "<device> connected", × and the sheet's buttons step away,
 // everything under the way folds shut and the sheet closes by itself onto the
-// page; any other state undoes that. What sits under the way in each state is
-// the view's (setup-view.ts hands it over as `Around`).
+// page. Can't finish and no data fold what is under the way the same and keep
+// the sheet; waiting again unfolds it. What sits under the way is the view's
+// (setup-view.ts hands it over as `Around`).
 
 import type { Device } from '../../shared/types';
 import { fmt } from '../../shared/i18n';
@@ -13,7 +14,7 @@ import { gone, call } from '../api';
 import { h, ic } from '../dom';
 import { EASE_IN, EASE_OUT, calm, play } from '../motion';
 import { now, repaint, setState, type State } from '../state';
-import { menuOpen } from '../ui/menu';
+import { dropOpen } from '../ui/drop';
 import { morphText, setText, textOf } from '../ui/morph';
 import { closeSheet, onClosed, scrollTop, settle, showing } from '../ui/sheet';
 import { wayState, type WayState } from '../way';
@@ -34,7 +35,7 @@ function lines(st: WayState, d: Device): [string, string] {
     case 'connected':
       return [fmt(_('%s connected'), d.name), ''];
     case 'nodata':
-      return [_('Handshake complete, but no data'), _('This device is using an outdated configuration.')];
+      return [_('Handshake complete, but no data'), _('The router drops its traffic: the address does not match.')];
     case 'waiting':
       return [_('Waiting for the connection'), ''];
   }
@@ -185,7 +186,7 @@ function catchUp(id: string, tries = 4) {
     try {
       const st = await call<State>('state');
       setState(st);
-      if (!menuOpen()) repaint();
+      if (!dropOpen()) repaint();
       if (!st.person.devices.find((x) => x.id === id)?.online && tries > 1) catchUp(id, tries - 1);
     } catch {
       /* a hiccup: the page keeps the last answer, as on load */
@@ -274,8 +275,6 @@ export interface Around {
   sub: HTMLElement;
   /** Everything under the way. */
   rest: HTMLElement;
-  /** Give what is under the way its shape for this state, at once (the glide is here); false: nothing changed. */
-  shape(st: WayState): boolean;
 }
 
 /** Blocks folded away, held at nothing until they come back. */
@@ -337,28 +336,6 @@ function gap(way: HTMLElement, away: boolean) {
   play(way, [{ marginBottom: from }, { marginBottom: to }], { duration: 520, easing: EASE_OUT, fill: away ? 'forwards' : 'none' });
 }
 
-/** What is under the way takes another shape: it glides to its new height, and what came in blurs in. */
-function reshape(a: Around, st: WayState) {
-  const rest = a.rest;
-  // From where it stands on screen (a glide under way included) to its new height.
-  const h0 = rest.getBoundingClientRect().height;
-  if (!a.shape(st)) return;
-  rest.getAnimations().forEach((x) => x.cancel());
-  const h1 = rest.getBoundingClientRect().height;
-  rest.style.overflow = 'hidden';
-  play(rest, [{ height: `${h0}px` }, { height: `${h1}px` }], { duration: 420, easing: EASE_OUT }).onfinish = () => {
-    rest.style.overflow = '';
-  };
-  play(
-    rest,
-    [
-      { opacity: 0.4, filter: 'blur(2px)' },
-      { opacity: 1, filter: 'none' },
-    ],
-    { duration: 320, easing: EASE_OUT },
-  );
-}
-
 /** What the sheet does as the wait goes on (follow). */
 export interface Following {
   /** A new state of the way. */
@@ -371,14 +348,23 @@ export interface Following {
  * The sheet keeps pace with the way. Connected: × and the buttons beside it
  * step away, the sheet goes back up to the way if it was scrolled, everything
  * under the way folds shut with the way's gap to it, and after two seconds to
- * read it the sheet closes by itself onto the page, the card ringing green. Any
- * other state undoes that (× comes back, what folded unfolds) and gives what is
- * under the way its shape. The subtitle says what setting up takes, so it shows
- * only while waiting: once the device is heard from, or the wait gives up, it
- * folds away, the way then right under the head.
+ * read it the sheet closes by itself onto the page, the card ringing green.
+ * Can't finish or no data: what is under the way folds shut the same, at once,
+ * and the sheet stays (adding the connection again would not help: the way
+ * says what would). Waiting again undoes that (× comes back, what folded
+ * unfolds). The subtitle says what setting up takes, so it shows only while
+ * waiting: once the device is heard from, or the wait gives up, it folds away,
+ * the way then right under the head.
  */
 export function follow(d: Device, way: Way, a: Around): Following {
+  /** What is under the way is folded shut, the way's gap to it with it. */
   let shut = false;
+  const shutRest = (away: boolean) => {
+    if (shut === away) return;
+    shut = away;
+    fold(a.rest, away, 520);
+    gap(way.el, away);
+  };
   let timers: number[] = [];
   const later = (ms: number, f: () => void) => timers.push(window.setTimeout(f, ms));
   const seen = (st: WayState) => {
@@ -391,9 +377,7 @@ export function follow(d: Device, way: Way, a: Around): Following {
       scrollTop();
       later(400, () => {
         if (!showing(way.el)) return;
-        shut = true;
-        fold(a.rest, true, 520);
-        gap(way.el, true);
+        shutRest(true);
         // Reading time, not motion: the same with less motion.
         later(2400, () => {
           // Only this sheet: not one the visitor went on to.
@@ -404,12 +388,7 @@ export function follow(d: Device, way: Way, a: Around): Following {
       });
       return;
     }
-    if (!shut) return reshape(a, st);
-    // Folded while it was connected: it unfolds straight into its new shape.
-    shut = false;
-    a.shape(st);
-    fold(a.rest, false, 520);
-    gap(way.el, false);
+    shutRest(st !== 'waiting');
   };
   return {
     seen,

@@ -1,12 +1,13 @@
 // What the demo adds to the breadcrumb: the scenario chip right after the path,
-// and a GitHub pill just before the page's language picker (none over a card
+// and a GitHub knob (its mark only) just before the page's language picker (none over a card
 // alone, which has no picker either). On a phone the pill would crowd out the names, so it
 // gives way to a button in the scenario drawer (demo.css). The portal redraws
-// the breadcrumb with the page and knows nothing of either, so both go back in
+// the breadcrumb with the page and says when (onCrumbs), so both go back in
 // place after each redraw; a language change makes both again in it.
 
 import { h, ic } from '../dom';
 import { onLang } from '../i18n';
+import { onCrumbs } from '../page/frame';
 import { REPO } from './data';
 import { scenarioChip } from './picker';
 import type { DemoRouter } from './router';
@@ -15,15 +16,9 @@ export function mountCrumbs(router: DemoRouter) {
   const app = document.getElementById('app')!;
   const make = () => ({
     chip: scenarioChip(router),
-    gh: h(
-      'a',
-      { class: 'dm-gh', href: REPO, target: '_blank', rel: 'noopener', 'aria-label': _('Dawnline on GitHub') },
-      ic('github'),
-      h('span', {}, 'GitHub'),
-    ),
+    gh: h('a', { class: 'dm-gh', href: REPO, target: '_blank', rel: 'noopener', 'aria-label': _('Dawnline on GitHub') }, ic('github')),
   });
   let { chip, gh } = make();
-  // Our own insertions call this again: by then both are in place and nothing moves.
   const keep = () => {
     const crumbs = app.querySelector('.crumbs');
     const path = crumbs?.querySelector('.cr-path');
@@ -32,7 +27,8 @@ export function mountCrumbs(router: DemoRouter) {
     const lang = crumbs.querySelector('.cr-lang');
     if (lang && lang.previousElementSibling !== gh) lang.before(gh);
   };
-  new MutationObserver(keep).observe(app, { childList: true, subtree: true });
+  // Each time the page draws its breadcrumb again (a repaint, the language changed).
+  onCrumbs(keep);
   keep();
   // The page has redrawn its breadcrumb in the new language by now (main.ts listens first).
   onLang(() => {

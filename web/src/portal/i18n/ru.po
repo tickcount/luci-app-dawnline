@@ -235,10 +235,6 @@ msgstr "Добавить с самого устройства"
 msgid "Add the connection"
 msgstr "Добавьте подключение"
 
-#: web/src/portal/flows/setup-view.ts
-msgid "Add the connection again"
-msgstr "Добавить заново"
-
 #: web/src/portal/page/devices.ts
 msgid "Add this device"
 msgstr "Добавить это устройство"
@@ -259,10 +255,6 @@ msgstr "Сейчас добавить устройство нельзя: VPN-с�
 #: web/src/portal/page/devices.ts
 msgid "Address copied"
 msgstr "Адрес скопирован"
-
-#: web/src/portal/flows/setup-view.ts
-msgid "Already has the app"
-msgstr "Приложение уже установлено"
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/devices.uc
 msgid "AmneziaWG is not installed (%s): install it in Dawnline → Components."
@@ -383,6 +375,10 @@ msgstr "Скопировать конфигурацию %s"
 msgid "Copy IP address"
 msgstr "Скопировать IP-адрес"
 
+#: web/src/portal/flows/page-code.ts
+msgid "Copy link"
+msgstr "Скопировать ссылку"
+
 #: web/src/portal/page/devices.ts
 msgid "Copy local address"
 msgstr "Скопировать локальный адрес"
@@ -404,6 +400,7 @@ msgctxt "in a sentence"
 msgid "Copy the key"
 msgstr "Скопируйте ключ"
 
+#: web/src/portal/flows/page-code.ts
 #: web/src/portal/ui/codes.ts
 msgid "Copy the link"
 msgstr "Скопировать ссылку"
@@ -682,10 +679,6 @@ msgstr "Импорт из файла или архива"
 msgid "Import the configuration"
 msgstr "Импортируйте конфигурацию"
 
-#: web/src/portal/flows/setup-view.ts
-msgid "Import the configuration again"
-msgstr "Импортировать заново"
-
 #: web/src/portal/setup.ts
 msgctxt "WireGuard app"
 msgid "Import tunnel(s) from file…"
@@ -795,6 +788,7 @@ msgstr "За 7 дней"
 msgid "Last connected %s"
 msgstr "В сети %s"
 
+#: web/src/portal/flows/page-code.ts
 #: web/src/portal/ui/codes.ts
 msgid "Link copied"
 msgstr "Ссылка скопирована"
@@ -1042,10 +1036,6 @@ msgstr "Выберите файл и подключитесь"
 msgid "Point its camera at the code: the link opens there."
 msgstr "Наведите камеру устройства на код - ссылка откроется на нём."
 
-#: web/src/portal/flows/page-code.ts
-msgid "Point its camera at the code: this page opens there."
-msgstr "Наведите камеру устройства на код - там откроется эта страница."
-
 #: web/src/portal/flows/add.ts
 msgid "Point its camera at the code: your page opens there with this device ready to add."
 msgstr "Наведите камеру устройства на код - там откроется ваша страница, и его можно будет сразу добавить."
@@ -1155,10 +1145,6 @@ msgid "Server is turned off"
 msgstr "Сервер выключен"
 
 #: web/src/portal/flows/setup-view.ts
-msgid "Set it up again"
-msgstr "Настроить заново"
-
-#: web/src/portal/flows/setup-view.ts
 #: web/src/portal/page/devices.ts
 msgid "Set up %s"
 msgstr "Настроить %s"
@@ -1187,6 +1173,7 @@ msgstr "Поделиться файлом"
 msgid "Share the file"
 msgstr "Поделиться файлом"
 
+#: web/src/portal/flows/page-code.ts
 #: web/src/portal/ui/codes.ts
 msgid "Share the link"
 msgstr "Поделиться ссылкой"
@@ -1279,6 +1266,11 @@ msgstr "У человека нет сервера."
 msgid "The router can’t use what it sends: reconnect it."
 msgstr "Роутер не принимает то, что отправляет устройство: переподключите его."
 
+#: web/src/portal/flows/wait.ts
+#: web/src/portal/page/devices.ts
+msgid "The router drops its traffic: the address does not match."
+msgstr "Роутер отбрасывает его трафик: адрес не совпадает."
+
 #: web/src/portal/flows/setup-parts.ts
 msgid "Then come back here and tap"
 msgstr "Затем вернитесь сюда и нажмите"
@@ -1294,10 +1286,6 @@ msgstr "Это подключение стоит на двух устройст�
 #: web/src/portal/page/devices.ts
 msgid "This device"
 msgstr "Это устройство"
-
-#: web/src/portal/flows/wait.ts
-msgid "This device is using an outdated configuration."
-msgstr "На этом устройстве устаревшая конфигурация."
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
 msgid "This key is already in use."

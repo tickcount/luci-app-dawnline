@@ -133,8 +133,9 @@ const prelude = (lang, db) => `(() => {
   });
   addEventListener('DOMContentLoaded', () => {
     const s = document.createElement('style');
-    // The demo's chip and GitHub pill go, and the path takes the row again, as on a router's page.
-    s.textContent = '.dm-chip, .dm-gh { display: none !important; } .cr-path { flex: 1 !important; }';
+    // The demo's chip, GitHub knob and set-up state switch go, and the path takes the row again, as on a router's
+    // page.
+    s.textContent = '.dm-chip, .dm-gh, .dm-way { display: none !important; } .cr-path { flex: 1 !important; }';
     document.head.append(s);
   });
 })()`;

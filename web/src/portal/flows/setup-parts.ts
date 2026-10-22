@@ -335,7 +335,7 @@ export interface ConnPill {
 }
 
 /**
- * Beside ×: the connection itself, to download or copy, where the sheet offers
+ * On its row, beside the chevron: the connection itself, to download or copy, where the sheet offers
  * neither (a phone or a tablet set up from elsewhere). One tooltip for both
  * keys, under them: the first waits a beat; once one is up the next comes at
  * once and the tooltip glides across (by Tab too, and back to a key while it
@@ -354,11 +354,11 @@ export function connPill(get: () => { text: string; msg: string; file: string; a
   let tipT = 0;
   let warmUntil = 0;
   const words = (b: HTMLElement) => (b === cp && cp.classList.contains('done') ? _('Copied') : (b.getAttribute('aria-label') ?? ''));
-  // Centred under its key, but never past the sheet's edge (× and its margin to the right).
+  // Centred under its key, but never past its row's edge (the chevron and the row's inset to the right).
   const centre = (b: HTMLElement, t: string) => {
     tm.textContent = t;
     const w = tm.offsetWidth + 20;
-    return Math.min(b.offsetLeft + b.offsetWidth / 2, el.offsetWidth + 46 - w / 2);
+    return Math.min(b.offsetLeft + b.offsetWidth / 2, el.offsetWidth + 30 - w / 2);
   };
   const at = (x: number) => `translateX(${x}px) translateX(-50%)`;
   /** Where the tooltip stands now: mid-fade and mid-glide included. */

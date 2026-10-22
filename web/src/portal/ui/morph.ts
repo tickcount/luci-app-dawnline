@@ -121,7 +121,7 @@ function finish(el: HTMLElement) {
   clearTimeout(r.timer);
   runs.delete(el);
   el.getAnimations().forEach((a) => a.cancel());
-  el.classList.remove('mt', 'mt-ib');
+  el.classList.remove('mt', 'mt-ib', 'mt-run');
   el.textContent = r.text;
 }
 
@@ -163,6 +163,33 @@ export interface MorphOpts {
 }
 
 /**
+ * A letter of a morph leaving: it lifts away as it blurs out (`delay`: its place in the sweep; `from`: how it
+ * shows). Also what goes with the words as one more letter (a pick pill's flag), so both move as one.
+ */
+export function letterOut(el: Element, delay = 0, from: Look = SHOWN): Animation {
+  return play(
+    el,
+    [
+      { opacity: from.opacity, filter: from.filter, transform: 'none' },
+      { opacity: 0, filter: 'blur(4px)', transform: 'translateY(-0.45em)' },
+    ],
+    { duration: 220, delay, easing: EASE_IN, fill: 'forwards' },
+  );
+}
+
+/** A letter of a morph coming in: it rises in as it sharpens, after the old ones start to go. */
+export function letterIn(el: Element, delay = 0): Animation {
+  return play(
+    el,
+    [
+      { opacity: 0, filter: 'blur(4px)', transform: 'translateY(0.45em)' },
+      { opacity: 1, filter: 'blur(0px)', transform: 'none' },
+    ],
+    { duration: 380, delay: 120 + delay, easing: EASE_OUT, fill: 'backwards' },
+  );
+}
+
+/**
  * `el`'s text turns into `next`, letter by letter: the letters both say stay
  * and slide to their new places, the others lift away or rise in. `from`: what
  * it said before a repaint rebuilt it (the new element already says `next`).
@@ -196,6 +223,9 @@ export function morphText(el: HTMLElement, next: string, from = textOf(el), o: M
   const flow = whole && cs.display === 'inline';
   if (cs.display === 'inline' && !whole) el.classList.add('mt-ib');
   if (cs.position === 'static') el.classList.add('mt');
+  // A box that clips its text (one line ending in an ellipsis) lets it show whole while it changes: the letters
+  // rise from under the line and blur, and the width glides past the new ones. Clipped again once done.
+  el.classList.add('mt-run');
   let r0: DOMRect | null = live ? midway : null;
   let t0 = live?.at ?? at ?? null;
   let at0: number[] = [];
@@ -316,26 +346,8 @@ export function morphText(el: HTMLElement, next: string, from = textOf(el), o: M
   // A long text keeps the same overall sweep: the steps shorten instead.
   const so = Math.min(12, 160 / Math.max(1, out.length));
   const si = Math.min(22, 260 / Math.max(1, inn.length));
-  out.forEach((c, i) =>
-    play(
-      c,
-      [
-        { opacity: s0.opacity, filter: s0.filter, transform: 'none' },
-        { opacity: 0, filter: 'blur(4px)', transform: 'translateY(-0.45em)' },
-      ],
-      { duration: 220, delay: i * so, easing: EASE_IN, fill: 'forwards' },
-    ),
-  );
-  inn.forEach((c, i) =>
-    play(
-      c,
-      [
-        { opacity: 0, filter: 'blur(4px)', transform: 'translateY(0.45em)' },
-        { opacity: 1, filter: 'blur(0px)', transform: 'none' },
-      ],
-      { duration: 380, delay: 120 + i * si, easing: EASE_OUT, fill: 'backwards' },
-    ),
-  );
+  out.forEach((c, i) => letterOut(c, i * so, s0));
+  inn.forEach((c, i) => letterIn(c, i * si));
   const ends =
     Math.max(220 + out.length * so, inn.length ? 120 + inn.length * si + 380 : 0, glides || pairs.length ? SMOOTH.duration : 0) + 40;
   runs.set(el, { text: next, timer: window.setTimeout(() => finish(el), ends) });

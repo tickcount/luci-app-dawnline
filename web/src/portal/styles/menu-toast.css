@@ -1,76 +1,108 @@
-/* The ⋯ menu (a highlight that glides after the pointer, tinted for Reconnect and Remove) and the
-   toast slot at the bottom. */
+/* The ⋯ menu (ui/menu.ts): an iOS 26-style menu: Liquid Glass with a soft even edge, rows, thin lines
+   between groups. And the toast slot at the bottom. */
 
-.menu {
-  position: fixed;
-  z-index: 60;
-  min-width: 224px;
-  padding: 6px;
-  border-radius: 20px;
-  background: var(--field);
-  box-shadow:
-    var(--pop-shadow),
-    inset 0 0 0 1px var(--line);
-}
-.menu-hl {
+/* On the dropdowns' glass (.drop, styles/drop.css). */
+.pop {
   position: absolute;
-  left: 6px;
-  right: 6px;
-  top: 6px;
-  height: 40px;
-  border-radius: 14px;
-  background: var(--knob);
-  opacity: 0;
-  transition: opacity 150ms var(--ease-out);
-  pointer-events: none;
+  min-width: 210px;
+  overflow: hidden;
+  border-radius: 24px;
 }
-.menu-hl.moving {
-  transition:
-    opacity 150ms var(--ease-out),
-    transform var(--spring-quick-dur, 300ms) var(--spring-quick, ease-out),
-    background-color 150ms;
-}
-.menu-hl.bad {
-  background: var(--bad-soft);
-}
-.menu-hl.warn {
-  background: color-mix(in srgb, var(--warn) 13%, transparent);
-}
-.mi {
+/* The Figma's Menu made compact: 6 px top and bottom, the rows 6 px in. */
+.pop-body {
   position: relative;
-  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 6px 0;
+}
+.pop-grp {
+  display: flex;
+  flex-direction: column;
+  padding: 0 6px;
+}
+/* A separator: 21 px high, its line 8 px further in than the rows. */
+.pop-sep {
   display: flex;
   align-items: center;
-  gap: 12px;
-  width: 100%;
-  height: 40px;
-  padding: 0 12px;
-  border-radius: 14px;
-  font-size: 14px;
-  font-weight: 500;
-  text-align: left;
+  height: 13px;
+  padding: 0 16px;
 }
-.mi .i {
+.pop-sep > span {
+  flex: 1;
+  height: 1px;
+  background: var(--glass-sep);
+}
+/* A row: 8 px above and below the words (34 high, 50 with a line under the label); the icon further in from the
+   row's rounded edge (14 px) than it is from the words (10 px), so it doesn't crowd the curve. */
+.mi {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 34px;
+  padding: 0 12px 0 14px;
+  border-radius: 18px;
+  color: var(--glass-text);
+  text-align: left;
+  transition: transform 150ms var(--ease-out);
+}
+/* Whole rows over the highlight (they have no fill of their own): pressed, a row scales as one layer, and its
+   words must not drop under the highlight with it. */
+.mi {
+  z-index: 3;
+}
+.mi:active {
+  transform: scale(0.97);
+}
+.kbd .mi:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.mi > .i {
+  position: relative;
+  z-index: 3;
+  flex: none;
+  color: currentColor;
+  transition: scale var(--spring-glide-dur, 400ms) var(--spring-glide, ease-out);
+}
+.mi > .i {
   width: 16px;
   height: 16px;
-  color: var(--text-2);
 }
-/* An option's check, kept in its place on the others so the names line up. */
-.mi .i.off {
-  visibility: hidden;
+.mi.hot > .i {
+  scale: 1.08;
 }
-.mi.warn,
-.mi.warn .i {
+.mi-b {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  min-width: 0;
+  padding: 8px 0;
+}
+.mi-l {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 18px;
+  letter-spacing: -0.2px;
+}
+.mi-s {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11.5px;
+  line-height: 15px;
+  color: var(--glass-sub);
+  font-variant-numeric: tabular-nums;
+}
+.mi.warn {
   color: var(--warn);
 }
-.mi.bad,
-.mi.bad .i {
-  color: var(--bad);
-}
-.menu-sep {
-  height: 1px;
-  margin: 6px 12px;
-  background: var(--line);
+.mi.bad {
+  color: var(--glass-bad);
 }
 
 /* One toast at a time; a new one comes in over the leaving one. */

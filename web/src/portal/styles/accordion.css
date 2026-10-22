@@ -24,10 +24,11 @@
 .acc-row.open {
   margin-block: 10px;
 }
-.acc-row.open:first-child {
+/* The first and last rows that show (ui/accordion.ts: a row stepped out leaves none of its gap). */
+.acc-row.open.first {
   margin-top: 0;
 }
-.acc-row.open:last-child {
+.acc-row.open.last {
   margin-bottom: 0;
 }
 .acc-row:not(.open):not(.still):hover {
@@ -89,6 +90,39 @@
   filter: blur(4px);
   transform: translateX(8px);
   pointer-events: none;
+}
+/* Actions on what an open row holds (ui/accordion.ts aside): beside the chevron, over the head's end, coming
+   in as the row opens and going as it shuts; the title keeps clear of them meanwhile (--aside-w: their width
+   and a gap). */
+.acc-row.has-aside {
+  position: relative;
+  --aside-w: 72px;
+}
+.acc-aside {
+  position: absolute;
+  top: 0;
+  right: 40px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  transition:
+    opacity 200ms var(--ease-out),
+    filter 200ms var(--ease-out),
+    transform 200ms var(--ease-out);
+}
+.acc-row:not(.open) > .acc-aside {
+  opacity: 0;
+  filter: blur(4px);
+  transform: translateX(8px);
+  pointer-events: none;
+  visibility: hidden;
+  transition-property: opacity, filter, transform, visibility;
+}
+.acc-row.has-aside > .acc-head > .acc-title {
+  transition: padding-right 200ms var(--ease-out);
+}
+.acc-row.has-aside.open > .acc-head > .acc-title {
+  padding-right: var(--aside-w);
 }
 .acc-chev {
   width: 16px;

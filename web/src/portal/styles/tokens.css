@@ -39,14 +39,27 @@
   --accent: #4eafff;
   --accent-ink: #ffffff;
   --accent-soft: rgba(78, 175, 255, 0.13);
-  --ok: #57d64b;
-  --ok-soft: rgba(87, 214, 75, 0.14);
-  --warn: #ff8a3d;
-  --bad: #ff5c5c;
-  --bad-soft: rgba(255, 92, 92, 0.13);
+  --ok: #30d158;
+  --ok-soft: rgba(48, 209, 88, 0.14);
+  --warn: #ff8d28;
+  --bad: #ff383c;
+  --bad-soft: rgba(255, 56, 60, 0.13);
   --sel-bg: rgba(131, 209, 255, 0.25);
   --sel-fg: #64c6ff;
   --scrim: rgba(8, 8, 8, 0.8);
+  /* iOS 26's Liquid Glass, Regular (Apple's Figma kit), for what pops over the page (the ⋯ menu, the pick pills'
+     popups): black 60% with a white 6% film at 67%, blurred and its colours lifted; a soft even edge; its own
+     text, subtitle and destructive colours; separators a touch softer than the edge; a solid highlight. */
+  --glass-bg: linear-gradient(rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.04)), rgba(0, 0, 0, 0.4);
+  --glass-edge: rgba(255, 255, 255, 0.05);
+  --glass-sep: rgba(255, 255, 255, 0.04);
+  --glass-text: #f5f5f5;
+  --glass-sub: #8a8a8a;
+  --glass-bad: var(--bad);
+  --glass-hl: color-mix(in srgb, var(--raised), var(--text) 8%);
+  --glass-hover: color-mix(in srgb, var(--raised), var(--text) 5%);
+  /* No shadow on dark: the glass's edge sets it apart; on light a soft one. */
+  --glass-shadow: 0 0 0 transparent;
   --line-glass: rgba(255, 255, 255, 0.07);
   --pop-shadow: 0 18px 48px -14px rgba(0, 0, 0, 0.75);
   --sheet-shadow: 0 24px 64px -16px rgba(0, 0, 0, 0.6);
@@ -65,11 +78,11 @@
   --t-blue-a: #a6d9ff;
   --t-blue-b: #1d84e6;
   --t-green-a: #a8f29c;
-  --t-green-b: #3aa32c;
+  --t-green-b: #30d158;
   --t-red-a: #ffadad;
-  --t-red-b: #dc3a3a;
+  --t-red-b: #ff383c;
   --t-orange-a: #ffc08f;
-  --t-orange-b: #ec6a12;
+  --t-orange-b: #ff8d28;
 
   --font: Geist, -apple-system, system-ui, 'Segoe UI', sans-serif;
   --mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
@@ -98,14 +111,22 @@
     --text-3: #a6a6a4;
     --accent: #2b9dff;
     --accent-soft: rgba(43, 157, 255, 0.12);
-    --ok: #33a328;
-    --ok-soft: rgba(51, 163, 40, 0.12);
-    --warn: #ee6a12;
-    --bad: #e5484d;
-    --bad-soft: rgba(229, 72, 77, 0.1);
+    --ok: #30d158;
+    --ok-soft: rgba(48, 209, 88, 0.12);
+    --warn: #ff8d28;
+    --bad: #ff383c;
+    --bad-soft: rgba(255, 56, 60, 0.1);
     --sel-bg: rgba(78, 175, 255, 0.22);
     --sel-fg: #0a76cf;
     --scrim: rgba(236, 236, 235, 0.62);
+    --glass-bg: rgba(245, 245, 245, 0.6);
+    --glass-edge: rgba(0, 0, 0, 0.04);
+    --glass-sep: rgba(0, 0, 0, 0.03);
+    --glass-text: #1a1a1a;
+    --glass-sub: #727272;
+    --glass-hl: color-mix(in srgb, var(--raised), var(--text) 11%);
+    --glass-hover: color-mix(in srgb, var(--raised), var(--text) 4%);
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
     --line-glass: rgba(0, 0, 0, 0.07);
     --pop-shadow: 0 18px 44px -14px rgba(0, 0, 0, 0.2);
     --sheet-shadow: 0 24px 64px -18px rgba(0, 0, 0, 0.22);
@@ -123,8 +144,8 @@
     --t-blue-a: #7cc4ff;
     --t-blue-b: #0a6fd6;
     --t-green-a: #82e070;
-    --t-green-b: #2e8a22;
+    --t-green-b: #30d158;
     --t-red-a: #ff9090;
-    --t-red-b: #c92a2a;
+    --t-red-b: #ff383c;
   }
 }

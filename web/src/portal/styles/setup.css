@@ -22,10 +22,6 @@
 .step + .step {
   margin-top: 20px;
 }
-/* No data: the connection step alone in its row (flows/setup-view.ts regroup). */
-.step[hidden] + .step {
-  margin-top: 0;
-}
 .step-n {
   width: 24px;
   height: 24px;
@@ -51,6 +47,12 @@
   letter-spacing: -0.02em;
 }
 .step-box {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+/* The connection (flows/setup-view.ts): its picker over its box, in step 2, a row or the again-row alike. */
+.conn {
   display: flex;
   flex-direction: column;
   gap: 10px;

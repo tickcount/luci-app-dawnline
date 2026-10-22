@@ -12,6 +12,9 @@ html {
      (main.ts), so the browser would hold "Your devices" still while an access row opens or folds, and pull a page
      scrolled less than the fold to the very top. A row grows and folds in place; a repaint glides what moves. */
   overflow-anchor: none;
+  /* An app's page, not a document's: a double tap doesn't zoom (the viewport keeps its scale, main.ts stops
+     Safari's pinch). Taps answer at once, with no wait for a second one. */
+  touch-action: manipulation;
 }
 body {
   margin: 0;
@@ -60,7 +63,9 @@ a {
 :focus {
   outline: none;
 }
-:focus-visible {
+/* The focus ring only while the keyboard is moving focus (main.ts sets .kbd on Tab or an arrow and drops it on a
+   press): focus a script moves, or one left after a click, shows nothing. */
+.kbd :focus-visible {
   outline: 2px solid color-mix(in srgb, var(--accent) 65%, transparent);
   outline-offset: 2px;
 }

@@ -216,6 +216,10 @@
   color: var(--text);
   letter-spacing: -0.012em;
 }
+/* The system's caret where the field draws none (a touch screen, ui/caret.ts): the accent, as the drawn one. */
+.field input {
+  caret-color: var(--accent);
+}
 .field input::placeholder {
   color: var(--text-3);
 }
@@ -433,6 +437,16 @@
 .appseg .seg-b.on {
   flex: 1 1 56px;
 }
+/* At rest the pill stands on its item (ui/seg.ts sets --i of --n): the track's 4 px edge and the items before it
+   (each --b wide) on the left, the items after it on the right; the picked item takes what is left, so does the
+   pill, whatever the sheet's width. A pick moves it with its own left and right, then hands back. */
+.appseg {
+  --b: 56px;
+}
+.appseg .seg-pill {
+  left: calc(4px + var(--i, 0) * var(--b));
+  right: calc(4px + (var(--n, 1) - 1 - var(--i, 0)) * var(--b));
+}
 .appseg .seg-b .i {
   width: 20px;
   height: 20px;
@@ -454,6 +468,9 @@
   container-type: inline-size;
 }
 @container (max-width: 300px) {
+  .appseg {
+    --b: 44px;
+  }
   .appseg .seg-b {
     flex-basis: 44px;
     padding: 0 12px;
@@ -501,7 +518,7 @@
   white-space: nowrap;
 }
 .kind:hover .kind-tile,
-.kind:focus-visible .kind-tile {
+.kbd .kind:focus-visible .kind-tile {
   background: var(--knob);
 }
 .kind:active .kind-tile {
@@ -510,7 +527,7 @@
 .kind:focus-visible {
   outline: none;
 }
-.kind:focus-visible .kind-lbl,
+.kbd .kind:focus-visible .kind-lbl,
 .kind.on {
   color: var(--text);
 }

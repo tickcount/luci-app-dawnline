@@ -1,0 +1,40 @@
+/* What every dropdown is made of (ui/drop.ts: the ⋯ menu, the pick pills' popups, the page's code): Liquid Glass
+   (tokens.css --glass-*), the page behind blurred and its colours lifted, a soft even edge, a soft shadow on light
+   only; over the page and a sheet alike. A dropdown cut to a shape of its own (a pick popup's tail) traces its edge
+   and casts its shadow itself. */
+.drop {
+  z-index: 60;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(28px) saturate(1.8);
+  backdrop-filter: blur(28px) saturate(1.8);
+  box-shadow:
+    inset 0 0 0 1px var(--glass-edge),
+    var(--glass-shadow);
+}
+
+/* Their one highlight (ui/glide.ts): under the items' icons and words (they sit over it), solid, the same for every
+   item; it glides on GLIDE and presses in with what it is on. */
+.drop-hl {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 2;
+  background: var(--glass-hl);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 160ms var(--ease-out),
+    scale 150ms var(--ease-out);
+}
+.drop-hl.moving {
+  transition:
+    opacity 160ms var(--ease-out),
+    scale 150ms var(--ease-out),
+    translate var(--spring-glide-dur, 400ms) var(--spring-glide, ease-out),
+    width var(--spring-glide-dur, 400ms) var(--spring-glide, ease-out),
+    height var(--spring-glide-dur, 400ms) var(--spring-glide, ease-out),
+    border-radius var(--spring-glide-dur, 400ms) var(--spring-glide, ease-out);
+}
+.drop-hl.down {
+  scale: 0.97;
+}

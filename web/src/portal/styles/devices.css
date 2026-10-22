@@ -94,7 +94,7 @@
   background: color-mix(in srgb, var(--raised), var(--text) 6%);
 }
 /* Not when an edit gave focus back to it (flows/rename.ts): only reached with Tab. */
-.dev-name.can-edit:focus-visible:not(.quiet) {
+.kbd .dev-name.can-edit:focus-visible:not(.quiet) {
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 60%, transparent);
 }
 .field.inline,
@@ -186,6 +186,14 @@
 }
 .dev.add:hover {
   background: color-mix(in srgb, var(--raised), var(--knob) 45%);
+}
+/* On light the darker step would land on the page's own grey and the card would melt into it: a touch off white,
+   the words up to full colour. */
+@media (prefers-color-scheme: light) {
+  .dev.add:hover {
+    background: color-mix(in srgb, var(--raised), var(--text) 2.5%);
+    color: var(--text);
+  }
 }
 .dev.add:active {
   transform: scale(0.98);

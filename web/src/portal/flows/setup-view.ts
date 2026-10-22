@@ -6,8 +6,8 @@
 // computer, or another device added from a phone, its link or the connection
 // to send there. Which app and where it comes from follow the
 // server's disguise and the platform (setup.ts). The wait for the first
-// connection sits on top the whole time (wait.ts); on the device itself and for
-// a router the steps regroup under it as it goes (can't finish, no data).
+// connection sits on top the whole time (wait.ts); once the device is heard
+// from (can't finish, no data, connected) what is under it folds away.
 
 import type { ClientConfig, Device } from '../../shared/types';
 import { fmt } from '../../shared/i18n';
@@ -17,7 +17,7 @@ import { h, put } from '../dom';
 import { SMOOTH, play } from '../motion';
 import { APP_NAME, appsFor, deviceNoun, inWebview, keyFileName, sameDevice, setupLink, type AppId } from '../setup';
 import { pageUrl, platform, preset, repaint } from '../state';
-import { accordion, regrow, type Accordion } from '../ui/accordion';
+import { accordion, regrow } from '../ui/accordion';
 import { codeRow, linkRow, type CodeRow } from '../ui/codes';
 import { once, toast } from '../ui/feedback';
 import { glass } from '../ui/glass';
@@ -39,7 +39,6 @@ import {
   storeBlock,
   type SetupCtx,
 } from './setup-parts';
-import type { WayState } from '../way';
 import { follow, waitWay, watchFirstConnection } from './wait';
 
 async function getConfig(d: Device): Promise<ClientConfig | null> {
@@ -111,66 +110,6 @@ function foldBlock(el: HTMLElement, fold: boolean, instant: boolean) {
   play(el, [cur, to], { duration: SMOOTH.duration, easing: SMOOTH.easing }).onfinish = () => {
     el.style.overflow = '';
     el.hidden = fold;
-  };
-}
-
-/** The first control in `el` that can take focus now (shown, not disabled). */
-const firstControl = (el: Element | null | undefined) =>
-  [...(el?.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], input:not([disabled])') ?? [])].find(
-    (x) => x.getClientRects().length > 0,
-  );
-
-/**
- * The steps on the device itself or for a router, as the way goes (way.ts); the
- * layouts set up from elsewhere have rows, no steps. Waiting: the steps as
- * built (connected is never asked: what shows folds shut as it is, wait.ts
- * follow). Can't finish: the network is the likely cause, so they fold
- * into one closed row, "Set it up again". No data: only what fixes it, open in
- * one row, "Add the connection again" ("Import the configuration again" for a
- * router): the connection step without its number and title. A router that
- * knocks has AmneziaWG on it already, so its row holds that step alone in both.
- * What sits on field inside the row steps up one (accordion.css). "Not on the X
- * right now?" (`round`, on the device itself) goes in both: the device is in
- * hand. Focus inside what moves (a badge just used) stays in the sheet: on that
- * control where it still shows, else on the first one of what holds the steps
- * now. Returns whether anything changed.
- */
-function regroup(body: HTMLElement, steps: HTMLElement, round: Accordion | null, router: boolean): (st: WayState) => boolean {
-  const [s1, s2] = [...steps.children].slice(-2) as HTMLElement[];
-  const gap = steps.querySelector<HTMLElement>(':scope > .steps-gap');
-  const head2 = [...s2.querySelectorAll<HTMLElement>(':scope > .step-n, :scope > .step-b > .step-t')];
-  let look: 'steps' | 'again' | 'conn' = 'steps';
-  let row: HTMLElement | null = null;
-  return (st) => {
-    const next = st === 'trying' ? 'again' : st === 'nodata' ? 'conn' : 'steps';
-    if (next === look) return false;
-    look = next;
-    // Moving a focused control out of the page and back drops its focus (to the page under the sheet).
-    const had = document.activeElement;
-    const inside = had instanceof HTMLElement && (steps.contains(had) || !!round?.el.contains(had) || !!row?.contains(had));
-    row?.remove();
-    row = null;
-    // The steps show whole wherever they go: opened, the way round folds them away.
-    round?.setOpen(-1);
-    if (round) round.el.hidden = next !== 'steps';
-    const alone = next === 'conn' || (next === 'again' && router);
-    for (const e of [gap, s1, ...head2]) if (e) e.hidden = alone;
-    if (next === 'steps') body.append(steps);
-    else {
-      const title = next === 'again' ? _('Set it up again') : router ? _('Import the configuration again') : _('Add the connection again');
-      row = accordion([{ icon: glass('refresh', 'blue'), title, body: [steps] }], { inset: true, open: next === 'conn' ? 0 : -1 }).el;
-      body.append(row);
-    }
-    if (inside) {
-      const to =
-        had.isConnected && had.getClientRects().length
-          ? had
-          : next === 'again'
-            ? row?.querySelector<HTMLElement>('.acc-head')
-            : firstControl(alone ? s2 : steps);
-      to?.focus({ preventScroll: true });
-    }
-    return true;
   };
 }
 
@@ -280,52 +219,50 @@ export function setupView(d: Device, cfg: ClientConfig, key: string, here = fals
       : h('p', { class: 'desc' }, fmt(_('Open this link on the %s to set it up there.'), thereOn)),
     linkRow(linkThere),
   ];
-  const step1 = () => step('1', title1, [picker(), getBox]);
-  const step2 = () => step('2', router ? _('Import the configuration') : _('Add the connection'), [addBox]);
+  const inSteps = layout === 'same' || layout === 'router';
+  // The connection, one element: its picker (none in step 2: step 1's is there) and its layout's box.
+  const pickEl = inSteps ? null : picker();
+  const pick = pickEl ? h('div', { class: 'conn-pick' }, pickEl) : null;
+  const box = layout === 'away' ? codeBox : layout === 'pc-away' ? sendBox : addBox;
+  const conn = h('div', { class: 'conn' }, pick, box);
 
   const body = h('div', { class: 'setup' });
   if (inWebview(navigator.userAgent))
     body.appendChild(
       notice('warn', 'shield', null, _('Open this page in Safari or Chrome: the store opens from here, but the app handoff does not.')),
     );
-  let shape: (st: WayState) => boolean = () => false;
+  const steps = () =>
+    h(
+      'div',
+      { class: 'steps-wrap' },
+      layout === 'same' ? h('div', { class: 'steps-gap' }) : null,
+      step('1', title1, [picker(), getBox]),
+      step('2', router ? _('Import the configuration') : _('Add the connection'), [conn]),
+    );
+  /** The link to the device and the connection beside it, as rows (`open`: the one open as it starts). */
+  const rows = (icon: string, title: string, open: number, aside: Node | null = null) =>
+    accordion(
+      [
+        { icon: glass('link'), title: fmt(_('Open your link on the %s'), thereOn), body: linkBody() },
+        { icon: glass(icon), title, body: [conn], aside },
+      ],
+      { inset: true, open },
+    ).el;
   if (layout === 'same') {
     // Opened, the way round folds the steps away: the device is not in hand.
-    const steps = h('div', { class: 'steps-wrap' }, h('div', { class: 'steps-gap' }), step1(), step2());
+    const s = steps();
     const round = accordion([{ icon: glass('link'), title: fmt(_('Not on the %s right now?'), thereOn), body: linkBody() }], {
       inset: true,
-      onToggle: (_i, open, instant) => foldBlock(steps, open, instant),
+      onToggle: (_i, open, instant) => foldBlock(s, open, instant),
     });
-    body.append(round.el, steps);
-    shape = regroup(body, steps, round, false);
-  } else if (layout === 'router') {
-    const steps = h('div', { class: 'steps-wrap' }, step1(), step2());
-    body.append(steps);
-    shape = regroup(body, steps, null, true);
-  }
+    body.append(round.el, s);
+  } else if (layout === 'router') body.append(steps());
   // A phone or a tablet set up from here: its link as a code, or the connection as a code for an app it has.
-  else if (layout === 'away')
-    body.appendChild(
-      accordion(
-        [
-          { icon: glass('link'), title: fmt(_('Open your link on the %s'), thereOn), body: linkBody() },
-          { icon: glass('app'), title: _('Already has the app'), body: [picker(), codeBox] },
-        ],
-        { inset: true, open: 1 },
-      ).el,
-    );
+  // The connection's download and copy sit on its own row, while it is open.
+  else if (layout === 'away') body.append(rows('app', _('Add the connection'), 1, pill?.el ?? null));
   // A computer set up from somewhere else, or something else (a TV, a box, a NAS) set up from a phone: its system is
   // not known here, so the link goes there and the page there does both steps.
-  else
-    body.appendChild(
-      accordion(
-        [
-          { icon: glass('link'), title: fmt(_('Open your link on the %s'), thereOn), body: linkBody() },
-          { icon: glass('key'), title: _('Copy or save the connection'), body: [picker(), sendBox] },
-        ],
-        { inset: true, open: 0 },
-      ).el,
-    );
+  else body.append(rows('key', _('Copy or save the connection'), 0));
 
   const subline = sub(
     layout === 'same'
@@ -335,12 +272,12 @@ export function setupView(d: Device, cfg: ClientConfig, key: string, here = fals
         : fmt(_('The app goes on the %s.'), there),
   );
   const way = waitWay(d);
-  const wait = follow(d, way, { sub: subline, rest: body, shape });
+  const wait = follow(d, way, { sub: subline, rest: body });
   onLeave(watchFirstConnection(d, wait.seen, wait.gaveUp));
   // Closed before the device connected: the page shows what the polls brought.
   onClosed(() => repaint());
 
   const title = fmt(_('Set up %s'), d.name);
-  const el = h('div', { class: 'view' }, head(title, { acts: !!pill }), subline, way.el, body);
-  return { el, label: title, acts: pill?.el ?? null };
+  const el = h('div', { class: 'view' }, head(title), subline, way.el, body);
+  return { el, label: title };
 }

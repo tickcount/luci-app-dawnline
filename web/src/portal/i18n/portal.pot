@@ -230,10 +230,6 @@ msgstr ""
 msgid "Add the connection"
 msgstr ""
 
-#: web/src/portal/flows/setup-view.ts
-msgid "Add the connection again"
-msgstr ""
-
 #: web/src/portal/page/devices.ts
 msgid "Add this device"
 msgstr ""
@@ -253,10 +249,6 @@ msgstr ""
 #: web/src/portal/page/access.ts
 #: web/src/portal/page/devices.ts
 msgid "Address copied"
-msgstr ""
-
-#: web/src/portal/flows/setup-view.ts
-msgid "Already has the app"
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/devices.uc
@@ -378,6 +370,10 @@ msgstr ""
 msgid "Copy IP address"
 msgstr ""
 
+#: web/src/portal/flows/page-code.ts
+msgid "Copy link"
+msgstr ""
+
 #: web/src/portal/page/devices.ts
 msgid "Copy local address"
 msgstr ""
@@ -399,6 +395,7 @@ msgctxt "in a sentence"
 msgid "Copy the key"
 msgstr ""
 
+#: web/src/portal/flows/page-code.ts
 #: web/src/portal/ui/codes.ts
 msgid "Copy the link"
 msgstr ""
@@ -677,10 +674,6 @@ msgstr ""
 msgid "Import the configuration"
 msgstr ""
 
-#: web/src/portal/flows/setup-view.ts
-msgid "Import the configuration again"
-msgstr ""
-
 #: web/src/portal/setup.ts
 msgctxt "WireGuard app"
 msgid "Import tunnel(s) from file…"
@@ -790,6 +783,7 @@ msgstr ""
 msgid "Last connected %s"
 msgstr ""
 
+#: web/src/portal/flows/page-code.ts
 #: web/src/portal/ui/codes.ts
 msgid "Link copied"
 msgstr ""
@@ -1037,10 +1031,6 @@ msgstr ""
 msgid "Point its camera at the code: the link opens there."
 msgstr ""
 
-#: web/src/portal/flows/page-code.ts
-msgid "Point its camera at the code: this page opens there."
-msgstr ""
-
 #: web/src/portal/flows/add.ts
 msgid "Point its camera at the code: your page opens there with this device ready to add."
 msgstr ""
@@ -1150,10 +1140,6 @@ msgid "Server is turned off"
 msgstr ""
 
 #: web/src/portal/flows/setup-view.ts
-msgid "Set it up again"
-msgstr ""
-
-#: web/src/portal/flows/setup-view.ts
 #: web/src/portal/page/devices.ts
 msgid "Set up %s"
 msgstr ""
@@ -1182,6 +1168,7 @@ msgstr ""
 msgid "Share the file"
 msgstr ""
 
+#: web/src/portal/flows/page-code.ts
 #: web/src/portal/ui/codes.ts
 msgid "Share the link"
 msgstr ""
@@ -1274,6 +1261,11 @@ msgstr ""
 msgid "The router can’t use what it sends: reconnect it."
 msgstr ""
 
+#: web/src/portal/flows/wait.ts
+#: web/src/portal/page/devices.ts
+msgid "The router drops its traffic: the address does not match."
+msgstr ""
+
 #: web/src/portal/flows/setup-parts.ts
 msgid "Then come back here and tap"
 msgstr ""
@@ -1288,10 +1280,6 @@ msgstr ""
 
 #: web/src/portal/page/devices.ts
 msgid "This device"
-msgstr ""
-
-#: web/src/portal/flows/wait.ts
-msgid "This device is using an outdated configuration."
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc

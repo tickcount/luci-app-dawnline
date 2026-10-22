@@ -3,6 +3,12 @@
 .mt {
   position: relative;
 }
+/* While the words change (ui/morph.ts): nothing of them clipped, not even by a box that ends a long line in an
+   ellipsis; that comes back once they have changed. */
+.mt-run {
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
 .mt-ib {
   display: inline-block;
   white-space: nowrap;

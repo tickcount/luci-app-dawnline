@@ -21,11 +21,11 @@ colors:
   accent: "#4eafff"
   accent-ink: "#ffffff"
   accent-soft: "rgba(78, 175, 255, 0.13)"
-  ok: "#57d64b"
-  ok-soft: "rgba(87, 214, 75, 0.14)"
-  warn: "#ff8a3d"
-  bad: "#ff5c5c"
-  bad-soft: "rgba(255, 92, 92, 0.13)"
+  ok: "#30d158"
+  ok-soft: "rgba(48, 209, 88, 0.14)"
+  warn: "#ff8d28"
+  bad: "#ff383c"
+  bad-soft: "rgba(255, 56, 60, 0.13)"
   selection-bg: "rgba(131, 209, 255, 0.25)"
   selection-fg: "#64c6ff"
   scrim: "rgba(8, 8, 8, 0.8)"
@@ -44,11 +44,11 @@ colors:
   light-text-3: "#a6a6a4"
   light-accent: "#2b9dff"
   light-accent-soft: "rgba(43, 157, 255, 0.12)"
-  light-ok: "#33a328"
-  light-ok-soft: "rgba(51, 163, 40, 0.12)"
-  light-warn: "#ee6a12"
-  light-bad: "#e5484d"
-  light-bad-soft: "rgba(229, 72, 77, 0.1)"
+  light-ok: "#30d158"
+  light-ok-soft: "rgba(48, 209, 88, 0.12)"
+  light-warn: "#ff8d28"
+  light-bad: "#ff383c"
+  light-bad-soft: "rgba(255, 56, 60, 0.1)"
   light-selection-bg: "rgba(78, 175, 255, 0.22)"
   light-selection-fg: "#0a76cf"
   light-scrim: "rgba(236, 236, 235, 0.62)"
@@ -402,7 +402,7 @@ components:
     height: 44px
     padding: 0 4px 0 14px
   update-pill:
-    backgroundColor: "rgba(255, 138, 61, 0.14)"
+    backgroundColor: "rgba(255, 141, 40, 0.14)"
     textColor: "{colors.warn}"
     typography: "{typography.pill-label}"
     rounded: "{rounded.full}"
@@ -413,7 +413,7 @@ components:
     textColor: "{colors.text}"
     rounded: "{rounded.full}"
     height: 32px
-    padding: 0 8px 0 12px
+    padding: 0 8px
   name-chip:
     backgroundColor: "{colors.field}"
     typography: "{typography.mono-link}"
@@ -432,28 +432,19 @@ components:
 
 # DESIGN.md — the Dawnline personal portal
 
-This file describes the **personal portal** (`web/src/portal`, plus the parts of `web/src/shared` it uses): its look, its components and, in its own part, its motion. The admin pages inside LuCI follow `rules/ui-design.md` and the LuCI theme and are not covered here.
+This file describes how the **personal portal** (`web/src/portal`, plus the parts of `web/src/shared` it uses) looks and moves: its tokens, its components and, in its own part, its motion. The admin pages inside LuCI follow `rules/ui-design.md` and the LuCI theme and are not covered here.
 
-The front matter follows the [DESIGN.md](https://github.com/google-labs-code/design.md) draft format (alpha). The prose sections come in that format's order. **Motion Design**, **Content & Voice**, **Accessibility**, **Live audit** and **Source map** are extra sections after them.
+The front matter follows the [DESIGN.md](https://github.com/google-labs-code/design.md) draft format (alpha). The prose sections come in that format's order. **Motion Design**, **Content & Voice** and **Accessibility** are extra sections after them.
 
-**How this was researched (2026-10-20, Dawnline 0.11.0).** Two passes:
+The styles live in `web/src/portal/styles` (tokens in `tokens.css`), the motion engine in `web/src/portal/motion.ts`.
 
-1. **The code.** Every stylesheet in `web/src/portal/styles`, the motion engine (`motion.ts`), every UI module (`ui/`), the page (`page/`) and the flows (`flows/`).
-2. **The live demo** ([dawnline-demo.vercel.app](https://dawnline-demo.vercel.app), the real portal over an in-page router). I went through every scenario, sheet, menu, picker and button at desktop width (1138 px) and phone width (375 px), in dark and in light, in English and in Russian. A recorder hooked `Element.prototype.animate`, `transitionrun` and `animationstart`, so every duration, delay and easing in this file was seen running, not only read. Spring durations and overshoot were computed from the same function the portal uses (see *Motion → Springs*).
-
-Where code, older plans and the live page disagree, the live page wins. The disagreements are listed in *Live audit*.
+**Measured live (2026-10-20, Dawnline 0.11.0)** at desktop width (1138 px) and phone width (375 px), in dark and in light, in English and in Russian. Every duration, delay and easing in this file was seen running, not only read. Spring durations and overshoot come from the same function the portal uses (see *Motion → Springs*). Where code and the live page disagree, the live page wins.
 
 ---
 
 ## Overview
 
-The portal is one person's page on a router. It opens from a personal link with no account and no cookie, and it has three jobs:
-
-- show the person's **devices**;
-- show their **access** (what it reaches, how much data, until when);
-- **set up** a new device in about a minute.
-
-The router serves it as a CGI process under a strict CSP, which forbids inline scripts and `style=` attributes. It is plain TypeScript, with no framework, and it does not poll.
+The portal is one person's page on a router.
 
 **Lineage.** The look was approved as a mockup (Oct 2026). It borrows from four places:
 
@@ -473,7 +464,8 @@ The router serves it as a CGI process under a strict CSP, which forbids inline s
 5. **Nothing blinks.** A change happens where it is: text morphs letter by letter, cards glide to their new places, a sheet glides to its new height. A repaint never flashes.
 6. **Physical, interruptible motion.** Springs are given as stiffness and damping, and each animation starts from where the element stands right now.
 7. **The keyboard never animates.** Escape closes a sheet or a menu instantly. Reduced motion keeps fades and drops all travel.
-8. **Honest states.** Paused, out of data, outside the hours, a plain-HTTP link: each is said once, where it matters, in the state's colour.
+8. **Honest states.** Each state is said once, where it matters, in the state's colour.
+9. **Cheap to draw on a phone.** Nothing watches the page (no observers): what changes says so. Nothing blurs the page behind a sheet (the scrim only dims); on a touch screen the top fade doesn't blur either. A large block (a fold, an accordion's body, a sheet) fades without a blur, on any screen; letters, icons and small things keep theirs. The page keeps its scale, as an app: no pinch or double-tap zoom.
 
 ---
 
@@ -511,9 +503,9 @@ The measured luminance steps are tiny. In dark, raised vs bg is 1.07:1, field vs
 | `--accent` | `#4eafff` | `#2b9dff` | Primary action, "this device", today, links in hints, the selection ring, a field's caret and selection, a switch that is on |
 | `--accent-ink` | `#ffffff` | `#ffffff` | Text on a filled accent button, the knob of a switch that is on |
 | `--accent-soft` | `blue @ 13%` | `blue @ 12%` | Tinted "Connect", the Demo chip, a primary badge's icon tile |
-| `--ok` / `--ok-soft` | `#57d64b` / 14% | `#33a328` / 12% | Connected, included, the way filling green, the arrival ring |
-| `--warn` | `#ff8a3d` | `#ee6a12` | Not set up yet, settings changed, outside hours, Reconnect, ends soon, a link that fails (the card's line; the way's can't finish and no data) |
-| `--bad` / `--bad-soft` | `#ff5c5c` / 13% | `#e5484d` / 10% | Out of data, access ended, Remove, errors |
+| `--ok` / `--ok-soft` | `#30d158` / 14% | *same* / 12% | Connected, included, the way filling green, the arrival ring |
+| `--warn` | `#ff8d28` | *same* | Not set up yet, settings changed, outside hours, Reconnect, ends soon, a link that fails (the card's line; the way's can't finish and no data) |
+| `--bad` / `--bad-soft` | `#ff383c` / 13% | *same* / 10% | Out of data, access ended, Remove, errors |
 | `--sel-bg` / `--sel-fg` | `rgba(131,209,255,.25)` / `#64c6ff` | `rgba(78,175,255,.22)` / `#0a76cf` | `::selection` |
 | `--bar` | `text @ 13%` | `text @ 11%` | Chart bars, meter and ring tracks |
 
@@ -523,9 +515,9 @@ All tints come from `color-mix`, never from new hex values:
 
 | Recipe | Where |
 |---|---|
-| `color-mix(in srgb, var(--knob), var(--text) 6%)` | hover of knob, soft button, language pill, pinned keys; at rest, the file card's icon and a nested row's soft buttons inside an inset row |
+| `color-mix(in srgb, var(--knob), var(--text) 6%)` | hover of knob, soft button, language pill; at rest, the file card's icon and a nested row's soft buttons inside an inset row |
 | `… var(--text) 10%` | pressed or open (`aria-expanded`) knob and language pill |
-| `… var(--text) 12%` | hover of a nested row's soft buttons inside an inset row (the router's "Configuration" in "Set it up again") |
+| `… var(--text) 12%` | hover of a nested row's soft buttons inside an inset row |
 | `color-mix(in srgb, var(--accent) 82%, transparent)` | hover of the filled accent button |
 | `accent 20%` / `24%` over transparent | hover / active of the tinted button |
 | `color-mix(in srgb, var(--warn|--bad) 10%, var(--raised))` + `inset 0 0 0 1px tone 22%` | warn / bad notice |
@@ -536,11 +528,11 @@ All tints come from `color-mix`, never from new hex values:
 | `color-mix(in srgb, var(--warn) 14%, transparent)` | the way's router end when the device can't finish (accent 14% while waiting) |
 | `color-mix(in srgb, var(--accent) 32%, transparent)` inset 1px | ring of the card of "this device" |
 | `color-mix(in srgb, var(--text) 16%, transparent)` inset 1.5px | focused field |
-| `color-mix(in srgb, var(--accent) 65%, transparent)` 2px outline, offset 2px | `:focus-visible` everywhere |
+| `color-mix(in srgb, var(--accent) 65%, transparent)` 2px outline, offset 2px | `:focus-visible`, while the keyboard moves focus (`.kbd`) |
 
 ### Overlays and floating colours
 
-- **Scrim:** dark `rgba(8,8,8,.8)`, light `rgba(236,236,235,.62)`, both with `backdrop-filter: blur(8px)`.
+- **Scrim:** dark `rgba(8,8,8,.8)`, light `rgba(236,236,235,.62)`, a dim alone (no backdrop blur).
 - **Toast and tooltip:** `#232323` on dark. On light they invert to `#0b0b0b` with `#f2f2f1` text.
 - **QR card:** `#0a0a0a` "night" (light dots) on dark, `#ffffff` "day" (dark dots) on light, with a 1px `--line` rim in light.
 
@@ -551,10 +543,10 @@ Glass icons (`ui/glass.ts`) draw a tinted back shape, the same shape blurred beh
 | Tone | Dark a → b | Light a → b | Used for |
 |---|---|---|---|
 | `t-grey` | `#cfcfcd` → `#5a5a59` | `#a9a9a7` → `#3d3d3c` | Device cards (default), access rows, Add |
-| `t-blue` | `#a6d9ff` → `#1d84e6` | `#7cc4ff` → `#0a6fd6` | This device, first device, kinds, reach tiles that are on, the LAN Bypass row when on, "Set it up again", lock |
-| `t-green` | `#a8f29c` → `#3aa32c` | `#82e070` → `#2e8a22` | "Everything works" (demo) |
-| `t-orange` | `#ffc08f` → `#ec6a12` | *same as dark* | Warn notices, Reconnect question |
-| `t-red` | `#ffadad` → `#dc3a3a` | `#ff9090` → `#c92a2a` | Bad notices, Remove question |
+| `t-blue` | `#a6d9ff` → `#1d84e6` | `#7cc4ff` → `#0a6fd6` | This device, first device, kinds, reach tiles that are on, the LAN Bypass row when on, lock |
+| `t-green` | `#a8f29c` → `#30d158` | `#82e070` → `#30d158` | "Everything works" (demo) |
+| `t-orange` | `#ffc08f` → `#ff8d28` | *same as dark* | Warn notices, Reconnect question |
+| `t-red` | `#ffadad` → `#ff383c` | `#ff9090` → `#ff383c` | Bad notices, Remove question |
 
 Frosted pane: dark `--gi-a .58 / --gi-b .14` white with a `.5` rim and no edge stroke. Light uses a `.72 / .5` grey pane, a `.9` rim and an `rgba(0,0,0,.11)` edge, with dark detail strokes.
 
@@ -569,8 +561,6 @@ Frosted pane: dark `--gi-a .58 / --gi-b .14` white with a `.5` rim and no edge s
 | white on accent (primary buttons) | **2.4** | **2.9** | below AA, a known trade-off of the skiper21 palette |
 | white on bad (Remove) | 3.0 | 3.9 | AA large only |
 | ok / warn / bad text on raised | 9.9 / 8.0 / 6.2 | **3.3 / 3.1** / 3.9 | dark AA, light below AA at 13 px |
-
-These ratios feed the findings in *Live audit*.
 
 ---
 
@@ -627,9 +617,9 @@ These ratios feed the findings in *Live audit*.
 ### Page frame
 
 - `.page`: `max-width: 1072px`, centred. The side gutter is `max(16px, safe-area)`. The top is `40px + safe-area-top` and the bottom `112px`, so the end of the scroll clears the bottom fade.
-- No navbar. The page opens with a **breadcrumb row**: 32 px high and 32 px above the content. The Dawnline mark sits in a 32 px box (logo 24 px), then `server › person`, then on the right the language pill and the QR knob. Without a server name the place reads "Dawnline". The browser tab title is the place too.
+- No navbar. The page opens with a **breadcrumb row**: 32 px high and 32 px above the content. The Dawnline mark sits in a 32 px box (logo 24 px), then `server › person`, then on the right the language pill and the QR knob.
 - **Edge fades** sit above the page and under every overlay:
-  - **top:** 80 px plus the safe area, a `bg → 75% → 0` gradient with `backdrop-filter: blur(12px)`, masked `1 → .88 @44% → 0`. It shows only once `scrollY > 2`, so the breadcrumb at rest stays crisp.
+  - **top:** 80 px plus the safe area, a `bg → 75% → 0` gradient with `backdrop-filter: blur(12px)` (not on a touch screen, where it would be drawn again on every frame of a scroll), masked `1 → .88 @44% → 0`. It shows only once `scrollY > 2`, so the breadcrumb at rest stays crisp.
   - **bottom:** 96 px, a plain `bg → transparent` gradient interpolated `in oklab`.
 
 ### Columns and order
@@ -652,7 +642,7 @@ Other breakpoints and container queries:
 
 ### Single card mode
 
-When there is nothing else to show (access paused, the link stopped working, the page could not load), the page becomes **one card in the middle of the screen** with the breadcrumb above it.
+When the page has only one message to show, it becomes **one card in the middle of the screen** with the breadcrumb above it.
 
 - **The card:** `.gone`, radius 36, padding `32 24 28`, a 56 px glass icon, a 22 px title and a balanced line of text.
 - **The breadcrumb:** centred on its words, with the mark hanging to their left. It is nudged right by 12 px so mark and words read as centred together.
@@ -679,17 +669,17 @@ There is no strict 4/8 grid. The values in use are `2 3 4 5 6 8 10 12 14 16 18 2
 | Sheet root (scrim + sheet) | 50 |
 | ⋯ menu | 60 |
 | Toasts | 70 |
-| Inside the sheet: ×, pinned keys | 3; their tooltip 4 |
+| Inside the sheet: × | 3; the connection keys' tooltip 4 |
 
 ### Scroll
 
-Only the person moves the page: on a phone nothing the page does pulls it up or down under them, and a reload finds it where they left it.
+Only the person moves the page: on a phone nothing the page does pulls it up or down under them.
 
-- **No scroll anchoring** (`html { overflow-anchor: none }`). On a phone "Your access" shows above the devices but comes after them in the page, so the browser would hold "Your devices" still while an access row opens or folds, and pull a page scrolled less than the fold to the very top. A row grows and folds in place, and a repaint glides what moves.
-- **A fold near the foot takes the page down with it** (`holdFoot()` in `page/frame.ts`). Without anchoring, a fold that leaves the page shorter than where it is scrolled would drop it to its new end on the frame the fold is measured. The page body holds the height the scroll needs until the rows' new shape is known, then lets go over 476 ms on EASE_OUT, which never overshoots: the scroll follows the fold down frame by frame and stops at the new foot, not short of it while the row's spring dips.
-- **A repaint holds the page's height** (`render()` in `main.ts`). The content keeps its height on screen while it is refilled and lets go once everything in it has its styles. Safari lays the page out once with the new cards still empty (each is a size container) and would pull the scroll up to fit that shorter page; a language change empties it all. A page that really got shorter (a removed card) still shrinks after.
-- **A reload keeps its place.** A phone drops a tab while the visitor is in another app (the VPN app, the App Store) and loads it again on return; a pull to refresh does too. The browser restores the scroll as the page loads, before the router has answered, onto one empty screen, so it would stay at the top. The tab keeps the page's place itself (`sessionStorage`, as the tab is hidden or left), and the first paint of a reload or of a step back onto the page goes there. A fresh visit to the link opens at the top. Each link keeps its own place (several people's links opened in one tab share the origin), and only the page drawn in its place writes one: a tab hidden before the router answered, or showing a card in place of the page, keeps the place it had.
-- **The sheet's history entry never moves the page** (`scrollRestoration = 'manual'` on that entry only), and it is current only while its sheet is open. Left behind (a reload with a sheet open, a step forward onto it: Safari's swipe in from the right edge), it is stepped back off at once, on load or on that step, so Back from there leaves the page instead of putting it back where it stood when the sheet opened. The page's own entry stays `auto`, so Back and closing a sheet still restore it.
+- **No scroll anchoring** (`html { overflow-anchor: none }`). A row grows and folds in place, and a repaint glides what moves.
+- **A fold near the foot takes the page down with it.** The page body holds the height the scroll needs until the rows' new shape is known, then lets go over 476 ms on EASE_OUT, which never overshoots: the scroll follows the fold down frame by frame and stops at the new foot, not short of it while the row's spring dips.
+- **A repaint holds the page's height.** The content keeps its height on screen while it is refilled and lets go once everything in it has its styles, so the scroll never jumps. A page that really got shorter (a removed card) still shrinks after.
+- **A reload keeps its place.** A reload or a step back onto the page opens where it was left; a fresh visit opens at the top.
+- **A sheet never moves the page.** Opening it, closing it or stepping Back from it leaves the page where it stood.
 - `html { scrollbar-gutter: stable }` and `body.locked { overflow: hidden }` keep the page from shifting sideways when a sheet locks the scroll.
 
 ---
@@ -700,7 +690,7 @@ Only the person moves the page: on a phone nothing the page does pulls it up or 
 - **Floating layers get one shadow each:**
   - `--pop-shadow`: dark `0 18px 48px -14px rgba(0,0,0,.75)`, light `0 18px 44px -14px rgba(0,0,0,.2)`. Used on the ⋯ menu (plus `inset 0 0 0 1px var(--line)`), the toast and the tooltip (plus `0 0 0 1px var(--line-glass)`).
   - `--sheet-shadow`: dark `0 24px 64px -16px rgba(0,0,0,.6)`, light `… -18px rgba(0,0,0,.22)`. Used on the sheet.
-- **Scrim:** 80% (dark) or 62% (light) plus an 8 px backdrop blur. The page behind a sheet is out of focus, not just darker.
+- **Scrim:** 80% (dark) or 62% (light), a dim alone, as the system's own sheets. No backdrop blur: it would be drawn again on every frame the sheet and the dim move.
 - **Inset rings replace borders.** Every ring is `box-shadow: inset 0 0 0 Npx`:
   - focus: 1.5 px, `text` at 16%;
   - picked kind: 1.5 px accent;
@@ -724,13 +714,12 @@ Only the person moves the page: on a phone nothing the page does pulls it up or 
 | 22 | Dense QR |
 | 20 | Accordion row (open, and the shared ends of closed rows), usage block, ⋯ menu, the way |
 | 18 | Badge, QR in a row, file card |
-| 16 | Field, segmented track, reach tile, option row, "until" and "hours" blocks; the pinned keys' outer corners |
+| 16 | Field, segmented track, reach tile, option row, "until" and "hours" blocks |
 | 14 | Kind tile, link row, menu item and highlight, `.conf` block |
 | 12 | Go button, segmented pill |
 | 11 | Ends of the way |
 | 10 | Name chip, badge icon tile, link row knobs |
 | 9 | File card icon |
-| 6 | Inner corners of the joined pinned keys |
 | 2.5–4 | Chart bars (2.5 month, 3 spark, 3 calendar cells), meter and hours bar, a field's selection wash (4) |
 | 1 | A field's caret and selection handles |
 | 999 / 50% | Buttons, pills, chips, toasts, tooltips, the switch / knobs, step numbers, reach marks, the switch's knob, the handles' knobs |
@@ -739,7 +728,6 @@ Only the person moves the page: on a phone nothing the page does pulls it up or 
 
 - **Nesting:** inner radius = outer radius − padding. Card 28 − 8 = usage 20. Field 16 − 4 = go button 12. Segmented track 16 − 4 = pill 12.
 - **Closed accordion rows touch and share rounded ends.** Only the first row's top and the last row's bottom are round. An open row lifts out with 10 px gaps and gets all four corners, and so do its neighbours' facing corners.
-- **Joined key pairs** (Download | Copy beside ×): `16 6 6 16` and `6 16 16 6`, with a 2 px gap.
 - **Line icons:** 24 viewBox, `stroke-width 1.8`, round caps and joins, `currentColor`. Shown at 14, 16, 18 or 20 px.
 - **Glass icons:** 24 viewBox drawn at 22 (rows), 24, 26 (kinds), 28 (reach, option row), 30 (demo rows), 32 (cards), 36 (notices, add), 44 (first), 56 (gone) and 64 (questions).
 - **QR codes:** round dots (r 0.42, 0.48 when dense), eyes drawn whole as rounded squares (2.6 / 1.8 / 1.5), and the Dawnline mark in a rounded tile at the centre (dense codes have none). Light dots on `#0a0a0a` in dark, dark dots on white in light.
@@ -754,9 +742,31 @@ Measurements are CSS pixels, read live at 1138 px and 375 px. Source files are u
 ### Breadcrumb · `page/frame.ts`
 
 - **Layout:** a 32 px row with `gap 10`. The mark box is 32 × 32 (logo 24). The path is 15/22 `text-2` with `gap 6` and a 14 px chevron; the current crumb is `text` 500 with `aria-current="page"`.
-- **Language pill** (`.cr-lang`): 32 high, pill, `knob` fill, 14 px 500 language code plus a 14 px chevron that points down and turns up while its menu is open.
-- **QR knob** (`.cr-qr`): opens "Open on another device".
-- **Truncation:** the crumbs truncate independently. At 375 px with the demo chip they become "Dawnlin… › U…". See *Live audit*.
+- **Language pill** (`.cr-lang`, a pick pill: see below): 32 high, pill, `knob` fill, padding `0 8`, gap 6: the language's 16 px flag disc, its 14 px 500 code and a 14 px chevron. Its popup opens under it, 10 px away.
+- **QR knob** (`.cr-qr`): a knob with the QR icon. It opens into the page's code card where it stands (see below).
+- **Truncation:** the crumbs truncate independently, each with its own ellipsis.
+
+### Dropdowns · `ui/drop.ts`, `styles/drop.css`
+
+The ⋯ menu, the pick pills' popups and the page code card are one kind of thing, and share every setting; each lays out and fills its own.
+
+- **Glass** (`.drop`): Apple's iOS 26 Liquid Glass, Regular (Figma kit), in `tokens.css` `--glass-*`: on dark black 40% with a white 4% film (the kit's black 60% + white 6% at 67%), on light `rgba(245,245,245,.6)`; backdrop `blur 28, saturate 1.8`; a soft, even 1 px inner edge, no gradient (white 5% / black 4%); a shadow on light only, soft (`0 8 32` black 12%): on dark the edge sets it apart. Its own colours: text `#F5F5F5` / `#1A1A1A`, subtitles `#8A8A8A` / `#727272`, destructive `#FF383C` (`--bad`), separators a touch softer than the edge (white 4% / black 3%); a solid highlight (`raised` + `text` 8% / 11%). Nothing dims around one. Over the page and a sheet alike (z 60).
+- **Placement:** its nearest point 8 px from its button, under it where it fits, else over it; centred on it, 12 px inside the screen's edge.
+- **Motion:** in, a spring out of where it grows from (`scale .5, blur 6` on POP, a little overshoot); out, back towards it from where it stands (`scale .7, blur 4`, 110 ms EASE_IN): quicker than it came.
+- **Highlight** (`ui/glide.ts`): one for all of a dropdown's items (rows, segments), under their icons and words, solid and the same for every item (no tint for Reconnect or Remove), with the corners of what it is on. It fades in (160 ms) where the pointer or the keyboard is, glides from item to item on GLIDE (`spring(640, 40)`, about 2% over: place, size, corners), presses in to 0.97 with what it is on, and fades where the pointer leaves, or goes back to the item it rests on (a pick pill's picked segment, where it starts).
+- **Shut by:** a press outside it and its button, its button again, Escape (only it: a sheet under it stays; focus goes back to its button), a choice, another dropdown opening (at once), a resize (at once). One at a time; the page holds its repaints while one is open.
+
+### Pick pill · `ui/pick.ts`
+
+- **What it is:** a pill showing what is picked (a lead such as a flag or a dot, its words, a 14 px `text-2` chevron) whose popup, a dropdown (see *Dropdowns*), is a row of segments in one pill frame: 3 px padding and gap, segments 34 high, radius 10 (17 at the frame's ends), 12.5 px 500, clear on the glass; the dropdowns' highlight rests on the picked one (it is what says which is picked) and glides to the one pointed at; the picked one and the one pointed at in `glass-text`, the rest `glass-sub`. Its tail (6 high, 20 wide at the base, shoulders leaving the edge level, the tip rounded) points at the pill's middle and is one shape with the frame (a clip path), so the glass runs into it; a soft even edge (`glass-edge`) traces both. The glass's shadow (light only, `--glass-shadow`) is cast by a clear pill under the frame, since the clip path would cut one off the popup; no halo.
+- **Placement:** as every dropdown's, its tail's tip 8 px from the pill, inside its sheet where it fits; above by default, under where it does not fit (or under first, as the language's). Fixed to the screen (it may open on a sheet), so a wheel, a swipe or Tab shuts it too.
+- **Picking:** a click opens it and a click picks. Or a quick pick: press the pill, slide onto a segment (it lights as on hover and presses in to 0.96) and let go there; let go anywhere else after sliding and nothing changes. Arrow keys move between segments.
+- **Motion:** in and out as every dropdown, from the tail's tip. The pill's words morph into the ones picked.
+- **Flags** (`.flag`): 16 px discs with a 1 px inner hairline; a flag not picked is at 70% until pointed at.
+
+### Page code card · `flows/page-code.ts`
+
+- **What it is:** a dropdown (see *Dropdowns*) from the QR knob, scrolling with the page: radius 24, padding 10, gap 8. The page's code (224 px, radius 14: concentric with the card) on top; under it Copy link (36 high, pill, `glass-text` 6% on the glass (11% on hover; Share's knob the same), in `glass-text`, 14 px 500, a 16 px link icon; it says Copied with a check for a moment) and Share (a 36 px knob) where the system has it. No ×. The knob stays where it is.
 
 ### Knob · `styles/controls.css`
 
@@ -783,23 +793,23 @@ Measurements are CSS pixels, read live at 1138 px and 375 px. Source files are u
 
 - **Field:** 48 high, radius 16, `field` fill, padding `0 4 0 16`. The input is 16/24 500 and the placeholder `text-3`. Focus: inset 1.5 px ring at text 16%, on SMOOTH.
 - **Go button:** 48 × 40, radius 12, at the field's end. Idle: `knob` / `text-3`, `cursor: not-allowed`. Ready: accent / white, the colours changing on SMOOTH. Press `.9`.
-- Arrow for create, check for save. The field and its go button are the whole form: no label row, no separate Save. Add a device's name field is not a login: no password manager offers itself there (`data-1p-ignore`).
-- **Caret** (`ui/caret.ts`, on both name fields: Add a device and the name edited on its card): the input's own is hidden (`caret-color: transparent`) and the field draws one as macOS does: accent, 2 × 20, radius 1. It glides to where the next letter goes (see *Motion → Caret and selection*), and a click puts it where clicked at once. It blinks 0.6 s on / 0.6 s off with soft fades, stays solid while typing and blinks again 0.5 s after the last key.
-- **Selection** (`pointer: fine` only): the native selection is see-through and the text keeps its colour. Under the text sits an accent 26% wash, 22 high, radius 4, with an iOS handle at each end: a 2 × 22 line with a 9 px knob, on top at the start and under it at the end. A selection grows out of the caret and, on collapse, fades in place before its ends rejoin the caret. It never runs past the input's edges, so a long, scrolled name's wash stops before the go button. On a touch screen the system's own selection and handles show, and the caret steps aside while one does.
-- **What a name may hold** (`shared/name-guard.ts`, both name fields, the admin's too): up to 20 letters of any language (with their marks), digits, spaces and `- _ .` (ordinary words reach about as far as the card's status line), as the router takes it; punctuation, symbols and emoji don't. A character outside that, or a 21st, never gets in: it is turned away as it is typed, pasted or dropped, and the field **shakes** at once, with no request to the router, while the red line under it (`ui/bad-line.ts`, the one the router's refusals use) says why in a few words: "Only letters, digits, - _ ." or "Up to 20 characters." (short enough for a card's status line, where a name edited in place says it). It goes with the next change that gets in. Emptying the field doesn't shake; Return or the go button on an empty name does, as does a name the router or the page refuses (one already taken). Names the page makes up (the kind, the phone's model) are in the page's language, stripped of what doesn't fit and cut to the limit ("Galaxy S24+" → "Galaxy S24").
+- Arrow for create, check for save. The field and its go button are the whole form: no label row, no separate Save.
+- **Caret** (`ui/caret.ts`, on name fields, with a mouse or trackpad; a touch screen keeps the system's): the input's own is hidden (`caret-color: transparent`) and the field draws one as macOS does: accent, 2 × 20, radius 1. It glides to where the next letter goes (see *Motion → Caret and selection*), and a click puts it where clicked at once. It blinks 0.6 s on / 0.6 s off with soft fades, stays solid while typing and blinks again 0.5 s after the last key.
+- **Selection** (`pointer: fine` only): the native selection is see-through and the text keeps its colour. Under the text sits an accent 26% wash, 22 high, radius 4, with an iOS handle at each end: a 2 × 22 line with a 9 px knob, on top at the start and under it at the end. A selection grows out of the caret and, on collapse, fades in place before its ends rejoin the caret. It never runs past the input's edges, so a long, scrolled name's wash stops before the go button. On a touch screen the field draws neither: the system's caret shows (in the accent) with its own selection and handles.
+- **Refusal:** a refused entry makes the field **shake** at once, while a red line under it (`ui/bad-line.ts`) says why in a few words, short enough for one line.
 - **Shake** (`shared/shake.ts`): iOS's wrong-passcode shake, a damped swing sideways about four times in 0.52 s (14 px at most, settling by half), linear over its frames. The field's outline goes red with it (a 1.5 px inset ring in `bad`, as the focus ring is drawn), holds 0.7 s and fades back to the ring the field has (focused or not) over 0.8 s on ease-out; another refusal starts it red again. Another one starts from where the field is, never jumping back; only its own animation is touched, so the focus ring's transition goes on. With less motion asked for it doesn't move (the red line or toast still says why).
 
 ### Notice · `page/notices.ts`
 
 - **Layout:** radius 24, padding `14 18 14 14`, gap 14, a 36 px glass icon, a 15/22 500 title and a 14/20 `text-2` line that adds to the title and never repeats it.
-- **Tones:** `warn` (orange) for paused, outside hours, server off, no server and ends soon. `bad` (red) for out of data and access ended.
-- **Placement:** one per page, above the columns, 22 px above them. Paused is not a notice: the whole page becomes the single card.
+- **Tones:** `warn` (orange) for attention (outside hours, ends soon). `bad` (red) for an end (out of data, access ended).
+- **Placement:** one per page, above the columns, 22 px above them.
 - **On a repaint** a notice that comes blurs in, one that goes fades where it stood and one that changes morphs in place, while its slot glides to the new height. The page under it moves instead of jumping.
 
 ### Section head
 
-- 20/28 500 title with a `text-3` 14 px 500 aside at the baseline: "3 of 4" in the page's numerals, `warn` when the admin let the person go over the limit.
-- Under the grid sits a `note-s` (13/18 `text-3`) for "You have reached your limit of N devices. Remove one to add another."
+- 20/28 500 title with a `text-3` 14 px 500 aside at the baseline ("3 of 4", in the page's numerals), `warn` when over the limit.
+- Under the grid sits a `note-s` (13/18 `text-3`) for the limit note.
 
 ### Device card · `page/devices.ts`
 
@@ -809,71 +819,59 @@ Measurements are CSS pixels, read live at 1138 px and 375 px. Source files are u
 - Top row (padding `8 6 6 10`, gap 12): a 32 px glass icon (blue on "this device", else grey), the name (16/22 500, one line), the status (13/18, one line, full wording in `title`), and the ⋯ knob.
 - Bottom, one of three:
   - **Usage** (`field`, radius 20, padding `12 14 12 16`, min-height 66): "Last 7 days" 13/18 `text-2` over the total 17/24 500 tabular. Spark of 7 bars at the right: 6 px wide, gap 4, ≤ 34 px high, min 3, radius 3, `--bar`, today in accent. Hovering a bar puts that day's name and bytes in place of the label and total instantly, with no morph.
-  - **Reconnect** (instead of the week) when the settings changed or no data gets through ("Connected, but no data"): a `tint` block button with the refresh icon. New keys, then the set-up again. Not on a device never set up, a disabled one or a locked page.
-  - **Connect** when never set up: a `tint` block button with the QR icon. It disappears when the admin locked the person.
+  - **Reconnect** (instead of the week): a `tint` block button with the refresh icon.
+  - **Connect**: a `tint` block button with the QR icon.
 - A status is one line, and Reconnect or Connect takes the week's place. The button is lower than the week (48 against 66), so a card alone in its row is lower too; when its bottom changes, the card glides to its new height (see *Motion → Repaint choreography*).
 
-**Order:** "this device" first, then online, then seen, then never set up, then disabled (`byDeviceState`). The grid keeps cards in place across repaints and glides them (FLIP).
+The grid keeps cards in place across repaints and glides them (FLIP).
 
-**Status line (the full matrix):**
+**Status line:** one 13/18 line in its state's colour.
 
-| Condition | Text | Colour |
-|---|---|---|
-| Page opened through this device's tunnel | This device | accent (and the card gets the accent ring, the icon turns blue) |
-| Disabled by the admin | Disabled | text-2, card at 50% opacity |
-| Settings changed and it has connected before | Settings changed | warn (+ Reconnect) |
-| Online while out of data | Connected, no data left | warn |
-| Online outside the hours | Connected, outside your hours | warn |
-| Its link fails in a named way (the router's watcher held it 3 min) | Can't finish connecting · Connected, but no data · On two devices at once · Connection keeps dropping; why in `title` ("It reaches the router, but the connection never completes. The network may be blocking it.") and, for a screen reader, in hidden text right after the status | warn (+ Reconnect for "Connected, but no data") |
-| Online | Connected | ok |
-| Never connected | Not set up yet | warn (+ Connect) |
-| Otherwise | Last connected 3 h ago (exact time in `title`) | text-2 |
+| Look | Colour |
+|---|---|
+| This device | accent; the card gets the accent ring and the icon turns blue |
+| Connected | ok |
+| Attention (settings changed, outside hours, no data left, a link that fails, not set up yet) | warn, with Reconnect or Connect in the bottom where one applies |
+| At rest ("Last connected 3 h ago", the exact time in `title`) | text-2 |
+| Disabled | text-2, the card at 50% opacity |
 
-**Menu items** (⋯):
+A longer reason sits in `title` and, for a screen reader, in hidden text right after the status.
 
-- **Copy IP address** and **Copy local address**, only where the home network can reach the device;
-- a separator;
-- **Rename**;
-- **Reconnect** (warn tone);
-- **Remove** (bad tone).
+**Rename on the card** (`flows/rename.ts`): the name is where it is changed.
 
-A disabled device has no Rename, Reconnect or Remove. A locked page has no ⋯ at all.
+- **At rest:** an editable name is a button. Under the pointer a faint wash (`raised` + text 6%, radius 8) hugs its words.
+- **Editing:** the name gives way to its own input in the same font and place, with no frame or fill: only the field's caret and selection (the name selected). The status line morphs to a hint in `text-2`.
+- **Saving:** the words shimmer (see *Motion → Shimmer*), settle to solid, and the status morphs back from the hint, words and colour.
+- **Cancelling:** the name it had comes back; the status turns back.
+- **Refusal:** the words shake (no red ring here, the field has none) and the status line says why in `bad`, in its one line, in full on hover.
 
-**Rename on the card** (`flows/rename.ts`): the name is where it is changed. A name the person may change (not a disabled device, not a locked page) is a button: under the pointer a faint wash (`raised` + text 6%, radius 8) hugs its words, a click, Return or Space edits it, as **Rename** in the ⋯ menu does. Editing, the name gives way to its own input in the same font and place, with no frame or fill: only the field's caret and selection (the name selected). The status line morphs to "Return to save, Esc to cancel" in `text-2` where there is a keyboard (a touch screen's Done key saves; there it stays as it was).
-
-- **Return** saves: the words shimmer while the router answers (see *Motion → Shimmer*), settle to solid, and the card is drawn again with the new name, the status morphing back from the hint, words and colour.
-- **Esc or a click away** puts the name it had back, whatever was typed; the status turns back.
-- **What it won't take** never gets in (see *Field → What a name may hold*): the words shake (no red ring here, the field has none) and the status line says why in `bad`, short enough for its one line ("Only letters, digits, - _ ."). An empty name ("Give the device a name.") and one another device of theirs has ("That name is taken.") are said here before asking the router; a refusal of the router's own says the same way, in full on hover. Typing again brings the hint back.
-- The page isn't drawn again under a name being edited.
-- **Focus.** The input takes focus in the same turn as the click, the key or the menu's item (iOS raises its keyboard only for a focus made inside the tap), with the whole name selected at once and again a frame later if iOS dropped it. Return (the screen's Done key too) and Esc give focus back to the name, the new one after a save, without its focus ring (that shows only when Tab brings focus there); a click or tap away leaves it where it went. Focus leaving for somewhere else in the page (Tab, iPad's hide-keyboard key) lets the edit go like a click away; leaving the window (another app or tab) keeps it.
-
-**Add card:** a `button.dev.add`, min-height 144, centred, grey glass plus 36 and "Add device" in `text-2` 500. Hover raised + knob 45%, press `.98`. Gone when no slot is free or the page is locked.
+**Add card:** a `button.dev.add`, min-height 144, centred, grey glass plus 36 and "Add device" in `text-2` 500. Hover raised + knob 45%, press `.98`.
 
 **First card** (no devices yet):
 
 - spans the grid, padding `28 24 24`;
 - blue glass plus 44, "Add your first device" 18/24 500;
 - one balanced 14/20 line (max 34ch);
-- an accent block button, max 320: "Add this phone" on mobile, "Add this device" otherwise.
+- an accent block button, max 320.
 
 ### Accordion · `ui/accordion.ts`
 
 - **Row:** `raised`, padding `0 8`. Head 52 high, gap 10, with a 22 px glass icon, a 15/22 500 title (ellipsis), an optional chip, an optional value at the end (14 px `text-2`) and a 16 px chevron (pointing down, rotated 90°, and up when open).
 - **Body:** padding `0 8 16 40` (inset rows `0 8 16 8`), column, gap 12.
 - **One row open at a time.** A **still** row (nothing to open) has no chevron, no hover and no click.
-- **A row inside a row** (the router's "Configuration" inside "Set it up again") keeps its own state: the open look (chevron, body, `valHide`) keys on the row's own head and body only.
+- **A row inside a row** has its own open look (chevron, body, `valHide`), apart from the row around it.
 - **`valHide`:** a row whose body shows the same numbers drops its head value while open (blur, fade, slide 8 px right).
-- **Inset variant** (inside the sheet): rows on `field`, hover field + knob 50%. Inside them the app picker and badges step up to knob 65% over field, and a badge's hover goes to `knob`. The router's file step inside one steps up the same way: the file card and an inset row inside the row on knob 65% over field (that row's hover `knob`, the `.conf` it opens on `knob`), the card's icon and that row's soft buttons on knob + text 6% (hover 12%).
+- **Inset variant** (inside the sheet): rows on `field`, hover field + knob 50%. Inside them the app picker and badges step up to knob 65% over field, and a badge's hover goes to `knob`. A file step inside one steps up the same way: the file card and an inset row inside the row on knob 65% over field (that row's hover `knob`, the `.conf` it opens on `knob`), the card's icon and that row's soft buttons on knob + text 6% (hover 12%).
 
 ### "Your access" rows · `page/access.ts`
 
 | Row | Head | Body |
 |---|---|---|
-| **What it reaches** (shield, home or globe glass) | "Home network + Internet" / "Internet" / "Home network" | Two **reach tiles** (radius 16, `field`, padding `12 12 12 14`, glass 28, title 14/20 500, sub 12/16; a 20 px round mark at the top right: ok-soft check or knob minus, the tile dimmed when off). Then a sentence with the hostname pattern in mono, and **name chips** (32 high, radius 10, mono 13, the domain part in `text-3`, a copy icon 14; a click copies). |
-| **Data this month** (chart glass; "Data used" for a total limit) | A 16 px **ring** (track `--bar`, arc accent, warn ≥ 90%, bad ≥ 100%) and "38.6 GB / 100 GB" or "· no limit"; hidden while open | The **month**: one bar per day (flex, gap 3, 64 high, radius 2.5, min 3; days to come at 45% bar; today accent), an axis 11 px `text-3` with "Today" in accent under its bar (the month's ends hide when it comes close), the total line ("38.6 GB used" / "61.4 GB left", `bad` when out), a 6 px **meter** (same tone thresholds), and a `.desc` about the reset. Hovering a bar puts "X on 13 Oct" in place of the total instantly. |
-| **Access until** (calendar glass) | "30 Nov" plus "42 days" in ok, warn when soon, or "ended" in bad | The **until block** (`field`, radius 16, padding `14 16`): the days left as a 36/40 600 number (warn when soon), "days left", "Ends Mon 30 Nov" in `text-3`, and a **calendar** of the weeks to the end. 7 columns of 10 px cells with gap 5 and radius 3: past at text 5%, left at text 16%, today in accent, the last day ringed 1.5 px accent; warn colours when soon. Under it the **hours bar** when set: 8 px track, the allowed window in ok 70%, a 2 × 16 "now" marker (`text`, warn when outside, with a 2 px field ring), and axis 00/06/12/18/24 at 10 px. Without an end date and hours, the row is still. |
+| **What it reaches** (shield, home or globe glass) | Title only | Two **reach tiles** (radius 16, `field`, padding `12 12 12 14`, glass 28, title 14/20 500, sub 12/16; a 20 px round mark at the top right: ok-soft check or knob minus, the tile dimmed when off). Then a sentence with the hostname pattern in mono, and **name chips** (32 high, radius 10, mono 13, the domain part in `text-3`, a copy icon 14). |
+| **Data this month** (chart glass) | A 16 px **ring** (track `--bar`, arc accent, warn ≥ 90%, bad ≥ 100%) and "38.6 GB / 100 GB"; hidden while open | The **month**: one bar per day (flex, gap 3, 64 high, radius 2.5, min 3; days to come at 45% bar; today accent), an axis 11 px `text-3` with "Today" in accent under its bar (the month's ends hide when it comes close), the total line (`bad` when out), a 6 px **meter** (same tone thresholds), and a `.desc`. Hovering a bar puts that day's total in place of the total instantly. |
+| **Access until** (calendar glass) | "30 Nov" plus "42 days" in ok, warn when soon, or "ended" in bad | The **until block** (`field`, radius 16, padding `14 16`): the days left as a 36/40 600 number (warn when soon), "days left", the end date in `text-3`, and a **calendar** of the weeks to the end. 7 columns of 10 px cells with gap 5 and radius 3: past at text 5%, left at text 16%, today in accent, the last day ringed 1.5 px accent; warn colours when soon. Under it the **hours bar**: 8 px track, the allowed window in ok 70%, a 2 × 16 "now" marker (`text`, warn when outside, with a 2 px field ring), and axis 00/06/12/18/24 at 10 px. With nothing to open, the row is still. |
 
-The data row is open by default. A repaint keeps the rows on the page and changes what they hold in place, the same row open (see *Motion → Repaint choreography*). Only rows of another shape (an end date set or taken away) are built afresh.
+A repaint keeps the rows on the page and changes what they hold in place, the same row open (see *Motion → Repaint choreography*).
 
 ### Sheet · `ui/sheet.ts`
 
@@ -884,7 +882,7 @@ The data row is open by default. A repaint keeps the rows on the page and change
 | < 760 | **Drawer** floating 16 px from the left, right and bottom edges (plus safe areas), max-width 400, max-height `100% − 32 − safe areas` |
 | ≥ 760 | **Dialog** centred by flex layout (not a transform, so text stays on the pixel grid), width `100% − gutters`, max-width 400 |
 
-**Width plan.** On a computer the sheet widens for a dense QR code (an AmneziaVPN key) until the code gets about **3.2 px per module** (+80 px padding), capped by the viewport. Live: 400 → 448 for a key, 400 → 410–422 for a `.conf`. It then scrolls the code fully into view.
+**Width plan.** On a computer the sheet widens for a dense QR code until the code gets about **3.2 px per module** (+80 px padding), capped by the viewport. Live: 400 → 448 for a key, 400 → 410–422 for a `.conf`. It then scrolls the code fully into view.
 
 **Inside:**
 
@@ -892,20 +890,17 @@ The data row is open by default. A repaint keeps the rows on the page and change
 - **Pinned keys:** a view's own buttons, pinned at top 22 / right 58.
 - **View:** padding `0 24 24`.
 - **View head** (`.vhead`): 76 high. Title 20/28 500, centred with a Back knob inside a flow. The head is the drag handle, with `touch-action: none` and a grab cursor.
-- **Sub line:** 14/20 `text-2`, pulled up 16 px under the head. In the set-up sheet it shows only while waiting (see *Set-up sheet → Around the way*).
+- **Sub line:** 14/20 `text-2`, pulled up 16 px under the head.
 
-**Behaviour:**
+**Movement:**
 
-- **Views stack.** `go()` pushes and `back()` pops. The sheet glides to each view's height.
-- **Closes by:** ×, the scrim, Escape (instant), the phone's back button (the sheet is a history entry), or a pull down on its head. Focus returns to the opener.
-- **A double click** that opened it: clicks in the sheet are ignored for 320 ms, so its second half neither closes it nor answers its question.
-- **A flow that comes while it closes** (an answer after Cancel) opens once it is gone. Escape while it closes ends it at once, and nothing opens after it.
-- **Labels:** `role="dialog"` named by the view title, or `alertdialog` for questions.
+- **Views stack.** The sheet glides to each view's height.
+- **Closes by:** ×, the scrim, Escape (instant), the phone's back button, or a pull down on its head.
+- **A sheet asked for while one closes** opens once it is gone. Escape while it closes ends it at once.
 
-**Pinned keys** (`.hpill`, a phone or tablet set up from elsewhere): Download and Copy for the picked app's config, each 38 × 32, joined.
+**Connection keys** (`.hpill`): Download and Copy on the connection's row, beside its chevron, while the row is open (they fade in with a blur as it opens, the title making room, and go as it shuts): quiet 32 px circles, the icon 16 px in the chevron's `text-2`, a `knob` circle behind one under the pointer, its icon up to `text`.
 
 - **Tooltip:** one 26 px pill in toast colours under the keys. It appears after 420 ms of hover, then follows the pointer (or Tab) from key to key at once, gliding from where it stands, and says "Copied" after a copy. Back on a key while it still fades out, it turns back from there.
-- **On arrival:** when the device connects, × and the keys step away (`settle()`, `.arrived`). If it leaves that state (no data after all, or gone again) they come back (`settle(false)`).
 
 **Question view** (`.ask`: Reconnect, Remove):
 
@@ -914,50 +909,47 @@ The data row is open by default. A repaint keeps the rows on the page and change
 - two equal buttons: **Cancel** (soft) and the action (accent for Reconnect, red for Remove);
 - no × beside them.
 
-**Secure view** (plain HTTP): centred lock glass, "Open securely" (accent, a link to the HTTPS twin in the same tab), and an honest note about the router's own certificate.
+**Secure view:** centred lock glass, an accent "Open securely" button and a short note.
 
 ### ⋯ Menu · `ui/menu.ts`
 
-**Panel:** `position: fixed`, min-width 224, padding 6, radius 20, `field` fill, `--pop-shadow` plus an inner 1 px `--line`.
+Apple's iOS 26 menu (Figma kit, "Menu – iPhone"), made compact: smaller type and tighter rows.
 
-**Items:** 40 high, radius 14, padding `0 12`, gap 12, 14 px 500, a 16 px icon in `text-2`. Tones: `warn` (Reconnect) and `bad` (Remove) colour both text and icon. Separators are a 1 px line with `6 12` margin, kept only between items.
+**Surface:** a dropdown (see *Dropdowns*): at least 210 wide, radius 24, padding `6 0`.
 
-**Highlight:** one `knob` pill behind the items that **glides** after the pointer and takes the item's tone (`bad-soft`, `warn 13%`).
+**Rows**, 6 px in, in groups (copy actions, then Rename, Reconnect, Remove): 8 px above and below the words (34 high, 50 with a line under the label), radius 18 (concentric); the icon 14 px in from the rounded edge, more than the 10 px from it to the words, so it doesn't crowd the curve; 12 px at the right end: a 16 px icon, a 14 px 400 label (line 18) and an 11.5 px subtitle under it where the item has one (the address it copies, tabular figures), 1 px apart. Reconnect `warn`, Remove destructive.
 
-**Options:** an option list (language) shows a check on the current item and keeps an invisible check on the others so the names line up.
+**Separators** between groups: 13 px high, their 1 px line 16 px in from the edge.
 
-**Placement:** under its button, right-aligned, 8 px away, or above it where the screen ends. It grows out of the button's corner.
+**Highlight:** the dropdowns' (see *Dropdowns*), radius 18 on a row. The row under it grows its icon to 1.08 on the same spring; a press takes the row to 0.97.
 
-**Closes on:** a press outside, scroll, Escape (instant), its button again, or another menu opening.
+**Motion and shutting:** as every dropdown's, growing from the knob's side.
 
 ### Toast · `ui/feedback.ts`
 
 - Bottom centre, `24px + safe-area` from the bottom, one at a time; a new one replaces the shown one.
 - 42 high pill, padding `0 18 0 13`, 14 px 500, an 18 px icon (check in ok, alert in bad).
-- 2.4 s on screen. Used for every result and every failure ("Device removed", "Address copied", an error message).
+- 2.4 s on screen. Used for every result and every failure.
 
 ### App picker · `ui/seg.ts`
 
 - **Track:** 48 high, radius 16, `field`, padding `0 4`.
 - **Items:** icons only (20 px) at 56 px each. The picked item takes the remaining width (`flex-grow`) and shows its name.
-- **Pill:** 40 px, radius 12. It stretches like skiper21's tabs: the leading edge reaches the new item first and the trailing edge follows.
+- **Pill:** 40 px, radius 12. It stretches like skiper21's tabs: the leading edge reaches the new item first and the trailing edge follows. At rest it sits on its item by layout alone (4 px and the items before it on the left, the items after it on the right, each 56 or 44 px), so the sheet changing width carries it along with nothing watching.
 - **Item colours:** idle `text-3`, hover `text-2`, picked `text`.
-- **Apps by disguise:** AmneziaVPN and AmneziaWG, plus WireGuard only when the server's disguise is off. Routers never get AmneziaVPN. The last app picked per device is remembered in `localStorage`.
 
 ### Kinds picker · `flows/add.ts`
 
-- **Tiles:** four in a grid (`--n` columns, gap 8): PC, Mobile (phones and tablets are one choice), Router, Other. Each is 56 high, radius 14, `field`.
+- **Tiles:** four in a grid (`--n` columns, gap 8): PC, Mobile, Router, Other. Each is 56 high, radius 14, `field`.
 - **Icons and labels:** a 26 px blue glass icon, greyscale at 55% opacity until picked. The label sits under the tile at 12/16 500.
 - **Picked:** the tile gets an inset 1.5 px accent ring **in place**, without travelling between tiles. Hover → `knob`, press `.94`.
-- **Defaults:** the kind and the name are guessed from the browser (iPhone, iPad, a Samsung model through Client Hints, Mac, Windows PC…), deduplicated with " 2", " 3".
-- **Back from "Add it from the device"** brings the view back as they left it: the kind, LAN Bypass and a name they typed.
-- **Under them:** the LAN Bypass option row, 16 px under the kinds and 12 px above the name field (see *Option row*). No note sits between them any more (the packet-size note is gone).
+- **Under them:** the option row, 16 px under the kinds and 12 px above the name field (see *Option row*).
 
 ### Option row and switch · `.swrow`, `.sw` (`flows/add.ts`)
 
-One choice with a switch: Add a device's **LAN Bypass** ("Your local network stays reachable while connected."). Off by default. With home and internet access, switching it on unfolds a third line, "Except 192.168.1.x: those addresses lead to the home network." (the server's home networks, `server.home`; a /24 reads as "x"): height, opacity and blur on SMOOTH from where the line is, so flicking the switch never snaps, and the row, what follows and the sheet ride along. The admin's drawer says the same ("On, except 192.168.1.x (home)"), and Health warns when a home network is one of the common out-of-the-box subnets. After the device is added it stays as chosen: the admin's drawer shows it ("set when it was added"), and neither the portal nor the admin UI changes it.
+One choice with a switch (Add a device's **LAN Bypass**). A line that unfolds under the words when it is switched on runs height, opacity and blur on SMOOTH from where the line is, so flicking the switch never snaps, and the row, what follows and the sheet ride along.
 
-- **Row:** the whole row is the switch (`button role="switch"`, `aria-checked`). `field` on the raised sheet, radius 16, padding `12 12 12 14`, gap 12.
+- **Row:** the whole row is the switch. `field` on the raised sheet, radius 16, padding `12 12 12 14`, gap 12.
 - **Icon:** the `lan` glass at 28 px, blue. Grey while off (`grayscale(1)` at 55% opacity), on SMOOTH.
 - **Words:** the title 15/22 500 −0.015em over a 13/18 `text-2` line, gap 1.
 - **Hover:** field + knob 50% over 200 ms. **No press shrink.**
@@ -968,81 +960,64 @@ One choice with a switch: Add a device's **LAN Bypass** ("Your local network sta
 - 60 high, radius 18, `field`, padding `0 14 0 12`, gap 12.
 - A 36 px icon tile, radius 10, **inverted** (`text` fill, `raised` mark).
 - Two lines: top 12/16 `text-2`, main 15/20 500.
-- A 16 px trailing mark: chevron for an action, "open" for a store page in a new tab.
-- `.primary` (the one thing to tap in step 2): the icon tile is accent-soft / accent.
-- `.badges2`: two side by side (Android's Google Play beside the APK), no trailing mark.
-- Inside an inset row (the steps on the device itself folded into "Set it up again"): knob 65% over field, hover `knob`, one step above the row.
+- A 16 px trailing mark: chevron for an action, "open" for a page in a new tab.
+- `.primary` (the one thing to tap in a step): the icon tile is accent-soft / accent.
+- `.badges2`: two side by side, no trailing mark.
+- Inside an inset row: knob 65% over field, hover `knob`, one step above the row.
 
 ### Set-up sheet · `flows/setup-view.ts`
 
-The layout follows where the page is open:
-
-| Layout | When | Content |
-|---|---|---|
-| `same` | The page is on the device being set up (another device, a TV or a box, when the page came from its own set-up link) | "Not on the X right now?" inset accordion (opening it folds the steps away), then **1 Get <app>** (picker + store badge) and **2 Add the connection** (primary badge: a vpn:// link, the share sheet, a key to copy or a file to download, plus a "how to" path) |
-| `away` | A phone or tablet set up from elsewhere | Inset accordion: "Open your link on the phone" (QR of the set-up link + link row) / "Already has the app" (picker + the connection as a QR + scan line; where the key or the configuration is too long for a code, the set-up link's code and one line saying so instead, in the picked app's words), open by default; pinned Download / Copy keys |
-| `pc-away` | A computer set up from elsewhere, or another device (TV, box, NAS) added from a phone | "Open your link on the computer" / "Copy or save the connection" (picker + two small soft buttons) |
-| `router` | A router | **1 Get AmneziaWG on the router** (OpenWrt packages badge), **2 Import the configuration** (file card with Download / Share, plus a "Configuration" inset row with Show key / Copy and the `.conf`, keys masked) |
+**Structure.** The way sits on top, 18 px above what is under it. Under it come numbered steps, inset accordion rows, or both. A row holds what a step would: a QR with its link row, the app picker with a code and its scan line, small soft buttons, or a file card with a nested inset row for the `.conf`. Pinned Download / Copy keys sit in the head where the view has them.
 
 **Steps:** a 24 px round number (knob, 13 px 600), a 16/24 500 title and a body with gap 10. Steps sit 20 px apart.
 
-**"How to" path:** `Open AmneziaWG › + › Import Tunnel(s) from File…` in 13 px `text-2`, the app's own words in `text` 500, quoted verbatim from each app in each language.
+**"How to" path:** `Open AmneziaWG › + › Import Tunnel(s) from File…` in 13 px `text-2`, the app's own words in `text` 500.
 
 **Scan line:** "In WireGuard: + › Create from QR code". Where iOS and Android name a step differently, that word alternates every 3 s, with the  or Android mark beside it.
 
-**The way** (waiting for the first connection), on top of every layout. Its state is read off the device in each poll's answer (`way.ts`, from the router's `setup`); it has no buttons.
+**The way:** a picture of the connection, with no buttons.
 
 - **Block:** `field`, radius 20, padding `12 14`, 18 px above what is under it in every state.
 - **Ends:** two 34 px rounded squares (radius 11): the device icon in `knob`, and the server in accent tint.
 - **Track:** a dotted line between the ends (1.4 px dots every 9 px, `text-3` at 80%).
 - **Lines under it:** the line (14/20 500) and, in the states that need one, a second line (13/18 `text-2`).
 
-| State | When | The way | Lines |
-|---|---|---|---|
-| **Waiting** | Nothing heard yet, or gone quiet, offline or removed again | A light runs along the track and rests a beat | "Waiting for the connection" |
-| **Can't finish** (`.trying`) | Its knocks reach the router and no handshake follows | The light turns warn, runs almost to the router and falls back (`way-knock`). A 2 × 18 warn break, tilted 18°, flashes at the router (`way-break`). The router's end turns warn 14%. | "Unable to complete the handshake" (warn) / "Your network may be blocking the connection." |
-| **Connected** (`.done`) | A handshake newer than the sheet, and data flowing | The track fills green from the device and the server end turns green last with a pop | "<device> connected" (green) |
-| **No data** (`.nodata`) | A handshake newer than the sheet, but nothing in except handshakes and keep-alives (an outdated configuration) | The track is green and both ends too (the router's 600 ms after). Two 8 px warn packets, with a soft warn glow, take turns falling through midway (`way-drop`). | "Handshake complete, but no data" (warn) / "This device is using an outdated configuration." |
-| **Given up** (`.stopped`) | 10 minutes without connecting | The light goes out | "No connection yet" / "Close this and open it again to keep checking." |
+| State | The way | Lines |
+|---|---|---|
+| **Waiting** | A light runs along the track and rests a beat | One line |
+| **Can't finish** (`.trying`) | The light turns warn, runs almost to the router and falls back (`way-knock`). A 2 × 18 warn break, tilted 18°, flashes at the router (`way-break`). The router's end turns warn 14%. | Line in warn, plus a second line |
+| **Connected** (`.done`) | The track fills green from the device and the server end turns green last with a pop | Line in green |
+| **No data** (`.nodata`) | The track is green and both ends too (the router's 600 ms after). Two 8 px warn packets, with a soft warn glow, take turns falling through midway (`way-drop`). | Line in warn, plus a second line |
+| **Given up** (`.stopped`) | The light goes out | Line, plus a second line |
 
-Arrival is data flowing, not the first handshake, so no data shows instead of the sheet closing. Gone back to waiting, the way says nothing more: no second line.
+**Around the way:**
 
-**Around the way** (`follow()` in `flows/wait.ts`):
-
-- **The sub line** ("Two steps, about a minute") says what setting up takes, so it shows only while waiting. In every other state it folds away with its margins and the way sits right under the head, as in a sheet with no sub line. It comes back with waiting.
-- **Connected:** × and the pinned keys step away (`settle()`), the sheet scrolls back to the top, everything under the way folds shut with the way's 18 px gap, and the sheet closes onto the page after the reading time.
-- **Any other state** undoes that: × and the keys come back (`settle(false)`), and what folded unfolds straight into the new shape.
-- **On the device itself** (`same`) and **for a router**, the steps follow the way (`regroup()` in `flows/setup-view.ts`):
-  - **can't finish:** one closed inset row, "Set it up again" (refresh glass, blue). On the device itself it holds both steps. A router that knocks has AmneziaWG on it already, so its row holds only the file step (no number, no title of its own);
-  - **no data:** one open inset row, "Add the connection again" ("Import the configuration again" for a router), holding only the connection step (no number, no title of its own);
-  - "Not on the X right now?" (the device itself only) hides in both: the device is in hand;
-  - waiting: the steps as built;
-  - connected: what shows stays as it is while everything under the way folds shut.
-
-  Inside the row what sat on field steps up one (*Accordion → Inset variant*). The layouts set up from elsewhere have rows, not steps, and keep them as built. When focus is inside what moves (a badge just used), it stays in the sheet: on that control where it still shows, else on the head of "Set it up again" or the first control of what now holds the steps.
+- **The sub line** shows with the waiting way only. Otherwise it folds away with its margins and the way sits right under the head, as in a sheet with no sub line.
+- **On arrival** × steps away, the sheet scrolls back to the top, and everything under the way folds shut with the way's 18 px gap (see *Motion → Waiting for the first connection*).
+- **Can't finish and no data** fold everything under the way shut the same way, at once, and the sheet stays: the way and its two lines are all it shows. Back to waiting, × comes back and what folded unfolds as it was.
 
 ### Code row, QR and link row · `ui/codes.ts`
 
 - **QR:** 148 px (radius 18) beside its words (gap 14). Big: 208 (radius 24). Dense: full width, square, radius 22, words under it.
 - **Link row:** 44 high, radius 14, the URL in mono 13 without its scheme (ellipsis, `user-select: all`), then copy and, where the browser has it, share.
 - A code that changes **cross-fades in place**: the new one comes in first, so the place is never empty; a code of the other size scales the box to its own.
-- A code **too long to scan** (over about 1.6 KB, e.g. an AmneziaVPN key where the browser cannot compress it, or a LAN Bypass configuration with its long list of networks) gives its place to a stand-in: another code and words that say why (they change with the picked app). The row's own words come back with a code that fits.
+- A stand-in code (where the real one is too long to scan) takes the same place, with words beside it that say why.
 
 ### File card and configuration
 
-- **File card:** `field`, radius 18, padding 12. A 38 × 46 "file" icon (radius 9, mono 10 600 ".conf"), the filename in mono 13, "For computers and routers" at 12 px, and an accent `sm` block button. Inside an inset row it steps up one (*Accordion → Inset variant*).
+- **File card:** `field`, radius 18, padding 12. A 38 × 46 "file" icon (radius 9, mono 10 600 ".conf"), the filename in mono 13, a 12 px line, and an accent `sm` block button. Inside an inset row it steps up one (*Accordion → Inset variant*).
 - **Configuration:** `pre` 12/18 mono, max-height 16 rem, scrolls.
   - colours: section headers in accent, keys in `text`, values in `text-2`;
-  - **PrivateKey and PresharedKey are masked** (`••••` in `text-3`, letter-spaced 1 px) until "Show key". The mask and the key share one place and cross-fade; the one at rest is out of sight, so a selection of the `.conf` never takes a hidden key.
+  - **keys are masked** (`••••` in `text-3`, letter-spaced 1 px) until "Show key". The mask and the key share one place and cross-fade; the one at rest is out of sight.
 
 ### Glass icon catalogue · `ui/glass.ts`
 
-`phone, mobile, tablet, computer, router, other, plus, globe, home, shield, chart, calendar, clock, pause, server, link, key, lock, check, trash, refresh, app (AmneziaVPN mark), file, lan (three devices joined: the LAN Bypass row)`. An unknown name falls back to `other`.
+`phone, mobile, tablet, computer, router, other, plus, globe, home, shield, chart, calendar, clock, pause, server, link, key, lock, check, trash, refresh, app (AmneziaVPN mark), file, lan (three devices joined)`.
 
 ### Demo-only pieces · `demo/` (not in the router build)
 
 - "Demo" chip after the crumbs (26 high, accent-soft, 13 px 600).
-- GitHub pill before the language pill (hidden below 480 px; a button in the drawer instead).
+- GitHub knob (its mark only, 32 px, as the QR knob) before the language pill (hidden below 480 px; a button in the drawer instead).
 - Scenario drawer: grouped rows on `field`, 2 px apart inside a radius-20 group, 60 px min, glass 30; the current row in accent with a check.
 
 ---
@@ -1057,7 +1032,7 @@ Arrival is data flowing, not the first handshake, so no data shows instead of th
 - Say a state once, where it matters, in its colour. One notice per page.
 - Put numbers in `.num`, hostnames and links in mono, and one-line names with `title`.
 - Make every changing text go through `morphText`, and every appearing block through a blur-in (see *Motion*).
-- Translate in the same change and check the Russian at 375 px.
+- Check every new string in Russian at 375 px.
 - Respect the CSP: no `style=` attributes. Set styles through `el.style` and colours through classes.
 
 **Don't**
@@ -1067,7 +1042,7 @@ Arrival is data flowing, not the first handshake, so no data shows instead of th
 - Use blue text links for actions. Use buttons and pills.
 - Put an ellipsis on a button or menu item.
 - Use the accent for decoration, or a new hue for anything.
-- Animate with ad-hoc durations and curves. Use the springs and the two eases (see *Motion → Drift*).
+- Animate with ad-hoc durations and curves. Use the springs and the two eases (see *Motion → Curves and durations*).
 - Animate in response to the keyboard (Escape), or rely on motion to convey a state.
 - Use `--text-3` for text a person needs to read (see *Contrast*).
 
@@ -1099,15 +1074,17 @@ Six rules hold everywhere:
 ```ts
 spring(k, c, m = 1)   // closed-form damped harmonic oscillator; under-, critically and over-damped branches
                       // duration = time until it stays within 0.15% of the end (sampled every 4 ms, ≤ 3 s)
+                      // what is left of the way then is spread over the curve (mostly near its end), so it lands on 1
+                      // exactly: a 500 px travel ends without a last-frame step
                       // easing   = CSS linear() with 65 points; at(ms) = progress for script-driven motion
 publishSprings(root)  // --spring-{bouncy,smooth,soft,quick} and --spring-*-dur on <html> for CSS transitions
-play(el, frames, o)   // el.animate() with the reduced-motion policy
+play(el, frames, o)   // el.animate() with the reduced-motion policy; a large element (> 30 000 px²) fades without its blur
 rubber(dist, dim)     // (1 − 1 / (dist·0.55/dim + 1))·dim: resistance that grows with the pull
 unrubber(d, dim)      // rubber() undone: the pull that puts an edge d past it (a sheet taken while it settles back)
 dismisses(dy, v, h)   // a pulled sheet goes on a flick down (v > 0.4 px/ms) or past h/3; never on a flick back up (v < −0.1)
 ```
 
-Animations from script go through `play()` (WAAPI). Hover and press states are CSS transitions. Loops and one-shots are CSS keyframes (`orb-converge`, `orb-breathe`, `way-run`, `way-knock`, `way-break`, `way-drop`, `way-dip`, `way-pop`, `caret-blink`, `cal-in`). The field's caret and selection run a per-frame spring of their own, not `spring()` (`ui/caret.ts`, see *Caret and selection*).
+Animations from script go through `play()` (WAAPI). Hover and press states are CSS transitions. Loops and one-shots are CSS keyframes (`orb-converge`, `orb-breathe`, `way-run`, `way-knock`, `way-break`, `way-drop`, `way-dip`, `way-pop`, `caret-blink`, `cal-in`). The field's caret and selection run a per-frame spring of their own, not `spring()` (see *Caret and selection*).
 
 ### Springs
 
@@ -1131,14 +1108,16 @@ Computed from `spring()` and confirmed live: the published CSS variables read 57
 | `EASE_OUT` (`--ease-out`) | `cubic-bezier(.23, 1, .32, 1)` | Entrances, hover and press transitions, folds of a finished step |
 | `EASE_IN` | `cubic-bezier(.55, 0, 1, .45)` | Exits: menu, toast, dialog close, busy content out, ghosts |
 | `DRAWER` | `cubic-bezier(.32, .72, 0, 1)` | The phone drawer, up 500 ms and down 420 ms (Vaul's curve) |
-| ad hoc | `cubic-bezier(.2, 0, 0, 1)` | Sheet view swap and pinned keys (see *Drift*) |
-| ad hoc | `cubic-bezier(.25, 1, .5, 1)` | Sheet height on a view swap, 360 ms (see *Drift*) |
+| ad hoc | `cubic-bezier(.2, 0, 0, 1)` | Sheet view swap |
+| ad hoc | `cubic-bezier(.25, 1, .5, 1)` | Sheet height on a view swap, 360 ms |
 | ad hoc | `cubic-bezier(0, 0, .58, 1)` | Accordion body fade-in, 300 ms |
 | `ease-out` / `ease` keywords | — | Drawer scrim (420 in / 320 out), tooltip hide, arrival ring, hover background colours |
 
 The duration ladder in use is **100 · 120 · 140 · 150 · 160 · 180 · 200 · 220 · 240 · 260 · 280 · 300 · 320 · 340 · 360 · 380 · 400 · 420 · 500 · 520 · 700 · 900 · 1200 · 1800 · 2200 ms**, plus springs. Below 200 ms means feedback or exit, 200–400 ms means entrance or cross-fade, ≥ 500 ms means travel or a one-time moment.
 
 ### Hover and press (CSS transitions)
+
+A press shrinks a control, but it keeps the footprint it had when pressed: let go anywhere on that and it is the control's click, however far it has shrunk under the pointer (`ui/press.ts`, mouse and trackpad; a touch stays with what it pressed).
 
 | Element | Press | Hover | Timing |
 |---|---|---|---|
@@ -1148,14 +1127,14 @@ The duration ladder in use is **100 · 120 · 140 · 150 · 160 · 180 · 200 ·
 | `.kind` tile | `scale(.94)` | `knob` | 200 ms (bg, transform), ring 220, icon colour 260 |
 | `.badge`, `.dev.add` | `scale(.98)` | `knob` / raised+knob 45% | 200 ms |
 | `.namechip` | `scale(.96)` | `knob` | 150 ms |
-| `.upd-pill`, `.cr-lang`, `.hp-b`, demo chip / GitHub | `scale(.94)` | +6% / tone 22% | 150 ms |
+| `.upd-pill`, `.cr-lang`, `.hp-b`, demo chip / GitHub | `scale(.94)` | +6% (`.hp-b`: a `knob` circle) / tone 22% | 150 ms |
 | Accordion row | — | raised+knob 40% (inset: field+knob 50%; nested in an inset row: `knob`) | 150 ms |
 | `.swrow` (option row) | none | field+knob 50% | 200 ms |
 | Switch knob (`.sw`) | held: stretches 20 → 27 px toward where it goes | — | SMOOTH 524 (travel, width, colour) |
 | Picker item | — | `text-3` → `text-2` | 200 ms colour |
 | Spark / month bar | — | `--bar` → `text-2` (today: accent+text 25%) | 150 / 120 ms |
 | Field | — | focus ring inset 1.5 px | SMOOTH 524 |
-| Language chevron | — | rotates `90° → −90°` while open | 200 ms ease-out |
+| Pick pill chevron | — | turns `90° → −90°` as it opens and on round `−90° → −270°` as it shuts (then 90° again, unseen) | 260 ms ease-out |
 
 ### Catalogue: every animation, measured live
 
@@ -1216,8 +1195,8 @@ Every text that changes in place while visible morphs. Hover readouts over chart
 
 - unchanged pieces stay still;
 - a piece with new words morphs where it stands (whole mode, up to 40 characters);
-- a keyed text (`data-t`) with new words is left to `morphChanged`, which letter-morphs it;
-- a piece that changed kind, height or drawing crosses: the old one is pinned where it stood and fades `b4` over 180 ms, from how it showed, while the new one blurs in (280 / 60); what came in whole is not morphed again (`morphChanged` skips it);
+- a keyed text (`data-t`) with new words is letter-morphed;
+- a piece that changed kind, height or drawing crosses: the old one is pinned where it stood and fades `b4` over 180 ms, from how it showed, while the new one blurs in (280 / 60); what came in whole is not morphed again;
 - pieces that only moved glide on SMOOTH.
 
 **Interrupting:** a morph under way is not cut short. The next one starts from what shows: the words that were coming in leave from as far as they came (a letter both texts keep slides on from where it is), the words still leaving go on leaving, and the width carries on from its on-screen width. Asked again for what it is already turning into, the morph just goes on. A `morphInto` refilled again half-way does the same: what was fading goes on fading where it is, and what was still coming in goes on from as far as it came. No morph runs for reduced motion or for an element that is not on screen.
@@ -1240,11 +1219,11 @@ Live examples:
 | Body of the closing row | from where it stands → `opacity 0, b2`, kept displayed (`.closing`) until the row finishes, also when another row is clicked meanwhile | 160 × what is left, EASE_IN |
 | Chevron | `rotate(90°) → rotate(−90°)` | SOFT 476 (CSS var) |
 | Head value (`valHide`) | `out, b4, translateX(8px)` | 200 (opacity, blur), 260 (transform), EASE_OUT |
-| Calendar cells when "Access until" opens | `cal-in`: `opacity 0, scale .4 → 1`; `.opened` stays until the row has shut, so a row opened again before then carries on its cascade | 360 / 7·i ms (49 cells ≈ 700 ms total), EASE_OUT |
+| Calendar cells when "Access until" opens | `cal-in`: `opacity 0, scale .4 → 1`; a row opened again before it has shut carries on its cascade | 360 / 7·i ms (49 cells ≈ 700 ms total), EASE_OUT |
 
 On open the neighbours' facing corners round at the same time, so the open row lifts out of the stack rather than splitting it. Inside the sheet the accordion plans the sheet's width first, so a dense code that comes into view gets its width on the same frame. On the page a fold near the foot takes the page down with it (see *Layout → Scroll*).
 
-A click mid-way (a double click) turns every row and body back from where it stands. When content changes under a height glide that is still heading for an old end (a row inside a row, a pick while its row opens, a fold inside a row), that glide is re-aimed from where it stands to the new end on its own curve (`regrow()` in `ui/accordion.ts`). The sheet needs none of this: its height follows its view (see *5. Sheet → Content glide*).
+A click mid-way (a double click) turns every row and body back from where it stands. When content changes under a height glide that is still heading for an old end (a row inside a row, a pick while its row opens, a fold inside a row), that glide is re-aimed from where it stands to the new end on its own curve. The sheet needs none of this: its height follows its view (see *5. Sheet → Content glide*).
 
 #### 5. Sheet
 
@@ -1260,9 +1239,9 @@ A click mid-way (a double click) turns every row and body back from where it sta
 | | scrim | `in` | 420, ease-out |
 | Phone close | sheet | from its current transform → `translateY(100% + 40px)` | 420, DRAWER |
 | | scrim | from its current opacity → 0 | 320, ease-out |
-| Escape, or a link that stopped working | everything | gone at once | 0 |
+| Escape | everything | gone at once | 0 |
 
-**View swap** (`go`, `back`, a new flow in an open sheet):
+**View swap:**
 
 | Element | Motion | Timing |
 |---|---|---|
@@ -1273,9 +1252,9 @@ A click mid-way (a double click) turns every row and body back from where it sta
 | Pinned keys | old out `s.9, b3` 180; new in `s.9 → 1, b3 → 0` | 260 / 110 |
 | Clicks on the new view | ignored for 320 ms, so a tap meant for the old button doesn't press the new one | — |
 
-**Content glide** (`glide()`, a pick that changes a view):
+**Content glide** (a change inside a view):
 
-- the viewport height glides on SMOOTH, as a gap (or overhang) under the view that closes, so whatever changes inside meanwhile (a row opening, a fold, a poll) carries the sheet's edge along;
+- the viewport height glides on SMOOTH, as a gap (or overhang) under the view that closes, so whatever changes inside meanwhile (a row opening, a fold) carries the sheet's edge along;
 - every element that moved inside glides from its old place (outermost only) on SMOOTH, added to a glide still under way, so a quick second pick takes it on from where it is;
 - blocks named as changed blur in (280, EASE_OUT).
 
@@ -1287,7 +1266,7 @@ A click mid-way (a double click) turns every row and body back from where it sta
 - release closes on a flick (> 0.4 px/ms) or past a third of the height. Live, a 250 px pull closed from scrim .40, and a fast 50 px flick closed from scrim .88.
 - otherwise the sheet and its dim go back on SMOOTH (a touch that never moved only lets it settle).
 
-**Arrived** (`.arrived`) and question (`.asks`): × and the pinned keys go `out, b3, scale .9` over 240 ms EASE_OUT and stop taking clicks.
+**Arrived** (`.arrived`) and question (`.asks`): × goes `out, b3, scale .9` over 240 ms EASE_OUT and stop taking clicks; they come back the same way.
 
 #### 6. ⋯ Menu
 
@@ -1324,7 +1303,7 @@ The orb is aicss.dev's **Orbs B4 Converge** at its 28 px stage, twice its speed,
 | Orb loop: front dot (7 px) | walks a triangle (top → bottom right → bottom left). It rests 10% at each corner, leaves ease-in (`.55,0,1,.45`), arrives ease-out (`.33,1,.68,1`), and is `scale .72, blur .8` between corners. | 1.8 s, linear keyframe timeline |
 | Orb loop: back dot | breathes in the centre: opacity .16 ↔ .32, blur 2.4 ↔ 1.6, scale 1.2 ↔ .98 | 1.8 s, ease-in-out |
 
-The orb starts on the click itself (a 250 ms "only if slow" delay was tried and rejected). The button stays disabled until the answer, which also guards against double submits. `contain: strict` keeps the loop off layout.
+The orb starts on the click itself (a 250 ms "only if slow" delay was tried and rejected). `contain: strict` keeps the loop off layout.
 
 #### 9. Copy feedback
 
@@ -1333,7 +1312,7 @@ The control that copied says so for 1.6 s:
 - its icon swaps to a check (POP 544, from `s.6, b3`), and back the same way;
 - its "Copy…" label morphs to "Copied" and back;
 - a toast says what was copied;
-- in the pinned keys, the tooltip glides and rewords to "Copied" (SMOOTH).
+- in the connection keys, the tooltip glides and rewords to "Copied" (SMOOTH).
 
 #### 10. App picker stretch
 
@@ -1341,38 +1320,38 @@ On a pick:
 
 - **Edges:** the pill's two edges are driven per frame by `spring.at(t)`. The leading edge (toward the new item) runs on LEAD (396 ms) and the trailing edge on SMOOTH (524 ms), so the pill stretches toward the target and then contracts.
 - **Width shares:** items change `flex-grow` 0 ↔ 1 on SMOOTH. Shares of the track, not pixels, so they stay right while the sheet's width changes.
-- **Labels:** the old label collapses (`max-width → 0, margin-left −8, out`, 220 ease-out) while the new one opens to its width with its item's share (SMOOTH) and blurs in (280 / 70, EASE_OUT), always inside the pill. Picked again half-way, each name goes on from where it stands, one still folding included, over what is left of its way (`labelFade`).
-- **What follows:** everything the pick changes `morphInto`s in place (step title, store badge, step 2, the code) and the sheet glides.
+- **Labels:** the old label collapses (`max-width → 0, margin-left −8, out`, 220 ease-out) while the new one opens to its width with its item's share (SMOOTH) and blurs in (280 / 70, EASE_OUT), always inside the pill. Picked again half-way, each name goes on from where it stands, one still folding included, over what is left of its way.
+- **What follows:** everything the pick changes morphs in place (`morphInto`) and the sheet glides.
 
 #### 11. Kinds picker
 
-The ring does not travel: the old tile's ring fades and the new tile's ring draws in place (box-shadow 220 ms). The icon desaturates or saturates (260 ms) and the label colour changes (200 ms). The name field updates without motion while untouched.
+The ring does not travel: the old tile's ring fades and the new tile's ring draws in place (box-shadow 220 ms). The icon desaturates or saturates (260 ms) and the label colour changes (200 ms). A name that follows the pick changes without motion.
 
 #### 12. Codes and words
 
 | What | Motion | Timing |
 |---|---|---|
 | A new QR in the same box | new `in` under them all first (200, EASE_OUT); old laid over it goes `out` (220 / 110, EASE_IN); each from where it stands. Nothing changes its place in the stack: a code turned back to fades up again where it lies (200 × what is left), what lies over it goes, and what lies under it goes once it shows whole | the box is never empty |
-| A code of the other size (dense ↔ not, e.g. the stand-in link) | the box scales from its size on screen to its own (from its top left, corners kept), the codes with it; the words glide to their new place | SMOOTH 524 |
-| The same code for another app (WireGuard ↔ AmneziaWG take one file) | only the words change | — |
+| A code of the other size (dense ↔ not, e.g. the stand-in) | the box scales from its size on screen to its own (from its top left, corners kept), the codes with it; the words glide to their new place | SMOOTH 524 |
+| The same code under other words | only the words change | — |
 | Words beside a code | new `in, b3 → 0` 220 EASE_OUT; old `out, b3` from where they stand, 200 / 90 EASE_IN | — |
 | Scan line, another app | app name and each path part morph whole; the OS mark grows or shrinks (`width 0 ↔ 1.05em`, `b3`) | SMOOTH; mark out 220 × the width it has left, from where it stands |
 | Scan line, OS alternation (every 3000 ms while on screen) | the differing word letter-morphs; the old mark `out, scale .5 rotate −40°, b3` (200, EASE_IN); the new one turns in from `scale .5 rotate 40°` | POP 544 / 80 |
 
 #### 13. Waiting for the first connection · `flows/wait.ts`
 
-**While waiting:** the way's light (`way-run`) is a gradient band masked to the dots. It travels from −70% to +70% in the first 72% of a 2 s loop (`cubic-bezier(.45,0,.55,1)`) and rests for the last 28% (≈ 560 ms). Behind it, polls run every 5 s six times, then every 15 s six times, then every 30 s. They skip while the tab is hidden and go on until the sheet closes, through the arrival too, so a state that changes again is still seen. They give up at 10 minutes unless the device is connected (the sheet is closing by itself then).
+**Waiting:** the way's light (`way-run`) is a gradient band masked to the dots. It travels from −70% to +70% in the first 72% of a 2 s loop (`cubic-bezier(.45,0,.55,1)`) and rests for the last 28% (≈ 560 ms).
 
 **Can't finish:** the light turns warn and knocks (`way-knock`, 1.8 s, the same curve): −70% → +34% at 48%, back to +26% at 62% as if turned away, then home to −70%, fading out by 86% and resting to the end. The break at the router flashes on the same beat (`way-break`, 1.8 s): `opacity .25, scaleY .7`, up to `1, 1.15` at 50%, back by 70%. The router's end turns warn over 400 ms. Both loops (the run and the knock) and the break run from the way's first frame; each state fades its own in and the others out over 200 ms (ease-out) where they stand, so none starts over in sight.
 
 **No data:** the green fills the dots as on arrival (700 / 80, EASE_OUT) and the ends turn green (400; the router's 600 later, with no pop). Two packets take turns (`way-drop`, 2.2 s, the same curve, the second 1.1 s behind): each fades in by 8%, runs to 48% of the track at 46%, then drops 16 px past the middle (to 54%), shrinking to `.5` and fading out by 66%. Leaving no data, each packet fades out where it is as it falls on (200, EASE_IN), then goes; back to no data while they fade, a fresh pair sets off.
 
-**Arrival timeline**, measured live (t = 0 when the poll sees data flowing after a fresh handshake; the sub line's fold is read from the code):
+**Arrival timeline**, measured live (t = 0 at arrival):
 
 | t (ms) | What |
 |---|---|
 | 0 | The line morphs to "<device> connected" (width glides on SMOOTH, letters lift and rise). Its colour turns green (300 ms). |
-| 0 | × and the pinned keys step away (`out, b3, s.9`, 240 ms). The sheet scrolls to the top. |
+| 0 | × steps away (`out, b3, s.9`, 240 ms). The sheet scrolls to the top. |
 | 0 → 380 | The sub line folds away, if it still shows (see below). |
 | 0 → 200 | The light fades out (200 ms). |
 | 80 → 780 | The green fills the dots from the device's end (`clip-path inset(0 100% 0 0) → inset(0)`, 700 / 80 ms, EASE_OUT). The device's end turns green (400 ms). |
@@ -1382,7 +1361,7 @@ The ring does not travel: the old tile's ring fades and the new tile's ring draw
 | 2810 | The sheet closes (120 ms on a computer, 420 on a phone). |
 | ≈ 2950 | The page repaints: the card glides to its new place (SMOOTH), its status morphs to "Connected", and its **green ring fades** over 1.8 s. |
 
-**Changes of state** (`follow()`), each starting from where things stand on screen, so one turned round half-way never jumps:
+**Changes of state**, each starting from where things stand on screen, so one turned round half-way never jumps:
 
 | What | Motion | Timing |
 |---|---|---|
@@ -1390,10 +1369,10 @@ The ring does not travel: the old tile's ring fades and the new tile's ring draw
 | Second line in | `in, b4 → 0`, while the block's height glides open and both lines FLIP to their new centre together | 300 / 60 EASE_OUT; height and FLIP 340 EASE_OUT (the FLIP measured on the glide's first frame) |
 | Second line replaced | whole-word morph in place (old `out, b4` 180 EASE_IN, new `in, b4 → 0` 280 / 60 EASE_OUT) as the block glides to the new height | 340 EASE_OUT |
 | Second line out | `out, b4` from its current opacity, then the block closes the same way | 180 EASE_OUT, the close from 170 ms, 340 EASE_OUT |
-| Sub line folds (every state but waiting) and comes back | `height, margin-top/bottom → 0, out, b4` | 380, EASE_OUT |
-| Steps regroup (`same` and `router`: into "Set it up again", "Add the connection again" or "Import the configuration again", and back) | `.setup` height from where it stands to the new one; `opacity .4, b2 → none` | 420, EASE_OUT; 320, EASE_OUT |
+| Sub line folds and comes back | `height, margin-top/bottom → 0, out, b4` | 380, EASE_OUT |
+| Steps regroup (into one inset row, and back) | `.setup` height from where it stands to the new one; `opacity .4, b2 → none` | 420, EASE_OUT; 320, EASE_OUT |
 | Leaving connected | × and the keys come back (240); what folded unfolds straight into the new shape, the way's 18 px gap with it | 520, EASE_OUT |
-| "No connection yet" after 10 min | the line morphs; "Close this and open it again to keep checking." comes in as the second line, or morphs from the one shown; the sub line folds away if it still shows | as above |
+| Given up | the line morphs; the second line comes in, or morphs from the one shown; the sub line folds away if it still shows | as above |
 
 #### 14. Caret and selection · `ui/caret.ts`
 
@@ -1409,22 +1388,22 @@ The ring does not travel: the old tile's ring fades and the new tile's ring draw
 
 | What | Motion | Timing |
 |---|---|---|
-| Add sheet, error under the field | in: `in, y−4 → 0, b4 → 0` as the sheet glides open (see 5, *Content glide*); out (they type): `out, y−4, b4` where it stands, then the sheet glides shut; a second error morphs its words; each turns back from where it stands | 220, EASE_OUT; out 180, EASE_IN, the glide from 170 ms |
+| Error under a field in a sheet | in: `in, y−4 → 0, b4 → 0` as the sheet glides open (see 5, *Content glide*); out: `out, y−4, b4` where it stands, then the sheet glides shut; a second error morphs its words; each turns back from where it stands | 220, EASE_OUT; out 180, EASE_IN, the glide from 170 ms |
 | Show key / Hide key | the mask and the key cross-fade in place, each from where it stands: in → `none, 1` (320, EASE_OUT); out → `0, b4` (200, EASE_IN), then out of sight. The icon (key ↔ ×) turns the same way, out through `s.6, b3`; the label morphs | 320 / 200 |
-| Steps fold (same-device layout, the "Not on the X" row) | `height, opacity, blur(0 ↔ 4px)` from where it stands (a double click turns it back); a row still opening around it heads for the new height | SMOOTH 524 |
+| Steps fold (an inset row above them opening) | `height, opacity, blur(0 ↔ 4px)` from where it stands (a double click turns it back); a row still opening around it heads for the new height | SMOOTH 524 |
 | Top edge fade | opacity 0 ↔ 1 at `scrollY > 2` | 200 ms |
 | Demo scenario switch | page `out, b4` 160 EASE_OUT → repaint → `in, y6, b4 → 0` 420 EASE_OUT | demo only |
 
 ### Shimmer · `ui/shimmer.ts`
 
-Words on their way to the router (a name being saved on its card) shimmer as an assistant's "thinking" line does. A copy of the input's words is laid exactly over them (same font, clipped to the input and scrolled as it is) and the input's own go transparent. The copy is the words' colour (`text`) over a muted base (`text` 38% into `raised`), painted as a gradient clipped to the text: a band 2.2 em either side with a bell falloff (0, .5, .9, 1, .9, .5, 0) crosses it from left to right in 1.8 s, linear, then rests 0.58 s and goes again. It starts solid (the swap shows nothing), dims in 240 ms; stopping, the band holds where it is and the words fade back to their colour around it (480 ms, standard curve), and only then does the copy go. With less motion asked for there is no band: it only dims and comes back.
+Words being saved (a name on its card) shimmer as an assistant's "thinking" line does. A copy of the words is laid exactly over them (same font, clipped to the input and scrolled as it is) and the input's own go transparent. The copy is the words' colour (`text`) over a muted base (`text` 38% into `raised`), painted as a gradient clipped to the text: a band 2.2 em either side with a bell falloff (0, .5, .9, 1, .9, .5, 0) crosses it from left to right in 1.8 s, linear, then rests 0.58 s and goes again. It starts solid (the swap shows nothing), dims in 240 ms; stopping, the band holds where it is and the words fade back to their colour around it (480 ms, standard curve), and only then does the copy go. With less motion asked for there is no band: it only dims and comes back.
 
 ### Choreographies, end to end (live, demo latency ~0.5–0.75 s)
 
 **Rename (on the card):**
 
 - 0: Return; the words' copy laid over them dims to the muted base (240, standard curve), the caret steps aside;
-- +120: the first sweep sets off (1.8 s across, linear), then again after a 0.58 s rest, for as long as the router takes;
+- +120: the first sweep sets off (1.8 s across, linear), then again after a 0.58 s rest, until the answer;
 - answer: the band holds where it is and the words fade back to their colour (480, standard curve);
 - then: the input gives way to the name (identical, nothing moves), the card is drawn again and its status morphs from the hint, words and colour.
 
@@ -1432,7 +1411,7 @@ Words on their way to the router (a name being saved on its card) shimmer as an 
 
 - 0: busy;
 - +720: answer. Under the sheet the cards FLIP (iPhone and MacBook swap places, ±315 px) and the status morphs to "Not set up yet";
-- +795: view swap to set-up. Old out 200, new in 280 / 110, height 297 → 830 (360), width 400 → 448 (SMOOTH), pinned keys in 260 / 110, × back (240), the light starts.
+- +795: view swap to set-up. Old out 200, new in 280 / 110, height 297 → 830 (360), width 400 → 448 (SMOOTH), × back (240), the light starts.
 
 **Add:**
 
@@ -1469,7 +1448,7 @@ CSS hover and press transitions (`scale(.8–.98)`, colours, the switch) are not
 ### Performance notes
 
 - Animated properties are `transform`, `opacity` and `filter: blur` almost everywhere. Layout properties animate only where the layout must truly change: `height`, `width`, `max-width`, margins and radii (sheet height, accordion rows, morph width, folds), `flex-grow` (picker) and `clip-path` (way fill).
-- Morphs skip elements that are not on screen. The OS alternation skips while folded. Polls pause in hidden tabs.
+- Morphs skip elements that are not on screen. The OS alternation skips while folded.
 - The caret runs one `requestAnimationFrame` loop for itself and both selection edges, writes only `transform` (and the wash's width), and stops once all three rest. Its measuring copy of the text sits out of sight with the input's font, and several events in one frame make one measure.
 - Blur radii stay at ≤ 6 px; the edge fade's 12 px backdrop blur is the only large one.
 - One animation per property per element at a time: new runs cancel old ones after starting from their computed state. The exception is a FLIP inside the sheet, which adds to one still under way (`composite: 'add'`).
@@ -1493,94 +1472,18 @@ CSS hover and press transitions (`scale(.8–.98)`, colours, the switch) are not
 - **Buttons are verbs, with no ellipsis:** Connect, Update, Add device, Reconnect, Remove, Cancel, Open securely, Show key, Copy.
 - **Statuses are short and fit one line.** The full wording goes in the tooltip: "Settings changed, update needed".
 - **Other apps are quoted word for word, in each language:** "+ › Insert › Continue" for AmneziaVPN, "Import Tunnel(s) from File…" for WireGuard.
-- **Honest warnings sit where the choice is made:** plain HTTP, the router's own certificate, connected but no data left, a device that can't finish connecting or connects with no data (the way says what it likely is, the card says it in one line with why in `title`).
-- **Numbers, sizes and dates** follow the page's language (`num`, `bytes`, `toLocaleDateString(locale())`). Times are the router's clock, hours shown in the visitor's time when the offset is known.
-- **The language pill switches in place.** The page opens in the kept choice, else the browser's language, else English.
+- **Honest warnings sit where the choice is made**, said once: one line where space is short, the why in `title`.
+- **Numbers, sizes and dates** follow the page's language.
+- **The language pill switches in place.**
 
 ---
 
 ## Accessibility
 
-- **Focus:** `:focus-visible` draws a 2 px outline in accent at 65% with a 2 px offset. Mouse focus shows nothing.
-- **Roles:**
-  - the sheet is `dialog`, or `alertdialog` for questions, with `aria-modal` and `aria-label` = the view's title;
-  - the menu is `menu` with `menuitem` or `menuitemradio` (`aria-checked`);
-  - the picker is a `tablist` of `tab`s (`aria-selected`); the kinds are a `radiogroup` of `radio`s (`aria-checked`);
-  - the LAN Bypass row is one `button` with `role="switch"` and `aria-checked`, named by its title and line;
-  - accordion heads are buttons with `aria-expanded`;
-  - the way is `role="status"` with `aria-live="polite"`;
-  - the menu path has its own `aria-label` naming both systems' words;
-  - busy buttons get `aria-busy`.
-- **Keyboard:** Escape closes the menu, then the sheet, without animation. The phone's back button closes the sheet. Focus returns to the opener. A name edited on its card selects its text as it opens; Esc there puts the name back without closing anything else, and focus returns to the name. When the set-up steps regroup under the way, focus inside them stays in the sheet (see *Set-up sheet → Around the way*).
-- **Words only on hover:** a device card's status stays one line, so why a link fails sits in `title` for a pointer and in hidden text right after the status for a screen reader (`.offscreen`). A touch screen shows neither: the trade-off for cards of one height.
-- **Hidden decoration:** icons and glass icons are `aria-hidden`. Morph overlays and ghosts are `aria-hidden` and click-through. A field's drawn caret, selection and handles are click-through, and its measuring copy is `aria-hidden`; the input underneath stays the browser's own (typing, IME, its real selection). An icon-only button has an `aria-label`.
+- **Focus:** `:focus-visible` draws a 2 px outline in accent at 65% with a 2 px offset, only while the keyboard is moving focus: `main.ts` sets `.kbd` on `<html>` at Tab or an arrow key and drops it at any press. Focus a script moves, or one left after a click or a touch, shows nothing.
+- **Keyboard:** Escape closes the menu, then the sheet, without animation.
+- **Words only on hover:** a device card's status stays one line, so a longer reason sits in `title` for a pointer and in hidden text right after the status for a screen reader (`.offscreen`). A touch screen shows neither: the trade-off for cards of one height.
+- **Hidden decoration:** icons and glass icons are `aria-hidden`. Morph overlays and ghosts are `aria-hidden` and click-through. A field's drawn caret, selection and handles are click-through, and its measuring copy is `aria-hidden`; the input underneath stays the browser's own (typing, IME, its real selection).
 - **Contrast:** see the table in *Colors*. `--text-3` and white-on-accent are below AA.
-- **Targets:** buttons and fields are 48 px, menu items 40 px. Knobs and pills are 32 px, the pinned keys 38 × 32 and calendar cells 10 px (not interactive). The 32 px controls are below the 44 px touch guideline.
-
----
-
-## Live audit: findings (2026-10-20)
-
-These are observations from the code read and the live run, not changes. Each is cheap to confirm in the demo.
-
-### Motion
-
-1. **The sheet uses two height animations.** A view swap glides height over 360 ms `cubic-bezier(.25,1,.5,1)` with `cubic-bezier(.2,0,0,1)` cross-fades and pinned keys. In-view changes use SMOOTH (524 ms). Moving the swap onto the spring tokens would make the sheet move the same way however its content changes.
-2. **The drawer scrim uses CSS keywords** (`ease-out` 420 / 320) where the dialog's scrim uses SOFT and EASE_IN. Harmless, but it sits outside the token set.
-3. **Comments drift from the code.**
-   - `motion.ts` says BOUNCY is "the accordion", and `accordion.css` and `accordion.ts` call it "bouncy". The accordion runs on SOFT (476 ms, 3.9%), on purpose since 2026-10-19.
-   - `docs/plan-portal-redesign.md` says "one bottom drawer at every width" and "four kinds with a sliding ring". Live, the sheet is a centred dialog from 760 px, and the ring does not travel.
-4. **The language switch is a hard cut.** The whole page is rebuilt with no fade. It is consistent with "nothing animates that the person can't follow", but it is the only visible change without a transition.
-
-### Visual and accessibility
-
-5. **White on accent** (every primary button) is 2.4:1 in dark and 2.9:1 in light. It is below AA even for large text. It is the measured skiper21 look, so it is a decision for the user. Options: a deeper accent fill with the same hue (e.g. `#1d84e6`, the glass tone b) or dark ink on the light fill.
-6. **`--text-3` carries meaningful text** at 2.2–2.4:1: the limit note ("You have reached your limit…"), "3 of 4", "Ends Mon 30 Nov", axis dates and the "OR" divider. The limit note and the end date carry information and could move to `--text-2`.
-7. **Light theme tone text is thin.** Status lines at 13 px in ok, warn or accent are 3.1–3.3:1 on white. Accent text links in hints are 2.9:1.
-8. **`--t-orange` has no light override.** The light block redefines the grey, blue, green and red glass tones, but not orange. Orange glass icons keep their dark-theme stops in light.
-9. **Breadcrumb at 375 px:** with the demo chip, both crumbs truncate to "Dawnlin… › U…". The router build has no chip, but a long server name will do the same. Consider letting the person's crumb win (`flex-shrink` on the place first).
-10. **Quota tone mismatch:** the "Out of data" notice is red (`bad`) while the cards say "Connected, no data left" in orange (`warn`). Intended (the tunnel is up), but the page shows two tones for one state.
-11. **"How to" paths wrap with the separator first:** a wrapped line starts with "›" ("› Pick the file and connect").
-12. **The `.conf` block has no edge inside its inset row:** both are `--field`. In light especially, the code floats without a container. (Inside "Set it up again" both step up and the block shows: `knob` on knob 65%.)
-13. **The trash glass icon reads as "pause"** at small sizes: two vertical strokes in a rounded body. The lid separates it at 64 px only.
-
----
-
-## Source map
-
-| Area | Files |
-|---|---|
-| Tokens, fonts, light theme | `web/src/portal/styles/tokens.css` |
-| Reset, type, focus, selection, icons | `styles/base.css` |
-| Knob, buttons, orb, field (its caret and selection), picker, kinds, option row and switch, badges, hints, link row, QR | `styles/controls.css` |
-| Field caret and selection | `ui/caret.ts` |
-| Add a device, the LAN Bypass row | `flows/add.ts` |
-| Page frame, edge fades, crumbs, columns, notices, single card | `styles/page.css`, `page/frame.ts`, `page/notices.ts` |
-| Device cards | `styles/devices.css`, `page/devices.ts` |
-| Access rows | `styles/access.css`, `page/access.ts`, `days.ts` |
-| Accordion | `styles/accordion.css`, `ui/accordion.ts` |
-| Sheet, views, questions | `styles/sheet.css`, `ui/sheet.ts`, `flows/device-actions.ts`, `flows/secure.ts` |
-| Set-up | `styles/setup.css`, `flows/setup-view.ts`, `flows/setup-parts.ts`, `flows/wait.ts`, `way.ts` (the way's state), `setup.ts` |
-| Menu, toast | `styles/menu-toast.css`, `ui/menu.ts`, `ui/feedback.ts` |
-| Motion engine | `motion.ts`; morph `ui/morph.ts` + `styles/morph.css`; busy `ui/busy.ts`; picker `ui/seg.ts` |
-| Glass icons, line icons, QR | `ui/glass.ts`, `web/src/shared/icons.ts`, `web/src/shared/qr.ts`, `ui/codes.ts` |
-| Demo | `web/src/portal/demo/*` (deployed to dawnline-demo.vercel.app) |
-| Rules | `rules/ui-design.md`, `rules/frontend.md`, `rules/i18n.md` |
-
-### Measuring motion live
-
-Paste this into the console of the demo (or the portal) before interacting, then read `__dump()`. Springs show by name because each has a unique duration.
-
-```js
-const N = {572:'BOUNCY',524:'SMOOTH',476:'SOFT',296:'QUICK',544:'POP',396:'LEAD'}, L = (window.__log = []);
-const d = (e) => e.tagName.toLowerCase() + '.' + String(e.className?.baseVal ?? e.className).trim().replace(/\s+/g, '.');
-const ez = (e, t) => (e?.startsWith('linear(') ? N[t] ?? 'spring' : e ?? 'linear');
-const A = Element.prototype.animate;
-Element.prototype.animate = function (f, o) {
-  L.push([d(this), o?.duration, o?.delay ?? 0, ez(o?.easing, o?.duration), JSON.stringify(f).slice(0, 160)].join(' | '));
-  return A.call(this, f, o);
-};
-addEventListener('transitionrun', (e) => L.push(['css', d(e.target), e.propertyName].join(' | ')), true);
-addEventListener('animationstart', (e) => L.push(['kf', d(e.target), e.animationName].join(' | ')), true);
-window.__dump = () => L.splice(0).join('\n');
-```
+- **Targets:** buttons and fields are 48 px, menu items 40 px. Knobs, pills and the connection keys are 32 px, calendar cells 10 px (not interactive). The 32 px controls are below the 44 px touch guideline.
+- **Reduced motion:** see *Motion → Reduced motion*.

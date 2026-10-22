@@ -23,6 +23,11 @@ export interface AccItem {
   val?: Node | null;
   /** The body shows the same numbers: the head drops them while open. */
   valHide?: boolean;
+  /**
+   * Actions on what the row holds, beside the chevron while it is open (gone while it is shut). Beside the head,
+   * not in it: the head is a button itself.
+   */
+  aside?: Node | null;
   body: (Node | null | false | undefined)[];
 }
 
@@ -139,20 +144,28 @@ export function accordion(
         );
     const r = h(
       'div',
-      { class: `acc-row${still ? ' still' : ''}${open ? ' open' : ''}` },
+      { class: `acc-row${still ? ' still' : ''}${open ? ' open' : ''}${it.aside ? ' has-aside' : ''}` },
       headEl,
+      it.aside ? h('div', { class: 'acc-aside' }, it.aside) : null,
       h('div', { class: 'acc-body' }, ...kids),
     );
     acc.appendChild(r);
     return r;
   });
   const bodyOf = (r: HTMLElement) => r.querySelector('.acc-body') as HTMLElement;
-  const corners = () =>
-    rows.forEach((r, i) => {
+  /** Corners and edges over the rows that show: a row stepped out (only()) leaves no gap or corner behind. */
+  const corners = () => {
+    const shown = rows.filter((r) => !r.hidden);
+    shown.forEach((r, i) => {
       const op = r.classList.contains('open');
-      r.classList.toggle('rt', i === 0 || op || rows[i - 1].classList.contains('open'));
-      r.classList.toggle('rb', i === rows.length - 1 || op || rows[i + 1].classList.contains('open'));
+      r.classList.toggle('rt', i === 0 || op || shown[i - 1].classList.contains('open'));
+      r.classList.toggle('rb', i === shown.length - 1 || op || shown[i + 1].classList.contains('open'));
     });
+    rows.forEach((r) => {
+      r.classList.toggle('first', r === shown[0]);
+      r.classList.toggle('last', r === shown[shown.length - 1]);
+    });
+  };
   const read = (x: HTMLElement) => {
     const cs = getComputedStyle(x);
     const out: Record<string, string> = {};

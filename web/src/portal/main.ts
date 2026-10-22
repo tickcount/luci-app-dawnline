@@ -18,9 +18,10 @@ import { fillNotice, stateNotice } from './page/notices';
 import { devicesNow, devicesSection, fillDevices } from './page/devices';
 import { accessSection, fillAccess } from './page/access';
 import { glass, type Tone } from './ui/glass';
-import { closeMenu, menuOpen } from './ui/menu';
+import { closeDrop, dropOpen } from './ui/drop';
 import { closeSheet, sheetOpen } from './ui/sheet';
 import { renaming } from './flows/rename';
+import { keepPressFootprint } from './ui/press';
 import { startAdd } from './flows/add';
 import { openSetup } from './flows/setup-view';
 
@@ -191,7 +192,7 @@ async function refresh() {
   try {
     setState(await call<State>('state'));
     // Not under an open sheet or menu, nor a name being edited on its card.
-    if (!sheetOpen() && !menuOpen() && !renaming()) render();
+    if (!sheetOpen() && !dropOpen() && !renaming()) render();
     openFromLink();
   } catch (e) {
     if (gone(e)) linkGone();
@@ -202,15 +203,28 @@ async function refresh() {
 
 // Another language: everything is drawn again in it, the sections too (their headings are text).
 onLang(() => {
-  closeMenu(true);
+  closeDrop(true);
   parts = null;
   redraw();
 });
 
+// A press that shrinks a control under the pointer still lands on it (ui/press.ts).
+keepPressFootprint();
+
+// The focus ring only while the keyboard moves focus (base.css .kbd): on from Tab or an arrow, off at a press.
+const KEYS = new Set(['Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
+document.addEventListener('keydown', (e) => KEYS.has(e.key) && document.documentElement.classList.add('kbd'), true);
+document.addEventListener('pointerdown', () => document.documentElement.classList.remove('kbd'), true);
+
+// The page keeps its scale, as an app does: Safari on iOS zooms on a pinch whatever the viewport says, its own
+// gesture events are the only way to stop it (the viewport and touch-action take care of the rest).
+for (const ev of ['gesturestart', 'gesturechange', 'gestureend'])
+  document.addEventListener(ev, (e) => e.preventDefault(), { passive: false });
+
 // What the keyboard does never animates.
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
-  if (menuOpen()) closeMenu(true);
+  if (dropOpen()) closeDrop(true);
   else if (sheetOpen()) closeSheet(true);
 });
 
