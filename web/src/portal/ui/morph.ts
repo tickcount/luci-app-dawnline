@@ -357,6 +357,8 @@ export function morphText(el: HTMLElement, next: string, from = textOf(el), o: M
 export interface Said {
   text: string;
   color: string;
+  /** Its words change as a whole (`data-whole`: a hint standing in for a card's status): they blur across. */
+  whole: boolean;
 }
 
 /** The keyed texts under `root` (`data-t`), before a repaint rebuilds them. */
@@ -364,7 +366,7 @@ export function textsOf(root: ParentNode): Map<string, Said> {
   return new Map(
     [...root.querySelectorAll<HTMLElement>('[data-t]')].map((el) => [
       el.dataset.t!,
-      { text: textOf(el), color: getComputedStyle(el).color },
+      { text: textOf(el), color: getComputedStyle(el).color, whole: el.hasAttribute('data-whole') },
     ]),
   );
 }
@@ -378,7 +380,7 @@ export function morphChanged(root: ParentNode, was: Map<string, Said>, fresh: El
     const before = was.get(el.dataset.t!);
     const now = textOf(el);
     if (!before || before.text === now || runs.has(el) || fresh.some((f) => f.contains(el))) return;
-    morphText(el, now, before.text, { color: before.color });
+    morphText(el, now, before.text, { color: before.color, whole: before.whole });
   });
 }
 

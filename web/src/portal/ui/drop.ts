@@ -4,7 +4,7 @@
 // towards it, from where it stands), and the same ways to shut it: a press outside it and its button, Escape (the
 // sheet under it stays; focus goes back to the button), a resize (at once). Each lays out and fills its own.
 
-import { EASE_IN, POP, play } from '../motion';
+import { EASE_IN, SOFT, play } from '../motion';
 
 /** From its button, and from the screen's edge. */
 export const GAP = 8;
@@ -26,7 +26,7 @@ function standing(el: Element): Keyframe {
   return { opacity: s.opacity, transform: s.transform, filter: s.filter === 'none' ? 'blur(0px)' : s.filter };
 }
 
-/** In: a spring out of its transform origin. */
+/** In: a soft spring out of its transform origin (a little over, no wobble). */
 export function appear(el: Element) {
   play(
     el,
@@ -34,7 +34,7 @@ export function appear(el: Element) {
       { opacity: 0, transform: 'scale(.5)', filter: 'blur(6px)' },
       { opacity: 1, transform: 'none', filter: 'blur(0px)' },
     ],
-    { duration: POP.duration, easing: POP.easing },
+    { duration: SOFT.duration, easing: SOFT.easing },
   );
 }
 

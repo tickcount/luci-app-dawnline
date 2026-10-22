@@ -1,9 +1,9 @@
 // Renaming a device where its name stands on the card: a click on the name (or Rename in its ⋯ menu) turns it
 // into its own input, in the name's font and place, with nothing around it but the field's caret and selection
-// (ui/caret.ts), the name selected. The status line under it says how to finish. Return saves: the words shimmer
-// while the router answers (ui/shimmer.ts), settle, and the card is drawn again with the new name, its status
-// morphing back from the hint. Esc or a click away puts the name it had back, whatever was typed. What the router
-// won't take never gets in (shared/name-guard.ts): the words shake and the status line says why in red; the
+// (ui/caret.ts), the name selected. The status line under it blurs across to how to finish. Return saves: the words
+// shimmer while the router answers (ui/shimmer.ts), settle, and the card is drawn again with the new name, its
+// status blurring back from the hint. Esc or a click away puts the name it had back, whatever was typed. What the
+// router won't take never gets in (shared/name-guard.ts): the words shake and the status line says why in red; the
 // router's own refusals (a name taken) say so the same way.
 
 import type { Device } from '../../shared/types';
@@ -13,22 +13,25 @@ import { call } from '../api';
 import { h } from '../dom';
 import { repaint, setState, state, type State } from '../state';
 import { smoothCaret } from '../ui/caret';
-import { morphText } from '../ui/morph';
+import { morphText, textOf } from '../ui/morph';
 import { shimmer } from '../ui/shimmer';
 
 /** The status line's colours (page/devices.ts), and the red of a refusal. */
 const TONES = ['ok-t', 'warn-t', 'here-t', 'bad-t'];
 
 /**
- * The status line says something else in another tone: its words morph and the colour turns from the one it
- * had, as a repaint's status does. Only the tone classes change hands: a morph under way keeps its own.
+ * The status line says something else in another tone: the hint or a refusal stands in for the status, so the
+ * words blur across whole (not letter by letter) and the colour turns from the one it had. Marked `data-whole`
+ * meanwhile: the repaint after a save brings the status back the same way. Only the tone classes change hands: a
+ * morph under way keeps its own.
  */
 function say(stat: HTMLElement, text: string, tone: string, title = text) {
   const color = getComputedStyle(stat).color;
   for (const t of TONES) stat.classList.toggle(t, t === tone);
   // The line is one line: a long reason (the router's own) reads in full on hover.
   stat.title = title;
-  morphText(stat, text, undefined, { color });
+  stat.dataset.whole = '';
+  morphText(stat, text, undefined, { color, whole: true });
 }
 
 /**
@@ -54,7 +57,8 @@ export function renameOnCard(d: Device, card: HTMLElement) {
   const name = card.querySelector<HTMLElement>('.dev-name');
   const stat = card.querySelector<HTMLElement>('.dev-stat');
   if (!name || !stat) return;
-  const was = { text: stat.textContent ?? '', tone: TONES.find((t) => stat.classList.contains(t)) ?? '', title: stat.title };
+  // What it says, not what shows: still morphing (a rename just let go), it holds both its old and new letters.
+  const was = { text: textOf(stat), tone: TONES.find((t) => stat.classList.contains(t)) ?? '', title: stat.title };
   // How to finish, where a keyboard says it; on a touch screen its Done key saves.
   const hint = matchMedia('(pointer: fine)').matches ? _('Return to save, Esc to cancel') : '';
 
@@ -100,9 +104,12 @@ export function renameOnCard(d: Device, card: HTMLElement) {
     if (saved) name.textContent = saved;
     name.hidden = false;
     form.remove();
-    // Saved: the hint stays for the repaint, which morphs it into the status (words and colour) as it does any
-    // status that changed. Let go: it turns back here.
-    if (!saved) say(stat, was.text, was.tone, was.title);
+    // Saved: the hint stays for the repaint, which blurs it into the status (words and colour). Let go: it turns
+    // back here, and is the status again (a repaint morphs it letter by letter).
+    if (!saved) {
+      say(stat, was.text, was.tone, was.title);
+      delete stat.dataset.whole;
+    }
     if (!back) return;
     // After a save the card is drawn again: the name is found anew then.
     if (saved)

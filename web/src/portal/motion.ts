@@ -71,11 +71,11 @@ export function spring(k: number, c: number, m = 1): Spring {
 export const BOUNCY = spring(300, 20);
 /** Pills, widths and heights: no overshoot. */
 export const SMOOTH = spring(300, 35);
-/** Small things that pop: a check, a menu. */
+/** Small things that pop: a check, a mark turning in. */
 export const POP = spring(520, 24);
 /** The leading edge of a stretching pill: faster than SMOOTH, no overshoot. */
 export const LEAD = spring(520, 46);
-/** A dialog on a computer and the accordions: the menu's pop made softer (about 4% over, 90% there at ~140 ms). */
+/** The dropdowns, a dialog on a computer and the accordions: POP made softer (about 4% over, 90% there at ~140 ms). */
 export const SOFT = spring(380, 28);
 /** What follows the pointer (a menu's highlight): there in about 130 ms, no overshoot. */
 export const QUICK = spring(900, 60);

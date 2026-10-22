@@ -752,7 +752,7 @@ The ⋯ menu, the pick pills' popups and the page code card are one kind of thin
 
 - **Glass** (`.drop`): Apple's iOS 26 Liquid Glass, Regular (Figma kit), in `tokens.css` `--glass-*`: on dark black 40% with a white 4% film (the kit's black 60% + white 6% at 67%), on light `rgba(245,245,245,.6)`; backdrop `blur 28, saturate 1.8`; a soft, even 1 px inner edge, no gradient (white 5% / black 4%); a shadow on light only, soft (`0 8 32` black 12%): on dark the edge sets it apart. Its own colours: text `#F5F5F5` / `#1A1A1A`, subtitles `#8A8A8A` / `#727272`, destructive `#FF383C` (`--bad`), separators a touch softer than the edge (white 4% / black 3%); a solid highlight (`raised` + `text` 8% / 11%). Nothing dims around one. Over the page and a sheet alike (z 60).
 - **Placement:** its nearest point 8 px from its button, under it where it fits, else over it; centred on it, 12 px inside the screen's edge.
-- **Motion:** in, a spring out of where it grows from (`scale .5, blur 6` on POP, a little overshoot); out, back towards it from where it stands (`scale .7, blur 4`, 110 ms EASE_IN): quicker than it came.
+- **Motion:** in, a spring out of where it grows from (`scale .5, blur 6` on SOFT, about 4% over: POP's 14% read as a wobble); out, back towards it from where it stands (`scale .7, blur 4`, 110 ms EASE_IN): quicker than it came.
 - **Highlight** (`ui/glide.ts`): one for all of a dropdown's items (rows, segments), under their icons and words, solid and the same for every item (no tint for Reconnect or Remove), with the corners of what it is on. It fades in (160 ms) where the pointer or the keyboard is, glides from item to item on GLIDE (`spring(640, 40)`, about 2% over: place, size, corners), presses in to 0.97 with what it is on, and fades where the pointer leaves, or goes back to the item it rests on (a pick pill's picked segment, where it starts).
 - **Shut by:** a press outside it and its button, its button again, Escape (only it: a sheet under it stays; focus goes back to its button), a choice, another dropdown opening (at once), a resize (at once). One at a time; the page holds its repaints while one is open.
 
@@ -840,10 +840,10 @@ A longer reason sits in `title` and, for a screen reader, in hidden text right a
 **Rename on the card** (`flows/rename.ts`): the name is where it is changed.
 
 - **At rest:** an editable name is a button. Under the pointer a faint wash (`raised` + text 6%, radius 8) hugs its words.
-- **Editing:** the name gives way to its own input in the same font and place, with no frame or fill: only the field's caret and selection (the name selected). The status line morphs to a hint in `text-2`.
-- **Saving:** the words shimmer (see *Motion → Shimmer*), settle to solid, and the status morphs back from the hint, words and colour.
-- **Cancelling:** the name it had comes back; the status turns back.
-- **Refusal:** the words shake (no red ring here, the field has none) and the status line says why in `bad`, in its one line, in full on hover.
+- **Editing:** the name gives way to its own input in the same font and place, with no frame or fill: only the field's caret and selection (the name selected). The status line blurs across to a hint in `text-2`: whole words, not letters (*Whole mode*), as the hint only stands in for the status.
+- **Saving:** the words shimmer (see *Motion → Shimmer*), settle to solid, and the status blurs back from the hint, words and colour.
+- **Cancelling:** the name it had comes back; the status blurs back.
+- **Refusal:** the words shake (no red ring here, the field has none) and the status line blurs across to why in `bad`, in its one line, in full on hover.
 
 **Add card:** a `button.dev.add`, min-height 144, centred, grey glass plus 36 and "Add device" in `text-2` 500. Hover raised + knob 45%, press `.98`.
 
@@ -1093,8 +1093,8 @@ Computed from `spring()` and confirmed live: the published CSS variables read 57
 | Token | k / c | ζ | Settles | Overshoot | 50% at | 90% at | Peak at | Used for |
 |---|---|---|---|---|---|---|---|---|
 | **BOUNCY** | 300 / 20 | 0.58 | 572 ms | **10.8%** | 78 ms | 133 ms | 222 ms | Toast in, a newly created device card popping in and the way's server icon pop |
-| **POP** | 520 / 24 | 0.53 | 544 ms | **14.3%** | 58 ms | 96 ms | 162 ms | ⋯ menu open, check icon after copy, the OS mark turning in |
-| **SOFT** | 380 / 28 | 0.72 | 476 ms | 3.9% | 74 ms | 138 ms | 232 ms | Accordion rows and chevron, dialog open (computer) and its scrim |
+| **POP** | 520 / 24 | 0.53 | 544 ms | **14.3%** | 58 ms | 96 ms | 162 ms | Check icon after copy, the OS mark turning in |
+| **SOFT** | 380 / 28 | 0.72 | 476 ms | 3.9% | 74 ms | 138 ms | 232 ms | Dropdowns open (⋯ menu, pick pills, page code card), accordion rows and chevron, dialog open (computer) and its scrim |
 | **SMOOTH** | 300 / 35 | 1.01 | 524 ms | 0 | 98 ms | 228 ms | — | Widths and heights (morph width, sheet height glide, sheet width, a card's and the notice's height on a repaint, the QR box's size), FLIP of cards and letters, picker pill trailing edge, flex-grow and the picked name's width, folds, tooltip glide, snap-back after a pull and its dim; the switch, the field's focus ring and the go button's colours (via CSS var) |
 | **LEAD** | 520 / 46 | 1.01 | 396 ms | 0 | 74 ms | 173 ms | — | Leading edge of the stretching picker pill |
 | **QUICK** | 900 / 60 | 1.00 | 296 ms | 0 | 56 ms | 130 ms | — | ⋯ menu highlight following the pointer |
@@ -1187,7 +1187,7 @@ Every text that changes in place while visible morphs. Hover readouts over chart
 - **Kerning correction:** each letter is nudged onto the plain text's kerned position, so the last frame lands exactly on the final text.
 - **Done:** at the end the element holds plain text again, and an ellipsis box keeps its ellipsis.
 
-**Whole mode** (`whole: true`, for words in a flowing sentence, app names, menu paths): old words `out, b4` 180 ms EASE_IN, new words `in, b4 → 0` 280 / 60 EASE_OUT.
+**Whole mode** (`whole: true`, for words in a flowing sentence, app names, menu paths, and the rename hint and refusals standing in for a card's status: `data-whole` on the line, so the repaint after a save blurs the status back too): old words `out, b4` 180 ms EASE_IN, new words `in, b4 → 0` 280 / 60 EASE_OUT.
 
 **Colour** (`morphChanged` after a repaint): a text that takes another colour with its words (a status turning green) keeps the old colour on the words that leave, and the new words turn from it (280 ms EASE_OUT).
 
@@ -1272,13 +1272,13 @@ A click mid-way (a double click) turns every row and body back from where it sta
 
 | What | Motion | Timing |
 |---|---|---|
-| Open | `in, s.9 → 1, b4 → 0`, origin at the button's corner (top right, or bottom right when above) | POP 544 |
-| Close | from where it stands (one still popping in included) → `out, s.96, b3` | 120, EASE_IN |
-| Highlight appears | opacity at the hovered item | 150, EASE_OUT |
-| Highlight moves | `translateY` to the next item; colour to its tone | QUICK 296; bg 150 |
-| Highlight leaves | opacity 0 when the pointer leaves the menu; back on an item while it still shows, it turns back and glides from where it stands | 150 |
+| Open | `in, s.5 → 1, b6 → 0`, origin at the button's side (see *Dropdowns*) | SOFT 476 |
+| Close | from where it stands (one still opening included) → `out, s.7, b4` | 110, EASE_IN |
+| Highlight appears | opacity at the hovered item | 160, EASE_OUT |
+| Highlight moves | place, size and corners to the next item | GLIDE |
+| Highlight leaves | opacity 0 when the pointer leaves the menu; back on an item while it still shows, it turns back and glides from where it stands | 160 |
 
-QUICK replaced SMOOTH for the highlight because SMOOTH felt late: it reaches 90% at 130 ms against SMOOTH's 228 ms.
+POP (14% over) used to open every dropdown: from `scale .5` it overshot to about 1.07 and read as a wobble; SOFT tops out near 1.02.
 
 #### 7. Toast
 
@@ -1405,7 +1405,7 @@ Words being saved (a name on its card) shimmer as an assistant's "thinking" line
 - 0: Return; the words' copy laid over them dims to the muted base (240, standard curve), the caret steps aside;
 - +120: the first sweep sets off (1.8 s across, linear), then again after a 0.58 s rest, until the answer;
 - answer: the band holds where it is and the words fade back to their colour (480, standard curve);
-- then: the input gives way to the name (identical, nothing moves), the card is drawn again and its status morphs from the hint, words and colour.
+- then: the input gives way to the name (identical, nothing moves), the card is drawn again and its status blurs back from the hint (whole words), words and colour.
 
 **Reconnect:**
 
