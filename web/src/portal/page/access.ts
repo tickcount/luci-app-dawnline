@@ -209,7 +209,7 @@ function hoursBar(hours: string, tzOffset: number | undefined): HTMLElement | nu
 }
 
 /** The access accordion for this state; `open`: the row to keep open (a repaint), else the data. */
-export function accessAccordion(st: State, open = 1): Accordion {
+function accessAccordion(st: State, open = 1): Accordion {
   const p = st.person;
   const used = p.quota_used || p.month[0] + p.month[1];
   const pct = p.quota_limit ? Math.min(100, (used / p.quota_limit) * 100) : 0;

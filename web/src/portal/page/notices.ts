@@ -26,7 +26,7 @@ export function notice(tone: Tone, icon: string, title: string | null, sub: stri
 }
 
 /** The admin's hours as the visitor reads them: "08:00–22:00 your time" (or the router's, said so). */
-export function hoursText(hours: string): string {
+function hoursText(hours: string): string {
   const hw = hoursFor(hours, state()?.tz_offset, -new Date().getTimezoneOffset());
   if (!hw) return fmt(_('%s (router time)'), hours.replace('-', '–'));
   const span = `${clockOf(hw.from)}–${clockOf(hw.to)}`;
@@ -52,7 +52,7 @@ export function stateNotice(p: Person): [string, string, string] {
 }
 
 /** The page's notice, or null when nothing stands in the way. */
-export function pageNotice(p: Person): HTMLElement | null {
+function pageNotice(p: Person): HTMLElement | null {
   if (p.state !== 'active') return notice(p.state === 'quota' || p.state === 'expired' ? 'bad' : 'warn', ...stateNotice(p));
   const left = daysLeft(p.expires, today());
   return endsSoon(p, left)

@@ -103,6 +103,7 @@ export function portalPortHelp(port: number, taken: PortHold[], ipLinks: boolean
 export const chars = (s: string): number => Array.from(s).length;
 
 const NAME_MAX = 48;
+// oxlint-disable-next-line no-control-regex -- control characters are what it refuses
 const BAD_NAME = /[<>"\\\u0000-\u001f\u007f]/;
 
 /** "Up to 48 characters (50 now).": a name over its limit. */
@@ -147,7 +148,7 @@ export function isIpv4(s: string): boolean {
   return !!m && m.slice(1).every((x) => Number(x) <= 255);
 }
 
-export function isIpv6(s: string): boolean {
+function isIpv6(s: string): boolean {
   return /^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}$/.test(s) && !/:::/.test(s);
 }
 
@@ -161,7 +162,7 @@ export function hostHelp(s: string, port?: number, empty: string | null = null):
   if (!t) return empty != null ? { text: empty, bad: false } : { text: _('Enter a hostname or IP address.'), bad: true };
   if (/^[a-z]+:\/\//i.test(t)) return { text: _('Leave out https:// - just the name.'), bad: true };
   if (/\/.*/.test(t)) return { text: _('Just the name, without a path.'), bad: true };
-  if (/^[^:\[]+:\d+$/.test(t)) return { text: _('Just the name, without a port (the port is on AmneziaWG).'), bad: true };
+  if (/^[^:[]+:\d+$/.test(t)) return { text: _('Just the name, without a port (the port is on AmneziaWG).'), bad: true };
   if (/\s/.test(t)) return { text: _('A hostname has no spaces.'), bad: true };
   if (t.length > 253 || !(HOSTNAME.test(t) || isIpv4(t) || isIpv6(t))) return { text: _('Use a hostname or an IP address.'), bad: true };
   const shown = isIpv6(t) ? `[${t}]` : t;

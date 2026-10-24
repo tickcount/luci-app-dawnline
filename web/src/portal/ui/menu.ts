@@ -49,22 +49,20 @@ export function openMenu(anchor: HTMLElement, all: (MenuItem | null)[], title: s
     rows.push(b);
     return b;
   };
-  const sections: HTMLElement[] = [
-    ...groups.map((g) =>
-      h(
-        'div',
-        { class: 'pop-grp' },
-        ...g.map((it) =>
-          item(
-            it,
-            'mi',
-            ic(it.icon),
-            h('span', { class: 'mi-b' }, h('span', { class: 'mi-l' }, it.label), it.sub ? h('span', { class: 'mi-s' }, it.sub) : null),
-          ),
+  const sections: HTMLElement[] = groups.map((g) =>
+    h(
+      'div',
+      { class: 'pop-grp' },
+      ...g.map((it) =>
+        item(
+          it,
+          'mi',
+          ic(it.icon),
+          h('span', { class: 'mi-b' }, h('span', { class: 'mi-l' }, it.label), it.sub ? h('span', { class: 'mi-s' }, it.sub) : null),
         ),
       ),
     ),
-  ];
+  );
   // A thin line between sections (iOS's, inset; the rows themselves sit in a 16 px inset).
   const body = h(
     'div',

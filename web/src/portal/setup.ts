@@ -55,7 +55,7 @@ export function appsFor(preset: Preset): AppChoice[] {
   return out;
 }
 
-export type Mark = 'appstore' | 'googleplay' | 'windows' | 'apple' | 'linux' | 'openwrt' | 'github' | 'site';
+type Mark = 'appstore' | 'googleplay' | 'windows' | 'apple' | 'linux' | 'openwrt' | 'github' | 'site';
 
 export interface Store {
   href: string;

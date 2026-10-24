@@ -26,7 +26,8 @@ function now(el: Element): Keyframe {
 
 /** What gives way: the button's own elements (a bare word goes into a span first). */
 function content(btn: HTMLElement): Element[] {
-  for (const n of [...btn.childNodes])
+  // A copy: childNodes is live and the loop replaces nodes in it.
+  for (const n of Array.from(btn.childNodes))
     if (n.nodeType === Node.TEXT_NODE && n.textContent?.trim()) n.replaceWith(h('span', {}, n.textContent));
   return [...btn.children].filter((c) => !c.classList.contains('orb'));
 }

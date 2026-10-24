@@ -295,7 +295,7 @@ export interface LogsInfo {
 }
 
 /** The path that makes tunnel clients' internet traffic enter from the LAN. */
-export interface LikeHome {
+interface LikeHome {
   active: boolean;
   dev?: string;
   address?: string;

@@ -1,6 +1,6 @@
 {
   "name": "dawnline-web",
-  "version": "0.15.1",
+  "version": "0.16.0",
   "private": true,
   "license": "MIT",
   "type": "module",
@@ -12,18 +12,27 @@
     "test": "vitest run",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "ci": "npm run format:check && npm run typecheck && npm run i18n:check && npm run test && npm run build",
+    "lint": "oxlint --deny-warnings",
+    "knip": "knip",
+    "ci": "npm run format:check && npm run typecheck && npm run lint && npm run knip && npm run i18n:check && npm run test && npm run build",
     "i18n": "node i18n/extract.ts",
     "i18n:check": "node i18n/extract.ts --check"
   },
   "dependencies": {
-    "qrcode-generator": "1.4.4"
+    "qrcode-generator": "2.0.4"
   },
   "devDependencies": {
-    "@types/node": "22.20.5",
-    "prettier": "3.6.2",
-    "tsup": "8.5.0",
-    "typescript": "5.9.3",
+    "@types/node": "26.6.5",
+    "esbuild": "0.28.2",
+    "knip": "6.43.0",
+    "oxlint": "1.89.0",
+    "prettier": "3.9.10",
+    "tsup": "9.0.0",
+    "typescript": "7.0.2",
     "vitest": "5.0.5"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "fsevents@2.3.3": true
   }
 }

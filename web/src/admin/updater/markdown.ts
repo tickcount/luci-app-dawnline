@@ -15,7 +15,7 @@ export function markdown(src: string): Node[] {
     const parts: (Node | string)[] = [];
     const re = /(`[^`]+`)|(\*\*[^*]+\*\*)|(\[[^\]]+\]\((https?:\/\/[^)\s]+)\))|(https?:\/\/[^\s<>()]+[^\s<>().,;:!?])/g;
     let last = 0;
-    for (let m: RegExpExecArray | null; (m = re.exec(s)); ) {
+    for (let m: RegExpExecArray | null; (m = re.exec(s));) {
       if (m.index > last) parts.push(s.slice(last, m.index));
       if (m[1]) parts.push(E('code', {}, m[1].slice(1, -1)));
       else if (m[2]) parts.push(E('b', {}, m[2].slice(2, -2)));
@@ -38,13 +38,13 @@ export function markdown(src: string): Node[] {
   for (const raw of src.replace(/\r/g, '').split('\n')) {
     const line = raw.trimEnd();
     if (fence) {
-      if (/^```/.test(line.trim())) {
+      if (line.trim().startsWith('```')) {
         out.push(E('pre', {}, fence.join('\n')));
         fence = null;
       } else fence.push(raw);
       continue;
     }
-    if (/^```/.test(line.trim())) {
+    if (line.trim().startsWith('```')) {
       flush();
       fence = [];
       continue;
@@ -84,7 +84,7 @@ export function forRouter(md: string): string {
     if (h) {
       skip = /^install\b/i.test(h[1].trim());
       if (/^what.s new$/i.test(h[1].trim())) continue;
-    } else if (/^\*\*Full Changelog\*\*/.test(line)) skip = false;
+    } else if (line.startsWith('**Full Changelog**')) skip = false;
     if (!skip) out.push(line);
   }
   return out

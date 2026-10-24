@@ -138,7 +138,7 @@ export interface MapData {
  * The latest point per device inside the time window: per device and city on a
  * person's page, per city in a device's window.
  */
-export function visiblePoints(data: MapData, range: Range): GeoPoint[] {
+function visiblePoints(data: MapData, range: Range): GeoPoint[] {
   const best = new Map<string, GeoPoint>();
   for (const p of data.geo.points) {
     if (data.person && p.person !== data.person) continue;
@@ -1233,7 +1233,7 @@ function face(slot: { el: HTMLElement; at: [number, number]; who?: string; where
  * when `quiet`: a redraw), gone ones leave the row at once and shrink away where they were, the
  * "+N" is one element whose number changes, and the plate's width follows smoothly.
  */
-export function fillFaces(
+function fillFaces(
   box: HTMLElement,
   faces: Face[],
   on: { click: (f: Face, b: HTMLElement) => void; hover: (f: Face | null) => void },

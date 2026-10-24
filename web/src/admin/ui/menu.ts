@@ -18,7 +18,8 @@ type OpenMenu = HTMLElement & { dlAnchor?: HTMLElement; dlClose?: () => void };
 export function dropdown(anchor: HTMLElement, items: (MenuItem | null)[]) {
   const prev = document.querySelector('.dl-dd') as OpenMenu | null;
   if (prev) {
-    prev.dlClose ? prev.dlClose() : prev.remove();
+    if (prev.dlClose) prev.dlClose();
+    else prev.remove();
     if (prev.dlAnchor === anchor) return;
   }
   const menu: OpenMenu = E(

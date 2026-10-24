@@ -11,7 +11,7 @@ let floating: HTMLElement | null = null;
 let anchor: HTMLElement | null = null;
 let watch = 0;
 
-export function hideTip() {
+function hideTip() {
   if (floating) floating.style.display = 'none';
   anchor = null;
   clearInterval(watch);

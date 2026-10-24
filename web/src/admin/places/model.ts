@@ -181,7 +181,7 @@ export function msAt(st: Stay[], steps: Step[], t: number): number {
   return step.start + step.ms * Math.min(0.999, Math.max(0, (t - s.from) / Math.max(1, s.to - s.from)));
 }
 
-export const ease = (x: number) => (x <= 0 ? 0 : x >= 1 ? 1 : x < 0.5 ? 2 * x * x : 1 - (-2 * x + 2) ** 2 / 2);
+const ease = (x: number) => (x <= 0 ? 0 : x >= 1 ? 1 : x < 0.5 ? 2 * x * x : 1 - (-2 * x + 2) ** 2 / 2);
 
 /** The shimmer's middle (a share of the arc) `q` into a move: it enters before the place it leaves and runs out past the next. */
 export function bandMiddle(q: number): number {

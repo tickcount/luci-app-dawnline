@@ -107,12 +107,6 @@ export function chipToggle(
   );
 }
 
-/** Mark a chip toggle on or off in place. */
-export function setChip(b: HTMLElement, on: boolean) {
-  b.classList.toggle('on', on);
-  b.setAttribute('aria-pressed', on ? 'true' : 'false');
-}
-
 /**
  * Single choice as LuCI's select (a ListValue's widget); the choice is `.value`.
  * Unknown values get an option of their own, so nothing is lost on save.

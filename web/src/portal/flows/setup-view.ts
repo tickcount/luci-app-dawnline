@@ -115,7 +115,7 @@ function foldBlock(el: HTMLElement, fold: boolean, instant: boolean) {
 
 type Layout = 'same' | 'router' | 'away' | 'pc-away';
 
-export function setupView(d: Device, cfg: ClientConfig, key: string, here = false): View {
+function setupView(d: Device, cfg: ClientConfig, key: string, here = false): View {
   const pf = platform();
   const apps = appsFor(preset());
   const handheld = d.kind === 'phone' || d.kind === 'tablet';

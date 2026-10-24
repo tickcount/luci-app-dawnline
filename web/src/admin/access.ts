@@ -16,7 +16,7 @@ import { fmt, plural } from '../shared/i18n';
 type Service = Status['services'][number];
 
 /** Circle colours; the circle stores an index. */
-export const CIRCLE_COLORS = ['#3a83f7', '#a78bfa', '#f472b6', '#f59e0b', '#10b981', '#22d3ee', '#ef4444', '#84cc16'];
+const CIRCLE_COLORS = ['#3a83f7', '#a78bfa', '#f472b6', '#f59e0b', '#10b981', '#22d3ee', '#ef4444', '#84cc16'];
 
 export const circleDot = (c: Circle | undefined) =>
   E('i', { class: 'dl-circle-dot', style: `background:${CIRCLE_COLORS[c?.color ?? 0] ?? CIRCLE_COLORS[0]}` });
@@ -26,7 +26,7 @@ export const homeAccess = (p: Person) => p.access === 'both' || (p.access === 'l
 
 /* ---------- Home services ---------- */
 
-export function serviceDialog(sv: Service | null, prefill: Partial<Service>, onSaved: () => unknown) {
+function serviceDialog(sv: Service | null, prefill: Partial<Service>, onSaved: () => unknown) {
   const name = input(sv?.name ?? prefill.name ?? '', { placeholder: _('NAS') });
   const addr = input(sv?.address ?? prefill.address ?? '', { placeholder: '192.168.1.10', class: 'cbi-input-text dl-mono' });
   const ports = input((sv?.ports ?? prefill.ports ?? []).join(', '), {

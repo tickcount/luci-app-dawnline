@@ -52,7 +52,7 @@ export const now = () => current?.now ?? Date.now() / 1000;
 /** The platform this page is open on (iPad on Safari says Mac; touch points tell). */
 export const platform = (): Platform => platformOf(navigator.userAgent, navigator.maxTouchPoints);
 /** The server's disguise is off: plain WireGuard, so any WireGuard app connects. */
-export const plainWg = () => current?.server.awg_disguise === false;
+const plainWg = () => current?.server.awg_disguise === false;
 /** The server's disguise generation, for which apps and versions connect. */
 export const preset = (): Preset => current?.server.preset ?? (plainWg() ? 'off' : 'max');
 /** The secure twin when this page is plain HTTP, else null. */

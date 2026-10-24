@@ -11,7 +11,7 @@ import { appear, EDGE, GAP, opened, vanish } from './drop';
 import { glide } from './glide';
 import { letterIn, letterOut, morphText, setText } from './morph';
 
-export interface PickOption<T> {
+interface PickOption<T> {
   value: T;
   label: () => string;
   /** Before the label, in the popup and on the pill (a dot, a flag): made anew each time it shows. */

@@ -5,7 +5,7 @@
 import { open, readfile, writefile, rename, mkdir, stat, unlink, popen, lsdir } from 'fs';
 import { _ } from 'dawnline.i18n';
 
-export const VERSION = '0.15.1';
+export const VERSION = '0.16.0';
 /** GitHub repository with Dawnline releases (updates and the installer). */
 export const REPO = 'tickcount/luci-app-dawnline';
 export const RUN_DIR = '/var/run/dawnline';

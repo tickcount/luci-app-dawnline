@@ -389,8 +389,13 @@
   font: 12px/18px var(--mono);
   max-height: 16rem;
   overflow: auto;
+  scrollbar-width: none;
   white-space: pre;
   color: var(--text-2);
+}
+/* It scrolls with no bar, as the sheet it sits in. */
+.conf::-webkit-scrollbar {
+  display: none;
 }
 .conf .k {
   color: var(--text);

@@ -136,7 +136,7 @@ const amneziaMark = () =>
 
 let gid = 0;
 /** A glass icon as markup (`cls`: its classes, e.g. "gi xl"). */
-export function glassSvg(name: string, tone: Tone = 'grey', cls = 'gi'): string {
+function glassSvg(name: string, tone: Tone = 'grey', cls = 'gi'): string {
   const g = GL[name] ?? GL.other;
   const id = `gl${++gid}`;
   const detail =

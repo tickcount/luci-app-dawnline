@@ -121,7 +121,7 @@ export function fromBase64Url(s: string): Uint8Array {
   return out;
 }
 
-export async function qCompress(data: Uint8Array): Promise<Uint8Array | null> {
+async function qCompress(data: Uint8Array): Promise<Uint8Array | null> {
   // LuCI's module loader shadows some globals; always go through globalThis.
   const g = globalThis as unknown as { CompressionStream?: typeof CompressionStream; Blob: typeof Blob; Response: typeof Response };
   if (typeof g.CompressionStream === 'undefined') return null;

@@ -100,12 +100,12 @@ export function kept(a: string[], b: string[]): [number, number][] {
   while (q < a.length - p && q < b.length - p && a[a.length - 1 - q] === b[b.length - 1 - q]) q++;
   const A = a.slice(p, a.length - q);
   const B = b.slice(p, b.length - q);
-  const L = Array.from({ length: A.length + 1 }, () => new Array<number>(B.length + 1).fill(0));
+  const L = Array.from({ length: A.length + 1 }, () => Array.from({ length: B.length + 1 }, () => 0));
   for (let i = A.length - 1; i >= 0; i--)
     for (let j = B.length - 1; j >= 0; j--) L[i][j] = A[i] === B[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
   const out: [number, number][] = [];
   for (let i = 0; i < p; i++) out.push([i, i]);
-  for (let i = 0, j = 0; i < A.length && j < B.length; ) {
+  for (let i = 0, j = 0; i < A.length && j < B.length;) {
     if (A[i] === B[j]) out.push([p + i++, p + j++]);
     else if (L[i + 1][j] >= L[i][j + 1]) i++;
     else j++;

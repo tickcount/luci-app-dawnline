@@ -140,7 +140,7 @@ const prelude = (lang, db) => `(() => {
   });
 })()`;
 
-const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.woff2': 'font/woff2' };
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml' };
 
 /** Answer the page's requests from the demo build: its page for the personal link, its files by name. */
 async function serve(page) {

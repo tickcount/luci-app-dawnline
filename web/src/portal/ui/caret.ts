@@ -25,7 +25,7 @@ export interface Glide {
 }
 
 /** The frame the glide is tuned to, in ms. */
-const FRAME = 16.67;
+export const FRAME = 16.67;
 
 /**
  * Move a glide on by `frames` frames (after bencho.dev's one-time code, a softer pull: per frame

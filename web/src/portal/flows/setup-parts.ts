@@ -67,7 +67,7 @@ export interface SetupCtx {
  * A badge: the mark in a tile, two lines, a chevron (an action) or the open
  * mark (a store page, in a new tab). `primary`: the one thing to tap in step 2.
  */
-export function badge(
+function badge(
   st: { href?: string; top: string; main: string; mark: string; onclick?: (ev: Event) => void },
   primary = false,
 ): HTMLElement {

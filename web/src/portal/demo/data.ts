@@ -6,7 +6,7 @@
 import type { State } from '../state';
 import type { Device, Kind, Pair, Person } from '../../shared/types';
 
-export const GB = 2 ** 30;
+const GB = 2 ** 30;
 const HOUR = 3600;
 const DAY = 86400;
 
@@ -94,14 +94,14 @@ export function seedDevices(s: ScenarioId, t: number, id: () => string): DemoDev
 }
 
 /** The person's state in the scenario: the four the admin's limits stop them in, else active. */
-export function personState(s: ScenarioId): Person['state'] {
+function personState(s: ScenarioId): Person['state'] {
   return s === 'quota' || s === 'hours' || s === 'paused' || s === 'expired' ? s : 'active';
 }
-export const locked = (s: ScenarioId) => s === 'paused' || s === 'expired';
+const locked = (s: ScenarioId) => s === 'paused' || s === 'expired';
 export const deviceLimit = (s: ScenarioId) => (s === 'full' ? 3 : 4);
 
 /** The local day (YYYY-MM-DD) of a time: in the demo, the visitor's clock is the router's. */
-export function isoDay(t: number): string {
+function isoDay(t: number): string {
   const d = new Date(t * 1000);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }

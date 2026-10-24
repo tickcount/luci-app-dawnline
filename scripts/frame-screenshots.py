@@ -23,8 +23,6 @@ import tempfile
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 RAW = os.path.join(ROOT, 'docs', 'screenshots', 'raw')
 OUT = os.path.join(ROOT, 'docs', 'screenshots')
-FONT = os.path.join(ROOT, 'package', 'luci-app-dawnline', 'root', 'usr', 'share', 'dawnline', 'portal', 'assets',
-                    'geist-latin-wght-normal.woff2')
 
 SHOTS = ['overview', 'people', 'person', 'portal', 'overview-ru', 'people-ru', 'person-ru', 'portal-ru']
 # name -> the steps in front of its page, in order (raw captures). The portal's come from its demo
@@ -47,7 +45,6 @@ CANDIDATES = [
 ]
 
 TEMPLATE = """<!doctype html><html><head><meta charset="utf-8"><style>
-@font-face{{font-family:Geist;src:url('file://{font}') format('woff2');font-weight:100 900}}
 html,body{{margin:0;width:{w}px;height:{h}px;overflow:hidden}}
 body{{position:relative;background:#080808}}
 .panel{{position:absolute;left:{px}px;top:{py}px;width:{pw}px;height:{ph}px;
@@ -56,7 +53,7 @@ body{{position:relative;background:#080808}}
  box-shadow:0 0 0 1px rgba(255,255,255,.04)}}
 .sheet{{position:absolute;display:block;filter:drop-shadow(0 24px 48px rgba(0,0,0,.6))}}
 .n{{position:absolute;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;
- font:600 16px Geist,sans-serif;color:#ededed;background:#232323;
+ font:600 16px system-ui,-apple-system,sans-serif;color:#ededed;background:#232323;
  box-shadow:0 0 0 1px rgba(255,255,255,.12),0 6px 16px rgba(0,0,0,.5)}}
 </style></head><body><div class="panel"></div><img class="page" src="file://{src}">{steps}</body></html>"""
 
@@ -113,7 +110,7 @@ def main():
         html = os.path.join(tmp, f'{name}.html')
         with open(html, 'w', encoding='utf-8') as f:
             f.write(TEMPLATE.format(w=w, h=h, x=x, y=y, iw=iw, ih=ih, px=x - INSET, py=y - INSET, pw=iw + 2 * INSET,
-                                    ph=ih + 2 * INSET, src=src, font=FONT, steps=steps))
+                                    ph=ih + 2 * INSET, src=src, steps=steps))
         out = os.path.join(OUT, f'{name}.png')
         subprocess.run([browser, '--headless=new', '--disable-gpu', '--hide-scrollbars', '--allow-file-access-from-files',
                         f'--force-device-scale-factor={SCALE}', f'--window-size={w},{h}', f'--screenshot={out}', f'file://{html}'],

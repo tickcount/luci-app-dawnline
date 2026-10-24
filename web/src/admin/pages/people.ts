@@ -226,22 +226,21 @@ export class PeoplePage {
   render(stAll: Status): Promise<Node> {
     const st = this.scope(stAll);
     this.st = st;
-    const page = this;
     const sort = E(
       'select',
       {
         class: 'dl-select',
         'aria-label': _('Sort'),
         change: (ev: Event) => {
-          page.sort = (ev.target as HTMLSelectElement).value as SortBy;
-          remember('dl.people.sort', page.sort);
-          page.decorate();
+          this.sort = (ev.target as HTMLSelectElement).value as SortBy;
+          remember('dl.people.sort', this.sort);
+          this.decorate();
         },
       },
       [
-        E('option', { value: 'seen', selected: page.sort === 'seen' ? 'selected' : null }, _('Last seen', 'sort')),
-        E('option', { value: 'name', selected: page.sort === 'name' ? 'selected' : null }, _('Name', 'sort')),
-        E('option', { value: 'usage', selected: page.sort === 'usage' ? 'selected' : null }, _('Usage', 'sort')),
+        E('option', { value: 'seen', selected: this.sort === 'seen' ? 'selected' : null }, _('Last seen', 'sort')),
+        E('option', { value: 'name', selected: this.sort === 'name' ? 'selected' : null }, _('Name', 'sort')),
+        E('option', { value: 'usage', selected: this.sort === 'usage' ? 'selected' : null }, _('Usage', 'sort')),
       ],
     );
     // Find, once the list is long enough to need it; "/" focuses it.
@@ -252,8 +251,8 @@ export class PeoplePage {
       'aria-label': _('Find a person or device'),
       hidden: st.people.length > 8 ? null : 'hidden',
       input: (ev: Event) => {
-        page.query = (ev.target as HTMLInputElement).value.trim().toLowerCase();
-        page.decorate();
+        this.query = (ev.target as HTMLInputElement).value.trim().toLowerCase();
+        this.decorate();
       },
     }) as HTMLInputElement;
     const onSlash = (ev: KeyboardEvent) => {
@@ -266,14 +265,14 @@ export class PeoplePage {
     document.addEventListener('keydown', onSlash);
     onNavigate(() => document.removeEventListener('keydown', onSlash));
     const wrap = E('div', { class: 'dl-root' }, [
-      page.serverId
+      this.serverId
         ? ''
         : E('div', { class: 'dl-pagehead' }, [
             E('div', { class: 'dl-stack' }, [
               E('h2', { class: 'dl-h1' }, _('People')),
               E('span', { class: 'dl-muted dl-people-count' }, this.countText()),
             ]),
-            st.servers.length ? button([icon('plus'), ` ${_('Add person')}`], () => page.openCreate(), 'add') : '',
+            st.servers.length ? button([icon('plus'), ` ${_('Add person')}`], () => this.openCreate(), 'add') : '',
           ]),
       st.servers.length
         ? ''
@@ -291,7 +290,7 @@ export class PeoplePage {
         E('div', { class: 'dl-toolbar-end' }, [
           find,
           sort,
-          page.serverId ? button([icon('plus'), ` ${_('Add person')}`], () => page.openCreate(), 'add') : '',
+          this.serverId ? button([icon('plus'), ` ${_('Add person')}`], () => this.openCreate(), 'add') : '',
         ]),
       ]),
       this.list,
@@ -303,13 +302,13 @@ export class PeoplePage {
       fetch: () => api.status(30),
       every: 30,
       live: true,
-      active: () => !!page.el?.isConnected,
-      apply: (st, quiet) => page.take(st, quiet),
+      active: () => !!this.el?.isConnected,
+      apply: (st, quiet) => this.take(st, quiet),
     });
     // ?add=1 opens Add person once, not again on every server's People tab.
     if (!addOpened && new URLSearchParams(location.search).get('add')) {
       addOpened = true;
-      setTimeout(() => page.openCreate(), 100);
+      setTimeout(() => this.openCreate(), 100);
     }
     return Promise.resolve(wrap);
   }

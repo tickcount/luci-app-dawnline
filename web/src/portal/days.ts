@@ -5,7 +5,7 @@
 
 import { addDays, parseDay } from '../shared/format';
 
-export type CellKind = 'past' | 'today' | 'left' | 'end' | 'after';
+type CellKind = 'past' | 'today' | 'left' | 'end' | 'after';
 export interface Cell {
   day: string;
   kind: CellKind;

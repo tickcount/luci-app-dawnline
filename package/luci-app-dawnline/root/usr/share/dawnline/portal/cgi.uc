@@ -9,7 +9,7 @@ import { serve } from 'dawnline.portal';
 
 let env = {};
 for (let k in [ 'REQUEST_METHOD', 'REQUEST_URI', 'REMOTE_ADDR', 'HTTPS', 'CONTENT_LENGTH', 'CONTENT_TYPE',
-		'HTTP_HOST', 'HTTP_ORIGIN', 'HTTP_USER_AGENT', 'HTTP_ACCEPT', 'HTTP_ACCEPT_LANGUAGE',
+		'HTTP_HOST', 'HTTP_ORIGIN', 'HTTP_USER_AGENT', 'HTTP_ACCEPT', 'HTTP_ACCEPT_LANGUAGE', 'HTTP_ACCEPT_ENCODING',
 		// The visitor behind Cloudflare (believed only when REMOTE_ADDR is Cloudflare's).
 		'HTTP_CF_CONNECTING_IP' ])
 	env[k] = getenv(k);

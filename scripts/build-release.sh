@@ -18,6 +18,10 @@ grep -q "PKG_VERSION:=$VERSION\$" "$APP/Makefile" || { echo "Makefile PKG_VERSIO
 grep -q "\"version\": \"$VERSION\"" "$ROOT/web/package.json" || { echo "web/package.json version != $VERSION" >&2; exit 1; }
 
 [ "${SKIP_WEB:-0}" = 1 ] || (cd "$ROOT/web" && npm run --silent ci)
+# With SKIP_WEB=1 the bundles come from an earlier build (they are not committed).
+for f in htdocs/luci-static/resources/dawnline/app.js root/usr/share/dawnline/portal/assets/portal.js root/usr/share/dawnline/portal/assets/portal.css; do
+	[ -f "$APP/$f" ] || { echo "$APP/$f is missing: run 'npm run build' in web/" >&2; exit 1; }
+done
 
 mkdir -p "$STAGE/www" "$OUT"
 cp -R "$APP/root/." "$STAGE/"

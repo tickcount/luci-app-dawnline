@@ -1,6 +1,6 @@
 // Just enough of LuCI's E() and Node for modules that build elements, in Node.
 
-export class FakeNode {}
+class FakeNode {}
 
 export class El extends FakeNode {
   children: (El | string)[] = [];

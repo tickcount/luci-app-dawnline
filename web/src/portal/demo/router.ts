@@ -51,7 +51,7 @@ export interface RouterOpts {
 }
 
 /** A settings sheet waits for the first connection: it comes this long after the settings are shown. */
-export const CONNECT_AFTER = [6, 9];
+const CONNECT_AFTER = [6, 9];
 
 class Refusal {
   constructor(

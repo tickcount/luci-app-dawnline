@@ -117,10 +117,9 @@ function qrKnob(): HTMLElement {
 }
 
 /**
- * The breadcrumb: the place, then the person (none when the link stopped
- * working); at its end, the language and this page's code for another
- * device, on the page itself only (not over a card: paused, link gone,
- * nothing loaded).
+ * The breadcrumb: the place alone (the page is the person's own, so not their
+ * name); at its end, the language and this page's code for another device, on
+ * the page itself only (not over a card: paused, link gone, nothing loaded).
  */
 /** Who is told the breadcrumb was drawn again (the demo adds its chip and GitHub link to it: demo/crumbs.ts). */
 const drawnCrumbs: (() => void)[] = [];
@@ -129,15 +128,9 @@ export const onCrumbs = (fn: () => void) => void drawnCrumbs.push(fn);
 export function crumbs(gone = false, card = false) {
   if (!crumbsEl) return;
   const p = gone ? null : state()?.person;
-  const place = h('span', { class: p ? '' : 'cur', 'aria-current': p ? null : 'page' }, placeName());
   crumbsEl.replaceChildren(
     h('span', { class: 'cr-mark' }, markup(LOGO)),
-    h(
-      'nav',
-      { class: 'cr-path', 'aria-label': _('Breadcrumb') },
-      place,
-      p ? [ic('chevron'), h('span', { class: 'cur', 'aria-current': 'page' }, p.name)] : null,
-    ),
+    h('nav', { class: 'cr-path', 'aria-label': _('Breadcrumb') }, h('span', { class: 'cur', 'aria-current': 'page' }, placeName())),
     ...(card ? [] : [langPicker()]),
     ...(p && !card ? [qrKnob()] : []),
   );

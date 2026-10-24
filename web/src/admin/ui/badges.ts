@@ -11,7 +11,7 @@ export function pill(tone: string, text: string, title?: string): HTMLElement {
   return E('span', { class: `dl-pill ${tone}`, title: title ?? null }, text);
 }
 
-export function stateTone(p: Person): string {
+function stateTone(p: Person): string {
   if (p.state === 'active') return 'ok';
   if (p.state === 'quota' || p.state === 'expired') return 'bad';
   return 'warn';

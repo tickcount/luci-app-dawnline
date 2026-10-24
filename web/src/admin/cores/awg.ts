@@ -220,7 +220,7 @@ export function plainWg(cfg: AwgConfig): boolean {
 }
 
 /** File / key / QR switcher for a client configuration; opens on the file unless asked otherwise. */
-export async function connectBlock(cfg: AwgConfig, initial: 'file' | 'key' | 'qr' = 'file'): Promise<HTMLElement> {
+async function connectBlock(cfg: AwgConfig, initial: 'file' | 'key' | 'qr' = 'file'): Promise<HTMLElement> {
   if (!cfg.has_private_key)
     return E(
       'div',
@@ -297,7 +297,7 @@ async function applyDisguise(ctx: CoreCtx, srv: Server, m: Method, same: boolean
 }
 
 /** Server → AmneziaWG: listening port, what goes into every configuration, disguise, tunnel. */
-export function settingsCard(ctx: CoreCtx, srv: Server): HTMLElement {
+function settingsCard(ctx: CoreCtx, srv: Server): HTMLElement {
   const st: Status = ctx.st;
   const port = input(String(srv.port), { inputmode: 'numeric', class: 'cbi-input-text dl-w-port dl-mono' });
   const mtu = input(srv.mtu ? String(srv.mtu) : '', {

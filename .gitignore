@@ -2,3 +2,6 @@ node_modules/
 dist/
 .DS_Store
 web/coverage/
+# The web bundles: web/ builds them (npm run build), CI before packaging.
+package/luci-app-dawnline/htdocs/luci-static/resources/dawnline/
+package/luci-app-dawnline/root/usr/share/dawnline/portal/assets/

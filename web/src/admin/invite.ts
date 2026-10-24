@@ -70,7 +70,7 @@ async function toPng(svg: string): Promise<Blob> {
 type Invitee = Pick<Person, 'id' | 'name'> & { link?: string | null; links?: string[] };
 
 /** The personal link and its other addresses (person_links); null while the portal is off. */
-export async function personLinks(id: string): Promise<{ link: string; links: string[] } | null> {
+async function personLinks(id: string): Promise<{ link: string; links: string[] } | null> {
   const r = await attempt(() => api.personLinks(id));
   if (!r) return null;
   if (!r.link) {

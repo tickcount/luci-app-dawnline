@@ -400,7 +400,7 @@ scripts/                           build, deploy and check scripts
 cd web
 npm ci
 npm run format        # Prettier
-npm run ci            # format check, types, catalogs, tests, minified bundles
+npm run ci            # format check, types, lint, unused code, catalogs, tests, minified bundles
 npm run i18n          # collect new strings into the catalogs (then translate them in ru.po)
 
 scripts/lint-ucode.py                    # static ucode checks
@@ -412,8 +412,9 @@ scripts/capture-portal.mjs               # the portal's from its demo, in Englis
 scripts/frame-screenshots.py             # frame them for this README
 ```
 
-The web bundles and the catalogs are committed: CI fails when they are out of
-date or a string is untranslated (`rules/i18n.md`). Pushing a tag `vX.Y.Z`
+The web bundles are built, not committed (`npm run build` before
+`scripts/build-packages.sh`); the catalogs are committed, and CI fails when they
+are out of date or a string is untranslated (`rules/i18n.md`). Pushing a tag `vX.Y.Z`
 (matching `PKG_VERSION`) builds the packages and their translations with the
 OpenWrt SDK and publishes a release with `sha256sums.txt`.
 

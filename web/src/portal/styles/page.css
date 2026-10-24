@@ -38,8 +38,8 @@ body.scrolled .edge-fade.top {
   background: linear-gradient(to top in oklab, var(--bg) 0%, transparent 100%);
 }
 
-/* The breadcrumb (iconiqui, measured): 32px high, the mark in a 32px box, 15px crumbs 6px apart
-   with a 14px chevron, the current one brighter. The mark is one colour: the text's. */
+/* The breadcrumb (iconiqui, measured): 32px high, the mark in a 32px box, then the place, 15px and
+   bright (the one crumb: the page is the person's own). The mark is one colour: the text's. */
 .crumbs {
   display: flex;
   align-items: center;
@@ -83,10 +83,6 @@ body.scrolled .edge-fade.top {
 .cr-path .cur {
   color: var(--text);
   font-weight: 500;
-}
-.cr-path .i {
-  width: 14px;
-  height: 14px;
 }
 /* The language (a pick pill, ui/pick.ts): as high as the QR knob beside it, its flag, its code and a chevron
    that turns up while the popup is open. */

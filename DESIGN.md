@@ -58,160 +58,160 @@ colors:
   light-qr-bg: "#ffffff"
 typography:
   body:
-    fontFamily: Geist
+    fontFamily: system-ui
     fontSize: 15px
     fontWeight: 400
     lineHeight: 22px
     letterSpacing: -0.011em
   display-number:
-    fontFamily: Geist
+    fontFamily: system-ui
     fontSize: 36px
     fontWeight: 600
     lineHeight: 40px
     letterSpacing: -0.045em
   card-title-alone:
-    fontFamily: Geist
+    fontFamily: system-ui
     fontSize: 22px
     fontWeight: 500
     lineHeight: 28px
     letterSpacing: -0.03em
   section-title:
-    fontFamily: Geist
+    fontFamily: system-ui
     fontSize: 20px
     fontWeight: 500
     lineHeight: 28px
     letterSpacing: -0.025em
   sheet-title:
-    fontFamily: Geist
+    fontFamily: system-ui
     fontSize: 20px
     fontWeight: 500
     lineHeight: 28px
     letterSpacing: -0.5px
   empty-title:
-    fontFamily: Geist
+    fontFamily: system-ui
     fontSize: 18px
     fontWeight: 500
     lineHeight: 24px
     letterSpacing: -0.02em
   value:
-    fontFamily: Geist
+    fontFamily: system-ui
     fontSize: 17px
     fontWeight: 500
     lineHeight: 24px
     letterSpacing: -0.02em
     fontFeature: '"tnum"'
   card-title:
-    fontFamily: Geist
+    fontFamily: system-ui
     fontSize: 16px
     fontWeight: 500
     lineHeight: 22px
     letterSpacing: -0.02em
   button:
-    fontFamily: Geist
+    fontFamily: system-ui
     fontSize: 16px
     fontWeight: 500
     lineHeight: 22px
     letterSpacing: -0.015em
   button-strong:
-    fontFamily: Geist
+    fontFamily: system-ui
     fontSize: 16px
     fontWeight: 600
     lineHeight: 22px
     letterSpacing: -0.015em
   input:
-    fontFamily: Geist
+    fontFamily: system-ui
     fontSize: 16px
     fontWeight: 500
     lineHeight: 24px
     letterSpacing: -0.012em
   step-title:
-    fontFamily: Geist
+    fontFamily: system-ui
     fontSize: 16px
     fontWeight: 500
     lineHeight: 24px
     letterSpacing: -0.02em
   row-title:
-    fontFamily: Geist
+    fontFamily: system-ui
     fontSize: 15px
     fontWeight: 500
     lineHeight: 22px
     letterSpacing: -0.02em
   breadcrumb:
-    fontFamily: Geist
+    fontFamily: system-ui
     fontSize: 15px
-    fontWeight: 400
+    fontWeight: 500
     lineHeight: 22px
     letterSpacing: -0.15px
   question-text:
-    fontFamily: Geist
+    fontFamily: system-ui
     fontSize: 15px
     fontWeight: 400
     lineHeight: 21px
   desc:
-    fontFamily: Geist
+    fontFamily: system-ui
     fontSize: 14px
     fontWeight: 400
     lineHeight: 20px
   menu-item:
-    fontFamily: Geist
+    fontFamily: system-ui
     fontSize: 14px
     fontWeight: 500
     lineHeight: 20px
   toast:
-    fontFamily: Geist
+    fontFamily: system-ui
     fontSize: 14px
     fontWeight: 500
     lineHeight: 20px
   meta:
-    fontFamily: Geist
+    fontFamily: system-ui
     fontSize: 13px
     fontWeight: 400
     lineHeight: 18px
   pill-label:
-    fontFamily: Geist
+    fontFamily: system-ui
     fontSize: 13px
     fontWeight: 600
     lineHeight: 18px
   label-sm:
-    fontFamily: Geist
+    fontFamily: system-ui
     fontSize: 12px
     fontWeight: 500
     lineHeight: 16px
   tooltip:
-    fontFamily: Geist
+    fontFamily: system-ui
     fontSize: 12px
     fontWeight: 500
     lineHeight: 12px
     letterSpacing: -0.1px
   divider-label:
-    fontFamily: Geist
+    fontFamily: system-ui
     fontSize: 12px
     fontWeight: 500
     lineHeight: 22px
     letterSpacing: 0.06em
   axis:
-    fontFamily: Geist
+    fontFamily: system-ui
     fontSize: 11px
     fontWeight: 500
     lineHeight: 16px
   axis-xs:
-    fontFamily: Geist
+    fontFamily: system-ui
     fontSize: 10px
     fontWeight: 500
     lineHeight: 14px
   calendar-head:
-    fontFamily: Geist
+    fontFamily: system-ui
     fontSize: 9px
     fontWeight: 600
     lineHeight: 10px
   mono-link:
-    fontFamily: Geist Mono
+    fontFamily: ui-monospace
     fontSize: 13px
     fontWeight: 400
     lineHeight: 22px
     letterSpacing: 0px
   mono-code:
-    fontFamily: Geist Mono
+    fontFamily: ui-monospace
     fontSize: 12px
     fontWeight: 400
     lineHeight: 18px
@@ -446,12 +446,11 @@ The styles live in `web/src/portal/styles` (tokens in `tokens.css`), the motion 
 
 The portal is one person's page on a router.
 
-**Lineage.** The look was approved as a mockup (Oct 2026). It borrows from four places:
+**Lineage.** The look was approved as a mockup (Oct 2026). It borrows from three places:
 
 - **skiper-ui:** skiper21's palette, accent, highlight and tab pill, and skiper103's bouncy accordion;
 - **iconiqui:** the breadcrumb and the edge fades (dia-text);
-- **aicss.dev:** the busy orb, "Orbs B4 Converge";
-- **Vercel's Geist:** the type.
+- **aicss.dev:** the busy orb, "Orbs B4 Converge".
 
 **Personality.** Calm, dark and tactile. The page is near-black (`#080808`). There are no borders: each layer is a step brighter than the one under it. One sky blue is the only accent. Every other colour means a state. The UI is made of big round shapes (36 px sheets, 28 px cards, pills), and glass icons are the only illustration.
 
@@ -490,7 +489,7 @@ The measured luminance steps are tiny. In dark, raised vs bg is 1.07:1, field vs
 
 | Token | Dark | Light | Use |
 |---|---|---|---|
-| `--text` | `#ededed` | `#0b0b0b` | Titles, values, current crumb, bold steps |
+| `--text` | `#ededed` | `#0b0b0b` | Titles, values, the breadcrumb's place, bold steps |
 | `--text-2` | `#8c8c8a` | `#6d6d6b` | Secondary lines: statuses at rest, labels, hints, sheet subs, head values, accordion chevrons |
 | `--text-3` | `#4f4f4e` | `#a6a6a4` | Faint: counts ("3 of 4"), "OR", axis ends, placeholders, idle picker icons, the limit note, chevrons in badges |
 
@@ -566,9 +565,9 @@ Frosted pane: dark `--gi-a .58 / --gi-b .14` white with a `.5` rim and no edge s
 
 ## Typography
 
-**Families:** **Geist** (variable, 100–900) and **Geist Mono**. They are self-hosted as woff2 next to `portal.css` (CSP `font-src 'self'`). Geist ships in Latin and Cyrillic subsets split by `unicode-range`, Geist Mono in Latin. Fallbacks are `-apple-system, system-ui, 'Segoe UI', sans-serif` and `ui-monospace, 'SF Mono', Menlo, monospace`, all with `font-display: swap`.
+**Families:** the system's own, nothing downloaded (no `@font-face`, no `font-src` in the CSP). Sans `system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', Ubuntu, Cantarell, 'Helvetica Neue', Arial, sans-serif`: SF Pro on Apple, Segoe UI on Windows (Segoe UI Variable on 11), Roboto on Android, the desktop's sans on Linux. Mono `ui-monospace, 'SF Mono', SFMono-Regular, Menlo, 'Cascadia Mono', Consolas, 'Liberation Mono', 'DejaVu Sans Mono', monospace`: SF Mono in Safari, Menlo in Chrome on a Mac, Cascadia Mono or Consolas on Windows. Both are `--font` and `--mono` in `tokens.css`.
 
-**Base:** `400 15px/22px`, `letter-spacing: -0.011em`, `-webkit-font-smoothing: antialiased`. Body `cursor: default`, because the page is an app, not a document. Fields, the link and the configuration keep the I-beam.
+**Base:** `400 15px/22px`, `letter-spacing: -0.011em`, `-webkit-font-smoothing: antialiased`. Body `cursor: default` and `user-select: none`, because the page is an app, not a document: a title, a label or a value is not text to copy. What is typed or copied by hand can be selected, with the I-beam: fields, the mono text (the link, a hostname, a file's name) and the configuration.
 
 ### Scale (measured live)
 
@@ -586,7 +585,7 @@ Frosted pane: dark `--gi-a .58 / --gi-b .14` white with a `.5` rim and no edge s
 | Step title | 16 / 24 | 500 | −0.02em | "1 Get AmneziaVPN" |
 | Row title | 15 / 22 | 500 | −0.02em | Accordion heads, notice title, month total |
 | Option title | 15 / 22 | 500 | −0.015em | "LAN Bypass" in its option row |
-| Breadcrumb | 15 / 22 | 400 (current 500) | −0.15px | Server › person |
+| Breadcrumb | 15 / 22 | 500 | −0.15px | The server's name |
 | Question text | 15 / 21 | 400 | — | Remove / Reconnect body |
 | Desc / sub / value line | 14 / 20 | 400 | — | Row descriptions, sheet subs, head values |
 | Menu item, toast | 14 / 20 | 500 | — | ⋯ menu, toast |
@@ -604,7 +603,7 @@ Frosted pane: dark `--gi-a .58 / --gi-b .14` white with a `.5` rim and no edge s
 - **Tracking tightens as size grows:** −0.011em for body, −0.02em at 15–17 px, −0.025em to −0.045em for titles and numbers. Mono is always `0`.
 - **Only 400, 500 and 600.** 500 marks a title or a value, 600 marks a filled button, a number on display, a pill or a step number.
 - **Numbers that change use `.num`** (`tabular-nums`), so a morph or a hover readout never shifts its neighbours.
-- **Mono is for things typed or copied by hand:** addresses, links, hostnames, the configuration. Names stay in Geist.
+- **Mono is for things typed or copied by hand:** addresses, links, hostnames, the configuration. Names stay in the sans.
 - **One line where it fits:** names, statuses, crumbs and link rows end in an ellipsis. The full text goes in `title`.
 - `text-wrap: balance` for short centred paragraphs (first device, "gone" card, secure sheet). `pretty` for left-aligned question text.
 - **No uppercase** except the "OR" divider. **No ellipsis on buttons**: "Remove", never "Remove…". "…" appears only for progress and truncation. The single exception is another app's own menu label quoted verbatim ("Import Tunnel(s) from File…").
@@ -617,7 +616,7 @@ Frosted pane: dark `--gi-a .58 / --gi-b .14` white with a `.5` rim and no edge s
 ### Page frame
 
 - `.page`: `max-width: 1072px`, centred. The side gutter is `max(16px, safe-area)`. The top is `40px + safe-area-top` and the bottom `112px`, so the end of the scroll clears the bottom fade.
-- No navbar. The page opens with a **breadcrumb row**: 32 px high and 32 px above the content. The Dawnline mark sits in a 32 px box (logo 24 px), then `server › person`, then on the right the language pill and the QR knob.
+- No navbar. The page opens with a **breadcrumb row**: 32 px high and 32 px above the content. The Dawnline mark sits in a 32 px box (logo 24 px), then the server's name (not the person's: the page is theirs), then on the right the language pill and the QR knob.
 - **Edge fades** sit above the page and under every overlay:
   - **top:** 80 px plus the safe area, a `bg → 75% → 0` gradient with `backdrop-filter: blur(12px)` (not on a touch screen, where it would be drawn again on every frame of a scroll), masked `1 → .88 @44% → 0`. It shows only once `scrollY > 2`, so the breadcrumb at rest stays crisp.
   - **bottom:** 96 px, a plain `bg → transparent` gradient interpolated `in oklab`.
@@ -720,8 +719,8 @@ Only the person moves the page: on a phone nothing the page does pulls it up or 
 | 11 | Ends of the way |
 | 10 | Name chip, badge icon tile, link row knobs |
 | 9 | File card icon |
-| 2.5–4 | Chart bars (2.5 month, 3 spark, 3 calendar cells), meter and hours bar, a field's selection wash (4) |
-| 1 | A field's caret and selection handles |
+| 2.5–4 | Chart bars (2.5 month, 3 spark, 3 calendar cells), meter and hours bar, a field's and the page's selection wash (4) |
+| 1 | A field's caret and selection handles, the page's selection handles |
 | 999 / 50% | Buttons, pills, chips, toasts, tooltips, the switch / knobs, step numbers, reach marks, the switch's knob, the handles' knobs |
 
 ### Shape rules
@@ -741,10 +740,10 @@ Measurements are CSS pixels, read live at 1138 px and 375 px. Source files are u
 
 ### Breadcrumb · `page/frame.ts`
 
-- **Layout:** a 32 px row with `gap 10`. The mark box is 32 × 32 (logo 24). The path is 15/22 `text-2` with `gap 6` and a 14 px chevron; the current crumb is `text` 500 with `aria-current="page"`.
+- **Layout:** a 32 px row with `gap 10`. The mark box is 32 × 32 (logo 24). The place, the server's name, is the one crumb: 15/22 `text` 500 with `aria-current="page"`. The person's name is not shown: the page is theirs, and on a phone it crowded the place out.
 - **Language pill** (`.cr-lang`, a pick pill: see below): 32 high, pill, `knob` fill, padding `0 8`, gap 6: the language's 16 px flag disc, its 14 px 500 code and a 14 px chevron. Its popup opens under it, 10 px away.
 - **QR knob** (`.cr-qr`): a knob with the QR icon. It opens into the page's code card where it stands (see below).
-- **Truncation:** the crumbs truncate independently, each with its own ellipsis.
+- **Truncation:** the place ends in an ellipsis where the row has no room for it.
 
 ### Dropdowns · `ui/drop.ts`, `styles/drop.css`
 
@@ -786,6 +785,7 @@ The ⋯ menu, the pick pills' popups and the page code card are one kind of thin
 | `red` | bad / white | 600 | Remove |
 
 - **Size:** 48 high (`.sm` 40, 15 px), pill, padding 0 20 (`.sm` 0 16), gap 8, `.block` = full width.
+- **Hover:** a filled one (`accent`, `red`) lets its fill down to 82%, `tint` deepens to accent 20%, `soft` takes text 6% over its knob.
 - **Press:** `scale(.95)`. No ellipsis, no blue text links for actions.
 - **Busy:** the button keeps its size. Its content blurs away and the **orb** comes up through the blur in the button's own colour. See *Motion → Busy orb*.
 
@@ -796,6 +796,7 @@ The ⋯ menu, the pick pills' popups and the page code card are one kind of thin
 - Arrow for create, check for save. The field and its go button are the whole form: no label row, no separate Save.
 - **Caret** (`ui/caret.ts`, on name fields, with a mouse or trackpad; a touch screen keeps the system's): the input's own is hidden (`caret-color: transparent`) and the field draws one as macOS does: accent, 2 × 20, radius 1. It glides to where the next letter goes (see *Motion → Caret and selection*), and a click puts it where clicked at once. It blinks 0.6 s on / 0.6 s off with soft fades, stays solid while typing and blinks again 0.5 s after the last key.
 - **Selection** (`pointer: fine` only): the native selection is see-through and the text keeps its colour. Under the text sits an accent 26% wash, 22 high, radius 4, with an iOS handle at each end: a 2 × 22 line with a 9 px knob, on top at the start and under it at the end. A selection grows out of the caret and, on collapse, fades in place before its ends rejoin the caret. It never runs past the input's edges, so a long, scrolled name's wash stops before the go button. On a touch screen the field draws neither: the system's caret shows (in the accent) with its own selection and handles.
+- **The page's selection** (`ui/selection.ts`, `pointer: fine` only), where text can be selected (*Typography → Base*): the same look as a field's, drawn over the text instead of under it (it cannot sit under every block's), each band blending so the words keep their colour (`screen` in dark, `multiply` in light, over an opaque `accent 26% on bg`). One band per line run, 2 px taller than its line, radius 4; a handle at each end. It stands on the layer of what holds it (the page under its edge fades, a sheet, a dropdown) and is clipped to what clips or scrolls it there. A press where nothing can be selected lets go of the selection (the browser keeps it over unselectable text, which is most of the page). A touch screen keeps the system's.
 - **Refusal:** a refused entry makes the field **shake** at once, while a red line under it (`ui/bad-line.ts`) says why in a few words, short enough for one line.
 - **Shake** (`shared/shake.ts`): iOS's wrong-passcode shake, a damped swing sideways about four times in 0.52 s (14 px at most, settling by half), linear over its frames. The field's outline goes red with it (a 1.5 px inset ring in `bad`, as the focus ring is drawn), holds 0.7 s and fades back to the ring the field has (focused or not) over 0.8 s on ease-out; another refusal starts it red again. Another one starts from where the field is, never jumping back; only its own animation is touched, so the focus ring's transition goes on. With less motion asked for it doesn't move (the red line or toast still says why).
 
@@ -891,6 +892,7 @@ A repaint keeps the rows on the page and changes what they hold in place, the sa
 - **View:** padding `0 24 24`.
 - **View head** (`.vhead`): 76 high. Title 20/28 500, centred with a Back knob inside a flow. The head is the drag handle, with `touch-action: none` and a grab cursor.
 - **Sub line:** 14/20 `text-2`, pulled up 16 px under the head.
+- **Scrolling:** what is taller than the screen scrolls inside the sheet with no scrollbar (a bar would cut into its round corners); so does the configuration in it.
 
 **Movement:**
 
@@ -1006,7 +1008,7 @@ One choice with a switch (Add a device's **LAN Bypass**). A line that unfolds un
 ### File card and configuration
 
 - **File card:** `field`, radius 18, padding 12. A 38 × 46 "file" icon (radius 9, mono 10 600 ".conf"), the filename in mono 13, a 12 px line, and an accent `sm` block button. Inside an inset row it steps up one (*Accordion → Inset variant*).
-- **Configuration:** `pre` 12/18 mono, max-height 16 rem, scrolls.
+- **Configuration:** `pre` 12/18 mono, max-height 16 rem, scrolls (no scrollbar, as the sheet).
   - colours: section headers in accent, keys in `text`, values in `text-2`;
   - **keys are masked** (`••••` in `text-3`, letter-spaced 1 px) until "Show key". The mask and the key share one place and cross-fade; the one at rest is out of sight.
 
@@ -1016,8 +1018,9 @@ One choice with a switch (Add a device's **LAN Bypass**). A line that unfolds un
 
 ### Demo-only pieces · `demo/` (not in the router build)
 
-- "Demo" chip after the crumbs (26 high, accent-soft, 13 px 600).
-- GitHub knob (its mark only, 32 px, as the QR knob) before the language pill (hidden below 480 px; a button in the drawer instead).
+- **"Demo" and GitHub, one split pill** just before the language pill (`demo/crumbs.ts`): accent-soft, 32 high as the knobs beside it, "Demo" 14 px 600 with a down chevron, then GitHub's mark (38 wide). The halves are 2 px apart; their outer corners are half the height (16), the inner ones 4. Hover (a mouse only) deepens the tint to accent 20%; a press scales a half to 0.94. Over a card alone (no language) "Demo" stands alone after the place: 26 high, round, 13 px.
+- **On a phone (< 560 px) the pill is a dock** at the bottom right, 20 px above the safe area, since the breadcrumb has no room for it. It lives in `<body>`, outside the page: the page's entrance and a scenario's swap move the page with a transform and a filter, which would carry a fixed child along and leave its glass undrawn until they end. Glass (`--glass-bg`, blur 28 saturate 1.8, the glass edge), 36 high, "Demo" with an up chevron, GitHub 40 wide; the halves 2 px apart, corners 18 outside and 5 inside. Over the bottom fade, under the sheets (z 40). It rises from under the screen's edge (620 ms, EASE_OUT, 260 ms into the first wave) on a transform alone: Safari leaves a backdrop blur undrawn while the element's opacity is animating. Hover is a 7% film over the glass, never in place of it.
+- A scenario's swap dims and blurs `.page`, not `#app`: a filter on `#app` would carry the fixed edge fades along until it ends.
 - Scenario drawer: grouped rows on `field`, 2 px apart inside a radius-20 group, 60 px min, glass 30; the current row in accent with a check.
 
 ---
@@ -1383,6 +1386,7 @@ The ring does not travel: the old tile's ring fades and the new tile's ring draw
 | Caret blink | solid while it moves or they type; 0.5 s after the last key, 0.6 s on / 0.6 s off with soft fades (`caret-blink`); its on/off fade | 1200 ease-in-out loop; 100 linear |
 | Selection | grows out of the caret: both edges start where the caret is and ride the caret's spring; the wash and handles fade in. A wash still fading from the last selection turns back instead and glides from its old ends to the new ones. | 140 linear |
 | Selection collapses | the wash fades where it stands (no slide), then its ends rejoin the caret | 140 linear, the ends at 160 ms |
+| The page's selection (`ui/selection.ts`) | as a field's: each line's ends ride the caret's spring; a new selection grows out of where it started, a line it reaches grows from the side it is reached from; on collapse it fades where it stands. Checked every frame while it shows: when the text moves or goes with no event (a scroll, a fold, a sheet's view or the sheet shut) it goes along at once, or fades where none of it shows | 140 linear, gone at 160 ms |
 
 #### 15. Other moments
 

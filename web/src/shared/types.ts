@@ -28,7 +28,7 @@ export interface DeviceLink {
  */
 export type SetupState = 'trying' | 'flowing' | 'nodata';
 
-export interface DeviceSetup {
+interface DeviceSetup {
   state: SetupState;
   /** When the watcher first saw it (router clock). */
   since: number;
@@ -279,7 +279,7 @@ export interface Status {
   like_home: { active: boolean; dev?: string; address?: string; bridged?: boolean; off?: boolean; error?: string };
 }
 
-export interface AmneziaFields {
+interface AmneziaFields {
   host: string;
   port: number;
   mtu: string;

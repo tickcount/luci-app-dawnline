@@ -6,7 +6,7 @@ import type { Server } from '../../shared/types';
 import type { Core } from './common';
 import { awg } from './awg';
 
-export type { Core, CoreCtx } from './common';
+export type { Core } from './common';
 
 const CORES: Record<string, Core> = { awg };
 

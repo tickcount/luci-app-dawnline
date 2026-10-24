@@ -94,6 +94,9 @@
   color: #fff;
   font-weight: 600;
 }
+.btn.red:hover {
+  background: color-mix(in srgb, var(--bad) 82%, transparent);
+}
 /* Waiting for the router: the button keeps its size, its content blurs away and an orb comes up in
    its place (ui/busy.ts runs the change). The orb is B4 Converge from aicss.dev's Orbs, at its own
    28px stage and twice its speed: one circle walks a triangle, sharp at each corner and smaller,
@@ -341,7 +344,8 @@
   opacity: 0;
   transition: opacity 140ms linear;
 }
-.caret-hd::after {
+.caret-hd::after,
+.tsel-hd::after {
   content: '';
   position: absolute;
   left: 50%;
@@ -351,14 +355,57 @@
   border-radius: 50%;
   background: var(--accent);
 }
-.caret-hd.s::after {
+.caret-hd.s::after,
+.tsel-hd.s::after {
   top: -7px;
 }
-.caret-hd.e::after {
+.caret-hd.e::after,
+.tsel-hd.e::after {
   bottom: -7px;
 }
 .field.selecting .caret-sel,
 .field.selecting .caret-hd {
+  opacity: 1;
+}
+/* The page's own selection (ui/selection.ts), as the fields', where text can be selected (base.css), with a mouse
+   or trackpad: the native one is see-through, the text keeping its colour (currentcolor), and ours is drawn over it,
+   one band per line and a handle at each end. A band lies over the text, so it blends: in dark the screen lifts the
+   ground to the accent wash and leaves the words as they are, in light the multiply. Each band and handle is fixed
+   in <body> on its own: a box around them would make them blend with nothing but each other. */
+.own-tsel .mono::selection,
+.own-tsel .mono *::selection,
+.own-tsel .conf::selection,
+.own-tsel .conf *::selection {
+  background: transparent;
+  color: currentcolor;
+}
+.tsel-band,
+.tsel-hd {
+  position: fixed;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 140ms linear;
+}
+.tsel-band {
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 26%, var(--bg));
+  mix-blend-mode: screen;
+  will-change: transform;
+}
+@media (prefers-color-scheme: light) {
+  .tsel-band {
+    mix-blend-mode: multiply;
+  }
+}
+.tsel-hd {
+  width: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+}
+.tsel-band.on,
+.tsel-hd.on {
   opacity: 1;
 }
 

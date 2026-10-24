@@ -1,8 +1,7 @@
-// The demo's scenario picker: the "Demo" chip, opening a drawer with the
-// scenarios in groups (glass icon, name, what the page shows) and "Start over".
-// Picking one swaps the page in place. Built only from the portal's own parts
-// (sheet, glass icons, toast, motion); where the chip sits is crumbs.ts. On a
-// phone the drawer's foot also links to GitHub, the breadcrumb having no room.
+// The demo's scenario picker: a drawer with the scenarios in groups (glass
+// icon, name, what the page shows) and "Start over". Picking one swaps the page
+// in place. Built only from the portal's own parts (sheet, glass icons, toast,
+// motion); the "Demo" buttons that open it, and where they sit, are crumbs.ts.
 
 import { h, ic } from '../dom';
 import { call } from '../api';
@@ -11,7 +10,7 @@ import { closeSheet, head, onSheetEntry, openSheet, sub, type View } from '../ui
 import { glass, type Tone } from '../ui/glass';
 import { toast } from '../ui/feedback';
 import { EASE_OUT, play } from '../motion';
-import { REPO, groups, type Scenario, type ScenarioId } from './data';
+import { groups, type Scenario, type ScenarioId } from './data';
 import type { DemoRouter } from './router';
 
 /** Each scenario's glass icon and tone (the glass set is smaller than the line icons). */
@@ -28,8 +27,8 @@ const LOOK: Record<ScenarioId, [string, Tone]> = {
   full: ['phone', 'grey'],
 };
 
-/** The chip that opens the scenarios. */
-export function scenarioChip(router: DemoRouter): HTMLElement {
+/** What opens the scenarios' drawer. */
+export function scenarioPicker(router: DemoRouter): () => void {
   const app = document.getElementById('app')!;
 
   /** Swap the page in place: it dims away and comes back drawn from the scenario, the link saying which. */
@@ -44,14 +43,16 @@ export function scenarioChip(router: DemoRouter): HTMLElement {
     else mark();
     closeSheet();
     router.use(s);
-    const out = play(app, [{ opacity: 1 }, { opacity: 0, filter: 'blur(4px)' }], { duration: 160, easing: EASE_OUT, fill: 'forwards' });
+    // The page, not #app: a filter or a transform on #app would carry its fixed edge fades along until it ends.
+    const page = app.querySelector<HTMLElement>('.page') ?? app;
+    const out = play(page, [{ opacity: 1 }, { opacity: 0, filter: 'blur(4px)' }], { duration: 160, easing: EASE_OUT, fill: 'forwards' });
     const st = await call<State>('state');
     await out.finished;
     setState(st);
     repaint();
     out.cancel();
     play(
-      app,
+      page,
       [
         { opacity: 0, filter: 'blur(4px)', transform: 'translateY(6px)' },
         { opacity: 1, filter: 'none', transform: 'none' },
@@ -94,16 +95,10 @@ export function scenarioChip(router: DemoRouter): HTMLElement {
           ic('reset'),
           h('span', {}, _('Start over')),
         ),
-        h('a', { class: 'btn soft dm-gh-alt', href: REPO, target: '_blank', rel: 'noopener' }, ic('github'), h('span', {}, 'GitHub')),
       ),
     );
     return { el, label: _('Try a scenario') };
   }
 
-  return h(
-    'button',
-    { type: 'button', class: 'dm-chip', 'aria-haspopup': 'dialog', onclick: () => openSheet(scenarios) },
-    h('span', {}, _('Demo')),
-    ic('chevron', 'i'),
-  );
+  return () => openSheet(scenarios);
 }

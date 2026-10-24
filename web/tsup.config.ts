@@ -2,6 +2,7 @@ import { defineConfig } from 'tsup';
 import { build, transform, type Plugin } from 'esbuild';
 import fs from 'node:fs';
 import path from 'node:path';
+import zlib from 'node:zlib';
 import { catalogOf, parsePo } from './i18n/po.ts';
 
 const PKG = '../package/luci-app-dawnline';
@@ -42,8 +43,6 @@ async function portalCss(): Promise<string> {
     minify: true,
     write: false,
     legalComments: 'none',
-    // The fonts sit next to the stylesheet on the router: their URLs stay as written.
-    external: ['*.woff2'],
     logLevel: 'silent',
   });
   return r.outputFiles[0].text.trim();
@@ -86,7 +85,8 @@ export default defineConfig([
     outDir: ADMIN_OUT,
     outExtension: () => ({ js: '.js' }),
     target: 'es2020',
-    clean: false,
+    // The folder is all build output (git-ignored): emptied first, so nothing stale ships.
+    clean: true,
     sourcemap: false,
     // Identifiers only: LuCI's require directives in the banner must stay as written.
     minify: true,
@@ -115,7 +115,7 @@ export default defineConfig([
     outDir: PORTAL_OUT,
     outExtension: () => ({ js: '.js' }),
     target: 'es2019',
-    clean: false,
+    clean: true,
     sourcemap: false,
     minify: true,
     noExternal: ['qrcode-generator'],
@@ -126,8 +126,10 @@ export default defineConfig([
     },
     onSuccess: async () => {
       fs.writeFileSync(path.join(PORTAL_OUT, 'portal.css'), (await portalCss()) + '\n');
+      // portal.uc sends these to a browser that takes gzip (a third of the bytes over a slow link).
+      for (const f of ['portal.js', 'portal.css'])
+        fs.writeFileSync(path.join(PORTAL_OUT, `${f}.gz`), zlib.gzipSync(fs.readFileSync(path.join(PORTAL_OUT, f)), { level: 9 }));
       fs.copyFileSync('src/portal/icon.svg', path.join(PORTAL_OUT, 'icon.svg'));
-      for (const f of fs.readdirSync('src/portal/fonts')) fs.copyFileSync(path.join('src/portal/fonts', f), path.join(PORTAL_OUT, f));
     },
   },
 ]);

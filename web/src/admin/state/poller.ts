@@ -13,7 +13,7 @@ const LOST_AFTER = 3;
  * Request tickets: an answer is shown only if nothing newer was shown before
  * it. `claim()` invalidates everything in flight (an edit's own answer wins).
  */
-export class Sequence {
+class Sequence {
   private n = 0;
   private shown = 0;
   next(): number {

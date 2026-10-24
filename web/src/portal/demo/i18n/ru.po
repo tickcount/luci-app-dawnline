@@ -28,7 +28,7 @@ msgstr "Авто"
 msgid "Dawnline on GitHub"
 msgstr "Dawnline на GitHub"
 
-#: web/src/portal/demo/picker.ts
+#: web/src/portal/demo/crumbs.ts
 msgid "Demo"
 msgstr "Демо"
 

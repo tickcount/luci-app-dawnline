@@ -1,7 +1,7 @@
 // Dawnline — the personal portal.
 //
 //   GET  /<code>                          the app shell
-//   GET  /<code>/assets/<file>            its script, styles and fonts
+//   GET  /<code>/assets/<file>            its script and styles (gzipped when the browser takes it)
 //   GET  /<code>/api/state
 //   POST /<code>/api/devices              { name, kind, public_key?, lan_bypass? }
 //   GET  /<code>/api/devices/<id>/config
@@ -45,7 +45,7 @@ import { _ } from 'dawnline.i18n';
 
 const RATE = `${RUN_DIR}/portal-rate.json`;
 const ASSETS = '/usr/share/dawnline/portal/assets';
-const TYPES = { js: 'text/javascript', css: 'text/css', svg: 'image/svg+xml', woff2: 'font/woff2', png: 'image/png' };
+const TYPES = { js: 'text/javascript', css: 'text/css', png: 'image/png' };
 const FAIL_LIMIT = 8;
 const FAIL_WINDOW = 900;
 // All Cloudflare visitors together (three-word codes can't be guessed anyway).
@@ -263,12 +263,15 @@ function place(r) {
 
 /** The app shell; it reads the code from its own URL and sends it along. */
 function shell(r) {
-	// The build's time joins the version so every update busts the hour-long asset cache.
+	// The build's time joins the version: every update gives the assets new URLs, so they are cached for good.
 	let v = `?v=${VERSION}.${stat(`${ASSETS}/portal.js`)?.mtime ?? 0}`;
 	let base = r.base, title = place(r);
+	// The icon goes in the page: a request of its own would start another CGI process.
+	let icon = readfile(`${ASSETS}/icon.svg`);
+	let favicon = icon ? `<link rel="icon" href="data:image/svg+xml;base64,${b64enc(icon)}" type="image/svg+xml">\n` : '';
 	headers(r, '200 OK', {
 		'Content-Type': 'text/html; charset=utf-8',
-		'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; " +
+		'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; " +
 			"connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
 	});
 	r.io.write(`<!doctype html>
@@ -279,8 +282,7 @@ function shell(r) {
 <meta name="color-scheme" content="light dark">
 <meta name="robots" content="noindex, nofollow">
 <title>${html_escape(title)}</title>
-<link rel="icon" href="${base}/assets/icon.svg${v}" type="image/svg+xml">
-<link rel="stylesheet" href="${base}/assets/portal.css${v}">
+${favicon}<link rel="stylesheet" href="${base}/assets/portal.css${v}">
 </head>
 <body>
 <div id="app" data-base="${html_escape(base)}" data-title="${html_escape(title)}"></div>
@@ -291,13 +293,18 @@ function shell(r) {
 	finish();
 }
 
-/** Script, styles, icon and fonts (kept outside the web root). */
+/** Script and styles (kept outside the web root); the shell's ?v= changes with every build, so they never go stale. */
 function asset(r, name) {
-	let ext = match(name, /^[a-z0-9-]+\.(js|css|svg|woff2|png)$/)?.[1];
-	let data = ext ? readfile(`${ASSETS}/${name}`) : null;
+	let ext = match(name, /^[a-z0-9-]+\.(js|css|png)$/)?.[1];
+	// The build keeps a gzipped copy beside each: a third of the bytes for a browser that takes it.
+	let gz = ext && r.gzip ? readfile(`${ASSETS}/${name}.gz`) : null;
+	let data = gz ?? (ext ? readfile(`${ASSETS}/${name}`) : null);
 	if (data == null)
 		not_found(r);
-	headers(r, '200 OK', { 'Content-Type': TYPES[ext], 'Cache-Control': 'private, max-age=3600' });
+	let h = { 'Content-Type': TYPES[ext], 'Cache-Control': 'private, max-age=31536000, immutable', 'Vary': 'Accept-Encoding' };
+	if (gz != null)
+		h['Content-Encoding'] = 'gzip';
+	headers(r, '200 OK', h);
 	r.io.write(data);
 	finish();
 }
@@ -519,6 +526,7 @@ export function handle(io) {
 		hsts: https && (match(host, /:([0-9]+)$/)?.[1] ?? '443') == '443',
 		person: null,
 		base: '',
+		gzip: match(lc(header('accept-encoding') ?? ''), /(^|[ ,])gzip([ ;,]|$)/) != null,
 	};
 	let segs = filter(split(path, '/'), (s) => s != '');
 

@@ -1,19 +1,17 @@
-/* The portal demo's stylesheet: the portal's own, then the demo's pieces in its tokens — the "Demo"
-   chip after the breadcrumb's path, the GitHub knob before the page's language, the scenario
-   rows in the drawer, and the set-up state switch beside the set-up sheet's ×. */
+/* The portal demo's stylesheet: the portal's own, then the demo's pieces in its tokens — "Demo" and GitHub as
+   one split pill before the page's language (on a phone a dock at the bottom), the scenario rows in the drawer,
+   and the set-up state switch beside the set-up sheet's ×. */
 @import '../styles/index.css';
 
-/* The path keeps its width so the chip sits right after it; the page's QR stays at the end. */
-.cr-path {
-  flex: 0 1 auto;
-}
+/* "Demo" and GitHub, one split pill just before the page's language: as high as the knobs beside it, the halves
+   2px apart, their inner corners 4px (the outer ones half the height: 999px would scale every radius of a half
+   down to nothing). Over a card alone the chip stands by itself after the place, 26px and round. */
 .dm-chip {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   height: 26px;
   padding: 0 8px 0 10px;
-  margin-right: auto;
   border-radius: 999px;
   background: var(--accent-soft);
   color: var(--accent);
@@ -24,52 +22,116 @@
     transform 150ms var(--ease-out),
     background-color 150ms;
 }
-.dm-chip:hover {
-  background: color-mix(in srgb, var(--accent) 20%, transparent);
-}
-.dm-chip:active {
-  transform: scale(0.94);
+.dm-chip.split {
+  height: 32px;
+  padding: 0 10px 0 14px;
+  border-radius: 16px 4px 4px 16px;
+  font-size: 14px;
 }
 .dm-chip .i {
   width: 14px;
   height: 14px;
   transform: rotate(90deg);
 }
-/* A card alone (paused): the breadcrumb is centred, the chip with it. */
-.page.single .dm-chip {
-  margin-right: 0;
-}
-
-/* GitHub: a knob with its mark only, as the QR knob, just before the language. On a phone it would crowd out
-   the names (the server's and the person's): there it is a button in the drawer instead. */
 .dm-gh {
   display: inline-grid;
   place-items: center;
-  width: 32px;
+  width: 38px;
   height: 32px;
-  border-radius: 50%;
-  background: var(--knob);
-  color: var(--text);
+  margin-left: -8px;
+  padding-right: 2px;
+  border-radius: 4px 16px 16px 4px;
+  background: var(--accent-soft);
+  color: var(--accent);
   text-decoration: none;
   flex: none;
   transition:
     transform 150ms var(--ease-out),
     background-color 150ms;
 }
-.dm-gh:hover {
-  background: color-mix(in srgb, var(--knob), var(--text) 6%);
-}
-.dm-gh:active {
-  transform: scale(0.94);
-}
 .dm-gh .i {
   width: 16px;
   height: 16px;
 }
-@media (max-width: 479px) {
+/* Pointed at with a mouse only: a tap would leave it lit. */
+@media (hover: hover) {
+  .dm-chip:hover,
+  .dm-gh:hover {
+    background: color-mix(in srgb, var(--accent) 20%, transparent);
+  }
+}
+.dm-chip:active,
+.dm-gh:active {
+  transform: scale(0.94);
+}
+
+/* On a phone the breadcrumb has no room for the pill: it is the dock instead (crumbs.ts), in <body> at the bottom
+   right, over the bottom fade and under the sheets; glass, 36px, the halves as in the breadcrumb. */
+@media (max-width: 559px) {
+  .dm-chip.split,
   .dm-gh {
     display: none;
   }
+}
+.dm-dock {
+  position: fixed;
+  z-index: 40;
+  right: max(16px, env(safe-area-inset-right, 0px));
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  gap: 2px;
+}
+@media (min-width: 560px) {
+  .dm-dock {
+    display: none;
+  }
+}
+.dm-dock > * {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(28px) saturate(1.8);
+  backdrop-filter: blur(28px) saturate(1.8);
+  box-shadow:
+    inset 0 0 0 1px var(--glass-edge),
+    var(--glass-shadow);
+  transition: transform 150ms var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+.dm-dock-demo {
+  gap: 4px;
+  padding: 0 10px 0 14px;
+  border-radius: 18px 5px 5px 18px;
+}
+.dm-dock-demo .i {
+  width: 14px;
+  height: 14px;
+  transform: rotate(-90deg);
+}
+.dm-dock-gh {
+  width: 40px;
+  border-radius: 5px 18px 18px 5px;
+}
+.dm-dock-gh .i {
+  width: 16px;
+  height: 16px;
+}
+/* A film over the glass, never in place of it. */
+@media (hover: hover) {
+  .dm-dock > *:hover {
+    background:
+      linear-gradient(color-mix(in srgb, var(--text) 7%, transparent), color-mix(in srgb, var(--text) 7%, transparent)), var(--glass-bg);
+  }
+}
+.dm-dock > *:active {
+  transform: scale(0.94);
 }
 
 /* The drawer: groups of rows that touch, one step lighter than the sheet, the current one in the accent. */
@@ -132,7 +194,7 @@
   flex: none;
 }
 
-/* The drawer's foot: Start over, and on a phone GitHub beside it. */
+/* The drawer's foot: Start over. */
 .dm-foot {
   display: flex;
   gap: 8px;
@@ -140,12 +202,6 @@
 .dm-foot .btn {
   flex: 1;
 }
-@media (min-width: 480px) {
-  .dm-gh-alt {
-    display: none;
-  }
-}
-
 /* The set-up state switch: a pill beside ×, gliding into its place when the device arrives. */
 .dm-way {
   position: absolute;

@@ -24,14 +24,14 @@ jobs:
         working-directory: web
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '22'
+          node-version: '26'
           cache: npm
           cache-dependency-path: web/package-lock.json
 
@@ -51,6 +51,20 @@ jobs:
         id: types
         run: npm run --silent typecheck
 
+      # oxlint's correctness rules: what the types let through (a stray expression, a needless escape).
+      - name: Lint
+        id: lint
+        run: npm run --silent lint
+
+      # Exports nobody imports, files nobody reaches, dependencies used but not listed (or listed but unused).
+      - name: Unused code
+        id: knip
+        run: |
+          if ! npm run --silent knip; then
+            echo "::error::knip found unused code or a dependency problem: remove it, or drop the export when only its own file uses it."
+            exit 1
+          fi
+
       # The catalogs follow the code: every string collected, translated, its placeholders kept.
       - name: Translations
         id: i18n
@@ -64,17 +78,17 @@ jobs:
         id: tests
         run: npm test
 
-      # The bundles under package/ are committed: a build must change nothing
-      # and leave no new file behind (an output nobody added to git would be
-      # missing from the package).
-      - name: Build bundles and check they are committed
+      # The bundles under package/ are not committed (build.yml builds them
+      # before packaging): a build must touch no tracked file and leave every
+      # output it writes ignored by .gitignore, so none ends up in a commit.
+      - name: Build bundles and check they stay out of git
         id: build
         run: |
           npm run --silent build
           changed="$(git status --porcelain --untracked-files=all -- ../package)"
           if [ -n "$changed" ]; then
             echo "$changed"
-            echo "::error::The committed bundles are out of date or the build left new files. Run 'npm run build' in web/ and commit the result."
+            echo "::error::The build changed a tracked file under package/ or wrote one .gitignore does not cover."
             exit 1
           fi
 
@@ -88,6 +102,8 @@ jobs:
             echo "|---|---|"
             echo "| Formatting | ${{ steps.format.outcome }} |"
             echo "| Types | ${{ steps.types.outcome }} |"
+            echo "| Lint | ${{ steps.lint.outcome }} |"
+            echo "| Unused code | ${{ steps.knip.outcome }} |"
             echo "| Translations | ${{ steps.i18n.outcome }} |"
             echo "| Tests | ${{ steps.tests.outcome }} |"
             echo "| Bundles | ${{ steps.build.outcome }} |"
@@ -98,7 +114,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -127,7 +143,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -174,7 +190,7 @@ jobs:
         release: ['24.10', '25.12']
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 

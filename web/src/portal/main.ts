@@ -22,6 +22,7 @@ import { closeDrop, dropOpen } from './ui/drop';
 import { closeSheet, sheetOpen } from './ui/sheet';
 import { renaming } from './flows/rename';
 import { keepPressFootprint } from './ui/press';
+import { pageSelection } from './ui/selection';
 import { startAdd } from './flows/add';
 import { openSetup } from './flows/setup-view';
 
@@ -210,6 +211,9 @@ onLang(() => {
 
 // A press that shrinks a control under the pointer still lands on it (ui/press.ts).
 keepPressFootprint();
+
+// The page's own text selection where text can be selected, as the fields draw theirs (ui/selection.ts).
+pageSelection();
 
 // The focus ring only while the keyboard moves focus (base.css .kbd): on from Tab or an arrow, off at a press.
 const KEYS = new Set(['Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);

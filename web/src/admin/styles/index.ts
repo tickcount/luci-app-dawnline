@@ -27,7 +27,7 @@ import settings from './settings.css';
 import components from './components.css';
 import access from './access.css';
 
-export const CSS = [
+const CSS = [
   base,
   people,
   controls,

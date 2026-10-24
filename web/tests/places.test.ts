@@ -166,7 +166,7 @@ describe('ticks', () => {
     const t = ticks('7d', now);
     expect(t.length).toBeGreaterThanOrEqual(6);
     expect(t.every(([f]) => f > 0 && f < 1)).toBe(true);
-    expect(t.map(([f]) => f)).toEqual([...t.map(([f]) => f)].sort((a, b) => a - b));
+    expect(t.map(([f]) => f)).toEqual(t.map(([f]) => f).sort((a, b) => a - b));
   });
   it('labels every six hours for a day', () => {
     const t = ticks('24h', now);

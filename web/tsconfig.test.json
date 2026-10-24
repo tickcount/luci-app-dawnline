@@ -1,5 +1,5 @@
 {
   "extends": "./tsconfig.json",
-  "compilerOptions": { "types": ["node"], "allowImportingTsExtensions": true },
+  "compilerOptions": { "types": ["node"], "lib": ["ES2022", "DOM", "DOM.Iterable"], "allowImportingTsExtensions": true },
   "include": ["src", "tests", "i18n"]
 }

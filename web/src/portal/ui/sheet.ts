@@ -443,7 +443,7 @@ export function go(factory: ViewFactory) {
   swapView(factory());
 }
 
-export function back() {
+function back() {
   if (stack.length < 2 || root.dataset.closing) return;
   leave();
   stack.pop();

@@ -1,7 +1,7 @@
 # Builds luci-app-dawnline with the OpenWrt SDK.
 #   docker build -f build/Dockerfile --build-arg SDK_IMAGE=itdoginfo/openwrt-sdk-ipk:24.10.6 .
-# The web bundles (htdocs/.../app.js, portal assets) are built by npm first and
-# committed; the SDK only packs files, so the package is the same on every arch.
+# The web bundles (htdocs/.../app.js, portal assets) are built by npm first
+# (not committed); the SDK only packs files, so the package is the same on every arch.
 ARG SDK_IMAGE=itdoginfo/openwrt-sdk-ipk:24.10.6
 FROM ${SDK_IMAGE}
 

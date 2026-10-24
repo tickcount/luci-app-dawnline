@@ -51,7 +51,7 @@ export function toast(msg: string, bad = false) {
 }
 
 /** An icon that changes in place: the new one (by name, or one to put back) pops in where the old one stood. */
-export function swapIcon(icon: Element, to: string | Element): Element {
+function swapIcon(icon: Element, to: string | Element): Element {
   const next = typeof to === 'string' ? ic(to, icon.getAttribute('class') ?? 'i') : to;
   icon.replaceWith(next);
   play(

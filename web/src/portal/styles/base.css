@@ -25,18 +25,23 @@ body {
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
   min-height: 100dvh;
-  /* An app, not a document: the arrow over text. Controls set the hand; what is typed or copied by
-     hand (fields, the link, the configuration) keeps the I-beam. */
+  /* An app, not a document: the arrow over text, and no selecting it (a title, a label, a value is not text to
+     copy). Controls set the hand; what is typed or copied by hand (fields, the mono text: the link, hostnames, a
+     file's name; the configuration) can be selected, with the I-beam. */
   cursor: default;
+  -webkit-user-select: none;
+  user-select: none;
 }
 body.locked {
   overflow: hidden;
 }
 input,
 textarea,
-.linkrow .mono,
+.mono,
 .conf {
   cursor: text;
+  -webkit-user-select: text;
+  user-select: text;
 }
 ::selection {
   background: var(--sel-bg);

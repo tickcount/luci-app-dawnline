@@ -17,7 +17,7 @@ This repo usually sits inside the router-admin workspace (`../AGENTS.md`). Its r
 ## Layout
 
 - `package/luci-app-dawnline/root/` — what lands on the router: ucode modules in `usr/share/ucode/dawnline/` (`rpc/` for the LuCI backend), the agent and updater in `usr/libexec/dawnline/`, the portal in `usr/share/dawnline/portal/`, the init script, rpcd ACL.
-- `web/` — TypeScript sources of the admin UI (`src/admin`) and the portal (`src/portal`), shared code in `src/shared`; the built bundles are committed under `package/`. `web/i18n/` — the string catalogs' tools (`extract.ts`, `po.ts`, `lmo.ts`).
+- `web/` — TypeScript sources of the admin UI (`src/admin`) and the portal (`src/portal`), shared code in `src/shared`; `npm run build` writes the bundles under `package/` (git-ignored: CI builds them before packaging). `web/i18n/` — the string catalogs' tools (`extract.ts`, `po.ts`, `lmo.ts`).
 - `package/luci-app-dawnline/po/` — the admin's catalog (`templates/dawnline.pot`, `ru/dawnline.po`): luci.mk builds the `luci-i18n-dawnline-ru` package from it. The portal's catalog is `web/src/portal/i18n/ru.po`, bundled into the portal.
 - `install.sh`, `uninstall.sh` — the standalone installer and uninstaller (both have `--dry-run`).
 - `scripts/` — `lint-ucode.py`, `compile-ucode.sh` (compiles every ucode file of a tree wherever ucode runs), `check-ucode.sh` (the same on the router, without installing), `ucode-container.sh` (compile and unit tests in the OpenWrt rootfs containers CI uses), `deploy.sh` (dev deploy over SSH), `build-packages.sh`, `build-release.sh`, `release-notes.sh`.
@@ -27,7 +27,7 @@ This repo usually sits inside the router-admin workspace (`../AGENTS.md`). Its r
 
 - `python3 scripts/lint-ucode.py` (use before definition, exports, POSIX regexes, rpcd methods; layering notes are informational).
 - `scripts/ucode-container.sh` (needs docker): compiles every ucode file and runs `tests/ucode` on OpenWrt 24.10 and 25.12, exactly what CI does. `scripts/check-ucode.sh` compiles on the router instead when there is no docker. New ucode entry points are added to the compile list in `scripts/compile-ucode.sh`, to `lint-ucode.py`, and to the executables list in `.github/workflows/ci.yml`; a pure function gets a case in `tests/ucode/<module>.test.uc`.
-- In `web/`: `npm run format:check`, `npm run typecheck` (sources and tests), `npm run i18n:check` (after changing visible text: `npm run i18n`, translate the new entries in each `ru.po`), `npm test`, `npm run build` — and commit the rebuilt bundles and the catalogs (CI fails on a changed or new file under `package/`).
+- In `web/`: `npm run format:check`, `npm run typecheck` (sources and tests), `npm run lint` (oxlint), `npm run knip` (unused exports and dependencies), `npm run i18n:check` (after changing visible text: `npm run i18n`, translate the new entries in each `ru.po`), `npm test`, `npm run build` — and commit the catalogs (the bundles stay out of git; CI fails when the build leaves a file under `package/` that `.gitignore` does not cover).
 - `shellcheck -S warning` for the shell scripts (CI finds them by shebang).
 - A tag builds only after CI passes on it (`build.yml` calls `ci.yml`).
 

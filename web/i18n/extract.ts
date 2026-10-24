@@ -31,7 +31,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as prettier from 'prettier';
-import ts from 'typescript';
+import * as ts from 'typescript/unstable/ast';
+import { createVirtualFileSystem } from 'typescript/unstable/fs';
+import { API } from 'typescript/unstable/sync';
 import { keyOf, parsePo, pluralForms, translated, writePo, type Entry, type Po } from './po.ts';
 
 const WEB = path.resolve(import.meta.dirname, '..');
@@ -149,14 +151,39 @@ class Errors {
 }
 
 function isFunctionLike(n: ts.Node): boolean {
-  return ts.isFunctionLike(n) || ts.isPropertyDeclaration(n) || ts.isClassStaticBlockDeclaration(n);
+  return ts.isFunctionLikeDeclaration(n) || ts.isPropertyDeclaration(n) || ts.isClassStaticBlockDeclaration(n);
+}
+
+/**
+ * The syntax trees of the files, parsed in one run by TypeScript 7 (its JS API
+ * drives the native compiler, tsgo). They go to it as a virtual project, ucode
+ * as JavaScript: nothing else is read, no import followed, no type checked.
+ */
+function parseAll(files: string[]): Map<string, ts.SourceFile> {
+  const name = (f: string) => (f.endsWith('.ts') ? f : `${f}.js`);
+  const config = '/dawnline-i18n/tsconfig.json';
+  const vfs: Record<string, string> = {
+    [config]: JSON.stringify({ compilerOptions: { allowJs: true, noLib: true, noResolve: true, types: [] }, files: files.map(name) }),
+  };
+  for (const f of files) vfs[name(f)] = fs.readFileSync(f, 'utf8');
+  const api = new API({ cwd: WEB, fs: createVirtualFileSystem(vfs) });
+  try {
+    const program = api.updateSnapshot({ openProjects: [config] }).getProject(config)?.program;
+    if (!program) throw new Error('TypeScript did not open the virtual project');
+    return new Map(
+      files.map((f) => {
+        const sf = program.getSourceFile(name(f));
+        if (!sf) throw new Error(`TypeScript did not parse ${rel(f)}`);
+        return [f, sf];
+      }),
+    );
+  } finally {
+    api.close();
+  }
 }
 
 /** Every translation call in one file. */
-function scan(file: string, lazy: boolean, logs: boolean, errors: Errors, out: Found[]) {
-  const text = fs.readFileSync(file, 'utf8');
-  const kind = file.endsWith('.ts') ? ts.ScriptKind.TS : ts.ScriptKind.JS;
-  const sf = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, kind);
+function scan(file: string, sf: ts.SourceFile, lazy: boolean, logs: boolean, errors: Errors, out: Found[]) {
   const wrapper = WRAPPERS.has(file);
   const visit = (node: ts.Node) => {
     if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && CALLS[node.expression.text] && !wrapper) {
@@ -201,7 +228,7 @@ function scan(file: string, lazy: boolean, logs: boolean, errors: Errors, out: F
         out.push(e);
       }
     }
-    ts.forEachChild(node, visit);
+    node.forEachChild(visit);
   };
   visit(sf);
 }
@@ -213,9 +240,9 @@ function scanMenu(file: string, out: Found[]) {
 }
 
 /** One catalog's strings, deduplicated and sorted (by code unit: the same order on every machine). */
-function collect(spec: CatalogSpec, errors: Errors): Entry[] {
+function collect(spec: CatalogSpec, trees: Map<string, ts.SourceFile>, errors: Errors): Entry[] {
   const found: Found[] = [];
-  for (const f of spec.sources()) scan(f, spec.lazy(f), !!spec.logs, errors, found);
+  for (const f of spec.sources()) scan(f, trees.get(f)!, spec.lazy(f), !!spec.logs, errors, found);
   for (const f of spec.menus?.() ?? []) scanMenu(f, found);
   const byKey = new Map<string, Found>();
   for (const e of found) {
@@ -316,7 +343,8 @@ async function main() {
     }
   const usedDrafts = new Set<string>();
 
-  const collected = CATALOGS.map((spec) => ({ spec, entries: collect(spec, errors) }));
+  const trees = parseAll([...new Set(CATALOGS.flatMap((spec) => spec.sources()))]);
+  const collected = CATALOGS.map((spec) => ({ spec, entries: collect(spec, trees, errors) }));
   const only = opt.only.map((f) => rel(path.resolve(f)));
   const under = (r: string) => only.some((o) => r === o || r.startsWith(`${o}/`));
   // Linting some files: the problems of those (other files may be half-way through a change).

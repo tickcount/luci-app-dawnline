@@ -7,7 +7,7 @@ import { fmt } from '../shared/i18n';
 
 export type Method = 'balanced' | 'max' | 'off';
 /** The router features a method may need (the boolean ones of AwgCaps). */
-export type AwgNeed = 'v2' | 'v3';
+type AwgNeed = 'v2' | 'v3';
 
 export interface MethodInfo {
   id: Method;
@@ -26,7 +26,7 @@ export interface MethodInfo {
 }
 
 /** The methods in picker order, in the page's language. */
-export function methods(): MethodInfo[] {
+function methods(): MethodInfo[] {
   return [
     {
       id: 'off',

@@ -68,11 +68,16 @@
   overflow: hidden;
   flex: none;
 }
+/* It scrolls with no bar: a bar would cut into the sheet's round corners and its glass. */
 .sheet-scroll {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.sheet-scroll::-webkit-scrollbar {
+  display: none;
 }
 .view {
   padding: 0 24px 24px;

@@ -16,4 +16,4 @@ Read with `code-standards.md` and, for anything visible, `ui-design.md` and `i18
 
 ## Checks
 
-- In `web/`: `npm run format:check`, `npm run typecheck`, `npm run i18n:check`, `npm test`, `npm run build`; the rebuilt bundles under `package/` and the catalogs are committed (CI fails otherwise).
+- In `web/`: `npm run format:check`, `npm run typecheck`, `npm run lint`, `npm run knip`, `npm run i18n:check`, `npm test`, `npm run build`; the catalogs are committed, the bundles under `package/` are git-ignored (CI builds them before packaging).

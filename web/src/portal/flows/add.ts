@@ -59,7 +59,7 @@ const modelReady: Promise<string> = (async () => {
     const m = ((await uad.getHighEntropyValues(['model'])).model ?? '').trim();
     if (!m || m === 'K') return '';
     const g = GALAXY.find(([re]) => re.test(m));
-    MODEL = g ? `${g[1]} (${m})` : /^SM-/.test(m) ? `Galaxy ${m}` : m;
+    MODEL = g ? `${g[1]} (${m})` : m.startsWith('SM-') ? `Galaxy ${m}` : m;
   } catch {
     /* not offered */
   }

@@ -32,12 +32,10 @@ export default defineConfig({
       minify: true,
       write: false,
       legalComments: 'none',
-      external: ['*.woff2'],
       logLevel: 'silent',
     });
     fs.writeFileSync(path.join(OUT, 'portal.css'), css.outputFiles[0].text.trim() + '\n');
     fs.copyFileSync('src/portal/demo/index.html', path.join(OUT, 'index.html'));
     fs.copyFileSync('src/portal/icon.svg', path.join(OUT, 'icon.svg'));
-    for (const f of fs.readdirSync('src/portal/fonts')) fs.copyFileSync(path.join('src/portal/fonts', f), path.join(OUT, f));
   },
 });
