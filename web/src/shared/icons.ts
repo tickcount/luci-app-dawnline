@@ -4,6 +4,9 @@ const P: Record<string, string> = {
   phone: '<rect x="7" y="2.5" width="10" height="19" rx="2.2"/><path d="M11 18.5h2"/>',
   computer: '<rect x="3" y="4.5" width="18" height="12" rx="1.8"/><path d="M2 19.5h20"/>',
   tablet: '<rect x="4.5" y="2.5" width="15" height="19" rx="2.2"/><path d="M11 18.5h2"/>',
+  // Phones and tablets as one choice (KindPick): a phone in front of a tablet, which stops short of it.
+  mobile:
+    '<path d="M9.5 6V4.7a2.2 2.2 0 0 1 2.2-2.2h7.1a2.2 2.2 0 0 1 2.2 2.2v11.6a2.2 2.2 0 0 1-2.2 2.2H14"/><rect x="3" y="8" width="8.5" height="13.5" rx="2.2"/><path d="M6.5 18.5h1.5"/>',
   router: '<rect x="3" y="13" width="18" height="7" rx="1.8"/><path d="M7 16.5h.01M10.5 16.5h.01M8 13l-2-6M16 13l2-6"/>',
   server:
     '<rect x="3" y="4" width="18" height="7" rx="1.8"/><rect x="3" y="13" width="18" height="7" rx="1.8"/><path d="M7 7.5h.01M7 16.5h.01M11 7.5h6M11 16.5h6"/>',

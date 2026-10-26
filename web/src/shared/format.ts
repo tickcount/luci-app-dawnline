@@ -222,12 +222,22 @@ export function defaultName(k: Kind): string {
   return k === 'other' ? _('Device') : kindLabel(k);
 }
 
-/** In picker order. */
-export const KINDS: Kind[] = ['computer', 'phone', 'tablet', 'router', 'other'];
-
 export function kindLabel(k: Kind): string {
   return { computer: _('PC'), phone: _('Phone'), tablet: _('Tablet'), router: _('Router'), other: _('Other') }[k];
 }
+
+/**
+ * Adding a device, phones and tablets are one choice. The device is still
+ * kept as a phone or a tablet (the lines say "the tablet"): on the device
+ * itself the browser tells which; picked from elsewhere it is a phone.
+ */
+export type KindPick = 'computer' | 'mobile' | 'router' | 'other';
+
+/** In picker order. */
+export const PICKS: KindPick[] = ['computer', 'mobile', 'router', 'other'];
+
+export const pickLabel = (p: KindPick): string => (p === 'mobile' ? _('Mobile') : kindLabel(p));
+export const pickOf = (k: Kind): KindPick => (k === 'phone' || k === 'tablet' ? 'mobile' : k);
 
 export function stateLabel(s: PersonState): string {
   return {

@@ -487,18 +487,19 @@ check_tools() {
 
 # ---------- downloads ----------
 
-# fetch_once URL FILE [SECONDS]
+# fetch_once URL FILE [SECONDS] [ACCEPT]
 fetch_once() {
 	_fu="$1"
 	_fd="$2"
 	_ft="${3:-$DOWNLOAD_TIMEOUT}"
+	_fa="${4:-}"
 	rm -f "$_fd"
 	case "$FETCHER" in
 	curl)
 		run_logged download curl -fsSL --connect-timeout "$CONNECT_TIMEOUT" --max-time "$_ft" \
-			--speed-limit 1024 --speed-time 30 -o "$_fd" "$_fu"
+			--speed-limit 1024 --speed-time 30 ${_fa:+-H "Accept: $_fa"} -o "$_fd" "$_fu"
 		;;
-	*) run_logged download "$FETCHER" -q -T "$CONNECT_TIMEOUT" -O "$_fd" "$_fu" ;;
+	*) run_logged download "$FETCHER" -q -T "$CONNECT_TIMEOUT" ${_fa:+--header="Accept: $_fa"} -O "$_fd" "$_fu" ;;
 	esac
 	_frc=$?
 	[ "$_frc" -eq 0 ] && [ -s "$_fd" ] && return 0
@@ -531,16 +532,29 @@ asset_digest() {
 	jsonfilter -i "$1" -e "@.assets[@.name='$2'].digest" 2>/dev/null | head -n 1 | sed -n 's/^sha256:\([0-9a-f]\{64\}\)$/\1/p'
 }
 
-# download URL FILE LABEL [SHA256]: direct, then (only when the sha256 is
-# known) two mirrors, then direct again. A file whose sha256 doesn't match is
-# thrown away and the next source is tried; without a sha256 only GitHub
-# itself is used.
+# A release file's URL in the GitHub API, from release JSON (empty if unknown).
+# Asked for application/octet-stream, it answers with the file itself.
+asset_api_url() {
+	[ -s "$1" ] || return 0
+	jsonfilter -i "$1" -e "@.assets[@.name='$2'].url" 2>/dev/null | head -n 1 |
+		sed -n 's#^\(https://api\.github\.com/repos/[^/]*/[^/]*/releases/assets/[0-9][0-9]*\)$#\1#p'
+}
+
+# download URL FILE LABEL [SHA256] [API_URL]: without curl the API's URL
+# first (github.com's redirect carries a Content-Security-Policy header that
+# can outgrow uclient-fetch's 4 KB line buffer, and it stalls there), then
+# direct, then (only when the sha256 is known) two mirrors, then direct again.
+# A file whose sha256 doesn't match is thrown away and the next source is
+# tried; without a sha256 only GitHub itself is used.
 download() {
 	_du="$1"
 	_dd="$2"
 	_dl="$3"
 	_dw="${4:-}"
+	_da="${5:-}"
+	[ "$FETCHER" != curl ] || _da=""
 	set -- "$_du"
+	[ -z "$_da" ] || set -- "$_da" "$_du"
 	if [ -n "$_dw" ]; then
 		for _m in $MIRRORS; do set -- "$@" "$_m$_du"; done
 	fi
@@ -555,7 +569,9 @@ download() {
 			sleep 2
 			msg "Downloading $_dl via $(host_of "$_try") (attempt $_n/$_total)"
 		fi
-		if fetch_once "$_try" "$_dd"; then
+		_acc=""
+		[ "$_try" != "$_da" ] || _acc="application/octet-stream"
+		if fetch_once "$_try" "$_dd" "" "$_acc"; then
 			if [ -n "$_dw" ] && [ "$(sha256sum "$_dd" 2>/dev/null | awk '{ print $1 }')" != "$_dw" ]; then
 				warn "$(host_of "$_try") sent a file that doesn't match GitHub's sha256: discarded"
 				rm -f "$_dd"
@@ -1118,10 +1134,11 @@ confirm() {
 download_release_file() {
 	_name="$1"
 	_sums="$TMP_DIR/sha256sums.txt"
-	# The checksum: GitHub's own (API), else the release's sha256sums.txt straight from github.com.
+	# The checksum: GitHub's own (API), else the release's sha256sums.txt straight from GitHub.
 	_want="$(asset_digest "$TMP_DIR/release.json" "$_name")"
 	if [ -z "$_want" ]; then
-		[ -s "$_sums" ] || download "$ASSET_BASE/sha256sums.txt" "$_sums" sha256sums.txt || {
+		[ -s "$_sums" ] || download "$ASSET_BASE/sha256sums.txt" "$_sums" sha256sums.txt "" \
+			"$(asset_api_url "$TMP_DIR/release.json" sha256sums.txt)" || {
 			err "Download failed: sha256sums.txt (does release $VERSION exist?)"
 			return 1
 		}
@@ -1131,7 +1148,7 @@ download_release_file() {
 			return 1
 		}
 	fi
-	download "$ASSET_BASE/$_name" "$TMP_DIR/$_name" "$_name" "$_want" || {
+	download "$ASSET_BASE/$_name" "$TMP_DIR/$_name" "$_name" "$_want" "$(asset_api_url "$TMP_DIR/release.json" "$_name")" || {
 		err "Download failed: $_name"
 		return 1
 	}
@@ -1158,7 +1175,8 @@ download_awg() {
 			_f="$TMP_DIR/$_p$_pf"
 			# Verified when GitHub publishes the file's sha256 (then mirrors may serve it).
 			_want="$(asset_digest "$TMP_DIR/awg-$_s.json" "$_p$_pf")"
-			if download "https://github.com/$_repo/releases/download/v$OWRT_RELEASE/$_p$_pf" "$_f" "$_p ($_repo)" "$_want" &&
+			if download "https://github.com/$_repo/releases/download/v$OWRT_RELEASE/$_p$_pf" "$_f" "$_p ($_repo)" "$_want" \
+				"$(asset_api_url "$TMP_DIR/awg-$_s.json" "$_p$_pf")" &&
 				verify_archive "$_f"; then
 				_files="$_files $_f"
 			else

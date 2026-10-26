@@ -360,7 +360,7 @@ let LOCK = null;
 for (let i = 0; i < 10 && !LOCK; i++) {
 	LOCK = upd.try_lock();
 	if (!LOCK)
-		system('usleep 100000 2>/dev/null || sleep 1');
+		sleep(100);
 }
 if (!LOCK)
 	exit(0);

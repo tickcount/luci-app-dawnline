@@ -180,7 +180,7 @@
 .dl-fld { display: flex; flex-direction: column; gap: 8px; margin: 0 0 16px; }
 .dl-fld-label { font-size: 13px; font-weight: 500; color: var(--dl-fg); }
 .dl-fld .cbi-input-text { width: 100%; box-sizing: border-box; }
-.dl-kinds { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.dl-kinds { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
 .dl-kinds button { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
   height: 68px; border-radius: 10px; border: 1px solid var(--dl-line); color: var(--dl-fg-muted); font-size: 12px; font-weight: 500; text-align: center; min-width: 0; }
 .dl-kinds button .dl-icon { width: 20px; height: 20px; }

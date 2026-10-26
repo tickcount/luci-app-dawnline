@@ -4099,6 +4099,10 @@ msgstr "Метод не поддерживается."
 msgid "Missing: %s."
 msgstr "Не хватает: %s."
 
+#: web/src/shared/format.ts
+msgid "Mobile"
+msgstr "Мобильный"
+
 #: web/src/admin/pages/person/limits.ts
 msgid "Monthly"
 msgstr "В месяц"

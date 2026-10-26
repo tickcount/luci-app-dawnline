@@ -30,7 +30,7 @@ export function check(ctx) {
 
 /**
  * The sha256 a release publishes for a file: GitHub's own (API), else the
- * release's sha256sums.txt fetched straight from github.com (never a mirror).
+ * release's sha256sums.txt fetched straight from GitHub (never a mirror).
  */
 function want_sha(ctx, tag, asset, dir) {
 	let want = gh.asset_sha256(REPO, tag, asset);

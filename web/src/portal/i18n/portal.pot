@@ -808,7 +808,7 @@ msgstr ""
 msgid "Method not allowed."
 msgstr ""
 
-#: web/src/portal/flows/add.ts
+#: web/src/shared/format.ts
 msgid "Mobile"
 msgstr ""
 

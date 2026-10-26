@@ -79,14 +79,17 @@ function cached(key, ttl, fn) {
 /* ---------- releases ---------- */
 
 function slim(x) {
-	let digests = {};
-	for (let a in x.assets ?? [])
+	let digests = {}, ids = {};
+	for (let a in x.assets ?? []) {
 		if (match(a.digest ?? '', /^sha256:[0-9a-f]{64}$/))
 			digests[a.name] = substr(a.digest, 7);
+		if (type(a.id) == 'int' && a.id > 0)
+			ids[a.name] = a.id;
+	}
 	return {
 		tag: x.tag_name, name: x.name ?? x.tag_name, published: x.published_at ?? null,
 		prerelease: !!x.prerelease, url: x.html_url ?? null, body: substr(x.body ?? '', 0, 12000),
-		assets: map(x.assets ?? [], (a) => a.name), digests,
+		assets: map(x.assets ?? [], (a) => a.name), digests, ids,
 	};
 }
 
@@ -194,6 +197,25 @@ export function sha256(path) {
 	return match(run(`sha256sum ${q(path)}`).out, /^([0-9a-f]{64})/)?.[1];
 };
 
+/** A release file's URL on github.com in parts: { repo, tag, name }, or null for any other URL. */
+export function release_file(url) {
+	let m = match(url ?? '', /^https:\/\/github\.com\/([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)\/releases\/download\/([^\/?#]+)\/([^\/?#]+)$/);
+	return m ? { repo: m[1], tag: m[2], name: m[3] } : null;
+};
+
+/** The same file through the API (api.github.com), when its release is known; else null. */
+function asset_api_url(url) {
+	let f = release_file(url);
+	if (!f)
+		return null;
+	let id = null;
+	try {
+		id = release(f.repo, f.tag)?.ids?.[f.name];
+	}
+	catch (e) {}
+	return id ? `https://api.github.com/repos/${f.repo}/releases/assets/${id}` : null;
+}
+
 /**
  * Download to a file. o: { sha256, mirrors, log }. Direct first; mirrors
  * only when the sha256 is known (from the API) and mirrors are allowed. A
@@ -203,24 +225,32 @@ export function sha256(path) {
 export function download(url, dest, o) {
 	o ??= {};
 	let want = o.sha256 ? lc(o.sha256) : null;
-	let tries = [ url ];
+	let curl = have_curl();
+	let tries = [];
+	// Without curl a release file comes through the API first: github.com's redirect to it carries a
+	// Content-Security-Policy header that can outgrow uclient-fetch's 4 KB line buffer, and it stalls there.
+	let api = curl ? null : asset_api_url(url);
+	if (api)
+		push(tries, { u: api, accept: 'application/octet-stream' });
+	push(tries, { u: url });
+	let direct = length(tries);
 	if (want && o.mirrors && match(url, /^https:\/\/(github\.com|raw\.githubusercontent\.com)\//))
 		for (let m in MIRRORS)
-			push(tries, m + url);
-	for (let i, u in tries) {
-		let host = replace(u, /^https:\/\/([^\/]+)\/.*$/, '$1');
-		if (i > 0)
+			push(tries, { u: m + url, mirror: true });
+	for (let i, t in tries) {
+		let host = replace(t.u, /^https:\/\/([^\/]+)\/.*$/, '$1');
+		if (t.mirror)
 			o.log?.(sprintf(_('Trying mirror %s'), host));
-		let r = have_curl()
-			? run(`curl -fsSL --connect-timeout 15 --max-time 300 --retry 1 -o ${q(dest)} ${q(u)}`)
-			: run(`uclient-fetch -q -T 30 -O ${q(dest)} ${q(u)}`);
+		let r = curl
+			? run(`curl -fsSL --connect-timeout 15 --max-time 300 --retry 1 -o ${q(dest)} ${q(t.u)}`)
+			: run(`uclient-fetch -q -T 30 ${t.accept ? `--header=${q('Accept: ' + t.accept)} ` : ''}-O ${q(dest)} ${q(t.u)}`);
 		if (r.code == 0 && (stat(dest)?.size ?? 0) > 0) {
 			if (!want || sha256(dest) == want)
-				return u;
+				return t.u;
 			o.log?.(sprintf(_("Warning: %s sent a file that does not match GitHub's sha256, discarded"), host));
 		}
 		system(`rm -f ${q(dest)}`);
-		if (i == 0 && length(tries) > 1)
+		if (i == direct - 1 && length(tries) > direct)
 			o.log?.(_('GitHub did not answer, trying mirrors'));
 	}
 	return null;

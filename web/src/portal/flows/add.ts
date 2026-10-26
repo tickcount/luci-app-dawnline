@@ -7,7 +7,7 @@
 // to add it there.
 
 import type { ClientConfig, Kind } from '../../shared/types';
-import { defaultName, fitName, kindLabel, netsLabel } from '../../shared/format';
+import { defaultName, fitName, netsLabel, pickLabel, pickOf, PICKS, type KindPick } from '../../shared/format';
 import { guardDeviceName } from '../../shared/name-guard';
 import { shake } from '../../shared/shake';
 import { fmt, num, plural } from '../../shared/i18n';
@@ -77,15 +77,8 @@ function guessName(kind: Kind): string {
   return defaultName(kind);
 }
 
-/*
- * Phones and tablets are one choice. The device is still kept as a phone or a
- * tablet (the lines say "the tablet"): on the device itself the browser tells
- * which; picked from elsewhere it is a phone.
- */
-type Pick = 'computer' | 'mobile' | 'router' | 'other';
-const pickLabel = (p: Pick): string => (p === 'mobile' ? _('Mobile') : kindLabel(p));
-const pickOf = (k: Kind): Pick => (k === 'phone' || k === 'tablet' ? 'mobile' : k);
-const kindOf = (p: Pick): Kind => (p !== 'mobile' ? p : guessKind() === 'tablet' ? 'tablet' : 'phone');
+// Mobile is a tablet when this page is open on one (see KindPick).
+const kindOf = (p: KindPick): Kind => (p !== 'mobile' ? p : guessKind() === 'tablet' ? 'tablet' : 'phone');
 
 /**
  * What they chose so far, kept outside the view: Back from "Open on the device"
@@ -93,7 +86,7 @@ const kindOf = (p: Pick): Kind => (p !== 'mobile' ? p : guessKind() === 'tablet'
  * typed (unset while the name is still the guess).
  */
 interface Draft {
-  pick?: Pick;
+  pick?: KindPick;
   bypass: boolean;
   name?: string;
 }
@@ -142,11 +135,11 @@ function vAdd(draft: Draft): View {
   const st = state()!;
   const p = st.person;
   // The kinds this router takes, as the four choices.
-  const picks = (['computer', 'mobile', 'router', 'other'] as Pick[]).filter((k) => st.kinds.some((x) => pickOf(x) === k));
+  const picks = PICKS.filter((k) => st.kinds.some((x) => pickOf(x) === k));
   const guess = picks.includes(pickOf(guessKind())) ? pickOf(guessKind()) : picks[0];
-  let pick: Pick = draft.pick && picks.includes(draft.pick) ? draft.pick : guess;
+  let pick: KindPick = draft.pick && picks.includes(draft.pick) ? draft.pick : guess;
   const taken = new Set(p.devices.map((d) => d.name.toLowerCase()));
-  const suggest = (k: Pick) => {
+  const suggest = (k: KindPick) => {
     const n = k === pickOf(guessKind()) ? guessName(kindOf(k)) : defaultName(k === 'mobile' ? 'phone' : k);
     // Stripped of what the router refuses and cut to its limit, the number after it too ("Galaxy S24+ 2").
     if (!taken.has(fitName(n).toLowerCase())) return fitName(n);
@@ -230,7 +223,7 @@ function vAdd(draft: Draft): View {
     if (draft.name === undefined && pick === pickOf(guessKind())) input.value = suggest(pick);
   });
   // The picked tile rings itself where it stands (the ring does not travel between tiles).
-  function choose(k: Pick) {
+  function choose(k: KindPick) {
     pick = draft.pick = k;
     tiles.forEach((t, i) => {
       const on = picks[i] === k;

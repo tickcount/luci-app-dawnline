@@ -4043,6 +4043,10 @@ msgstr ""
 msgid "Missing: %s."
 msgstr ""
 
+#: web/src/shared/format.ts
+msgid "Mobile"
+msgstr ""
+
 #: web/src/admin/pages/person/limits.ts
 msgid "Monthly"
 msgstr ""

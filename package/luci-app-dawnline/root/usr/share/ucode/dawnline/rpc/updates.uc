@@ -80,7 +80,7 @@ function releases(a) {
 	let page = +(a.page ?? 1);
 	if (page != int(page) || page < 1 || page > 50)
 		die(_('Unknown page.'));
-	return { releases: map(gh.releases(REPO, page), (x) => ({ ...x, body: null, digests: null })), page };
+	return { releases: map(gh.releases(REPO, page), (x) => ({ ...x, body: null, digests: null, ids: null })), page };
 }
 
 /** Release notes for What's new: Dawnline by tag, or an AmneziaWG build's release. */
@@ -94,7 +94,7 @@ function notes(a) {
 		r = gh.release(rp, `v${tag}`);
 	if (!r)
 		die(sprintf(_('No release %s in %s.'), tag, rp));
-	return { ...r, digests: null, repo: rp };
+	return { ...r, digests: null, ids: null, repo: rp };
 }
 
 /** What changed between the installed Dawnline and a release (points for the Components tab). */
@@ -111,8 +111,10 @@ function changes(a) {
 }
 
 /**
- * Start an update job. Returns the new job once its worker has written it,
- * else null (the caller follows updates_status); never an older job.
+ * Start an update job. Returns the new job once its worker has written it
+ * (a quick check may be over by then), else null (the caller follows
+ * updates_status); never an older job. Waits two seconds at most: LuCI gives
+ * up on a call after twenty.
  */
 function run(a) {
 	let what = a.what ?? 'check';
@@ -126,16 +128,17 @@ function run(a) {
 	if (upd.busy())
 		die(_('Another component action is already running'));
 	ensure_dir(RUN_DIR);
-	let t0 = time();
+	let t0 = time(), prev = read_json(upd.JOB_FILE, null)?.id;
 	let args = substr(what, 0, 5) == 'check' ? `check ${substr(what, 6)}` : `install ${what}`;
 	// The job speaks the admin's language (use() let only a plain language code through).
 	let lang = i18n.current();
 	system(`${lang ? `DAWNLINE_LANG=${lang} ` : ''}start-stop-daemon -S -b -x /usr/libexec/dawnline/updater -- ${args}`);
 	for (let i = 0; i < 20; i++) {
 		let j = read_json(upd.JOB_FILE, null);
-		if (j?.state == 'running' && j.started >= t0)
+		if (j && j.id != prev && j.started >= t0)
 			return { started: true, job: j };
-		system('usleep 100000 2>/dev/null || sleep 1');
+		// ucode's own sleep: OpenWrt's BusyBox has no usleep.
+		sleep(100);
 	}
 	return { started: true, job: null };
 }

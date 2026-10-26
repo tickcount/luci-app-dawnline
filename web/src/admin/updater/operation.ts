@@ -93,7 +93,8 @@ export async function runOperation(what: string | null, o: OpOptions, follow?: U
       prevId = before?.job?.id;
       since = before?.now ?? 0;
       const r = await api.updatesRun(what!);
-      if (r.job && r.job.state === 'running' && r.job.id !== prevId) {
+      // A quick check may already be over: still this click's job (updates_run never returns an older one).
+      if (r.job && r.job.id !== prevId) {
         job = r.job;
         known(r.job);
       }

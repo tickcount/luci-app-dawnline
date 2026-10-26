@@ -813,7 +813,7 @@ msgstr "Мбит/с"
 msgid "Method not allowed."
 msgstr "Метод не поддерживается."
 
-#: web/src/portal/flows/add.ts
+#: web/src/shared/format.ts
 msgid "Mobile"
 msgstr "Мобильный"
 

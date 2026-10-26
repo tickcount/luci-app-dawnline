@@ -17,7 +17,20 @@ import { isOn, sw } from './ui/controls';
 import { qrCode } from './ui/qr';
 import { deviceNameHelp, type Help } from './netcheck';
 import { deviceStatus } from './ui/badges';
-import { ago, bytes, defaultName, fitName, homeOf, isoDay, kindLabel, KINDS, netsLabel, todayOf } from '../shared/format';
+import {
+  ago,
+  bytes,
+  defaultName,
+  fitName,
+  homeOf,
+  isoDay,
+  kindLabel,
+  netsLabel,
+  pickLabel,
+  PICKS,
+  todayOf,
+  type KindPick,
+} from '../shared/format';
 import { guardDeviceName } from '../shared/name-guard';
 import { fill, fmt, locale, num } from '../shared/i18n';
 import { icon } from '../shared/icons';
@@ -610,44 +623,46 @@ export function addDevice(person: Person, o: DeviceOpts) {
     while (taken.some((t) => t.toLowerCase() === name.toLowerCase())) name = fitName(base, ` ${++n}`);
     return name;
   };
-  let kind: Kind = 'phone';
+  // Mobile from here is a phone: the admin is never on the device itself (see KindPick).
+  const kindOf = (p: KindPick): Kind => (p === 'mobile' ? 'phone' : p);
+  let pick: KindPick = 'mobile';
   const nameInput = E('input', {
     type: 'text',
     class: 'cbi-input-text',
-    placeholder: suggest(kind),
+    placeholder: suggest(kindOf(pick)),
   }) as HTMLInputElement;
   const said = nameGuard(nameInput, () => nameRow.refresh());
   const nameRow = liveField(_('Name'), nameInput, () =>
     said(
       nameInput.value.trim()
         ? deviceNameHelp(nameInput.value, taken, _('Shown in the portal and in the app.'))
-        : { text: fmt(_('Named after its type: %s.'), suggest(kind)), bad: false },
+        : { text: fmt(_('Named after its type: %s.'), suggest(kindOf(pick))), bad: false },
     ),
   );
   const kinds = E(
     'div',
     { class: 'dl-kinds', role: 'radiogroup', 'aria-label': _('Type') },
-    KINDS.map((k) =>
+    PICKS.map((k) =>
       E(
         'button',
         {
           type: 'button',
           role: 'radio',
-          class: k === kind ? 'on' : '',
-          'aria-checked': k === kind ? 'true' : 'false',
+          class: k === pick ? 'on' : '',
+          'aria-checked': k === pick ? 'true' : 'false',
           'data-kind': k,
           click: () => {
-            kind = k;
+            pick = k;
             kinds.querySelectorAll('button').forEach((c) => {
               const on = (c as HTMLElement).dataset.kind === k;
               c.classList.toggle('on', on);
               c.setAttribute('aria-checked', on ? 'true' : 'false');
             });
-            nameInput.placeholder = suggest(k);
+            nameInput.placeholder = suggest(kindOf(k));
             nameRow.refresh();
           },
         },
-        [icon(k), E('span', {}, kindLabel(k))],
+        [icon(k), E('span', {}, pickLabel(k))],
       ),
     ),
   );
@@ -704,8 +719,8 @@ export function addDevice(person: Person, o: DeviceOpts) {
             notify(h.text, 'warning');
             return;
           }
-          const name = nameInput.value.trim() || suggest(kind);
-          const r = await attempt(() => api.deviceCreate(person.id, name, kind, isOn(bypass)));
+          const name = nameInput.value.trim() || suggest(kindOf(pick));
+          const r = await attempt(() => api.deviceCreate(person.id, name, kindOf(pick), isOn(bypass)));
           if (!r) return;
           closeModal();
           notify(fmt(_('%s added'), name), 'success', 3000);
