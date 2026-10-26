@@ -4,7 +4,7 @@
   "installCommand": "npm ci",
   "buildCommand": "npm run build:demo",
   "outputDirectory": "dist/demo",
-  "ignoreCommand": "[ \"$VERCEL_GIT_COMMIT_REF\" != main ] || git diff --quiet HEAD^ HEAD -- .",
+  "ignoreCommand": "[ \"$VERCEL_GIT_COMMIT_REF\" != main ] || git diff --quiet \"$VERCEL_GIT_PREVIOUS_SHA\" HEAD -- .",
   "headers": [
     {
       "source": "/(.*)",

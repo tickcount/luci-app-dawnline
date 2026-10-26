@@ -77,4 +77,8 @@ reload_service() {
 
 service_triggers() {
 	procd_add_reload_trigger dawnline
+	# The portal's uhttpd reads its certificate once: an issued or renewed one needs a
+	# reload (procd restarts the portal alone, its cert file having changed).
+	procd_add_raw_trigger acme.issue 5000 /etc/init.d/dawnline reload
+	procd_add_raw_trigger acme.renew 5000 /etc/init.d/dawnline reload
 }
