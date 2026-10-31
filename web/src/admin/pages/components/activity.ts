@@ -65,7 +65,7 @@ export function activity(page: ComponentsPage): HTMLElement {
     E('div', { class: 'dl-panel-head pad' }, [
       E('h3', {}, _('Activity')),
       E('span', { class: 'dl-spacer' }),
-      E('a', { href: `${L.url('admin/network/dawnline/diagnostics')}?tab=log` }, _('All in Log →')),
+      E('a', { href: `${L.url('admin/services/dawnline/diagnostics')}?tab=log` }, _('All in Log →')),
     ]),
     h.length
       ? E('div', {}, h.slice(0, 8).map(row))

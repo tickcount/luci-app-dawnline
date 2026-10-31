@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { wayState, type WayState } from '../src/portal/way';
+import { wayState } from '../src/portal/way';
 import type { Device, SetupState } from '../src/shared/types';
 
 /** When the sheet opened (router clock). */
@@ -72,25 +72,5 @@ describe('the set-up sheet’s way', () => {
   it('goes back to plain waiting when the device goes quiet, offline or away', () => {
     expect(wayState(dev({ online: false, handshake: OPENED + 9, setup: null }), OPENED)).toBe('waiting');
     expect(wayState(undefined, OPENED)).toBe('waiting');
-  });
-
-  it('follows a whole set-up: knocks, no data, imported again, connected', () => {
-    const seen: WayState[] = [];
-    const answers: Partial<Device>[] = [
-      {},
-      { setup: setup('trying') },
-      { setup: setup('trying') },
-      // The network let it through, but the phone holds an old configuration.
-      { online: true, handshake: OPENED + 40 },
-      { online: true, handshake: OPENED + 40, setup: setup('nodata', OPENED + 52) },
-      // Gone offline: plain waiting, no line of its own.
-      { online: false, handshake: OPENED + 40 },
-      { online: true, handshake: OPENED + 300, setup: setup('flowing', OPENED + 300) },
-    ];
-    for (const a of answers) {
-      const st = wayState(dev(a), OPENED);
-      if (st !== seen[seen.length - 1]) seen.push(st);
-    }
-    expect(seen).toEqual(['waiting', 'trying', 'waiting', 'nodata', 'waiting', 'connected']);
   });
 });

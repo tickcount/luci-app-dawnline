@@ -48,7 +48,7 @@ export function fixAction(c: HealthCheck, run: (fix: string) => void, refresh: (
   // install:awg installs AmneziaWG itself (the build for this firmware), the rest come from the feeds.
   if (fix.startsWith('install:')) return button(_('Install'), () => installFeature(fix.slice(8) as keyof Needs, refresh), kind);
   if (fix === 'updates')
-    return E('a', { class: `cbi-button cbi-button-${kind}`, href: L.url('admin/network/dawnline/updates') }, fixLabel(fix));
+    return E('a', { class: `cbi-button cbi-button-${kind}`, href: L.url('admin/services/dawnline/updates') }, fixLabel(fix));
   return button(fixLabel(fix), () => run(fix), kind);
 }
 
@@ -89,7 +89,7 @@ export function healthNotices(checks: HealthCheck[], run: (fix: string) => void,
         ),
       ),
     rest > 0
-      ? E('a', { class: 'dl-row dl-notices-more', href: L.url('admin/network/dawnline/diagnostics') }, [
+      ? E('a', { class: 'dl-row dl-notices-more', href: L.url('admin/services/dawnline/diagnostics') }, [
           fmt(_('%s more in Diagnostics'), num(rest)),
           E('span', { class: 'dl-spacer' }),
           '→',

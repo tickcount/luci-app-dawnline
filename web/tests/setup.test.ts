@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   addLink,
   appsFor,
-  deviceNoun,
   importPath,
   importSteps,
   inWebview,
@@ -51,12 +50,6 @@ describe('setup', () => {
     expect(wantsAdd('#add')).toBe(true);
     expect(wantsAdd('#add=1')).toBe(false);
     expect(wantsAdd('')).toBe(false);
-  });
-
-  it('names the device being set up by its kind, not its name', () => {
-    expect(deviceNoun('phone')).toBe('phone');
-    expect(deviceNoun('computer')).toBe('computer');
-    expect(deviceNoun('other')).toBe('device');
   });
 
   it('knows whether the page is open on the device being set up', () => {

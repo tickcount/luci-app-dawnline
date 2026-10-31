@@ -34,7 +34,7 @@ interface Attention {
 function attention(st: Status): Attention[] {
   const out: Attention[] = [];
   const link = (href: string, t: string) => E('a', { href }, t);
-  const diagnostics = () => link(L.url('admin/network/dawnline/diagnostics'), _('Open Diagnostics'));
+  const diagnostics = () => link(L.url('admin/services/dawnline/diagnostics'), _('Open Diagnostics'));
   const today = todayOf(st.series);
   // AmneziaWG itself can't run: the health notice says so once, not "Tunnel down" for every server.
   const awg = !!st.awg_state && !st.awg_state.ok;
@@ -111,12 +111,12 @@ function attention(st: Status): Attention[] {
       text: [
         fmt(_('Internet through the LAN is off: %s'), st.like_home.error),
         ' ',
-        link(L.url('admin/network/dawnline/diagnostics'), _('Details')),
+        link(L.url('admin/services/dawnline/diagnostics'), _('Details')),
       ],
     });
   // Only while setting up: an admin who keeps the portal off has decided so.
   if (!st.settings.portal_enabled && !st.people.length)
-    out.push({ tone: '', text: [_('The personal portal is off.'), ' ', link(L.url('admin/network/dawnline/settings'), _('Turn on'))] });
+    out.push({ tone: '', text: [_('The personal portal is off.'), ' ', link(L.url('admin/services/dawnline/settings'), _('Turn on'))] });
   return out;
 }
 
@@ -221,7 +221,7 @@ export class ServerOverview {
         E(
           'div',
           { class: 'dl-map-off' },
-          fill(_('Locations are off. %s.'), E('a', { href: L.url('admin/network/dawnline/settings') }, _('Turn them on in Settings'))),
+          fill(_('Locations are off. %s.'), E('a', { href: L.url('admin/services/dawnline/settings') }, _('Turn them on in Settings'))),
         ),
       ]);
     const map = (this.map = new ConnectionMap(
@@ -268,7 +268,7 @@ export class ServerOverview {
         E('div', { class: 'dl-panel-head pad' }, [
           E('h3', {}, _('Needs attention')),
           E('span', { class: 'dl-spacer' }),
-          E('a', { href: L.url('admin/network/dawnline/diagnostics') }, _('Health')),
+          E('a', { href: L.url('admin/services/dawnline/diagnostics') }, _('Health')),
         ]),
         att.length
           ? att
@@ -292,7 +292,7 @@ export class ServerOverview {
         E('div', { class: 'dl-panel-head pad' }, [
           E('h3', {}, _('Activity')),
           E('span', { class: 'dl-spacer' }),
-          E('a', { href: `${L.url('admin/network/dawnline/diagnostics')}?tab=log` }, _('View all')),
+          E('a', { href: `${L.url('admin/services/dawnline/diagnostics')}?tab=log` }, _('View all')),
         ]),
         events.length
           ? events.map((e) => eventRow(st, e))
@@ -428,7 +428,7 @@ export class ServerOverview {
                   'a',
                   {
                     class: 'dl-onl-p sm more',
-                    href: `${L.url('admin/network/dawnline/server')}?server=${encodeURIComponent(this.srvId)}&section=people&filter=online`,
+                    href: `${L.url('admin/services/dawnline/server')}?server=${encodeURIComponent(this.srvId)}&section=people&filter=online`,
                     title: _('Everyone online'),
                     click: (ev: Event) => {
                       if (this.go) {

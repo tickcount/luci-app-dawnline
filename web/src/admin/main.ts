@@ -51,7 +51,7 @@ function moved(tab: '' | 'log') {
   return () => ({
     load: () => {
       ui.menu?.flushCache();
-      location.replace(`${L.url('admin/network/dawnline/diagnostics')}${tab ? `?tab=${tab}` : ''}`);
+      location.replace(`${L.url('admin/services/dawnline/diagnostics')}${tab ? `?tab=${tab}` : ''}`);
       return new Promise(() => {});
     },
     render: () => document.createElement('div'),

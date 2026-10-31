@@ -83,7 +83,7 @@ for (const [real, shown] of args.names)
   args.mask.push([real, shown], [real.toLowerCase(), shown.toLowerCase()], [real.toUpperCase(), shown.toUpperCase()]);
 const INITIALS = args.names.map(([real, shown]) => [initials(real), initials(shown)]);
 
-const LUCI = `${args.router}/cgi-bin/luci/admin/network/dawnline`;
+const LUCI = `${args.router}/cgi-bin/luci/admin/services/dawnline`;
 const USER = process.env.LUCI_USER || 'root';
 
 /*

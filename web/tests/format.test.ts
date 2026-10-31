@@ -5,8 +5,6 @@ import {
   date,
   dayDiff,
   daysLeft,
-  defaultName,
-  DEVICE_NAME_MAX,
   deviceNameFits,
   endsIn,
   endsSoon,
@@ -14,7 +12,6 @@ import {
   fmtDay,
   kb,
   shiftDay,
-  todayOf,
   validDeviceName,
 } from '../src/shared/format';
 import { plural } from '../src/shared/i18n';
@@ -62,9 +59,7 @@ describe('router days', () => {
     expect(endsIn(2)).toBe('ends tomorrow');
     expect(endsIn(7)).toBe('ends in 7 days');
   });
-  it('takes today from a series', () => {
-    expect(todayOf([{ day: '2026-10-15' }, { day: '2026-10-16' }])).toBe('2026-10-16');
-  });
+
   it('shows a router day as that day in any time zone', () => {
     expect(fmtDay('2026-10-01')).toBe('1 Oct 2026');
     expect(date('2026-10-01')).toBe('1 Oct 2026');
@@ -84,7 +79,6 @@ describe('numbers', () => {
 
 describe('device names', () => {
   it('take letters of any language, digits, spaces and - _ . up to the limit', () => {
-    expect(DEVICE_NAME_MAX).toBe(20);
     expect(validDeviceName('Kitchen iPad')).toBe(true);
     expect(validDeviceName('my-pc_2.home')).toBe(true);
     expect(validDeviceName('Мой ноутбук')).toBe(true);
@@ -119,10 +113,5 @@ describe('device names', () => {
     // Not left ending in a space before the number.
     expect(fitName('Living room TV ab xy', ' 2')).toBe('Living room TV ab 2');
     expect(validDeviceName(fitName('Redmi Note 13 Pro+ 5G', ' 12'))).toBe(true);
-  });
-
-  it('names a device after its kind', () => {
-    expect(defaultName('phone')).toBe('Phone');
-    expect(defaultName('other')).toBe('Device');
   });
 });

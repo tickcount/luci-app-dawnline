@@ -1443,7 +1443,7 @@ on_pipe() {
 lan_url() {
 	_ip="$(uci -q get network.lan.ipaddr 2>/dev/null | cut -d/ -f1 | awk '{ print $1 }')"
 	[ -n "$_ip" ] || _ip="192.168.1.1"
-	printf 'http://%s/cgi-bin/luci/admin/network/dawnline/server' "$_ip"
+	printf 'http://%s/cgi-bin/luci/admin/services/dawnline/server' "$_ip"
 }
 
 main() {
@@ -1513,9 +1513,9 @@ main() {
 	msg "Log: $LOG_FILE"
 	msg "Recovery snapshot: $SNAPSHOT_DIR"
 	if [ "$MODE" = install ]; then
-		msg "Open LuCI → Network → Dawnline and run the setup wizard:"
+		msg "Open LuCI → Services → Dawnline and run the setup wizard:"
 	else
-		msg "Open LuCI → Network → Dawnline:"
+		msg "Open LuCI → Services → Dawnline:"
 	fi
 	msg "  $(lan_url)"
 	awg_netifd_restart

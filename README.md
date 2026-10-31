@@ -64,7 +64,7 @@ follows a modern design.
    sh -c "$(wget -qO- https://raw.githubusercontent.com/tickcount/luci-app-dawnline/main/install.sh)"
    ```
 
-2. **Set up** in LuCI: <kbd>Network</kbd> › <kbd>Dawnline</kbd>, and follow the
+2. **Set up** in LuCI: <kbd>Services</kbd> › <kbd>Dawnline</kbd>, and follow the
    wizard. It suggests the port, the public address and the networks.
 3. **Invite** someone: <kbd>Add person</kbd>, then send them the link or the
    invite card with its QR code. They do the rest.

@@ -434,7 +434,7 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
           },
           _('Clear'),
         ),
-        E('a', { href: `${L.url('admin/network/dawnline/diagnostics')}?tab=log` }, _('All activity')),
+        E('a', { href: `${L.url('admin/services/dawnline/diagnostics')}?tab=log` }, _('All activity')),
       ]),
     ]),
     log,

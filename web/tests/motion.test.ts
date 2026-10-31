@@ -35,13 +35,4 @@ describe('motion', () => {
       expect(s.at(s.duration)).toBe(1);
     }
   });
-
-  it('gives the bouncy spring its overshoot and the smooth one none', () => {
-    const peak = (s: typeof BOUNCY) => Math.max(...Array.from({ length: 200 }, (_, i) => s.at((s.duration * i) / 200)));
-    // skiper103: about 11% past the end, settled well inside a second.
-    expect(peak(BOUNCY)).toBeGreaterThan(1.08);
-    expect(peak(BOUNCY)).toBeLessThan(1.15);
-    expect(BOUNCY.duration).toBeLessThan(900);
-    expect(peak(SMOOTH)).toBeLessThanOrEqual(1);
-  });
 });

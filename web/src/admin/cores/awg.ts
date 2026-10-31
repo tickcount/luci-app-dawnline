@@ -448,7 +448,7 @@ function overviewTile(srv: Server): HTMLElement {
   return E('div', { class: 'dl-bento-tile dl-disg' }, [
     E('div', { class: 'dl-bento-head' }, [
       E('span', { class: 'dl-metric-label' }, _('Disguise')),
-      E('a', { href: `${L.url('admin/network/dawnline/server')}?server=${encodeURIComponent(srv.id)}&section=awg` }, _('Change')),
+      E('a', { href: `${L.url('admin/services/dawnline/server')}?server=${encodeURIComponent(srv.id)}&section=awg` }, _('Change')),
     ]),
     E('div', { class: 'dl-disg-id' }, [
       E('span', { class: `dl-disg-ic${m?.id === 'off' ? ' off' : ''}` }, icon(m?.ic ?? 'shield')),

@@ -65,7 +65,7 @@ Dawnline запускает сервер [AmneziaWG] на вашем роуте�
    sh -c "$(wget -qO- https://raw.githubusercontent.com/tickcount/luci-app-dawnline/main/install.sh)"
    ```
 
-2. **Настройте** в LuCI: <kbd>Network</kbd> › <kbd>Dawnline</kbd>, дальше по
+2. **Настройте** в LuCI: <kbd>Services</kbd> › <kbd>Dawnline</kbd>, дальше по
    мастеру. Он предложит порт, публичный адрес и сети.
 3. **Пригласите** человека: <kbd>Добавить человека</kbd>, затем отправьте ему
    ссылку или карточку приглашения с QR-кодом. Остальное он сделает сам.

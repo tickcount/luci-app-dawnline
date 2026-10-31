@@ -34,7 +34,7 @@ function mapCard(page: PersonPage): HTMLElement {
       E(
         'div',
         { class: 'dl-map-off' },
-        fill(_('Locations are off. %s.'), E('a', { href: L.url('admin/network/dawnline/settings') }, _('Turn them on in Settings'))),
+        fill(_('Locations are off. %s.'), E('a', { href: L.url('admin/services/dawnline/settings') }, _('Turn them on in Settings'))),
       ),
     ]);
   const map = new ConnectionMap(
@@ -64,7 +64,7 @@ export function placesPart(page: PersonPage): HTMLElement | null {
         E('span', { class: 'dl-sub' }, _('City-level, from the client IP')),
       ]),
       E('span', { class: 'dl-spacer' }),
-      E('a', { class: 'cbi-button cbi-button-neutral', href: L.url('admin/network/dawnline/settings') }, _('Turn on')),
+      E('a', { class: 'cbi-button cbi-button-neutral', href: L.url('admin/services/dawnline/settings') }, _('Turn on')),
     ]);
   if (page.mapOpen) return page.map && page.parts.places.contains(page.map.el) ? null : mapCard(page);
   const since = st.now - 30 * 86400;
@@ -108,10 +108,10 @@ export function activityPart(page: PersonPage): HTMLElement {
     const e = latest[i];
     let n = 1;
     while (e.type === 'roam' && latest[i + n]?.type === 'roam' && latest[i + n].device === e.device) n++;
-    const row = eventRow(st, e, { server: false });
+    const row = eventRow(st, e, { server: false, person: p.id });
     if (n > 1) {
       const main = row.querySelector('.dl-row-main') as HTMLElement;
-      dom.content(main, [...eventText(st, e).slice(0, 3), E('span', { class: 'dl-muted' }, plural(n, '%s time', '%s times'))]);
+      dom.content(main, [...eventText(st, e, p.id).slice(0, 3), E('span', { class: 'dl-muted' }, plural(n, '%s time', '%s times'))]);
       main.title = latest
         .slice(i, i + n)
         .map((x) => x.detail ?? '')

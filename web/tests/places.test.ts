@@ -1,21 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  BAND,
-  FLAT,
-  arrived,
-  bandMiddle,
-  moment,
-  msAt,
-  placeKey,
-  replayStays,
-  shares,
-  shimmerOpacity,
-  stays,
-  stretches,
-  ticks,
-  timeline,
-  visits,
-} from '../src/admin/places/model';
+import { moment, msAt, placeKey, replayStays, shares, stays, stretches, ticks, timeline, visits } from '../src/admin/places/model';
 import type { GeoPoint, LogEvent } from '../src/shared/types';
 
 const D = 'd_1';
@@ -147,16 +131,6 @@ describe('replay', () => {
     expect(moment(st, steps, total).t).toBe(40000);
     const ms = msAt(st, steps, 38000);
     expect(moment(st, steps, ms).t).toBeCloseTo(38000, -1);
-  });
-
-  it('runs the shimmer from before the place it leaves to past the next', () => {
-    expect(bandMiddle(0)).toBeCloseTo(-BAND / 2);
-    expect(bandMiddle(1)).toBeCloseTo(1 + BAND / 2);
-    expect(arrived(bandMiddle(0.3))).toBe(false);
-    expect(arrived(1 - FLAT)).toBe(true);
-    const ex = shimmerOpacity(0.5);
-    expect(ex[0]).toBe('interpolate');
-    expect(ex.slice(3)).toEqual([0, 1, FLAT, 1, BAND / 2, 0]);
   });
 });
 

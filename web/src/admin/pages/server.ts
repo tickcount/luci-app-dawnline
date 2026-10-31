@@ -48,7 +48,7 @@ const url = (server?: string, section?: string) => {
   if (server) q.set('server', server);
   if (section && section !== 'overview') q.set('section', section);
   const s = q.toString();
-  return `${L.url('admin/network/dawnline/server')}${s ? `?${s}` : ''}`;
+  return `${L.url('admin/services/dawnline/server')}${s ? `?${s}` : ''}`;
 };
 
 export class ServerPage {
@@ -846,7 +846,7 @@ export class ServerPage {
               'warn',
               _('AmneziaWG’s kernel module doesn’t load on this firmware'),
               _('Try another build in Components, or update OpenWrt. The server can’t start until it loads.'),
-              E('a', { class: 'cbi-button cbi-button-neutral', href: L.url('admin/network/dawnline/updates') }, _('Open Components')),
+              E('a', { class: 'cbi-button cbi-button-neutral', href: L.url('admin/services/dawnline/updates') }, _('Open Components')),
             ),
           ])
         : '';

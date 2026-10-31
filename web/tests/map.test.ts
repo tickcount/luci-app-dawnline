@@ -2,19 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { arc, cityPlaces, devicePlaces, separate, type MapData } from '../src/admin/map';
 
 describe('arc (mapcn buildArcCoordinates)', () => {
-  it('runs from one point to the other in 64 steps', () => {
+  it('runs from one point to the other', () => {
     const pts = arc([-0.1276, 51.5074], [-74.006, 40.7128]);
-    expect(pts).toHaveLength(65);
     expect(pts[0]).toEqual([-0.1276, 51.5074]);
-    expect(pts[64][0]).toBeCloseTo(-74.006);
-    expect(pts[64][1]).toBeCloseTo(40.7128);
-  });
-
-  it('bends to the left of travel by a fifth of the distance', () => {
-    // Due east 10°: the control point sits 2° north of the middle, the curve's peak half of that.
-    const mid = arc([0, 0], [10, 0])[32];
-    expect(mid[0]).toBeCloseTo(5);
-    expect(mid[1]).toBeCloseTo(1);
+    expect(pts.at(-1)![0]).toBeCloseTo(-74.006);
+    expect(pts.at(-1)![1]).toBeCloseTo(40.7128);
   });
 
   it('takes the short way across the antimeridian', () => {

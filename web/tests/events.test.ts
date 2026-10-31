@@ -56,6 +56,33 @@ describe('events', () => {
     expect(isProblem({ ts: 1, sys: { ts: 1, src: 'awg', level: 'down', msg: '' } })).toBe(true);
     expect(isProblem({ ts: 1, ev: ev({ type: 'connect' }) })).toBe(false);
   });
+  it('renders portal and unattributed renames, including saved names of removed devices', () => {
+    for (const by of ['portal', undefined] as const) {
+      const event = ev({ type: 'device_changed', by, person: 'p1', device: 'd1', detail: 'renamed from Мяточька ПК' });
+      expect(text(eventText({ people }, event))).toBe(
+        by === 'portal'
+          ? 'Person Myata renamed device Phone on their portal · was Мяточька ПК'
+          : 'Device Myata · Phone renamed · was Мяточька ПК',
+      );
+      expect(text(eventText({ people: [] }, { ...event, pname: 'Myata', dname: 'Phone' }))).toBe(text(eventText({ people }, event)));
+    }
+  });
+  it('omits the person only in their own activity and preserves the actor', () => {
+    const st = { people };
+    const rename = ev({ type: 'device_changed', by: 'portal', person: 'p1', device: 'd1', detail: 'renamed from Old' });
+    expect(text(eventText(st, rename, 'p1'))).toBe('Device Phone renamed on the portal · was Old');
+    expect(text(eventText(st, { ...rename, by: 'admin' }, 'p1'))).toBe('You renamed device Phone · was Old');
+    expect(text(eventText(st, rename, 'another-person'))).toBe(text(eventText(st, rename)));
+    expect(text(eventText(st, ev({ type: 'disconnect', person: 'p1', device: 'd1' }), 'p1'))).toBe('Device Phone went offline');
+    expect(text(eventText(st, ev({ person: 'p1', device: 'd1', detail: '1.2.3.4' }), 'p1'))).toBe('Device Phone connected from 1.2.3.4');
+    expect(text(eventText(st, ev({ type: 'roam', person: 'p1', device: 'd1', detail: '1 → 2' }), 'p1').slice(0, 3))).toBe(
+      'Device Phone changed network ',
+    );
+    expect(text(eventText(st, ev({ type: 'expiring', person: 'p1', detail: '3 days' }), 'p1'))).toBe('Access ends in 3 days');
+    expect(text(eventText(st, ev({ type: 'device_added', by: 'portal', person: 'p1', detail: 'Tablet' }), 'p1'))).toBe(
+      'Device Tablet added on the portal',
+    );
+  });
   it('says what happened', () => {
     const st = { people };
     expect(text(eventText(st, ev({ person: 'p1', device: 'd1', detail: '1.2.3.4', where: 'Berlin' })))).toBe(

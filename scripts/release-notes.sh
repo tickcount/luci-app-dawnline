@@ -63,7 +63,7 @@ Install or upgrade on the router (OpenWrt 24.10 with opkg, or 25.12 with apk):
 sh -c "\$(wget -qO- https://raw.githubusercontent.com/$REPO/main/install.sh)"
 \`\`\`
 
-Or update from LuCI → Network → Dawnline → Components.
+Or update from LuCI → Services → Dawnline → Components.
 EOF
 if [ -n "$PREV" ]; then
 	printf '\n**Full Changelog**: https://github.com/%s/compare/%s...%s\n' "$REPO" "$PREV" "$TAG"

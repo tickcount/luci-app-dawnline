@@ -160,7 +160,7 @@ export class ComponentsPage {
         E('div', { class: 'dl-row-actions' }, [
           E(
             'a',
-            { class: 'cbi-button cbi-button-neutral dl-icon-btn', href: `${L.url('admin/network/dawnline/settings')}?section=updates` },
+            { class: 'cbi-button cbi-button-neutral dl-icon-btn', href: `${L.url('admin/services/dawnline/settings')}?section=updates` },
             [icon('edit'), ' ', _('Settings')],
           ),
           button([icon('refresh'), ' ', _('Check all')], () => this.op('check', _('Checking all components')), 'neutral', {

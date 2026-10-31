@@ -281,7 +281,7 @@ export class PeoplePage {
             { class: 'alert-message warning' },
             fill(
               _('No server yet. %s before adding people.'),
-              E('a', { href: L.url('admin/network/dawnline/server') }, _('Run the setup wizard')),
+              E('a', { href: L.url('admin/services/dawnline/server') }, _('Run the setup wizard')),
             ),
           ),
       E('div', { class: 'dl-toolbar' }, [
@@ -847,7 +847,7 @@ export class PeoplePage {
         ' ',
         E(
           'a',
-          { class: 'cbi-button cbi-button-neutral', href: `${L.url('admin/network/dawnline/settings')}?section=portal` },
+          { class: 'cbi-button cbi-button-neutral', href: `${L.url('admin/services/dawnline/settings')}?section=portal` },
           _('Open Settings'),
         ),
         ' ',

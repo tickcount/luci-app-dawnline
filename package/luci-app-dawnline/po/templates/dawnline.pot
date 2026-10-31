@@ -1187,11 +1187,21 @@ msgstr ""
 msgid "Access ends %s"
 msgstr ""
 
+#: web/src/admin/events/render.ts
+msgid "Access ends in %s day"
+msgid_plural "Access ends in %s days"
+msgstr[0] ""
+msgstr[1] ""
+
 #: web/src/admin/netcheck.ts
 msgid "Access ends in %s day (%s)."
 msgid_plural "Access ends in %s days (%s)."
 msgstr[0] ""
 msgstr[1] ""
+
+#: web/src/admin/events/render.ts
+msgid "Access ends in a few days"
+msgstr ""
 
 #: web/src/admin/netcheck.ts
 msgid "Access ends today (%s)."
@@ -1199,6 +1209,22 @@ msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
 msgid "Access must be lan, internet or both."
+msgstr ""
+
+#: web/src/admin/events/render.ts
+msgid "Access paused"
+msgstr ""
+
+#: web/src/admin/events/render.ts
+msgid "Access paused - %s"
+msgstr ""
+
+#: web/src/admin/events/render.ts
+msgid "Access resumed"
+msgstr ""
+
+#: web/src/admin/events/render.ts
+msgid "Access resumed - %s"
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/libexec/dawnline/agent
@@ -1385,6 +1411,10 @@ msgstr ""
 
 #: web/src/admin/updater/operation.ts
 msgid "All components"
+msgstr ""
+
+#: web/src/admin/events/render.ts
+msgid "All devices removed, end date reached"
 msgstr ""
 
 #: web/src/admin/pages/overview.ts
@@ -2524,6 +2554,18 @@ msgid "Device"
 msgstr ""
 
 #: web/src/admin/events/render.ts
+msgid "Device %s added"
+msgstr ""
+
+#: web/src/admin/events/render.ts
+msgid "Device %s added on the portal"
+msgstr ""
+
+#: web/src/admin/events/render.ts
+msgid "Device %s changed"
+msgstr ""
+
+#: web/src/admin/events/render.ts
 msgid "Device %s changed network %s"
 msgstr ""
 
@@ -2585,6 +2627,30 @@ msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
 msgid "Device %s of %s: the public key is the server's own."
+msgstr ""
+
+#: web/src/admin/events/render.ts
+msgid "Device %s removed"
+msgstr ""
+
+#: web/src/admin/events/render.ts
+msgid "Device %s removed on the portal"
+msgstr ""
+
+#: web/src/admin/events/render.ts
+msgid "Device %s renamed"
+msgstr ""
+
+#: web/src/admin/events/render.ts
+msgid "Device %s renamed on the portal"
+msgstr ""
+
+#: web/src/admin/events/render.ts
+msgid "Device %s turned off"
+msgstr ""
+
+#: web/src/admin/events/render.ts
+msgid "Device %s turned on"
 msgstr ""
 
 #: web/src/admin/events/render.ts
@@ -2877,6 +2943,10 @@ msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
 msgid "End date must be YYYY-MM-DD."
+msgstr ""
+
+#: web/src/admin/events/render.ts
+msgid "End date passed (%s) · access kept"
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/health.uc
@@ -4226,6 +4296,10 @@ msgstr ""
 msgid "New keys generated"
 msgstr ""
 
+#: web/src/admin/events/render.ts
+msgid "New keys issued for device %s on the portal"
+msgstr ""
+
 #: web/src/admin/pages/person/header.ts
 msgid "New link"
 msgstr ""
@@ -5015,6 +5089,10 @@ msgstr ""
 
 #: web/src/admin/events/render.ts
 msgid "Person %s removed device %s on their portal"
+msgstr ""
+
+#: web/src/admin/events/render.ts
+msgid "Person %s renamed device %s on their portal"
 msgstr ""
 
 #: web/src/admin/events/render.ts
@@ -7271,6 +7349,10 @@ msgid "You added circle %s"
 msgstr ""
 
 #: web/src/admin/events/render.ts
+msgid "You added device %s"
+msgstr ""
+
+#: web/src/admin/events/render.ts
 msgid "You added device %s for %s"
 msgstr ""
 
@@ -7278,8 +7360,16 @@ msgstr ""
 msgid "You added person %s"
 msgstr ""
 
+#: web/src/admin/events/render.ts
+msgid "You added this person"
+msgstr ""
+
 #: web/src/admin/events/model.ts
 msgid "You changed circle %s"
+msgstr ""
+
+#: web/src/admin/events/render.ts
+msgid "You changed device %s"
 msgstr ""
 
 #: web/src/admin/events/render.ts
@@ -7292,6 +7382,10 @@ msgstr ""
 
 #: web/src/admin/events/model.ts
 msgid "You changed server %s"
+msgstr ""
+
+#: web/src/admin/events/render.ts
+msgid "You changed settings"
 msgstr ""
 
 #: web/src/admin/events/model.ts
@@ -7323,7 +7417,19 @@ msgid "You issued a new link for person %s"
 msgstr ""
 
 #: web/src/admin/events/render.ts
+msgid "You issued a new personal link"
+msgstr ""
+
+#: web/src/admin/events/render.ts
+msgid "You issued new keys for device %s"
+msgstr ""
+
+#: web/src/admin/events/render.ts
 msgid "You issued new keys for device %s of %s"
+msgstr ""
+
+#: web/src/admin/events/render.ts
+msgid "You paused access"
 msgstr ""
 
 #: web/src/admin/events/render.ts
@@ -7332,6 +7438,10 @@ msgstr ""
 
 #: web/src/admin/events/model.ts
 msgid "You removed circle %s"
+msgstr ""
+
+#: web/src/admin/events/render.ts
+msgid "You removed device %s"
 msgstr ""
 
 #: web/src/admin/events/render.ts
@@ -7344,6 +7454,14 @@ msgstr ""
 
 #: web/src/admin/events/model.ts
 msgid "You removed server %s"
+msgstr ""
+
+#: web/src/admin/events/render.ts
+msgid "You removed this person"
+msgstr ""
+
+#: web/src/admin/events/render.ts
+msgid "You renamed device %s"
 msgstr ""
 
 #: web/src/admin/events/render.ts
@@ -7367,7 +7485,15 @@ msgid "You restored backup %s"
 msgstr ""
 
 #: web/src/admin/events/render.ts
+msgid "You resumed access"
+msgstr ""
+
+#: web/src/admin/events/render.ts
 msgid "You resumed person %s"
+msgstr ""
+
+#: web/src/admin/events/render.ts
+msgid "You turned off device %s"
 msgstr ""
 
 #: web/src/admin/events/render.ts
@@ -7384,6 +7510,10 @@ msgstr ""
 
 #: web/src/admin/events/model.ts
 msgid "You turned off the watchdog"
+msgstr ""
+
+#: web/src/admin/events/render.ts
+msgid "You turned on device %s"
 msgstr ""
 
 #: web/src/admin/events/render.ts

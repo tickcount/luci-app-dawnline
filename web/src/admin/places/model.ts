@@ -134,9 +134,9 @@ export const MOVE_MS = 1600;
 /** The shimmer sets off once the place it leaves has started to go gray (a share of the move). */
 const LEAVE = 0.12;
 /** The shimmer's length, a share of the arc: longer than the arc, so most of it is lit mid-move. */
-export const BAND = 1.3;
+const BAND = 1.3;
 /** ± this around the shimmer's middle is fully lit; it fades out to ±BAND/2. */
-export const FLAT = 0.32;
+const FLAT = 0.32;
 
 /** A move into stay `k` (from stay k − 1), or stay `k` itself, `ms` long from `start`. */
 export interface Step {

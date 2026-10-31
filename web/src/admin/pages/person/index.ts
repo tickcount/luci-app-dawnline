@@ -1,4 +1,4 @@
-// Person page (admin/network/dawnline/person?id=…): devices as cards,
+// Person page (admin/services/dawnline/person?id=…): devices as cards,
 // locations, activity, and access & limits that apply immediately.
 // The parts live in ./header, ./devices, ./limits, ./pickers, ./activity and
 // ./dialogs; this class holds the state, the poller and the edits.
@@ -66,7 +66,7 @@ export class PersonPage {
       return E('div', { class: 'dl-empty' }, [
         E('h3', {}, _('Person not found')),
         E('p', {}, _('They may have been removed.')),
-        E('a', { class: 'cbi-button', href: L.url('admin/network/dawnline/server') }, _('Back to Servers')),
+        E('a', { class: 'cbi-button', href: L.url('admin/services/dawnline/server') }, _('Back to Servers')),
       ]);
     this.p = p;
     for (const k of ['crumbs', 'head', 'devices', 'traffic', 'places', 'activity', 'limits'] as Part[]) this.parts[k] = E('div', {});

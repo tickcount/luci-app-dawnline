@@ -69,7 +69,8 @@ function eventIcon(st: Names, e: LogEvent): string {
 /** A router day (YYYY-MM-DD) in the page's language; anything else as it came. */
 const routerDay = (s: string) => (/^\d{4}-\d{2}-\d{2}$/.test(s) ? fmtDay(s) : s);
 
-export function eventText(st: Pick<Status, 'people'>, e: LogEvent): Node[] {
+export function eventText(st: Pick<Status, 'people'>, e: LogEvent, personId?: string): Node[] {
+  const scoped = personId !== undefined && e.person === personId;
   const person = st.people.find((p) => p.id === e.person);
   const who = person?.name ?? e.pname ?? e.person ?? '';
   const dev = person?.devices.find((d) => d.id === e.device)?.name ?? e.dname ?? '';
@@ -88,33 +89,49 @@ export function eventText(st: Pick<Status, 'people'>, e: LogEvent): Node[] {
     const w = _('You');
     return s.startsWith(`${w} `) ? [E('span', { class: 'dl-you' }, w), ...say(s.slice(w.length), ...args)] : say(s, ...args);
   };
-  const wd = b(dev ? `${who} · ${dev}` : who);
+  const wd = b(scoped ? dev || _('a device') : dev ? `${who} · ${dev}` : who);
   const detail = plainDetail(e);
   const devName = b(detail || dev || _('a device'));
   const by = eventBy(e);
   if (by === 'admin')
     switch (e.type) {
       case 'device_added':
-        return you(_('You added device %s for %s'), devName, b(who));
+        return scoped ? you(_('You added device %s'), devName) : you(_('You added device %s for %s'), devName, b(who));
       case 'device_removed':
-        return you(_('You removed device %s from %s'), devName, b(who));
+        return scoped ? you(_('You removed device %s'), devName) : you(_('You removed device %s from %s'), devName, b(who));
       case 'paused':
-        return you(_('You paused person %s'), b(who));
+        return scoped ? you(_('You paused access')) : you(_('You paused person %s'), b(who));
       case 'resumed':
-        return you(_('You resumed person %s'), b(who));
+        return scoped ? you(_('You resumed access')) : you(_('You resumed person %s'), b(who));
       case 'device_changed': {
         const d = b(dev || _('a device'));
         if (detail.startsWith('renamed from '))
-          return [...you(_('You renamed device %s of %s'), d, b(who)), m(` · ${fmt(_('was %s'), detail.slice(13))}`)];
-        if (detail === 'turned off') return you(_('You turned off device %s of %s'), d, b(who));
-        if (detail === 'turned on') return you(_('You turned on device %s of %s'), d, b(who));
+          return [
+            ...(scoped ? you(_('You renamed device %s'), d) : you(_('You renamed device %s of %s'), d, b(who))),
+            m(` · ${fmt(_('was %s'), detail.slice(13))}`),
+          ];
+        if (detail === 'turned off')
+          return scoped ? you(_('You turned off device %s'), d) : you(_('You turned off device %s of %s'), d, b(who));
+        if (detail === 'turned on')
+          return scoped ? you(_('You turned on device %s'), d) : you(_('You turned on device %s of %s'), d, b(who));
         // Its own link options by name ("mtu, keepalive"), as person_changed lists a person's.
-        return [...you(_('You changed device %s of %s'), d, b(who)), ...(detail ? [m(` · ${deviceChangedText(detail)}`)] : [])];
+        return [
+          ...(scoped ? you(_('You changed device %s'), d) : you(_('You changed device %s of %s'), d, b(who))),
+          ...(detail ? [m(` · ${deviceChangedText(detail)}`)] : []),
+        ];
       }
       case 'device_keys':
-        return [...you(_('You issued new keys for device %s of %s'), devName, b(who)), m(` · ${_('it needs its new configuration')}`)];
+        return [
+          ...(scoped
+            ? you(_('You issued new keys for device %s'), devName)
+            : you(_('You issued new keys for device %s of %s'), devName, b(who))),
+          m(` · ${_('it needs its new configuration')}`),
+        ];
       case 'link_changed':
-        return [...you(_('You issued a new link for person %s'), b(who)), m(` · ${_('the old link stopped working')}`)];
+        return [
+          ...(scoped ? you(_('You issued a new personal link')) : you(_('You issued a new link for person %s'), b(who))),
+          m(` · ${_('the old link stopped working')}`),
+        ];
     }
   switch (e.type) {
     case 'connect':
@@ -136,35 +153,77 @@ export function eventText(st: Pick<Status, 'people'>, e: LogEvent): Node[] {
       );
     case 'device_added':
       return by === 'portal'
-        ? say(_('Person %s added device %s on their portal'), b(who), devName)
-        : say(_('Person %s added device %s'), b(who), devName);
+        ? scoped
+          ? say(_('Device %s added on the portal'), devName)
+          : say(_('Person %s added device %s on their portal'), b(who), devName)
+        : scoped
+          ? say(_('Device %s added'), devName)
+          : say(_('Person %s added device %s'), b(who), devName);
     case 'device_removed':
       return by === 'portal'
-        ? say(_('Person %s removed device %s on their portal'), b(who), devName)
-        : say(_('Person %s removed device %s'), b(who), devName);
+        ? scoped
+          ? say(_('Device %s removed on the portal'), devName)
+          : say(_('Person %s removed device %s on their portal'), b(who), devName)
+        : scoped
+          ? say(_('Device %s removed'), devName)
+          : say(_('Person %s removed device %s'), b(who), devName);
+    case 'device_changed':
+      if (detail.startsWith('renamed from '))
+        return [
+          ...(by === 'portal'
+            ? scoped
+              ? say(_('Device %s renamed on the portal'), b(dev || _('a device')))
+              : say(_('Person %s renamed device %s on their portal'), b(who), b(dev || _('a device')))
+            : say(_('Device %s renamed'), wd)),
+          m(` · ${fmt(_('was %s'), detail.slice(13))}`),
+        ];
+      if (detail === 'turned off') return say(_('Device %s turned off'), wd);
+      if (detail === 'turned on') return say(_('Device %s turned on'), wd);
+      return [...say(_('Device %s changed'), wd), ...(detail ? [m(` · ${deviceChangedText(detail)}`)] : [])];
     case 'device_keys':
-      return say(_('Person %s issued new keys for device %s on their portal'), b(who), devName);
+      return scoped
+        ? say(_('New keys issued for device %s on the portal'), devName)
+        : say(_('Person %s issued new keys for device %s on their portal'), b(who), devName);
     case 'person_added':
-      return you(_('You added person %s'), b(e.detail ?? who));
+      return scoped ? you(_('You added this person')) : you(_('You added person %s'), b(e.detail ?? who));
     case 'person_removed':
-      return you(_('You removed person %s'), b(e.detail ?? who));
+      return scoped ? you(_('You removed this person')) : you(_('You removed person %s'), b(e.detail ?? who));
     case 'person_changed':
       // The detail lists changed fields by their option names (device_limit, expire_action).
-      return [...you(_('You changed person %s'), b(who)), ...(detail ? [m(` · ${changedText(detail)}`)] : [])];
+      return [
+        ...(scoped ? you(_('You changed settings')) : you(_('You changed person %s'), b(who))),
+        ...(detail ? [m(` · ${changedText(detail)}`)] : []),
+      ];
     case 'expiring': {
       const n = daysOf(e.detail ?? '');
       return n != null
-        ? say(N_(n, 'Person %s’s access ends in %s day', 'Person %s’s access ends in %s days'), b(who), m(num(n)))
-        : say(_('Person %s’s access ends in a few days'), b(who));
+        ? scoped
+          ? say(N_(n, 'Access ends in %s day', 'Access ends in %s days'), m(num(n)))
+          : say(N_(n, 'Person %s’s access ends in %s day', 'Person %s’s access ends in %s days'), b(who), m(num(n)))
+        : scoped
+          ? say(_('Access ends in a few days'))
+          : say(_('Person %s’s access ends in a few days'), b(who));
     }
     case 'expired_kept':
-      return say(_('Person %s’s end date passed (%s) · access kept'), b(who), m(routerDay(e.detail ?? '')));
+      return scoped
+        ? say(_('End date passed (%s) · access kept'), m(routerDay(e.detail ?? '')))
+        : say(_('Person %s’s end date passed (%s) · access kept'), b(who), m(routerDay(e.detail ?? '')));
     case 'paused':
-      return e.detail ? say(_('Person %s paused - %s'), b(who), m(reasonText(e.detail))) : say(_('Person %s paused'), b(who));
+      return e.detail
+        ? scoped
+          ? say(_('Access paused - %s'), m(reasonText(e.detail)))
+          : say(_('Person %s paused - %s'), b(who), m(reasonText(e.detail)))
+        : scoped
+          ? say(_('Access paused'))
+          : say(_('Person %s paused'), b(who));
     case 'resumed':
       return e.detail && e.detail !== 'active'
-        ? say(_('Person %s resumed - %s'), b(who), m(reasonText(e.detail)))
-        : say(_('Person %s resumed'), b(who));
+        ? scoped
+          ? say(_('Access resumed - %s'), m(reasonText(e.detail)))
+          : say(_('Person %s resumed - %s'), b(who), m(reasonText(e.detail)))
+        : scoped
+          ? say(_('Access resumed'))
+          : say(_('Person %s resumed'), b(who));
     case 'portal_blocked':
       return say(
         _('%s blocked %s for 15 min after too many wrong codes'),
@@ -172,7 +231,7 @@ export function eventText(st: Pick<Status, 'people'>, e: LogEvent): Node[] {
         e.detail === 'all Cloudflare visitors' ? m(_('all Cloudflare visitors')) : mono(e.detail ?? ''),
       );
     case 'devices_removed':
-      return say(_('Person %s - all devices removed, end date reached'), b(who));
+      return scoped ? say(_('All devices removed, end date reached')) : say(_('Person %s - all devices removed, end date reached'), b(who));
     case 'device_failing':
       return [...say(_('Device %s has a connection problem'), wd), ...(e.detail ? [m(` · ${linkStatesText(e.detail)}`)] : [])];
     case 'device_recovered':
@@ -196,7 +255,11 @@ function serverPill(st: Names, e: LogEvent): HTMLElement | '' {
 }
 
 /** An activity event as a row; `time` replaces the "5 min ago" (`now` is the router's clock). */
-export function eventRow(st: Names & { now?: number }, e: LogEvent, opts: { server?: boolean; time?: string } = {}): HTMLElement {
+export function eventRow(
+  st: Names & { now?: number },
+  e: LogEvent,
+  opts: { server?: boolean; time?: string; person?: string } = {},
+): HTMLElement {
   const sys = SYSTEM_EVENT[e.type];
   const by = eventBy(e);
   return E('div', { class: `dl-row${by === 'admin' ? ' dl-ev-by-admin' : sys ? ` dl-ev-by-system ${sys[1]}` : ''}` }, [
@@ -205,7 +268,7 @@ export function eventRow(st: Names & { now?: number }, e: LogEvent, opts: { serv
       : sys
         ? E('span', { class: 'dl-ev-tile sys' }, icon(sys[0]))
         : E('span', { class: `dl-ev-tile ev ${EVENT_TONE[e.type] ?? ''}` }, icon(eventIcon(st, e))),
-    E('span', { class: 'dl-row-main' }, eventText(st, e)),
+    E('span', { class: 'dl-row-main' }, eventText(st, e, opts.person)),
     opts.server === false ? '' : serverPill(st, e),
     E('span', { class: 'dl-faint dl-nowrap', title: new Date(e.ts * 1000).toLocaleString(locale()) }, opts.time ?? ago(e.ts, st.now)),
   ]);

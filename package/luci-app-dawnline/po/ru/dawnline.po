@@ -1239,12 +1239,23 @@ msgstr "Срок доступа"
 msgid "Access ends %s"
 msgstr "Окончание доступа: %s"
 
+#: web/src/admin/events/render.ts
+msgid "Access ends in %s day"
+msgid_plural "Access ends in %s days"
+msgstr[0] "Доступ закончится через %s день"
+msgstr[1] "Доступ закончится через %s дня"
+msgstr[2] "Доступ закончится через %s дней"
+
 #: web/src/admin/netcheck.ts
 msgid "Access ends in %s day (%s)."
 msgid_plural "Access ends in %s days (%s)."
 msgstr[0] "Доступ закончится через %s день (%s)."
 msgstr[1] "Доступ закончится через %s дня (%s)."
 msgstr[2] "Доступ закончится через %s дней (%s)."
+
+#: web/src/admin/events/render.ts
+msgid "Access ends in a few days"
+msgstr "Доступ закончится через несколько дней"
 
 #: web/src/admin/netcheck.ts
 msgid "Access ends today (%s)."
@@ -1253,6 +1264,22 @@ msgstr "Доступ закончится сегодня (%s)."
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
 msgid "Access must be lan, internet or both."
 msgstr "Доступ должен быть lan, internet или both."
+
+#: web/src/admin/events/render.ts
+msgid "Access paused"
+msgstr "Доступ на паузе"
+
+#: web/src/admin/events/render.ts
+msgid "Access paused - %s"
+msgstr "Доступ на паузе: %s"
+
+#: web/src/admin/events/render.ts
+msgid "Access resumed"
+msgstr "Доступ возобновлён"
+
+#: web/src/admin/events/render.ts
+msgid "Access resumed - %s"
+msgstr "Доступ возобновлён: %s"
 
 #: package/luci-app-dawnline/root/usr/libexec/dawnline/agent
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/apply.uc
@@ -1440,6 +1467,10 @@ msgstr "Все проверки пройдены."
 #: web/src/admin/updater/operation.ts
 msgid "All components"
 msgstr "Все компоненты"
+
+#: web/src/admin/events/render.ts
+msgid "All devices removed, end date reached"
+msgstr "Все устройства удалены: срок доступа закончился"
 
 #: web/src/admin/pages/overview.ts
 msgid "All good. Nothing needs you right now."
@@ -2580,6 +2611,18 @@ msgid "Device"
 msgstr "Устройство"
 
 #: web/src/admin/events/render.ts
+msgid "Device %s added"
+msgstr "Устройство %s добавлено"
+
+#: web/src/admin/events/render.ts
+msgid "Device %s added on the portal"
+msgstr "Устройство %s добавлено через портал"
+
+#: web/src/admin/events/render.ts
+msgid "Device %s changed"
+msgstr "Устройство %s: настройки изменены"
+
+#: web/src/admin/events/render.ts
 msgid "Device %s changed network %s"
 msgstr "Устройство %s сменило сеть %s"
 
@@ -2642,6 +2685,30 @@ msgstr "Устройство %s (%s): публичный ключ некорре
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
 msgid "Device %s of %s: the public key is the server's own."
 msgstr "Устройство %s (%s): публичный ключ совпадает с ключом сервера."
+
+#: web/src/admin/events/render.ts
+msgid "Device %s removed"
+msgstr "Устройство %s удалено"
+
+#: web/src/admin/events/render.ts
+msgid "Device %s removed on the portal"
+msgstr "Устройство %s удалено через портал"
+
+#: web/src/admin/events/render.ts
+msgid "Device %s renamed"
+msgstr "Устройство %s: название изменено"
+
+#: web/src/admin/events/render.ts
+msgid "Device %s renamed on the portal"
+msgstr "Устройство %s: название изменено через портал"
+
+#: web/src/admin/events/render.ts
+msgid "Device %s turned off"
+msgstr "Устройство %s выключено"
+
+#: web/src/admin/events/render.ts
+msgid "Device %s turned on"
+msgstr "Устройство %s включено"
 
 #: web/src/admin/events/render.ts
 msgid "Device %s went offline"
@@ -2934,6 +3001,10 @@ msgstr "Дата окончания"
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
 msgid "End date must be YYYY-MM-DD."
 msgstr "Дата окончания должна быть в формате ГГГГ-ММ-ДД."
+
+#: web/src/admin/events/render.ts
+msgid "End date passed (%s) · access kept"
+msgstr "Срок доступа закончился (%s) · доступ сохранён"
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/health.uc
 msgid "End dates and quotas use the router clock."
@@ -4282,6 +4353,10 @@ msgstr "Ключи обновлены %s"
 msgid "New keys generated"
 msgstr "Новые ключи созданы"
 
+#: web/src/admin/events/render.ts
+msgid "New keys issued for device %s on the portal"
+msgstr "Для устройства %s выпущены новые ключи через портал"
+
 #: web/src/admin/pages/person/header.ts
 msgid "New link"
 msgstr "Новая ссылка"
@@ -5074,6 +5149,10 @@ msgstr "%s: удалено устройство %s"
 #: web/src/admin/events/render.ts
 msgid "Person %s removed device %s on their portal"
 msgstr "%s: удалено устройство %s через портал"
+
+#: web/src/admin/events/render.ts
+msgid "Person %s renamed device %s on their portal"
+msgstr "Пользователь %s изменил название устройства %s в личном портале"
 
 #: web/src/admin/events/render.ts
 msgid "Person %s resumed"
@@ -7339,6 +7418,10 @@ msgid "You added circle %s"
 msgstr "Вы добавили круг %s"
 
 #: web/src/admin/events/render.ts
+msgid "You added device %s"
+msgstr "Вы добавили устройство %s"
+
+#: web/src/admin/events/render.ts
 msgid "You added device %s for %s"
 msgstr "Вы добавили устройство %s (%s)"
 
@@ -7346,9 +7429,17 @@ msgstr "Вы добавили устройство %s (%s)"
 msgid "You added person %s"
 msgstr "Вы добавили человека %s"
 
+#: web/src/admin/events/render.ts
+msgid "You added this person"
+msgstr "Вы добавили этого человека"
+
 #: web/src/admin/events/model.ts
 msgid "You changed circle %s"
 msgstr "Вы изменили круг %s"
+
+#: web/src/admin/events/render.ts
+msgid "You changed device %s"
+msgstr "Вы изменили устройство %s"
 
 #: web/src/admin/events/render.ts
 msgid "You changed device %s of %s"
@@ -7361,6 +7452,10 @@ msgstr "Вы изменили настройки: %s"
 #: web/src/admin/events/model.ts
 msgid "You changed server %s"
 msgstr "Вы изменили сервер %s"
+
+#: web/src/admin/events/render.ts
+msgid "You changed settings"
+msgstr "Вы изменили настройки"
 
 #: web/src/admin/events/model.ts
 msgid "You changed the personal portal"
@@ -7391,8 +7486,20 @@ msgid "You issued a new link for person %s"
 msgstr "Вы выпустили новую личную ссылку: %s"
 
 #: web/src/admin/events/render.ts
+msgid "You issued a new personal link"
+msgstr "Вы выпустили новую личную ссылку"
+
+#: web/src/admin/events/render.ts
+msgid "You issued new keys for device %s"
+msgstr "Вы выпустили новые ключи для устройства %s"
+
+#: web/src/admin/events/render.ts
 msgid "You issued new keys for device %s of %s"
 msgstr "Вы выпустили новые ключи для устройства %s (%s)"
+
+#: web/src/admin/events/render.ts
+msgid "You paused access"
+msgstr "Вы приостановили доступ"
 
 #: web/src/admin/events/render.ts
 msgid "You paused person %s"
@@ -7401,6 +7508,10 @@ msgstr "Вы приостановили доступ: %s"
 #: web/src/admin/events/model.ts
 msgid "You removed circle %s"
 msgstr "Вы удалили круг %s"
+
+#: web/src/admin/events/render.ts
+msgid "You removed device %s"
+msgstr "Вы удалили устройство %s"
 
 #: web/src/admin/events/render.ts
 msgid "You removed device %s from %s"
@@ -7413,6 +7524,14 @@ msgstr "Вы удалили человека %s"
 #: web/src/admin/events/model.ts
 msgid "You removed server %s"
 msgstr "Вы удалили сервер %s"
+
+#: web/src/admin/events/render.ts
+msgid "You removed this person"
+msgstr "Вы удалили этого человека"
+
+#: web/src/admin/events/render.ts
+msgid "You renamed device %s"
+msgstr "Вы изменили название устройства %s"
 
 #: web/src/admin/events/render.ts
 msgid "You renamed device %s of %s"
@@ -7435,8 +7554,16 @@ msgid "You restored backup %s"
 msgstr "Вы восстановили резервную копию %s"
 
 #: web/src/admin/events/render.ts
+msgid "You resumed access"
+msgstr "Вы возобновили доступ"
+
+#: web/src/admin/events/render.ts
 msgid "You resumed person %s"
 msgstr "Вы возобновили доступ: %s"
+
+#: web/src/admin/events/render.ts
+msgid "You turned off device %s"
+msgstr "Вы выключили устройство %s"
 
 #: web/src/admin/events/render.ts
 msgid "You turned off device %s of %s"
@@ -7453,6 +7580,10 @@ msgstr "Вы выключили личный портал"
 #: web/src/admin/events/model.ts
 msgid "You turned off the watchdog"
 msgstr "Вы выключили автовосстановление"
+
+#: web/src/admin/events/render.ts
+msgid "You turned on device %s"
+msgstr "Вы включили устройство %s"
 
 #: web/src/admin/events/render.ts
 msgid "You turned on device %s of %s"

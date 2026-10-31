@@ -1,10 +1,10 @@
 {
-	"admin/network/dawnline": {
+	"admin/services/dawnline": {
 		"title": "Dawnline",
 		"order": 65,
 		"action": {
 			"type": "alias",
-			"path": "admin/network/dawnline/server"
+			"path": "admin/services/dawnline/server"
 		},
 		"depends": {
 			"acl": [
@@ -15,31 +15,31 @@
 			}
 		}
 	},
-	"admin/network/dawnline/overview": {
+	"admin/services/dawnline/overview": {
 		"action": {
 			"type": "view",
 			"path": "dawnline/server"
 		}
 	},
-	"admin/network/dawnline/people": {
+	"admin/services/dawnline/people": {
 		"action": {
 			"type": "view",
 			"path": "dawnline/people"
 		}
 	},
-	"admin/network/dawnline/activity": {
+	"admin/services/dawnline/activity": {
 		"action": {
 			"type": "view",
 			"path": "dawnline/activity"
 		}
 	},
-	"admin/network/dawnline/person": {
+	"admin/services/dawnline/person": {
 		"action": {
 			"type": "view",
 			"path": "dawnline/person"
 		}
 	},
-	"admin/network/dawnline/server": {
+	"admin/services/dawnline/server": {
 		"title": "Servers",
 		"order": 10,
 		"action": {
@@ -47,7 +47,7 @@
 			"path": "dawnline/server"
 		}
 	},
-	"admin/network/dawnline/diagnostics": {
+	"admin/services/dawnline/diagnostics": {
 		"title": "Diagnostics",
 		"order": 40,
 		"action": {
@@ -55,13 +55,13 @@
 			"path": "dawnline/diagnostics"
 		}
 	},
-	"admin/network/dawnline/health": {
+	"admin/services/dawnline/health": {
 		"action": {
 			"type": "view",
 			"path": "dawnline/health"
 		}
 	},
-	"admin/network/dawnline/settings": {
+	"admin/services/dawnline/settings": {
 		"title": "Settings",
 		"order": 60,
 		"action": {
@@ -69,7 +69,7 @@
 			"path": "dawnline/settings"
 		}
 	},
-	"admin/network/dawnline/updates": {
+	"admin/services/dawnline/updates": {
 		"title": "Components",
 		"order": 70,
 		"action": {
