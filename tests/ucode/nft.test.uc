@@ -1,6 +1,6 @@
 // dawnline.nft: the access table rendered for a model with two servers (one
 // sending everyone like a home device, one direct) and the router read as a
-// fixed context: exactly what 0.13.0 renders (fixtures/nft-table.txt, made by
+// fixed context: what 0.13.0 rendered (fixtures/nft-table.txt, made by
 // that version from this model).
 import { readfile } from 'fs';
 import * as nft from 'dawnline.nft';

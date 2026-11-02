@@ -1,5 +1,5 @@
-// dawnline.meter: the point between two samples (each server's bytes per
-// second), the sample taken from a dump, the two minutes kept, and the file
+// dawnline.meter: the point between two samples (each server's and each
+// moving device's bytes per second), the sample taken from a dump, the two minutes kept, and the file
 // the watcher writes and the RPC reads (in RUN_DIR, removed after).
 import * as meter from 'dawnline.meter';
 import { stat, unlink } from 'fs';
@@ -14,13 +14,15 @@ test('point', () => {
 		// d_2 sent nothing; d_3's peer was added again (counters from zero); d_4 is new; d_5 moved to s_1.
 		dev: { d_1: [ 3000, 12000, 's_1' ], d_2: [ 500, 500, 's_1' ], d_3: [ 100, 300, 's_1' ], d_4: [ 10, 10, 's_1' ], d_5: [ 50, 50, 's_1' ] },
 	};
-	eq(meter.point(a, b), { ts: 5001, servers: { s_1: [ 2000, 10000 ], s_2: [ 0, 0 ] } },
-		'bytes per second of each server\'s devices together; a server read with nothing moving is 0');
+	eq(meter.point(a, b), { ts: 5001, servers: { s_1: [ 2000, 10000 ], s_2: [ 0, 0 ] }, dev: { d_1: [ 2000, 10000 ] } },
+		'bytes per second of each server\'s devices together; a server read with nothing moving is 0; only devices that moved');
+	eq(meter.point(a, { ...b, t: 102.0 }).dev, { d_1: [ 1000, 5000 ] }, 'a device over two seconds');
 	eq(meter.point(a, { ...b, t: 102.0 }).servers.s_1, [ 1000, 5000 ], 'over two seconds');
 	eq(meter.point(a, { ...b, t: 100.0 }), null, 'no time passed');
 	eq(meter.point(a, { ...b, t: 110.0 }), null, 'the watcher stalled');
 	eq(meter.point(a, { ...b, servers: [ 's_2' ], dev: { d_5: [ 50, 50, 's_2' ] } }).servers, { s_2: [ 50, 50 ] }, 'only servers read in the newer sample');
 	eq(meter.point({ ...a, dev: {} }, b).servers, { s_1: [ 0, 0 ], s_2: [ 0, 0 ] }, 'a first look at every device: nothing yet');
+	eq(meter.point({ ...a, dev: {} }, b).dev, {}, 'and no device either');
 });
 
 test('sample', () => {
@@ -37,7 +39,7 @@ test('sample', () => {
 });
 
 test('keep', () => {
-	let pt = (ts) => ({ ts: ts, servers: { s_1: [ ts, 0 ] } });
+	let pt = (ts) => ({ ts: ts, servers: { s_1: [ ts, 0 ] }, dev: { d_1: [ ts, 0 ] } });
 	let ring = [];
 	for (let ts = 1000; ts < 1000 + meter.POINTS + 5; ts++)
 		meter.keep(ring, pt(ts));

@@ -11,7 +11,7 @@ import { fmt, locale, num, plural } from '../../shared/i18n';
 import { h, ic } from '../dom';
 import { BOUNCY, EASE_IN, EASE_OUT, SMOOTH, calm, play } from '../motion';
 import { now, today, type RepaintOpts, type State } from '../state';
-import { bars, sumDays, upDown } from '../ui/bars';
+import { bars, readBars, sumDays, upDown } from '../ui/bars';
 import { copy } from '../ui/feedback';
 import { glass } from '../ui/glass';
 import { openMenu, type MenuItem } from '../ui/menu';
@@ -129,17 +129,17 @@ function usage(d: Device): HTMLElement {
   const val = upDown(d.id);
   val.set(week);
   const chart = bars(d.spark, 'bars-week', 34);
-  chart.cols.forEach((col, i) => {
-    const back = d.spark.length - 1 - i;
-    // What the pointer reads off the bars changes at once: no morph while it moves.
-    col.addEventListener('pointerenter', () => {
-      setText(lbl, dayName(back));
-      val.set(d.spark[i]);
-    });
-    col.addEventListener('pointerleave', () => {
+  // What the pointer, a tap or the keys pick changes at once: no morph while it moves. A day with nothing says so.
+  readBars(chart, fmt(_('%s, last 7 days'), d.name), (i) => {
+    if (i < 0) {
       setText(lbl, _('Last 7 days'));
       val.set(week);
-    });
+      return;
+    }
+    const [rx, tx] = d.spark[i];
+    const name = dayName(d.spark.length - 1 - i);
+    setText(lbl, rx || tx ? name : `${name} · ${_('not used')}`);
+    val.set(d.spark[i]);
   });
   return h('div', { class: 'dev-use' }, h('div', { class: 'use-txt' }, lbl, h('span', { class: 'use-val' }, val.el)), chart.el);
 }

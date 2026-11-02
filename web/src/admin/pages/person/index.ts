@@ -13,6 +13,9 @@ import { peopleUrl } from '../../urls';
 import { addDevice, openDevice, type DeviceOpts } from '../../device';
 import { coreFor, type Core } from '../../cores';
 import { createPoller, repaint, type Poller } from '../../state/poller';
+import { LiveMeter, type MeterAnswer } from '../../state/meter';
+import { pollMeter } from '../../state/meterpoll';
+import { LiveSpeedTile } from '../../widgets/tiles';
 import { headPart, trafficPart } from './header';
 import { devicesPart } from './devices';
 import { limitsPart } from './limits';
@@ -40,6 +43,10 @@ export class PersonPage {
   /** The same per device. */
   devSeries: Record<string, DayUsage[]> = {};
   poller?: Poller<Loaded>;
+  /** Speed now, live (the meter's last 2 minutes of their devices): one tile for the page's life, and its poller. */
+  meter = new LiveMeter();
+  speed = new LiveSpeedTile();
+  meterPoller?: Poller<MeterAnswer>;
   /** Status every 15 s; the log and the traffic history every fourth time (and after a change). */
   private ticks = 0;
   private fullNext = false;
@@ -96,7 +103,28 @@ export class PersonPage {
       active: () => root.isConnected,
       apply: (data, quiet) => this.apply(data, quiet),
     });
+    // One meter call a second while a device of theirs is online on a running server.
+    this.meterPoller?.stop();
+    this.meterPoller = pollMeter(
+      this.meter,
+      () => root.isConnected && this.p.online > 0 && !!this.st.servers.find((x) => x.id === this.p.server)?.enabled,
+      () => this.paintSpeed(),
+    );
     return root;
+  }
+
+  /** The speed tile from the meter as it stands, with today's traffic. */
+  paintSpeed() {
+    const day = this.series[this.series.length - 1];
+    this.speed.update(
+      this.meter.speed(
+        this.p.server,
+        Date.now(),
+        this.p.devices.map((d) => d.id),
+      ),
+      day ? [day.rx, day.tx] : [0, 0],
+      false,
+    );
   }
 
   private take(d: Loaded) {

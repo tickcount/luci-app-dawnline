@@ -117,6 +117,10 @@ msgstr[1] ""
 msgid "%s MB free: settings may stop saving. Remove old backups (Settings → Backups) or shorten the history."
 msgstr ""
 
+#: web/src/shared/pace.ts
+msgid "%s a day lately"
+msgstr ""
+
 #: web/src/admin/access.ts
 #: web/src/admin/device.ts
 msgid "%s added"
@@ -249,6 +253,12 @@ msgstr ""
 #: web/src/admin/pages/components/activity.ts
 msgid "%s check failed"
 msgstr ""
+
+#: web/src/admin/pages/overview.ts
+msgid "%s city"
+msgid_plural "%s cities"
+msgstr[0] ""
+msgstr[1] ""
 
 #: web/src/admin/device.ts
 msgid "%s copied"
@@ -665,6 +675,10 @@ msgstr ""
 msgid "%s may not contain # or a line break."
 msgstr ""
 
+#: web/src/admin/widgets/readouts.ts
+msgid "%s min %s s ago"
+msgstr ""
+
 #: web/src/shared/format.ts
 msgid "%s min ago"
 msgstr ""
@@ -869,6 +883,10 @@ msgstr ""
 msgid "%s s"
 msgstr ""
 
+#: web/src/admin/widgets/readouts.ts
+msgid "%s s ago"
+msgstr ""
+
 #: web/src/admin/pages/settings/logs.ts
 msgid "%s since %s"
 msgstr ""
@@ -1055,6 +1073,10 @@ msgid_plural "+%s more in What’s new"
 msgstr[0] ""
 msgstr[1] ""
 
+#: web/src/admin/widgets/readouts.ts
+msgid "+%s%% vs average"
+msgstr ""
+
 #: web/src/admin/pages/person/limits.ts
 msgid "+1 month"
 msgstr ""
@@ -1086,6 +1108,10 @@ msgstr ""
 
 #: web/src/admin/pages/overview.ts
 msgid "15 min"
+msgstr ""
+
+#: web/src/admin/pages/overview.ts
+msgid "2 min"
 msgstr ""
 
 #: web/src/admin/map.ts
@@ -2180,10 +2206,6 @@ msgid "Close"
 msgstr ""
 
 #: web/src/admin/widgets/tiles.ts
-msgid "Collecting… 1 point a minute"
-msgstr ""
-
-#: web/src/admin/widgets/tiles.ts
 msgid "Collecting… 1 point a second"
 msgstr ""
 
@@ -2498,6 +2520,10 @@ msgstr ""
 
 #: web/src/admin/state/live.ts
 msgid "Dawnline was updated to %s: reload the page."
+msgstr ""
+
+#: web/src/admin/widgets/tiles.ts
+msgid "Days this device was used"
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/schema.uc
@@ -3849,6 +3875,7 @@ msgid "Last 30 days"
 msgstr ""
 
 #: web/src/admin/device.ts
+#: web/src/admin/widgets/spark.ts
 msgid "Last 7 days"
 msgstr ""
 
@@ -4637,6 +4664,10 @@ msgstr ""
 
 #: web/src/admin/pages/settings/portal.ts
 msgid "Not set: the certificate is picked automatically."
+msgstr ""
+
+#: web/src/admin/widgets/readouts.ts
+msgid "Not used"
 msgstr ""
 
 #: web/src/admin/pages/diagnostics/health.ts
@@ -6108,6 +6139,10 @@ msgstr ""
 msgid "Speed now"
 msgstr ""
 
+#: web/src/admin/widgets/tiles.ts
+msgid "Speed over the last 2 minutes"
+msgstr ""
+
 #: web/src/admin/disguise.ts
 msgid "Standard (old)"
 msgstr ""
@@ -6316,6 +6351,10 @@ msgstr ""
 
 #: web/src/admin/pages/components/awg.ts
 msgid "The build kept on the router is installed again. Every AmneziaWG tunnel restarts for a few seconds."
+msgstr ""
+
+#: web/src/admin/widgets/readouts.ts
+msgid "The busiest of the %s days"
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/backup.uc
@@ -6696,8 +6735,7 @@ msgstr ""
 
 #: web/src/admin/events/render.ts
 #: web/src/admin/places/model.ts
-#: web/src/admin/widgets/spark.ts
-#: web/src/admin/widgets/tiles.ts
+#: web/src/admin/widgets/readouts.ts
 msgid "Today"
 msgstr ""
 
@@ -6732,6 +6770,10 @@ msgstr ""
 
 #: web/src/admin/logs.ts
 msgid "Traffic history reset"
+msgstr ""
+
+#: web/src/admin/widgets/tiles.ts
+msgid "Traffic, last 30 days"
 msgstr ""
 
 #: web/src/admin/pages/components/hero.ts
@@ -7144,6 +7186,12 @@ msgstr ""
 msgid "Used for HTTPS links"
 msgstr ""
 
+#: web/src/admin/widgets/readouts.ts
+msgid "Used on %s of %s day"
+msgid_plural "Used on %s of %s days"
+msgstr[0] ""
+msgstr[1] ""
+
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/health.uc
 msgid "Using a self-signed certificate: browsers will show a warning."
 msgstr ""
@@ -7332,7 +7380,7 @@ msgstr ""
 
 #: web/src/admin/events/render.ts
 #: web/src/admin/places/model.ts
-#: web/src/admin/widgets/spark.ts
+#: web/src/admin/widgets/readouts.ts
 msgid "Yesterday"
 msgstr ""
 
@@ -7578,6 +7626,14 @@ msgstr ""
 
 #: package/luci-app-dawnline/root/usr/libexec/dawnline/updater
 msgid "a new build needs a manual switch in Components"
+msgstr ""
+
+#: web/src/shared/pace.ts
+msgid "about %s by the reset on %s"
+msgstr ""
+
+#: web/src/admin/widgets/readouts.ts
+msgid "about average"
 msgstr ""
 
 #: web/src/admin/events/model.ts
@@ -7883,6 +7939,12 @@ msgstr ""
 msgid "from the portal"
 msgstr ""
 
+#: web/src/shared/pace.ts
+msgid "full in about %s day, %s"
+msgid_plural "full in about %s days, %s"
+msgstr[0] ""
+msgstr[1] ""
+
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
 msgid "has an invalid interface name \"%s\""
 msgstr ""
@@ -8032,10 +8094,6 @@ msgid "kernel module isn't loaded"
 msgstr ""
 
 #: web/src/admin/widgets/tiles.ts
-msgid "last 15 min"
-msgstr ""
-
-#: web/src/admin/widgets/tiles.ts
 msgid "last 2 min"
 msgstr ""
 
@@ -8169,6 +8227,7 @@ msgstr ""
 
 #: web/src/admin/map.ts
 #: web/src/admin/places/render.ts
+#: web/src/admin/widgets/readouts.ts
 msgid "now"
 msgstr ""
 
@@ -8225,10 +8284,6 @@ msgstr ""
 
 #: web/src/admin/events/model.ts
 msgid "paused by admin"
-msgstr ""
-
-#: web/src/admin/widgets/tiles.ts
-msgid "peak %s"
 msgstr ""
 
 #: web/src/admin/events/model.ts
@@ -8373,6 +8428,10 @@ msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/upd_app.uc
 msgid "sha256 matches the release (%s…)"
+msgstr ""
+
+#: web/src/admin/widgets/readouts.ts
+msgid "so far"
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/bin/dawnline
@@ -8549,4 +8608,8 @@ msgstr ""
 
 #: web/src/admin/pages/components/hero.ts
 msgid "← Newer"
+msgstr ""
+
+#: web/src/admin/widgets/readouts.ts
+msgid "−%s%% vs average"
 msgstr ""

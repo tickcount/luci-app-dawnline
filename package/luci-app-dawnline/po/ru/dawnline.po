@@ -126,6 +126,10 @@ msgstr[2] "%s устройств AmneziaWG перестанут подключа
 msgid "%s MB free: settings may stop saving. Remove old backups (Settings → Backups) or shorten the history."
 msgstr "Свободно %s МБ: настройки могут перестать сохраняться. Удалите старые резервные копии («Настройки» → «Резервные копии») или сократите историю."
 
+#: web/src/shared/pace.ts
+msgid "%s a day lately"
+msgstr "%s в день за последние дни"
+
 #: web/src/admin/access.ts
 #: web/src/admin/device.ts
 msgid "%s added"
@@ -262,6 +266,13 @@ msgstr "Сервер %s не может использовать сетевой 
 #: web/src/admin/pages/components/activity.ts
 msgid "%s check failed"
 msgstr "%s: ошибка проверки"
+
+#: web/src/admin/pages/overview.ts
+msgid "%s city"
+msgid_plural "%s cities"
+msgstr[0] "%s город"
+msgstr[1] "%s города"
+msgstr[2] "%s городов"
 
 #: web/src/admin/device.ts
 msgid "%s copied"
@@ -696,6 +707,10 @@ msgstr "осталось %s"
 msgid "%s may not contain # or a line break."
 msgstr "%s не может содержать # или перенос строки."
 
+#: web/src/admin/widgets/readouts.ts
+msgid "%s min %s s ago"
+msgstr "%s мин %s с назад"
+
 #: web/src/shared/format.ts
 msgid "%s min ago"
 msgstr "%s мин назад"
@@ -912,6 +927,10 @@ msgstr "%s: доступ возобновлён"
 msgid "%s s"
 msgstr "%s с"
 
+#: web/src/admin/widgets/readouts.ts
+msgid "%s s ago"
+msgstr "%s с назад"
+
 #: web/src/admin/pages/settings/logs.ts
 msgid "%s since %s"
 msgstr "%s с %s"
@@ -1107,6 +1126,10 @@ msgstr[0] "Ещё %s пункт в «Что нового»"
 msgstr[1] "Ещё %s пункта в «Что нового»"
 msgstr[2] "Ещё %s пунктов в «Что нового»"
 
+#: web/src/admin/widgets/readouts.ts
+msgid "+%s%% vs average"
+msgstr "+%s%% к среднему"
+
 #: web/src/admin/pages/person/limits.ts
 msgid "+1 month"
 msgstr "+1 месяц"
@@ -1139,6 +1162,10 @@ msgstr "1 год"
 #: web/src/admin/pages/overview.ts
 msgid "15 min"
 msgstr "15 мин"
+
+#: web/src/admin/pages/overview.ts
+msgid "2 min"
+msgstr "2 мин"
 
 #: web/src/admin/map.ts
 msgid "24h"
@@ -2237,10 +2264,6 @@ msgid "Close"
 msgstr "Закрыть"
 
 #: web/src/admin/widgets/tiles.ts
-msgid "Collecting… 1 point a minute"
-msgstr "Сбор данных… 1 точка в минуту"
-
-#: web/src/admin/widgets/tiles.ts
 msgid "Collecting… 1 point a second"
 msgstr "Сбор данных… 1 точка в секунду"
 
@@ -2556,6 +2579,10 @@ msgstr "Dawnline обновлён до %s"
 #: web/src/admin/state/live.ts
 msgid "Dawnline was updated to %s: reload the page."
 msgstr "Dawnline обновлён до версии %s: перезагрузите страницу."
+
+#: web/src/admin/widgets/tiles.ts
+msgid "Days this device was used"
+msgstr "Дни с трафиком на устройстве"
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/schema.uc
 msgid "Default device limit must be 1-32."
@@ -3906,6 +3933,7 @@ msgid "Last 30 days"
 msgstr "За 30 дней"
 
 #: web/src/admin/device.ts
+#: web/src/admin/widgets/spark.ts
 msgid "Last 7 days"
 msgstr "За 7 дней"
 
@@ -4696,6 +4724,10 @@ msgstr "Не настроено."
 #: web/src/admin/pages/settings/portal.ts
 msgid "Not set: the certificate is picked automatically."
 msgstr "Не заданы: сертификат выбирается автоматически."
+
+#: web/src/admin/widgets/readouts.ts
+msgid "Not used"
+msgstr "Без трафика"
 
 #: web/src/admin/pages/diagnostics/health.ts
 msgid "Not working"
@@ -6171,6 +6203,10 @@ msgstr "Скорость"
 msgid "Speed now"
 msgstr "Скорость сейчас"
 
+#: web/src/admin/widgets/tiles.ts
+msgid "Speed over the last 2 minutes"
+msgstr "Скорость за последние 2 минуты"
+
 #: web/src/admin/disguise.ts
 msgid "Standard (old)"
 msgstr "Стандартная (старая)"
@@ -6381,6 +6417,10 @@ msgstr "Резервная копия (%s) будет удалена с роут
 #: web/src/admin/pages/components/awg.ts
 msgid "The build kept on the router is installed again. Every AmneziaWG tunnel restarts for a few seconds."
 msgstr "Снова установится сборка, сохранённая на роутере. Все туннели AmneziaWG перезапустятся на несколько секунд."
+
+#: web/src/admin/widgets/readouts.ts
+msgid "The busiest of the %s days"
+msgstr "Самый загруженный из %s дней"
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/backup.uc
 msgid "The configuration in this file cannot be read."
@@ -6763,8 +6803,7 @@ msgstr "Чтобы оставить старую маскировку части
 
 #: web/src/admin/events/render.ts
 #: web/src/admin/places/model.ts
-#: web/src/admin/widgets/spark.ts
-#: web/src/admin/widgets/tiles.ts
+#: web/src/admin/widgets/readouts.ts
 msgid "Today"
 msgstr "Сегодня"
 
@@ -6800,6 +6839,10 @@ msgstr "История трафика"
 #: web/src/admin/logs.ts
 msgid "Traffic history reset"
 msgstr "История трафика сброшена"
+
+#: web/src/admin/widgets/tiles.ts
+msgid "Traffic, last 30 days"
+msgstr "Трафик за последние 30 дней"
 
 #: web/src/admin/pages/components/hero.ts
 msgid "Translation"
@@ -7212,6 +7255,13 @@ msgstr "Порт занят: %s. Выберите другой."
 msgid "Used for HTTPS links"
 msgstr "Для ссылок HTTPS"
 
+#: web/src/admin/widgets/readouts.ts
+msgid "Used on %s of %s day"
+msgid_plural "Used on %s of %s days"
+msgstr[0] "С трафиком %s из %s дня"
+msgstr[1] "С трафиком %s из %s дней"
+msgstr[2] "С трафиком %s из %s дней"
+
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/health.uc
 msgid "Using a self-signed certificate: browsers will show a warning."
 msgstr "Используется самоподписанный сертификат: браузеры покажут предупреждение."
@@ -7401,7 +7451,7 @@ msgstr "По неверной ссылке откроется просто «Not
 
 #: web/src/admin/events/render.ts
 #: web/src/admin/places/model.ts
-#: web/src/admin/widgets/spark.ts
+#: web/src/admin/widgets/readouts.ts
 msgid "Yesterday"
 msgstr "Вчера"
 
@@ -7648,6 +7698,14 @@ msgstr "без имени"
 #: package/luci-app-dawnline/root/usr/libexec/dawnline/updater
 msgid "a new build needs a manual switch in Components"
 msgstr ": новую сборку нужно включить вручную в «Компонентах»"
+
+#: web/src/shared/pace.ts
+msgid "about %s by the reset on %s"
+msgstr "около %s к сбросу %s"
+
+#: web/src/admin/widgets/readouts.ts
+msgid "about average"
+msgstr "около среднего"
 
 #: web/src/admin/events/model.ts
 msgid "access"
@@ -7953,6 +8011,13 @@ msgstr ": ошибка (%s)"
 msgid "from the portal"
 msgstr "через портал"
 
+#: web/src/shared/pace.ts
+msgid "full in about %s day, %s"
+msgid_plural "full in about %s days, %s"
+msgstr[0] "закончится примерно через %s день, %s"
+msgstr[1] "закончится примерно через %s дня, %s"
+msgstr[2] "закончится примерно через %s дней, %s"
+
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
 msgid "has an invalid interface name \"%s\""
 msgstr ": недопустимое имя интерфейса «%s»"
@@ -8102,10 +8167,6 @@ msgid "kernel module isn't loaded"
 msgstr ": модуль ядра не загружен"
 
 #: web/src/admin/widgets/tiles.ts
-msgid "last 15 min"
-msgstr "за 15 мин"
-
-#: web/src/admin/widgets/tiles.ts
 msgid "last 2 min"
 msgstr "за 2 мин"
 
@@ -8239,6 +8300,7 @@ msgstr "не настроено"
 
 #: web/src/admin/map.ts
 #: web/src/admin/places/render.ts
+#: web/src/admin/widgets/readouts.ts
 msgid "now"
 msgstr "сейчас"
 
@@ -8297,10 +8359,6 @@ msgstr "приостановить доступ"
 #: web/src/admin/events/model.ts
 msgid "paused by admin"
 msgstr "приостановлено администратором"
-
-#: web/src/admin/widgets/tiles.ts
-msgid "peak %s"
-msgstr "пик %s"
 
 #: web/src/admin/events/model.ts
 msgid "port %s"
@@ -8445,6 +8503,10 @@ msgstr "настраиваем заново"
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/upd_app.uc
 msgid "sha256 matches the release (%s…)"
 msgstr "sha256 совпадает с релизом (%s…)"
+
+#: web/src/admin/widgets/readouts.ts
+msgid "so far"
+msgstr "пока"
 
 #: package/luci-app-dawnline/root/usr/bin/dawnline
 msgid "started"
@@ -8623,3 +8685,7 @@ msgstr "«%s» - не IP-адрес. Несколько адресов разд�
 #: web/src/admin/pages/components/hero.ts
 msgid "← Newer"
 msgstr "← Новее"
+
+#: web/src/admin/widgets/readouts.ts
+msgid "−%s%% vs average"
+msgstr "−%s%% к среднему"

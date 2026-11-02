@@ -158,6 +158,11 @@
   font-size: 15px;
   letter-spacing: -0.02em;
 }
+.month-pace {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-2);
+}
 .meter {
   height: 6px;
   border-radius: 3px;
@@ -311,6 +316,15 @@
 }
 .hours-now.out {
   background: var(--warn);
+}
+.hours-left {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-2);
+}
+.month-pace.warn-t,
+.hours-left.warn-t {
+  color: var(--warn);
 }
 .hours-axis {
   display: flex;

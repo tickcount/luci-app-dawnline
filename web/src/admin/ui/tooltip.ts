@@ -9,11 +9,17 @@ import { onNavigate } from './nav';
 
 let floating: HTMLElement | null = null;
 let anchor: HTMLElement | null = null;
+/** What the shown tooltip is drawn from. */
+let drawn: (() => (Node | string)[]) | null = null;
 let watch = 0;
+
+const draw = (content: () => (Node | string)[]) =>
+  floating!.replaceChildren(...content().map((c) => (typeof c === 'string' ? document.createTextNode(c) : c)));
 
 function hideTip() {
   if (floating) floating.style.display = 'none';
   anchor = null;
+  drawn = null;
   clearInterval(watch);
   watch = 0;
 }
@@ -21,7 +27,8 @@ function hideTip() {
 export function attachTip(el: HTMLElement, content: () => (Node | string)[]) {
   const show = (ev: MouseEvent) => {
     floating ??= document.body.appendChild(E('div', { class: 'dl-tip dl-tip-float dl-root' }));
-    floating.replaceChildren(...content().map((c) => (typeof c === 'string' ? document.createTextNode(c) : c)));
+    draw(content);
+    drawn = content;
     floating.style.display = '';
     floating.style.left = `${ev.clientX}px`;
     floating.style.top = `${ev.clientY - 10}px`;
@@ -41,6 +48,11 @@ export function attachTip(el: HTMLElement, content: () => (Node | string)[]) {
     if (anchor === el) hideTip();
     else show(ev as unknown as MouseEvent);
   });
+}
+
+/** Draw the shown tooltip again where it stands (live numbers in it); nothing when none shows. */
+export function refreshTip() {
+  if (drawn && anchor?.isConnected) draw(drawn);
 }
 
 onNavigate(hideTip);

@@ -51,6 +51,9 @@ table inet dawnline {
 	chain dns {
 		type nat hook prerouting priority dstnat - 5; policy accept;
 		iifname { "awghome", "awgwork" } ip saddr @dns_real meta l4proto { tcp, udp } th dport 53 dnat ip to 169.254.77.2:53
+	}
+	chain dns_lan {
+		type nat hook prerouting priority dstnat + 5; policy accept;
 		iifname "awghome" ip daddr 10.9.0.1 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.1.250:53
 		iifname "awgwork" ip daddr 10.9.1.1 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.1.1:53
 	}

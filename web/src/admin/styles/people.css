@@ -5,7 +5,7 @@
 .dl-plist > .dl-card.dl-filtered { display: none; }
 /* Stopped (paused, ended, over a limit): the card fades, its strip and actions stay bright. */
 .dl-plist > .dl-card.dl-off :is(.dl-card-name, .dl-avatar, .dl-access, .dl-slotbar, .dl-chips, .dl-pill-ic, .dl-use-num, .dl-pside-foot, .dl-pside-state) { opacity: .45; }
-.dl-plist > .dl-card.dl-off .dl-usebar i { background: var(--dl-fg-faint); }
+.dl-plist > .dl-card.dl-off .dl-smeter > i { background: var(--dl-fg-faint); }
 .dl-plist > .dl-card.dl-off .dl-chip-tag { background: var(--dl-soft); color: var(--dl-fg-muted); }
 /* Why, across the card's bottom edge, with the action that lifts it */
 .dl-pcard:has(> .dl-pstrip) { row-gap: 14px; }

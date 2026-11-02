@@ -82,10 +82,14 @@ export interface EndpointProbe {
   here6?: boolean;
 }
 
-/** One second of the live meter: each server whose tunnel was read, [rx, tx] in bytes/s (rx = from devices, as Server.rate). */
+/**
+ * One second of the live meter: each server whose tunnel was read, [rx, tx] in bytes/s (rx = from devices, as
+ * Server.rate), and each device that moved something (one left out moved nothing; an older agent sends none).
+ */
 export interface MeterPoint {
   ts: number;
   servers: Record<string, Pair>;
+  dev?: Record<string, Pair>;
 }
 
 /**

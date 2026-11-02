@@ -9,7 +9,9 @@ import { button } from '../../ui/button';
 import { cancelButton, closeModal, modal } from '../../ui/modal';
 import { liveField } from '../../ui/layout';
 import { quotaHelp } from '../../netcheck';
-import { attachTip } from '../../ui/tooltip';
+import { pointTip } from '../../ui/glide';
+import { limitMeter } from '../../widgets/meter';
+import { paceOf, paceWords, weekAhead } from '../../../shared/pace';
 import { icon } from '../../../shared/icons';
 import { accessLabel, bytes, date, daysLeft, endsSoon, shiftDay } from '../../../shared/format';
 import { fmt, num, plural } from '../../../shared/i18n';
@@ -128,21 +130,31 @@ function dataTile(page: PersonPage): HTMLElement {
   const p = page.p;
   const used = p.quota_used || p.month[0] + p.month[1];
   const pct = p.quota_limit ? Math.min(100, (p.quota_used / p.quota_limit) * 100) : 0;
-  const bar = E('div', { class: `dl-meter${pct >= 100 ? ' bad' : pct >= 90 ? ' warn' : ''}` }, [
-    E('i'),
-    p.quota_limit ? E('span', { class: 'mark', title: _('Alert at 90%') }) : '',
-  ]);
-  (bar.firstChild as HTMLElement).style.width = `${pct}%`;
-  if (p.quota_limit)
-    attachTip(bar, () => [
-      E('div', { class: 'dl-tip-title' }, fmt(_('%s%% used'), num(pct, 1))),
-      E(
-        'div',
-        { class: 'dl-muted' },
-        `${fmt(_('%s of %s'), bytes(p.quota_used), bytes(p.quota_limit))} · ${fmt(_('%s left'), bytes(Math.max(0, p.quota_limit - p.quota_used)))}`,
-      ),
-      E('div', { class: 'dl-faint' }, _('Alert at 90%')),
-    ]);
+  // The pace lately (the person's days) and where a week at it takes them, dashed past the fill.
+  const pace = paceOf(page.series.map((d) => d.rx + d.tx));
+  const bar = limitMeter(pct, p.quota_limit ? weekAhead(p.quota_used, p.quota_limit, pace) : 0, p.quota_limit ? 0.9 : undefined);
+  if (p.quota_limit) {
+    const paceText = paceWords(p.quota_used, p.quota_limit, pace, p.quota_period === 'month', page.today);
+    pointTip(
+      bar,
+      () => [
+        E('div', { class: 'dl-glide-head' }, [
+          E('b', {}, fmt(_('%s%% used'), num(pct, 1))),
+          E('span', { class: 'dl-faint' }, _('Alert at 90%')),
+        ]),
+        E(
+          'div',
+          { class: 'dl-muted' },
+          `${fmt(_('%s of %s'), bytes(p.quota_used), bytes(p.quota_limit))} · ${fmt(_('%s left'), bytes(Math.max(0, p.quota_limit - p.quota_used)))}`,
+        ),
+        pct < 100 && paceText ? E('div', { class: 'dl-glide-note' }, paceText) : '',
+      ],
+      () => {
+        const r = bar.getBoundingClientRect();
+        return [r.left + (r.width * pct) / 100, r.top];
+      },
+    );
+  }
   const period = seg(
     [
       ['month', _('Monthly')],

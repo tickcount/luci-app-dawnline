@@ -235,8 +235,7 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
         E('span', { class: 'dl-sub' }, `${p.name} · ${kindLabel(d.kind)}`),
       ]),
     ]);
-    const days = d.spark.map(([rx, tx]) => rx + tx);
-    const week = days.reduce((a, b) => a + b, 0);
+    const week = d.spark.reduce((a, [rx, tx]) => a + rx + tx, 0);
     dom.content(
       stats,
       E('div', { class: 'dl-dstats' }, [
@@ -253,7 +252,7 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
         E('div', { class: 'dl-dstats-cell' }, [
           E('span', { class: 'dl-metric-label' }, _('Last 7 days')),
           E('b', {}, bytes(week)),
-          spark(days, 120, 22, today),
+          spark(d.spark, 120, 22, today),
         ]),
       ]),
     );

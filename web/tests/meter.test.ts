@@ -114,3 +114,25 @@ describe('live meter', () => {
     expect(m.speed('a', 4000).error).toBeNull();
   });
 });
+
+describe('live meter, a person', () => {
+  it('adds up their devices; a device left out of a second moved nothing', () => {
+    const m = new LiveMeter();
+    const pts: MeterPoint[] = [
+      { ts: 1001, servers: { a: [30, 60] }, dev: { d1: [10, 20], d2: [20, 40] } },
+      { ts: 1002, servers: { a: [5, 5] }, dev: { d3: [5, 5] } },
+      // Server a was not read this second: no point for anyone on it.
+      { ts: 1003, servers: {} },
+      { ts: 1004, servers: { a: [7, 9] }, dev: { d1: [7, 9] } },
+    ];
+    m.take({ meter: meter(pts) }, 0);
+    const s = m.speed('a', 0, ['d1', 'd2']);
+    expect(s.pts).toEqual([
+      [1001, 30, 60],
+      [1002, 0, 0],
+      [1004, 7, 9],
+    ]);
+    expect(s).toMatchObject({ rx: 7, tx: 9 });
+    expect(m.speed('a', 0, []).pts.map((p) => p[1])).toEqual([0, 0, 0]);
+  });
+});

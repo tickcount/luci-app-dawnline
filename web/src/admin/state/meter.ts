@@ -1,7 +1,8 @@
-// The live meter as the Servers page keeps it (rpc meter, polled once a
-// second while an Overview is on screen): the answers merged into the last two
-// minutes, and one server's part of them for its Speed now tile. No DOM and no
-// RPC here: the poller is the page's (pages/server.ts), the tile widgets/tiles.
+// The live meter as a page keeps it (rpc meter, polled once a second while a
+// speed is on screen): the answers merged into the last two minutes, and one
+// server's part of them, or one person's devices on it, for Speed now. No DOM
+// and no RPC here: the poller is the page's (pages/server.ts, pages/person),
+// the tile widgets/tiles.
 
 import type { Meter, MeterPoint } from '../api';
 
@@ -84,12 +85,26 @@ export class LiveMeter {
     this.error = '';
   }
 
-  /** Server `id`'s points at page time `ms` (none once they are not live), placed against the meter's newest point. */
-  speed(id: string, ms: number): LiveSpeed {
+  /**
+   * Server `id`'s points at page time `ms` (none once they are not live), placed against the meter's newest point;
+   * with `devices`, only theirs added up (a person's speed).
+   */
+  speed(id: string, ms: number, devices?: string[]): LiveSpeed {
     const error = this.failed >= LOST_AFTER ? this.error : null;
     const live = this.live(ms) ? this.points : [];
+    const sum = (p: MeterPoint): Rate => {
+      if (!devices) return [p.ts, p.servers[id][0], p.servers[id][1]];
+      const r: Rate = [p.ts, 0, 0];
+      for (const d of devices) {
+        const v = p.dev?.[d];
+        if (!v) continue;
+        r[1] += v[0];
+        r[2] += v[1];
+      }
+      return r;
+    };
     // A second its tunnel was not read has no point of its own.
-    const pts = live.flatMap((p): Rate[] => (p.servers[id] ? [[p.ts, p.servers[id][0], p.servers[id][1]]] : []));
+    const pts = live.flatMap((p): Rate[] => (p.servers[id] ? [sum(p)] : []));
     const end = live.length ? live[live.length - 1].ts : 0;
     const span = this.keep - 1;
     const last = pts[pts.length - 1];

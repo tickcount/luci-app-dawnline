@@ -26,6 +26,7 @@ import drawer from './drawer.css';
 import settings from './settings.css';
 import components from './components.css';
 import access from './access.css';
+import charts from './charts.css';
 
 const CSS = [
   base,
@@ -43,6 +44,7 @@ const CSS = [
   settings,
   components,
   access,
+  charts,
 ].join('\n');
 
 /** A <style> element for the view root (see the note at the top). */

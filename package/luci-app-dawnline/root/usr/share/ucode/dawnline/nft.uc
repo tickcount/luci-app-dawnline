@@ -216,6 +216,13 @@ function table(m, sets, ctx) {
 	if (length(ifs))
 		// Home names (and no LAN DNS at all): the plain resolver, whatever address was asked.
 		push(t, `		iifname { ${join(', ', ifs)} } ip saddr @dns_real meta l4proto { tcp, udp } th dport 53 ${to_resolver}`);
+	push(t, '	}');
+	// After the LAN's own DNS interceptors (transparent proxies redirect port 53
+	// at dstnat - 1): only the first NAT of a connection counts, so a DNAT here
+	// first would hand the query to the plain resolver behind their back. When
+	// none of them takes the tunnel, this sends it to the LAN's DNS.
+	push(t, '	chain dns_lan {');
+	push(t, '		type nat hook prerouting priority dstnat + 5; policy accept;');
 	for (let id, srv in m.servers)
 		for (let tn in core.tunnels(srv)) {
 			// Everyone else: the LAN's DNS, through the netns (from the LAN side) when internet goes that way.

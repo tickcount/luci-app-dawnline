@@ -1,5 +1,6 @@
-// Dawnline — the live meter (the Overview's Speed now): each server's
-// throughput, one point a second over the last two minutes.
+// Dawnline — the live meter (Speed now on the Overview, the People list and a
+// person's page): each server's throughput and that of each device moving
+// traffic, one point a second over the last two minutes.
 //
 // The meter RPC (dawnline.rpc.status) calls want() and read(); the agent's
 // watcher makes a point from every read it already does (sample(), point())
@@ -8,8 +9,8 @@
 // while WANT is younger than WANT_FOR seconds: the first second of a look,
 // then with each new point. When WANT goes stale it removes FILE: with nobody
 // looking the watcher pays a little arithmetic and one stat() a second, and
-// writes nothing. FILE holds server ids and byte rates only, no keys, names
-// or personal codes. Who is online and the per-minute rates are not here
+// writes nothing. FILE holds server and device ids and byte rates only, no
+// keys, names or personal codes. Who is online and the per-minute rates are not here
 // (dawnline.live, the agent's tick).
 //
 // Bytes are the peers' counters (dawnline.awg.dump): tx includes the
@@ -95,26 +96,31 @@ function delta(a, b) {
 /**
  * The point between samples `a` and `b`, null when they are not a second or
  * so apart (the first sample, a stalled watcher): { ts, servers: { server
- * id: [ rx, tx ] } }, bytes per second of its devices together (rx what came
- * from them, tx what went to them, as a server's per-minute `rate`), for
- * every server whose tunnel `b` read ([ 0, 0 ] when nothing moved). A device
- * is counted from its second sample on, on the server it was on in both.
+ * id: [ rx, tx ] }, dev: { device id: [ rx, tx ] } }, bytes per second of
+ * each server's devices together (rx what came from them, tx what went to
+ * them, as a server's per-minute `rate`), for every server whose tunnel `b`
+ * read ([ 0, 0 ] when nothing moved), and of each device that moved
+ * something (one left out moved nothing, while its server was read). A
+ * device is counted from its second sample on, on the server it was on in both.
  */
 export function point(a, b) {
 	let dt = b.t - a.t;
 	if (!(dt > 0.2 && dt < 5))
 		return null;
-	let sum = {};
+	let sum = {}, dev = {};
 	for (let sid in b.servers)
 		sum[sid] = [ 0, 0 ];
 	for (let id, v in b.dev) {
 		let o = a.dev[id];
 		if (!o || o[2] != v[2])
 			continue;
-		sum[v[2]][0] += delta(o[0], v[0]);
-		sum[v[2]][1] += delta(o[1], v[1]);
+		let rx = delta(o[0], v[0]), tx = delta(o[1], v[1]);
+		sum[v[2]][0] += rx;
+		sum[v[2]][1] += tx;
+		if (rx || tx)
+			dev[id] = [ int(rx / dt), int(tx / dt) ];
 	}
-	let p = { ts: b.ts, servers: {} };
+	let p = { ts: b.ts, servers: {}, dev };
 	for (let sid, v in sum)
 		p.servers[sid] = [ int(v[0] / dt), int(v[1] / dt) ];
 	return p;

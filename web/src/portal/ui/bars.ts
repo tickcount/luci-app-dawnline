@@ -7,6 +7,7 @@
 
 import type { Pair } from '../../shared/types';
 import { bytes } from '../../shared/format';
+import { scrub } from '../../shared/scrub';
 import { h, ic } from '../dom';
 import { setText } from './morph';
 
@@ -55,6 +56,27 @@ export function bars(days: Pair[], cls: string, height: number, future = 0): Bar
   for (let i = 0; i < future; i++) el.appendChild(h('div', { class: 'col future' }, h('i'))).style.paddingTop = `${top - 2}px`;
   el.appendChild(h('span', { class: 'axis' })).style.top = `${top + 1}px`;
   return { el, cols };
+}
+
+/**
+ * Read the bars a day at a time (shared/scrub.ts): the pointer, a tap that stays
+ * until a tap elsewhere, ← → with the chart focused. The picked column looks as
+ * under the pointer (.on); `pick` gets its index, -1 when let go.
+ */
+export function readBars(b: Bars, label: string, pick: (i: number) => void): void {
+  b.el.removeAttribute('aria-hidden');
+  scrub(
+    b.el,
+    {
+      indexAt: (x) =>
+        b.cols.findIndex((c) => {
+          const r = c.getBoundingClientRect();
+          return x >= r.left && x < r.right;
+        }),
+      mark: (i) => b.cols.forEach((c, k) => c.classList.toggle('on', k === i)),
+    },
+    { count: () => b.cols.length, pick, label },
+  );
 }
 
 export interface UpDown {

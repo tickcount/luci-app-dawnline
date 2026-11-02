@@ -25,6 +25,10 @@ msgstr "%s (на Android: %s)"
 msgid "%s (router time)"
 msgstr "%s (по времени роутера)"
 
+#: web/src/shared/pace.ts
+msgid "%s a day lately"
+msgstr "%s в день за последние дни"
+
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
 msgid "%s already has %d device. Remove one first to lower the limit to %d."
 msgid_plural "%s already has %d devices. Remove one first to lower the limit to %d."
@@ -165,6 +169,10 @@ msgstr "%s в этом месяце"
 #: web/src/portal/page/notices.ts
 msgid "%s your time"
 msgstr "%s по вашему времени"
+
+#: web/src/portal/page/devices.ts
+msgid "%s, last 7 days"
+msgstr "%s, последние 7 дней"
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
 msgid "%s: <%s> is not a tag AmneziaWG apps accept: use <b 0x…> with an even number of hex digits, <r N>, <rc N> or <rd N> with N from 1 to 1000, or <t>."
@@ -1419,6 +1427,10 @@ msgstr "Ваш доступ закончился."
 msgid "Your access is paused."
 msgstr "Ваш доступ на паузе."
 
+#: web/src/portal/page/access.ts
+msgid "Your data this month"
+msgstr "Ваш трафик за месяц"
+
 #: web/src/portal/page/devices.ts
 msgid "Your devices"
 msgstr "Ваши устройства"
@@ -1442,6 +1454,14 @@ msgstr "Ваша локальная сеть остаётся доступной
 #: web/src/portal/flows/wait.ts
 msgid "Your network may be blocking the connection."
 msgstr "Возможно, ваша сеть блокирует подключение."
+
+#: web/src/shared/pace.ts
+msgid "about %s by the reset on %s"
+msgstr "около %s к сбросу %s"
+
+#: web/src/portal/page/access.ts
+msgid "about average"
+msgstr "около среднего"
 
 #: web/src/shared/format.ts
 msgid "bit/s"
@@ -1491,6 +1511,13 @@ msgstr "закончится сегодня"
 msgid "ends tomorrow"
 msgstr "закончится завтра"
 
+#: web/src/shared/pace.ts
+msgid "full in about %s day, %s"
+msgid_plural "full in about %s days, %s"
+msgstr[0] "закончится примерно через %s день, %s"
+msgstr[1] "закончится примерно через %s дня, %s"
+msgstr[2] "закончится примерно через %s дней, %s"
+
 #: web/src/shared/format.ts
 msgid "just now"
 msgstr "только что"
@@ -1511,6 +1538,14 @@ msgstr "никогда"
 msgid "no limit"
 msgstr "без лимита"
 
+#: web/src/portal/page/devices.ts
+msgid "not used"
+msgstr "без трафика"
+
+#: web/src/portal/page/access.ts
+msgid "opens in %s"
+msgstr "откроется через %s"
+
 #: web/src/portal/setup.ts
 msgid "phone"
 msgstr "телефон"
@@ -1528,6 +1563,10 @@ msgstr "роутер"
 msgctxt "on the"
 msgid "router"
 msgstr "роутере"
+
+#: web/src/portal/page/access.ts
+msgid "so far"
+msgstr "пока"
 
 #: web/src/portal/setup.ts
 msgid "tablet"

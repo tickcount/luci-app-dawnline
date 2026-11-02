@@ -6,14 +6,15 @@
 // keeps the rows on the page and changes what they hold in place.
 
 import type { Pair, Person } from '../../shared/types';
-import { accessLabel, byDeviceState, bytes, date, daysLeft, endsSoon, parseDay } from '../../shared/format';
+import { accessLabel, byDeviceState, bytes, date, daysLeft, duration, endsSoon, parseDay } from '../../shared/format';
+import { paceOf, paceWords, vsAverage } from '../../shared/pace';
 import { fill, fmt, locale, num, plural } from '../../shared/i18n';
 import { h, ic, markup } from '../dom';
 import { calendar, clockOf, hoursFor, minuteAt, monthOf, stretches } from '../days';
 import { SMOOTH, play } from '../motion';
 import { now, today, type State } from '../state';
 import { accordion, regrow, type Accordion } from '../ui/accordion';
-import { bars, upDown } from '../ui/bars';
+import { bars, readBars, upDown } from '../ui/bars';
 import { copy } from '../ui/feedback';
 import { glass } from '../ui/glass';
 import { morphChanged, morphInto, setText, textOf, textsOf } from '../ui/morph';
@@ -107,17 +108,21 @@ function month(p: Person, used: number, pct: number): HTMLElement {
   const read = upDown('m');
   const left = p.quota_limit ? fmt(_('%s left'), bytes(Math.max(0, p.quota_limit - used))) : _('No limit');
   const side = h('span', { class: 'num', 'data-t': 'm-left' }, left);
-  const say = (v: Pair, d?: number) => {
-    read.set(v);
-    setText(side, d ? short(d) : left);
-    side.classList.toggle('bad-t', !d && p.state === 'quota');
+  const totals = series.map(([rx, tx]) => rx + tx);
+  // A picked day says its date and how it compares with the month's other days ("21 Oct · +62%").
+  const against = (i: number) => {
+    if (i === totals.length - 1) return _('so far');
+    const v = vsAverage(totals, i);
+    return Math.abs(v) < 5 ? _('about average') : v > 0 ? `+${num(v)}%` : `−${num(-v)}%`;
   };
-  say(p.month);
+  const say = (i: number) => {
+    read.set(i >= 0 ? series[i] : p.month);
+    setText(side, i >= 0 ? `${short(i + 1)} · ${against(i)}` : left);
+    side.classList.toggle('bad-t', i < 0 && p.state === 'quota');
+  };
+  say(-1);
   const chart = bars(series, 'bars-month', 64, days - day);
-  chart.cols.forEach((col, i) => {
-    col.addEventListener('pointerenter', () => say(series[i], i + 1));
-    col.addEventListener('pointerleave', () => say(p.month));
-  });
+  readBars(chart, _('Your data this month'), say);
   // "Today" under its bar; the month's ends step aside when it comes close.
   const td = h('span', { class: 'td' }, _('Today'));
   td.style.left = pc(day - 0.5, days);
@@ -128,7 +133,22 @@ function month(p: Person, used: number, pct: number): HTMLElement {
     td,
     h('span', { class: day >= days - 3 ? 'hide' : '' }, short(days)),
   );
-  return h('div', { class: 'month' }, chart.el, axis, h('div', { class: 'month-read' }, read.el, side), p.quota_limit ? meter(pct) : null);
+  // With a limit not yet reached: the pace lately (the devices' last 7 days, so the month's first days have one
+  // too) and when the limit fills at it, orange within a week.
+  const pace = paceOf(
+    Array.from({ length: 7 }, (_x, k) => p.devices.reduce((a, d) => a + (d.spark[k]?.[0] ?? 0) + (d.spark[k]?.[1] ?? 0), 0)),
+  );
+  const words = p.quota_limit && used < p.quota_limit ? paceWords(used, p.quota_limit, pace, p.quota_period === 'month', today()) : '';
+  const soon = pace > 0 && (p.quota_limit - used) / pace <= 7;
+  return h(
+    'div',
+    { class: 'month' },
+    chart.el,
+    axis,
+    h('div', { class: 'month-read' }, read.el, side),
+    p.quota_limit ? meter(pct) : null,
+    words ? h('div', { class: `month-pace${soon ? ' warn-t' : ''}` }, words) : null,
+  );
 }
 
 /** The days left as a number over a calendar of the weeks to the end (the last day ringed). */
@@ -190,6 +210,10 @@ function hoursBar(hours: string, tzOffset: number | undefined): HTMLElement | nu
   const mark = h('span', { class: `hours-now${inside ? '' : ' out'}`, title: fmt(_('Now, %s'), clockOf(at)) });
   mark.style.left = pc(at, 1440);
   bar.appendChild(mark);
+  // How long the window still runs, or until it opens (a stretch may run past midnight: the next starts are a day on).
+  const end = segs.find(([a, b]) => at >= a && at < b)?.[1];
+  const next = Math.min(...segs.map(([a]) => (a > at ? a : a + 1440)));
+  const runs = inside ? fmt(_('%s left'), duration((end! - at) * 60)) : fmt(_('opens in %s'), duration((next - at) * 60));
   return h(
     'div',
     { class: 'hours' },
@@ -205,6 +229,7 @@ function hoursBar(hours: string, tzOffset: number | undefined): HTMLElement | nu
       { class: 'hours-axis' },
       ['00', '06', '12', '18', '24'].map((x) => h('span', {}, x)),
     ),
+    h('div', { class: `hours-left${inside ? '' : ' warn-t'}` }, runs),
   );
 }
 

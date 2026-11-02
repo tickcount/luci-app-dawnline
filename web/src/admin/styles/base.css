@@ -21,7 +21,9 @@
   --dl-info-wash: var(--info-a15, color-mix(in srgb, var(--dl-info) 15%, transparent));
   --dl-track: var(--foreground-a10, color-mix(in srgb, var(--dl-fg) 10%, transparent));
   --dl-chart-1: var(--chart-blue, #3a83f7);
-  --dl-chart-2: var(--chart-green, var(--dl-ok));
+  /* The connection map's arcs (map.ts LIVE and RECENT, mapcn's): every chart draws live and past in them. */
+  --dl-live: #3b82f6;
+  --dl-recent: #8a8a8a;
   --dl-ring: var(--ring, #3a83f7);
   --dl-primary: var(--primary, var(--dl-fg));
   --dl-primary-fg: var(--primary-foreground, var(--dl-elevated));
@@ -77,14 +79,6 @@
 .dl-tile-sub { font-size: 12px; line-height: 16px; color: var(--dl-fg-muted); margin-top: 2px; font-variant-numeric: tabular-nums; }
 .dl-grid2 { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 0 16px; }
 @media (max-width: 960px) { .dl-grid2 { grid-template-columns: minmax(0, 1fr); } }
-
-/* chart */
-.dl-chart { display: block; width: 100%; height: 120px; }
-.dl-bar-down { fill: var(--dl-chart-1); }
-.dl-bar-up { fill: var(--dl-chart-2); opacity: .8; }
-.dl-legend { display: flex; gap: 16px; font-size: 12px; color: var(--dl-fg-muted); margin-top: 8px; }
-.dl-legend i { display: inline-block; width: 8px; height: 8px; border-radius: 999px; margin-right: 6px; vertical-align: 0; }
-.dl-legend .down { background: var(--dl-chart-1); } .dl-legend .up { background: var(--dl-chart-2); }
 
 /* activity */
 .dl-events { list-style: none; margin: 0; padding: 0; }

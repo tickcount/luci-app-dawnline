@@ -10,13 +10,16 @@ import { cancelButton, closeModal, confirmDialog, modal } from '../ui/modal';
 import { copyText } from '../ui/files';
 import { dropdown, type MenuItem } from '../ui/menu';
 import { attempt, notify } from '../ui/toast';
-import { attachTip } from '../ui/tooltip';
+import { pointTip } from '../ui/glide';
+import { limitMeter, splitMeter } from '../widgets/meter';
+import { paceOf, paceWords, weekAhead } from '../../shared/pace';
 import { accessBadge } from '../ui/badges';
 import { addDevice, openDevice, type DeviceOpts } from '../device';
 import { copyPersonLink, inviteCard } from '../invite';
 import { personUrl } from '../urls';
 import { scoped } from '../state/scope';
 import { createPoller, focusInside, type Poller } from '../state/poller';
+import type { LiveMeter, Rate } from '../state/meter';
 import { onNavigate } from '../ui/nav';
 import { accessPicker } from '../widgets/access-picker';
 import { firstBad, liveField } from '../ui/layout';
@@ -122,6 +125,11 @@ export class PeoplePage {
   serverId: string | null = null;
   el: HTMLElement | null = null;
   poller?: Poller<Status>;
+  /** Each online person's speed in their card, put in place each second from the meter (a server's People list). */
+  private speedEls = new Map<string, { p: Person; down: HTMLElement; up: HTMLElement }>();
+
+  /** `meter`: the Servers page's live meter, which it polls while this list shows (none on its own page). */
+  constructor(private meter?: LiveMeter) {}
 
   async load(): Promise<Status> {
     return api.status(30);
@@ -601,49 +609,60 @@ export class PeoplePage {
     const used = p.quota_used || p.month[0] + p.month[1];
     const pct = p.quota_limit ? Math.min(100, (p.quota_used / p.quota_limit) * 100) : 0;
     const today = p.devices.reduce((a, d) => a + (d.spark[d.spark.length - 1] ?? [0, 0]).reduce((x, y) => x + y), 0);
-    const r = p.rate?.[p.rate.length - 1];
-    const live = p.online && r && this.st.now - r[0] < 180;
+    const r = p.online ? this.speedOf(p) : null;
+    const live = !!r;
 
-    const bar = E('div', { class: `dl-usebar${pct >= 100 ? ' bad' : pct >= 90 ? ' warn' : ''}` });
+    // The pace lately: their devices' days added up (each device's last 7, today last).
+    const week = Array.from({ length: 7 }, (_x, k) => p.devices.reduce((a, d) => a + (d.spark[k]?.[0] ?? 0) + (d.spark[k]?.[1] ?? 0), 0));
+    const pace = paceOf(week);
+    const paceText = paceWords(used, p.quota_limit, pace, p.quota_period === 'month', this.today);
+    let bar: HTMLElement;
     if (p.quota_limit) {
-      const fill = E('i', { class: 'fill' });
-      fill.style.width = `${pct}%`;
-      bar.appendChild(fill);
-      attachTip(bar, () => [
-        E('div', { class: 'dl-tip-title' }, fmt(_('%s%% used'), num(pct, 1))),
-        E(
-          'div',
-          { class: 'dl-muted' },
-          `${fmt(_('%s of %s'), bytes(p.quota_used), bytes(p.quota_limit))} · ${fmt(_('%s left'), bytes(Math.max(0, p.quota_limit - p.quota_used)))}`,
-        ),
-        E(
-          'div',
-          { class: 'dl-faint' },
-          p.quota_period === 'total'
-            ? _('In total')
-            : [_('This month'), p.bonus_gb ? fmt(_('includes +%s GB extra'), num(p.bonus_gb)) : ''].filter(Boolean).join(' · '),
-        ),
-      ]);
+      bar = limitMeter(pct, weekAhead(p.quota_used, p.quota_limit, pace));
+      // Above where the fill ends: the value's own place.
+      pointTip(
+        bar,
+        () => [
+          E('div', { class: 'dl-glide-head' }, [
+            E('b', {}, fmt(_('%s%% used'), num(pct, 1))),
+            E(
+              'span',
+              { class: 'dl-faint' },
+              p.quota_period === 'total'
+                ? _('In total')
+                : [_('This month'), p.bonus_gb ? fmt(_('includes +%s GB extra'), num(p.bonus_gb)) : ''].filter(Boolean).join(' · '),
+            ),
+          ]),
+          E(
+            'div',
+            { class: 'dl-muted' },
+            `${fmt(_('%s of %s'), bytes(p.quota_used), bytes(p.quota_limit))} · ${fmt(_('%s left'), bytes(Math.max(0, p.quota_limit - p.quota_used)))}`,
+          ),
+          pct < 100 && paceText ? E('div', { class: 'dl-glide-note' }, paceText) : '',
+        ],
+        () => {
+          const r = bar.getBoundingClientRect();
+          return [r.left + (r.width * pct) / 100, r.top];
+        },
+      );
     } else {
       const devs = p.devices
         .map((d) => ({ d, v: d.month[0] + d.month[1] }))
         .filter((x) => x.v > 0)
         .sort((a, b) => b.v - a.v);
-      devs.forEach((x, i) => {
-        const seg = E('i', { class: `c${Math.min(i, 4)}` });
-        seg.style.flexGrow = String(x.v);
-        bar.appendChild(seg);
-      });
+      bar = splitMeter(devs.map((x) => x.v));
       if (devs.length)
-        attachTip(bar, () => [
-          E('div', { class: 'dl-tip-title' }, _('This month by device')),
+        pointTip(bar, () => [
+          E('div', { class: 'dl-glide-head' }, [E('b', {}, _('This month by device')), E('span', { class: 'dl-faint' }, bytes(used))]),
           ...devs.map((x, i) =>
             E('div', { class: 'dl-tip-row' }, [
               E('span', { class: `dl-swatch c${Math.min(i, 4)}` }),
               E('span', {}, x.d.name),
+              E('span', { class: 'dl-faint' }, `${num(Math.round((x.v / Math.max(1, used)) * 100))}%`),
               E('b', {}, bytes(x.v)),
             ]),
           ),
+          paceText ? E('div', { class: 'dl-glide-note' }, paceText) : '',
         ]);
     }
 
@@ -668,13 +687,40 @@ export class PeoplePage {
         ),
       ]),
       bar,
-      live
-        ? E('div', { class: 'dl-use-live', title: _('Right now') }, [
-            `↓ ${bits(r![2])}`,
-            E('span', { class: 'dl-faint' }, `↑ ${bits(r![1])}`),
-          ])
+      r
+        ? this.speedRow(p, r)
         : E('div', { class: 'dl-faint dl-pside-foot' }, today ? `${fmt(_('today %s'), bytes(today))} · ${limitText}` : limitText),
     ]);
+  }
+
+  /** Their speed now ([ts, rx, tx]): the live meter's while it has points, else their newest minute while it is recent. */
+  private speedOf(p: Person): Rate | null {
+    const s = this.meter?.speed(
+      p.server,
+      Date.now(),
+      p.devices.map((d) => d.id),
+    );
+    if (s?.pts.length) return [0, s.rx, s.tx];
+    const r = p.rate?.[p.rate.length - 1];
+    return r && this.st.now - r[0] < 180 ? r : null;
+  }
+
+  private speedRow(p: Person, r: Rate): HTMLElement {
+    const down = E('span', {}, `↓ ${bits(r[2])}`);
+    const up = E('span', { class: 'dl-faint' }, `↑ ${bits(r[1])}`);
+    this.speedEls.set(p.id, { p, down, up });
+    return E('div', { class: 'dl-use-live', title: _('Right now') }, [down, up]);
+  }
+
+  /** Each second's meter answer: the speeds in the cards on screen (whether someone is online waits for the status). */
+  paintSpeed() {
+    for (const { p, down, up } of this.speedEls.values()) {
+      if (!down.isConnected) continue;
+      const r = this.speedOf(p);
+      if (!r) continue;
+      down.textContent = `↓ ${bits(r[2])}`;
+      up.textContent = `↑ ${bits(r[1])}`;
+    }
   }
 
   async togglePause(p: Person) {

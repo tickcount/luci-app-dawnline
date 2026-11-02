@@ -70,11 +70,6 @@
 .dl-slots i.over { background: color-mix(in srgb, var(--dl-warn) 80%, transparent); }
 .dl-date { display: flex; align-items: center; gap: 8px; flex: 1 1 150px; min-width: 0; box-sizing: border-box; height: 34px; padding: 0 10px; border: 1px solid var(--input, var(--dl-line)); border-radius: 8px; color: var(--dl-fg-faint); }
 .dl-date input { border: 0 !important; background: transparent !important; box-shadow: none !important; padding: 0 !important; height: 32px !important; color: var(--dl-fg); flex: 1; min-width: 0 !important; width: 100% !important; }
-.dl-meter { position: relative; height: 6px; border-radius: 999px; background: var(--dl-track); }
-.dl-meter > i { display: block; height: 100%; border-radius: 999px; background: var(--dl-accent); }
-.dl-meter.warn > i { background: var(--dl-warn); } .dl-meter.bad > i { background: var(--dl-bad); }
-.dl-meter .mark { position: absolute; left: 90%; top: -3px; width: 1px; height: 12px; background: var(--dl-warn); }
-.dl-meter.sm { height: 4px; }
 .dl-chips-row { display: flex; flex-wrap: wrap; gap: 4px; }
 .dl-chipbtn { all: unset; cursor: pointer; height: 26px; padding: 0 10px; border-radius: 999px; background: var(--dl-soft); font-size: 12px; font-weight: 500; display: inline-flex; align-items: center; }
 .dl-chipbtn:hover { background: var(--dl-soft-hover); } .dl-chipbtn.on { background: var(--dl-primary); color: var(--dl-primary-fg); }
@@ -111,15 +106,11 @@
 .dl-use-num { display: flex; align-items: baseline; gap: 6px; white-space: nowrap; }
 .dl-use-num b { font-size: 15px; font-weight: 500; }
 .dl-use-live { display: flex; align-items: center; gap: 8px; font-size: 12px; font-variant-numeric: tabular-nums; }
-.dl-usebar { display: flex; gap: 2px; height: 6px; border-radius: 999px; overflow: hidden; background: var(--dl-track); }
-.dl-usebar i { display: block; height: 100%; min-width: 3px; flex: 0 1 0; }
-.dl-usebar i.fill { flex: none; min-width: 0; border-radius: 999px; background: var(--dl-accent); }
-.dl-usebar.warn i.fill { background: var(--dl-warn); } .dl-usebar.bad i.fill { background: var(--dl-bad); }
-.dl-usebar .c0, .dl-swatch.c0 { background: var(--dl-chart-1); }
-.dl-usebar .c1, .dl-swatch.c1 { background: #8b7cf6; }
-.dl-usebar .c2, .dl-swatch.c2 { background: #2fb889; }
-.dl-usebar .c3, .dl-swatch.c3 { background: #d9a03f; }
-.dl-usebar .c4, .dl-swatch.c4 { background: var(--dl-fg-faint); }
+.dl-smeter .c0, .dl-swatch.c0 { background: var(--dl-chart-1); }
+.dl-smeter .c1, .dl-swatch.c1 { background: #8b7cf6; }
+.dl-smeter .c2, .dl-swatch.c2 { background: #2fb889; }
+.dl-smeter .c3, .dl-swatch.c3 { background: #d9a03f; }
+.dl-smeter .c4, .dl-swatch.c4 { background: var(--dl-fg-faint); }
 .dl-tip-row { display: flex; align-items: center; gap: 8px; min-width: 160px; }
 .dl-tip-row b { margin-left: auto; font-weight: 500; }
 .dl-swatch { width: 8px; height: 8px; border-radius: 2px; flex: none; }

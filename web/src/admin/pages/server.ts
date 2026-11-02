@@ -24,6 +24,7 @@ import { coreOf } from '../cores';
 import { installAwg } from '../pkgs';
 import { createPoller, focusInside, repaint, type Poller } from '../state/poller';
 import { LiveMeter, type MeterAnswer } from '../state/meter';
+import { pollMeter } from '../state/meterpoll';
 import { ServerOverview } from './overview';
 import { PeoplePage } from './people';
 
@@ -65,7 +66,7 @@ export class ServerPage {
   secEl = E('div', {});
   bodyEl = E('div', { class: 'dl-srvbody' });
   poller?: Poller<Status>;
-  /** The live meter's last 2 minutes, every server's (the Overviews' Speed now), and its poller. */
+  /** The live meter's last 2 minutes, every server's (Speed now on the Overviews and People lists), and its poller. */
   meter = new LiveMeter();
   meterPoller?: Poller<MeterAnswer>;
 
@@ -104,23 +105,16 @@ export class ServerPage {
         this.ov[this.current().id]?.update(n, quiet);
       },
     });
-    // Speed now, live: one meter call a second while the Overview of a running server is on screen
-    // (the router keeps the last two minutes and writes them out while someone asks). A failed call is said in the tile, not in a
-    // second "not answering" toast beside the status poller's.
+    // Speed now, live, while the Overview of a running server or its People list is on screen.
     this.meterPoller?.stop();
-    this.meterPoller = createPoller<MeterAnswer>({
-      fetch: () =>
-        api.meter(this.meter.since(Date.now())).then(
-          (meter) => ({ meter }),
-          (e) => ({ error: errorText(e) }),
-        ),
-      every: 1,
-      active: () => this.section === 'overview' && this.root.isConnected && this.current().enabled,
-      apply: (r) => {
-        this.meter.take(r, Date.now());
+    this.meterPoller = pollMeter(
+      this.meter,
+      () => (this.section === 'overview' || this.section === 'people') && this.root.isConnected && this.current().enabled,
+      () => {
         this.ov[this.current().id]?.paintSpeed();
+        this.pp[this.current().id]?.paintSpeed();
       },
-    });
+    );
     return this.root;
   }
 
@@ -220,7 +214,7 @@ export class ServerPage {
       pp.filter = filter as PeoplePage['filter'];
       if (pp.el) pp.decorate();
     } else if (filter) {
-      const page = (this.pp[this.current().id] = new PeoplePage());
+      const page = (this.pp[this.current().id] = new PeoplePage(this.meter));
       page.filter = filter as PeoplePage['filter'];
     }
     this.showSection(k);
@@ -261,7 +255,7 @@ export class ServerPage {
           return pp.el;
         }
         const holder = E('div', {}, E('p', { class: 'dl-muted' }, _('Loading people…')));
-        const page = (this.pp[srv.id] ??= new PeoplePage());
+        const page = (this.pp[srv.id] ??= new PeoplePage(this.meter));
         page
           .embed(st, srv.id)
           .then((node) => {

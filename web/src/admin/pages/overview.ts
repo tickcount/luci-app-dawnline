@@ -2,11 +2,10 @@
 // online, traffic, disguise, the connection map, activity and what needs
 // attention — all limited to the people on that server.
 
-import type { Device, Person, Status } from '../../shared/types';
+import type { Device, GeoPoint, Person, Status } from '../../shared/types';
 import { E } from '../e';
 import { api } from '../api';
-import { svg } from '../ui/layout';
-import { attachTip } from '../ui/tooltip';
+import { attachTip, refreshTip } from '../ui/tooltip';
 import { icon } from '../../shared/icons';
 import { ago, bits, bytes, date, daysLeft, duration, endsIn, endsSoon, initials, todayOf } from '../../shared/format';
 import { fill, fmt, plural } from '../../shared/i18n';
@@ -17,6 +16,7 @@ import { scoped } from '../state/scope';
 import { focusInside, repaint } from '../state/poller';
 import type { LiveMeter } from '../state/meter';
 import { daysTile, LiveSpeedTile } from '../widgets/tiles';
+import { SpeedLines } from '../widgets/lines';
 import { coreOf } from '../cores';
 import { healthNotices, runFix } from '../widgets/health';
 import { attempt } from '../ui/toast';
@@ -316,7 +316,11 @@ export class ServerOverview {
       const [rx, tx] = d.spark[d.spark.length - 1] ?? [0, 0];
       return rx + tx;
     };
-    const cityOf = (d: Device) => st.geo.points.find((g) => g.device === d.id && g.city)?.city;
+    // The address it is connected from now, else the newest one (the points come oldest first).
+    const cityOf = (d: Device) => {
+      const pts = st.geo.points.filter((g) => g.device === d.id && g.city);
+      return (pts.find((g) => g.online) ?? pts.reduce<GeoPoint | undefined>((a, g) => (a && a.ts >= g.ts ? a : g), undefined))?.city;
+    };
     const home = (d: Device) => /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(d.endpoint ?? '');
     // Where a device is: its city, or "LAN" when it connects from the home network (the hover
     // card adds its address there).
@@ -331,20 +335,22 @@ export class ServerOverview {
     const card = ({ p, devs }: { p: Person; devs: Device[] }): Node[] => {
       const starts = devs.map(connectedAt).filter(Boolean);
       const since = starts.length ? Math.min(...starts) : 0;
-      const pts = (p.rate ?? []).slice(-15);
+      // The live meter's last 2 minutes of their devices while it has them (the card is drawn again each
+      // second it shows, paintSpeed), else their last 15 minutes.
+      const ls = this.meter.speed(
+        p.server,
+        Date.now(),
+        p.devices.map((d) => d.id),
+      );
+      const live = ls.pts.length > 1;
+      const pts = live ? ls.pts : (p.rate ?? []).slice(-15);
+      const xs = live ? ls.xs : pts.map((_x, i) => (pts.length > 1 ? i / (pts.length - 1) : 1));
       const last = pts[pts.length - 1];
-      const fresh = last && st.now - last[0] < 180 ? last : null;
-      const W = 200,
-        H = 30,
-        max = Math.max(1, ...pts.map((x) => Math.max(x[1], x[2])));
-      const line = (k: 1 | 2) => pts.map((x, i) => `${pts.length > 1 ? (i / (pts.length - 1)) * W : W},${H - 2 - (x[k] / max) * (H - 6)}`);
-      const chart =
-        pts.length > 1
-          ? svg(
-              `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="dl-hc-chart" aria-hidden="true">` +
-                `<path d="M${line(2).join(' L')} L${W},${H} L0,${H}Z" class="area"/><path d="M${line(2).join(' L')}" class="dn"/><path d="M${line(1).join(' L')}" class="up"/></svg>`,
-            )
-          : '';
+      const fresh = live ? ([0, ls.rx, ls.tx] as const) : last && st.now - last[0] < 180 ? last : null;
+      // The card's speed box is 228 px inside (280, less the card's and the box's padding).
+      const lines = pts.length > 1 ? new SpeedLines(30, true, 228) : null;
+      lines?.set(pts, xs);
+      const chart = lines?.el ?? '';
       const idle = !fresh || (fresh[1] < 64 && fresh[2] < 64);
       const reach = p.access === 'both' ? ['home', 'globe'] : p.access === 'lan' ? ['home'] : ['globe'];
       return [
@@ -371,7 +377,7 @@ export class ServerOverview {
                     E('span', {}, [E('span', { class: 'dl-dn' }, '↓'), ` ${bits(fresh![2])}`]),
                     E('span', {}, [E('span', { class: 'dl-up' }, '↑'), ` ${bits(fresh![1])}`]),
                     E('span', { class: 'dl-spacer' }),
-                    E('span', { class: 'dl-faint' }, _('15 min')),
+                    E('span', { class: 'dl-faint' }, live ? _('2 min') : _('15 min')),
                   ],
             ),
             chart,
@@ -395,17 +401,32 @@ export class ServerOverview {
     const person = (x: { p: Person; devs: Device[] }) => {
       const { p, devs } = x;
       const badge = E('span', { class: 'dl-onl-dev' }, devs.length > 1 ? String(devs.length) : icon(devs[0].kind));
+      // Every place their devices are, once, the busiest device's first: "Krasnodar · Moscow", or
+      // "Krasnodar +1" when two do not fit under the avatar, "3 cities" from three on (the card names each).
+      const places = [...new Set(devs.map((d) => where(d)).filter(Boolean))];
+      const full = places.length > 2 ? plural(places.length, '%s city', '%s cities') : places.join(' · ');
+      const place = E('span', {}, full ? [' · ', full] : '');
+      const meta = big
+        ? E('span', { class: 'dl-onl-meta' }, [
+            ...devs.slice(0, 3).map((d) => icon(d.kind)),
+            devs.length > 3 ? `+${devs.length - 3}` : '',
+            place,
+          ])
+        : '';
       const el = E('a', { class: `dl-onl-p${big ? '' : ' sm'}`, href: personUrl(p.id), 'aria-label': fmt(_('%s, online'), p.name) }, [
         E('span', { class: 'dl-onl-av' }, [initials(p.name), badge]),
         big ? E('span', { class: 'dl-onl-name' }, p.name) : '',
-        big
-          ? E('span', { class: 'dl-onl-meta' }, [
-              ...devs.slice(0, 3).map((d) => icon(d.kind)),
-              devs.length > 3 ? `+${devs.length - 3}` : '',
-              where(devs[0]) ? E('span', {}, [' · ', where(devs[0])]) : '',
-            ])
-          : '',
+        meta,
       ]);
+      if (meta && places.length === 2) {
+        // Measured where it stands (the person is a fixed width, so swapping the words never resizes what is observed).
+        const fit = new ResizeObserver(() => {
+          if (!el.isConnected) return fit.disconnect();
+          place.textContent = ` · ${full}`;
+          if (meta.scrollWidth > meta.clientWidth) place.textContent = ` · ${places[0]} +1`;
+        });
+        fit.observe(el);
+      }
       attachTip(el, () => card(x));
       return el;
     };
@@ -465,6 +486,8 @@ export class ServerOverview {
     if (!this.st) return;
     const srv = this.st.servers[0];
     this.speed.update(this.meter.speed(this.srvId, Date.now()), this.st.totals.today, srv ? !srv.enabled : false);
+    // A person's card under the pointer follows the same second.
+    refreshTip();
   }
 
   /** The last 30 days, today on the right, with the peak. */

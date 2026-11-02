@@ -65,14 +65,23 @@
 .bars .today .up {
   background: color-mix(in srgb, var(--accent) 45%, transparent);
 }
-.bars .col:not(.future):hover .dn {
+/* A day under the pointer, or picked by a tap or the keys (.on, ui/bars.ts readBars). */
+.bars .col:not(.future):is(:hover, .on) .dn {
   background: var(--text-2);
 }
-.bars .col:not(.future):hover .up {
+.bars .col:not(.future):is(:hover, .on) .up {
   background: color-mix(in srgb, var(--text-2) 50%, transparent);
 }
-.bars .today:hover .dn {
+.bars .today:is(:hover, .on) .dn {
   background: color-mix(in srgb, var(--accent) 75%, var(--text));
+}
+/* Read with the keys: focus shows as a ring around the bars; the pointer keeps its arrow. */
+.bars.scrub {
+  outline: none;
+  border-radius: 6px;
+}
+.bars.scrub:focus-visible {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent);
 }
 .bars .future i {
   height: 3px;

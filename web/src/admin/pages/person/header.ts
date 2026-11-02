@@ -8,7 +8,7 @@ import { icon } from '../../../shared/icons';
 import { ago, bytes, date, initials, isoDay } from '../../../shared/format';
 import { fmt } from '../../../shared/i18n';
 import { copyPersonLink } from '../../invite';
-import { daysTile, speedTile } from '../../widgets/tiles';
+import { daysTile } from '../../widgets/tiles';
 import { editNote, invite, moveToServer, newLink, remove, rename } from './dialogs';
 import type { PersonPage } from './index';
 
@@ -66,13 +66,12 @@ export function headPart(page: PersonPage): HTMLElement {
   ]);
 }
 
-/** Speed now and the last 30 days, the same tiles as the server Overview; speed only while a device is online. */
+/** Speed now (live) and the last 30 days, the same tiles as the server Overview; speed only while a device is online. */
 export function trafficPart(page: PersonPage): HTMLElement {
   const p = page.p;
-  // Today on the router: the last day of the series.
-  const todayUse = page.series[page.series.length - 1];
+  if (p.online) page.paintSpeed();
   return E('div', { class: `dl-person-live${p.online ? '' : ' solo'}` }, [
-    p.online ? speedTile(p.rate ?? [], page.st.now, todayUse ? [todayUse.rx, todayUse.tx] : [0, 0]) : '',
+    p.online ? page.speed.el : '',
     daysTile(page.series, fmt(_('%s this month'), bytes(p.month[0] + p.month[1]))),
   ]);
 }

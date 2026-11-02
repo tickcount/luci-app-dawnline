@@ -23,6 +23,10 @@ msgstr ""
 msgid "%s (router time)"
 msgstr ""
 
+#: web/src/shared/pace.ts
+msgid "%s a day lately"
+msgstr ""
+
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
 msgid "%s already has %d device. Remove one first to lower the limit to %d."
 msgid_plural "%s already has %d devices. Remove one first to lower the limit to %d."
@@ -159,6 +163,10 @@ msgstr ""
 
 #: web/src/portal/page/notices.ts
 msgid "%s your time"
+msgstr ""
+
+#: web/src/portal/page/devices.ts
+msgid "%s, last 7 days"
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
@@ -1412,6 +1420,10 @@ msgstr ""
 msgid "Your access is paused."
 msgstr ""
 
+#: web/src/portal/page/access.ts
+msgid "Your data this month"
+msgstr ""
+
 #: web/src/portal/page/devices.ts
 msgid "Your devices"
 msgstr ""
@@ -1434,6 +1446,14 @@ msgstr ""
 
 #: web/src/portal/flows/wait.ts
 msgid "Your network may be blocking the connection."
+msgstr ""
+
+#: web/src/shared/pace.ts
+msgid "about %s by the reset on %s"
+msgstr ""
+
+#: web/src/portal/page/access.ts
+msgid "about average"
 msgstr ""
 
 #: web/src/shared/format.ts
@@ -1482,6 +1502,12 @@ msgstr ""
 msgid "ends tomorrow"
 msgstr ""
 
+#: web/src/shared/pace.ts
+msgid "full in about %s day, %s"
+msgid_plural "full in about %s days, %s"
+msgstr[0] ""
+msgstr[1] ""
+
 #: web/src/shared/format.ts
 msgid "just now"
 msgstr ""
@@ -1502,6 +1528,14 @@ msgstr ""
 msgid "no limit"
 msgstr ""
 
+#: web/src/portal/page/devices.ts
+msgid "not used"
+msgstr ""
+
+#: web/src/portal/page/access.ts
+msgid "opens in %s"
+msgstr ""
+
 #: web/src/portal/setup.ts
 msgid "phone"
 msgstr ""
@@ -1518,6 +1552,10 @@ msgstr ""
 #: web/src/portal/setup.ts
 msgctxt "on the"
 msgid "router"
+msgstr ""
+
+#: web/src/portal/page/access.ts
+msgid "so far"
 msgstr ""
 
 #: web/src/portal/setup.ts

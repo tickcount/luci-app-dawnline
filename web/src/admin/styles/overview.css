@@ -25,11 +25,6 @@
 .dl-dcard-trend { display: flex; align-items: flex-end; gap: 12px; min-width: 0; }
 .dl-dcard-trend > .dl-stack { flex: none; }
 .dl-dcard-trend b { font-size: 16px; font-weight: 500; font-variant-numeric: tabular-nums; }
-.dl-dbars { flex: 1; min-width: 0; height: 32px; display: flex; align-items: flex-end; --dl-gap: 2px; }
-.dl-dbars i { flex: 1; min-width: 0; border-radius: 2px; background: var(--dl-chart-1); opacity: .55; }
-.dl-dbars i.zero { background: var(--dl-track); opacity: 1; }
-.dl-dbars i.hi { opacity: 1; }
-.dl-dbars > span:hover i { opacity: 1; filter: brightness(1.2); }
 .dl-datechip { position: relative; display: inline-flex; }
 .dl-date-hidden { position: absolute !important; left: 0; bottom: 0; width: 1px !important; min-width: 0 !important; height: 1px !important; opacity: 0; pointer-events: none; border: 0 !important; padding: 0 !important; margin: 0 !important; }
 .dl-chipbtn .dl-icon { width: 13px; height: 13px; }
@@ -85,10 +80,6 @@
 .dl-hc-reach { display: inline-flex; gap: 4px; }
 .dl-hc-speed { border-radius: 12px; background: var(--dl-soft); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
 .dl-hc-speed-row { display: flex; align-items: baseline; gap: 12px; font-size: 13px; font-variant-numeric: tabular-nums; }
-.dl-hc-chart { display: block; width: 100%; height: 30px; }
-.dl-hc-chart .area { fill: color-mix(in srgb, var(--dl-chart-1) 16%, transparent); }
-.dl-hc-chart .dn { fill: none; stroke: var(--dl-chart-1); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
-.dl-hc-chart .up { fill: none; stroke: var(--dl-ok); stroke-width: 1.2; vector-effect: non-scaling-stroke; }
 .dl-hc-devs { display: flex; flex-wrap: wrap; gap: 6px; }
 .dl-hc-dev { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px; border-radius: 999px; background: var(--dl-soft); font-size: 11.5px; }
 .dl-hc-dev .dl-icon-wrap { display: inline-flex; } .dl-hc-dev .dl-icon { width: 12px; height: 12px; color: var(--dl-fg-muted); }
@@ -143,15 +134,7 @@
 .dl-dn { color: var(--dl-accent); } .dl-up { color: var(--dl-ok); }
 .dl-bento-method { display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 500; }
 .dl-bento-method .dl-icon { width: 20px; height: 20px; color: var(--dl-accent); }
-.dl-meter { display: inline-flex; gap: 3px; }
-.dl-meter i { width: 16px; height: 4px; border-radius: 2px; background: var(--dl-line); }
-.dl-meter i.on { background: var(--dl-accent); }
 .dl-bento-total { font-size: 16px; font-weight: 500; margin-left: 8px; }
-.dl-bento-bars { display: flex; align-items: flex-end; height: 54px; --dl-gap: 3px; }
-.dl-bento-bars i { flex: 1; min-width: 0; border-radius: 3px 3px 0 0; background: var(--dl-soft-hover); transition: background .15s; }
-.dl-bento-bars i.future { height: 4px; background: var(--dl-soft); }
-.dl-bento-bars > span:hover i:not(.hi) { background: var(--dl-fg-faint); }
-.dl-bento-bars i.hi { background: var(--dl-accent); }
 @media (max-width: 700px) { .dl-addrbar { flex-wrap: wrap; } }
 @media (max-width: 900px) { .dl-bento { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .dl-bento-tile.online { grid-column: span 2; } }
 @media (max-width: 560px) { .dl-bento { grid-template-columns: minmax(0, 1fr); } .dl-bento-tile.online, .dl-bento-tile.month { grid-column: auto; } }
@@ -170,12 +153,7 @@
 .dl-speed-val { font-size: 20px; line-height: 26px; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dl-speed-today { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--dl-fg-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .dl-speed-today b { font-weight: 500; color: var(--dl-fg); }
-.dl-speed-chart { display: block; width: 100%; height: 44px; }
-.dl-speed-chart .area { fill: color-mix(in srgb, var(--dl-accent) 16%, transparent); }
-.dl-speed-chart .line { fill: none; stroke: var(--dl-accent); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
-.dl-speed-chart .line.up { stroke: var(--dl-ok); stroke-width: 1.2; opacity: .85; }
 .dl-speed-wait { height: 44px; display: flex; flex-direction: column; justify-content: flex-end; gap: 6px; font-size: 11px; color: var(--dl-fg-faint); }
-.dl-speed-wait i { display: block; height: 1px; background: var(--dl-line); order: 2; }
 .dl-speed-val.off { color: var(--dl-fg-faint); }
 .dl-fld { display: flex; flex-direction: column; gap: 8px; margin: 0 0 16px; }
 .dl-fld-label { font-size: 13px; font-weight: 500; color: var(--dl-fg); }
