@@ -1,39 +1,28 @@
 // Adding a device: what it is (four kinds; phones and tablets are one choice,
 // the same apps and the same smaller packets), whether the local network it is
-// on stays reachable while connected (LAN Bypass, off unless they turn it on;
-// it stays as chosen: the admin's drawer shows it, neither page changes it)
-// and its name, guessed from the browser when it is this device; then straight
-// on to its set-up. Or the page opens on the device itself, from a code, ready
-// to add it there.
+// on stays reachable while connected (LAN Bypass, on unless they turn it off;
+// Reconnect and the card's ⋯ menu change it later: device-actions.ts) and its
+// name, guessed from the browser when it is this device; then straight on to
+// its set-up. Or the page opens on the device itself, from a code, ready to add
+// it there. The kinds and the switch are device-form.ts.
 
 import type { ClientConfig, Kind } from '../../shared/types';
-import { defaultName, fitName, netsLabel, pickLabel, pickOf, PICKS, type KindPick } from '../../shared/format';
+import { defaultName, fitName, pickOf, PICKS, type KindPick } from '../../shared/format';
 import { guardDeviceName } from '../../shared/name-guard';
 import { shake } from '../../shared/shake';
 import { fmt, num, plural } from '../../shared/i18n';
 import { ApiError, call } from '../api';
 import { h, ic } from '../dom';
-import { SMOOTH, play } from '../motion';
 import { addLink } from '../setup';
 import { pageUrl, repaint, setState, state, type State } from '../state';
 import { smoothCaret } from '../ui/caret';
 import { linkRow, qrBox } from '../ui/codes';
 import { once, toast } from '../ui/feedback';
 import { badLine } from '../ui/bad-line';
-import { glass } from '../ui/glass';
 import { go, head, openSheet, sub, type View } from '../ui/sheet';
 import { secureFirst, showSecure } from './secure';
+import { IPAD, UA, guessKind, kindOf, kindTiles, lanSwitch } from './device-form';
 import { continueSetup } from './setup-view';
-
-// Best guess at the device this page is open on (the browser never tells its real name).
-const UA = navigator.userAgent;
-const IPAD = /iPad/.test(UA) || (/Macintosh/.test(UA) && navigator.maxTouchPoints > 1);
-
-function guessKind(): Kind {
-  if (IPAD || /Tablet/i.test(UA) || (/Android/.test(UA) && !/Mobile/.test(UA))) return 'tablet';
-  if (/Android|iPhone|Mobile/i.test(UA)) return 'phone';
-  return 'computer';
-}
 
 /** Samsung model codes → names people know (S and A series; the code stays in brackets). */
 const GALAXY: [RegExp, string][] = [
@@ -77,9 +66,6 @@ function guessName(kind: Kind): string {
   return defaultName(kind);
 }
 
-// Mobile is a tablet when this page is open on one (see KindPick).
-const kindOf = (p: KindPick): Kind => (p !== 'mobile' ? p : guessKind() === 'tablet' ? 'tablet' : 'phone');
-
 /**
  * What they chose so far, kept outside the view: Back from "Open on the device"
  * builds the view again, and it comes back as they left it. `name`: what they
@@ -91,33 +77,6 @@ interface Draft {
   name?: string;
 }
 
-/**
- * A line in a block opens or folds away: height, opacity and blur on SMOOTH, as the set-up steps fold, from
- * where it is on screen (flicking the switch never snaps). The block's 1 px gap goes with it.
- */
-function foldLine(el: HTMLElement, open: boolean) {
-  const cs = getComputedStyle(el);
-  const from = el.hidden
-    ? { h: 0, o: 0, b: 4, m: -1 }
-    : {
-        h: el.getBoundingClientRect().height,
-        o: +cs.opacity,
-        b: +(cs.filter.match(/blur\(([\d.]+)px\)/)?.[1] ?? 0),
-        m: parseFloat(cs.marginTop) || 0,
-      };
-  el.getAnimations().forEach((a) => a.cancel());
-  el.hidden = false;
-  el.style.overflow = 'hidden';
-  const to = open ? { h: el.scrollHeight, o: 1, b: 0, m: 0 } : { h: 0, o: 0, b: 4, m: -1 };
-  const frame = (v: typeof from) => ({ height: `${v.h}px`, opacity: v.o, filter: v.b ? `blur(${v.b}px)` : 'none', marginTop: `${v.m}px` });
-  const a = play(el, [frame(from), frame(to)], { duration: SMOOTH.duration, easing: SMOOTH.easing, fill: 'forwards' });
-  a.onfinish = () => {
-    el.hidden = !open;
-    el.style.overflow = '';
-    a.cancel();
-  };
-}
-
 export function startAdd() {
   const st = state();
   if (!st || st.locked) return;
@@ -127,7 +86,7 @@ export function startAdd() {
       true,
     );
   if (secureFirst()) return;
-  const draft: Draft = { bypass: false };
+  const draft: Draft = { bypass: true };
   openSheet(() => vAdd(draft));
 }
 
@@ -147,53 +106,8 @@ function vAdd(draft: Draft): View {
     return fitName(n);
   };
 
-  const kinds = h('div', { class: 'kinds', role: 'radiogroup', 'aria-label': _('What is it?') });
-  kinds.style.setProperty('--n', String(picks.length));
-  const tiles = picks.map((k) => {
-    const t = h(
-      'button',
-      { type: 'button', class: 'kind', role: 'radio', 'aria-label': pickLabel(k), onclick: () => choose(k) },
-      h('span', { class: 'kind-tile' }, glass(k, 'blue')),
-      h('span', { class: 'kind-lbl' }, pickLabel(k)),
-    );
-    kinds.appendChild(t);
-    return t;
-  });
-  // With home access, the home networks still go into the tunnel: a local network on the same addresses is out
-  // of reach, and the row says so while LAN Bypass is on.
-  const home = st.server.home ?? [];
-  const except = home.length
-    ? h(
-        'span',
-        { class: 'sw-sub sw-note', hidden: !draft.bypass },
-        fmt(_('Except %s: those addresses lead to the home network.'), netsLabel(home)),
-      )
-    : null;
-  // The whole row is the switch. Built as they left it, before it is on the page: nothing slides.
-  const lan = h(
-    'button',
-    {
-      type: 'button',
-      class: draft.bypass ? 'swrow on' : 'swrow',
-      role: 'switch',
-      'aria-checked': String(draft.bypass),
-      onclick: () => {
-        draft.bypass = !draft.bypass;
-        lan.classList.toggle('on', draft.bypass);
-        lan.setAttribute('aria-checked', String(draft.bypass));
-        if (except) foldLine(except, draft.bypass);
-      },
-    },
-    glass('lan', 'blue'),
-    h(
-      'span',
-      { class: 'sw-t' },
-      h('b', {}, _('LAN Bypass')),
-      h('span', { class: 'sw-sub' }, _('Your local network stays reachable while connected.')),
-      except,
-    ),
-    h('span', { class: 'sw', 'aria-hidden': 'true' }),
-  );
+  const kinds = kindTiles(picks, (k) => choose(k));
+  const lan = lanSwitch(draft.bypass, st.server.home ?? [], (on) => (draft.bypass = on));
   const input = h('input', {
     type: 'text',
     // Not `required`: the browser's own check would stop an empty submit before the field can shake.
@@ -222,14 +136,9 @@ function vAdd(draft: Draft): View {
   void modelReady.then(() => {
     if (draft.name === undefined && pick === pickOf(guessKind())) input.value = suggest(pick);
   });
-  // The picked tile rings itself where it stands (the ring does not travel between tiles).
   function choose(k: KindPick) {
     pick = draft.pick = k;
-    tiles.forEach((t, i) => {
-      const on = picks[i] === k;
-      t.classList.toggle('on', on);
-      t.setAttribute('aria-checked', String(on));
-    });
+    kinds.set(k);
     if (draft.name === undefined) {
       input.value = suggest(k);
       goBtn.classList.add('ready');
@@ -278,7 +187,7 @@ function vAdd(draft: Draft): View {
     { class: 'view' },
     head(_('Add a device')),
     sub(fmt(N_(p.device_limit, '%s of %s slot free', '%s of %s slots free'), num(free), num(p.device_limit))),
-    kinds,
+    kinds.el,
     lan,
     form,
     err,

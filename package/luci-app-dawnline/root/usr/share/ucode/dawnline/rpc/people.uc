@@ -8,6 +8,7 @@ import * as view from 'dawnline.view';
 import * as awg from 'dawnline.awg';
 import * as store from 'dawnline.store';
 import * as devices from 'dawnline.devices';
+import * as lookup from 'dawnline.lookup';
 import { wrap, str, clamp_days } from 'dawnline.rpc.common';
 import { _ } from 'dawnline.i18n';
 
@@ -155,7 +156,13 @@ function device_config(a) {
 		die(_('Unknown device.'));
 	if (a.issue === true)
 		awg.mark_issued(m, d.id);
-	return awg.client_config(m, d);
+	let cfg = awg.client_config(m, d);
+	// V2RayTun on Android takes the server by its IP (the admin's set-up shows its link for phones, tablets and
+	// other devices): only where it can connect at all, and AmneziaWG 3.1 (Maximum) is beyond it.
+	let srv = m.servers[m.people[d.person]?.server];
+	if (cfg && d.kind != 'router' && d.kind != 'computer' && srv?.preset != 'max')
+		cfg.amnezia.host_ip = lookup.host_ip(cfg.amnezia.host);
+	return cfg;
 }
 
 /** Name, on/off and the link values (mtu, keepalive: strings, '' = the server's; lan_bypass: true or false). */

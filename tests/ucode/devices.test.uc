@@ -4,14 +4,16 @@
 // sync's nft and awg steps fail harmlessly in the container. /etc/config/dawnline
 // and the issued and reconnect marks are put back after.
 import { readfile, writefile, unlink } from 'fs';
-import { DATA_DIR, ensure_dir } from 'dawnline.util';
+import { DATA_DIR, RUN_DIR, ensure_dir } from 'dawnline.util';
 import * as core from 'dawnline.core';
 import * as awg from 'dawnline.awg';
 import * as people from 'dawnline.rpc.people';
+import * as devices from 'dawnline.devices';
 
 const CONFIG = '/etc/config/dawnline';
 const ISSUED = `${DATA_DIR}/issued.json`;
 const RECONNECT = `${DATA_DIR}/reconnect.json`;
+const EVENTS = `${RUN_DIR}/events.json`;
 
 // fn(), then the files as they were, whatever fn did.
 function kept(paths, fn) {
@@ -64,4 +66,21 @@ test('device_rotate: New keys set the device up again', () => {
 		eq(awg.issued().alice_phone, awg.config_fingerprint(m, m.devices.alice_phone), 'its new configuration is the one handed out');
 	});
 	eq(core.load().devices.alice_phone.private_key, '', 'the fixture is back');
+});
+
+test('portal: Reconnect changes what it is and LAN Bypass with the keys; LAN Bypass alone keeps them', () => {
+	ensure_dir(RUN_DIR);
+	kept([ CONFIG, ISSUED, RECONNECT, EVENTS ], () => {
+		let mine = { by: 'portal', person: 'alice' };
+		devices.reconnect('alice_phone', { ...mine, kind: 'tablet', lan_bypass: true });
+		let d = core.load().devices.alice_phone;
+		eq([ d.kind, d.lan_bypass ], [ 'tablet', true ], 'changed in the same write as the keys');
+		let keys = d.public_key;
+		devices.update('alice_phone', { lan_bypass: false }, mine);
+		d = core.load().devices.alice_phone;
+		eq([ d.lan_bypass, d.public_key ], [ false, keys ], 'LAN Bypass off, the keys as they were');
+		throws(() => devices.update('alice_phone', { mtu: '1400' }, mine), /^Only the admin can change how a device connects\.$/, "the MTU stays the admin's");
+		throws(() => devices.reconnect('alice_phone', { ...mine, kind: 'toaster' }), /^Unknown device type\.$/, 'not a kind');
+		throws(() => devices.update('alice_phone', { lan_bypass: true }, { by: 'portal', person: 'bob' }), /^Device not found\.$/, "another person's device");
+	});
 });

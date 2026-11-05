@@ -39,7 +39,7 @@
 import { readfile, writefile, readlink, stat, unlink } from 'fs';
 import { cursor } from 'uci';
 import {
-	sh, sh_out, q, ip2int, int2ip, parse_cidr, cidr_any, ensure_dir, read_json, write_json, slog, RUN_DIR
+	sh, sh_out, q, ip2int, int2ip, parse_cidr, cidr_any, ensure_dir, read_json, write_json, slog, syslog, syslog_lines, RUN_DIR
 } from 'dawnline.util';
 import * as net from 'dawnline.net';
 import * as core from 'dawnline.core';
@@ -60,12 +60,20 @@ function log(msg, level, detail) {
 	slog('dawnline', level ?? 'info', msg, detail, WHO);
 }
 
+/**
+ * Run the commands that set the path up or take it down, each in syslog as
+ * it is given ("$ ip netns add dawnline"), a failure with what it said.
+ * Only called when something changes (ensure() returns early otherwise).
+ */
 function run(cmds) {
 	let errs = [];
+	syslog_lines('info', 'loop', join('\n', cmds), '$ ');
 	for (let c in cmds) {
 		let r = sh(c);
-		if (r.code != 0)
+		if (r.code != 0) {
 			push(errs, `${c}: ${trim(r.out)}`);
+			syslog('error', 'loop', `failed: ${c} · ${trim(r.out)}`);
+		}
 	}
 	return errs;
 }
@@ -232,8 +240,8 @@ function pick_table(saved) {
  *   { code: 'setup', detail }          a command failed (detail: it and what it said)
  */
 
-/** A reason from plan() for the service log: English, like every log line. */
-function error_note(e) {
+/** A reason from plan() for the service log and syslog: English, like every log line. */
+export function error_note(e) {
 	if (e.code == 'no_lan')
 		return L_('No LAN detected.');
 	if (e.code == 'not_bridge')
@@ -245,7 +253,7 @@ function error_note(e) {
 	if (e.code == 'no_transit')
 		return L_('No free link-local range for the internal link.');
 	return L_('No free routing table.');
-}
+};
 
 /**
  * Why "like a home device" is off (a reason above), as a sentence in the

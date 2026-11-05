@@ -8,7 +8,7 @@
 
 import { cursor } from 'uci';
 import { stat, unlink, writefile } from 'fs';
-import { q, uci_put, uci_section, ack_config, iface_intent, ensure_dir, read_json, write_json, slog, RUN_DIR } from 'dawnline.util';
+import { q, uci_put, uci_section, ack_config, iface_intent, ensure_dir, read_json, write_json, slog, syslog, opts_text, RUN_DIR } from 'dawnline.util';
 import * as core from 'dawnline.core';
 import * as awg from 'dawnline.awg';
 import { L_ } from 'dawnline.i18n';
@@ -95,10 +95,17 @@ export function sync(m) {
 		if (!tools)
 			continue;
 		// Per server: with several, each changed one has to be brought up again.
-		let mine = uci_section(c, 'network', ifn, 'interface');
+		let created = uci_section(c, 'network', ifn, 'interface');
+		let mine = created, diff = {};
 		for (let k, v in options(srv))
-			if (uci_put(c, 'network', ifn, k, v))
+			if (uci_put(c, 'network', ifn, k, v)) {
 				mine = true;
+				diff[k] = v;
+			}
+		if (mine)
+			syslog('info', 'network', `interface ${ifn} (${srv.name}): ${created ? 'created' : 'updated'} · ${opts_text(diff)}`);
+		else
+			syslog('debug', 'network', `interface ${ifn} (${srv.name}): unchanged · ${opts_text(options(srv))}`);
 		// The markers are saved, but netifd does not read them: a renamed server
 		// keeps its tunnel and every session in it.
 		if (uci_put(c, 'network', ifn, '_dawnline', id))
@@ -127,6 +134,7 @@ export function sync(m) {
 	});
 	for (let ifn in stale) {
 		iface_intent(ifn, 'removed', c.get('network', ifn, '_dawnline_name') ?? ifn);
+		syslog('info', 'network', `interface ${ifn} (${c.get('network', ifn, '_dawnline_name') ?? 'a removed server'}): removed, ifdown ${ifn}`);
 		system(`ifdown ${q(ifn)} 2>/dev/null`);
 		c.delete('network', ifn);
 		changed = true;
@@ -138,12 +146,14 @@ export function sync(m) {
 	}
 	// Only the markers changed: nothing for netifd to read (it ignores them, and so does a reload).
 	if (length(touched) || length(stale)) {
+		syslog('info', 'network', 'ubus call network reload');
 		system('ubus call network reload');
 		for (let ifn in touched)
-			if (m.servers[c.get('network', ifn, '_dawnline')]?.enabled)
+			if (m.servers[c.get('network', ifn, '_dawnline')]?.enabled) {
+				syslog('info', 'network', `ifup ${ifn}`);
 				system(`ifup ${q(ifn)}`);
+			}
 		// Each tunnel's own line (restarting, turned off, removed) comes from hotplug.
-		system(`logger -t dawnline ${q('network updated: ' + join(', ', [ ...touched, ...stale ]))}`);
 	}
 	return changed;
 };

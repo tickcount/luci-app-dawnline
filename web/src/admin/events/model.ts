@@ -1,7 +1,8 @@
 // The activity log's vocabulary: categories, who did what, problems, retention.
 // No DOM and no RPC here (see ./render for rows).
 
-import type { LogEvent } from '../../shared/types';
+import type { Kind, LogEvent } from '../../shared/types';
+import { kindLabel } from '../../shared/format';
 import type { LogCategory, LogsInfo, ServiceLogEntry } from '../api';
 import { fmt, known, plural } from '../../shared/i18n';
 import { LOG_TEMPLATES } from './log-templates';
@@ -136,13 +137,25 @@ export function changedText(detail: string): string {
     .join(', ');
 }
 
-/** A device's settings a device_changed event lists (its link options, "mtu, keepalive"); anything else as written. */
+/**
+ * A device's settings a device_changed event lists: each with what it became
+ * ("lan_bypass=on", "kind=phone", "mtu=1400", "keepalive=auto": the server's),
+ * or by name alone as events before 0.18 have them ("mtu, keepalive");
+ * anything else as written.
+ */
 export function deviceChangedText(detail: string): string {
-  const f: Record<string, string> = { mtu: 'MTU', keepalive: _('keep-alive'), lan_bypass: _('LAN Bypass') };
-  return detail
-    .split(', ')
-    .map((k) => f[k] ?? k)
-    .join(', ');
+  const f: Record<string, string> = { mtu: 'MTU', keepalive: _('keep-alive'), lan_bypass: _('LAN Bypass'), kind: _('type') };
+  const one = (part: string): string => {
+    const at = part.indexOf('=');
+    if (at < 0) return f[part] ?? part;
+    const k = part.slice(0, at);
+    const v = part.slice(at + 1);
+    if (k === 'lan_bypass') return v === 'on' ? _('LAN Bypass on') : _('LAN Bypass off');
+    if (k === 'kind') return fmt(_('type: %s'), ['computer', 'phone', 'tablet', 'router', 'other'].includes(v) ? kindLabel(v as Kind) : v);
+    if (v === 'auto') return fmt(_('%s: automatic'), f[k] ?? k);
+    return k === 'keepalive' ? fmt(_('keep-alive %s s'), v) : `${f[k] ?? k} ${v}`;
+  };
+  return detail.split(', ').map(one).join(', ');
 }
 
 /**

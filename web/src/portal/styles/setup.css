@@ -439,6 +439,12 @@
   align-items: baseline;
   column-gap: 0.3em;
 }
+/* The scan line and, for V2RayTun reached by IP, the line under it. */
+.scanwrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 .scanline .osm {
   white-space: nowrap;
 }

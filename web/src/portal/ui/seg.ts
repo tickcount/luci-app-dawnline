@@ -5,7 +5,8 @@
 // they stay right while the sheet around them changes width. At rest the pill
 // stands where CSS puts it (its item's place among the others: controls.css), so
 // a sheet changing width, a phone turned, carry it along with nothing to watch;
-// only a pick moves it from here.
+// only a pick moves it from here. A name wider than its place fades out at
+// the edge it runs past and glides to its end on hover (marquee()).
 
 import { h, ic } from '../dom';
 import { EASE_OUT, LEAD, SMOOTH, calm, play } from '../motion';
@@ -42,21 +43,104 @@ export function labelFade(at: LabelAt, picked: boolean): { duration: number; del
   return { duration: left > 0.01 ? 220 * left : 0, delay: 0 };
 }
 
+/** How fast a name too long for its place glides to its end (px/s): slow enough to read along. */
+const GLIDE_SPEED = 40;
+/** In and out of the glide, gently at both ends. */
+const GLIDE_EASE = 'cubic-bezier(.45, 0, .55, 1)';
+
+interface Marquee {
+  /** Glide to the name's end, or back to its start (`now`: at once). */
+  go(end: boolean, now?: boolean): void;
+  /** At the start, at once (another item picked). */
+  reset(): void;
+  /** At the end: back; at the start: to the end (a tap on the picked item, where there is no hover). */
+  toggle(): void;
+}
+
+/**
+ * A name in its place (`l`, its words the inline block inside): wider than
+ * the place, it is `.clip` and fades to nothing at the edge it runs past
+ * (controls.css); at its end (`.end`) the fade moves to the other edge. It
+ * glides from where it stands, at GLIDE_SPEED, a beat after the pointer comes.
+ */
+function marquee(l: HTMLElement): Marquee {
+  const t = l.firstElementChild as HTMLElement;
+  let atEnd = false;
+  /** The glide under way, if any. */
+  let glide: Animation | null = null;
+  const over = () => Math.max(0, t.offsetWidth - l.clientWidth);
+  /** To the end or the start, from where it stands; `delay` before it sets off (a beat on hover, none to follow a moved end). */
+  function go(end: boolean, now = false, delay = end ? 240 : 0) {
+    const o = end ? over() : 0;
+    atEnd = end && o > 0;
+    l.classList.toggle('end', atEnd);
+    const from = new DOMMatrix(getComputedStyle(t).transform).m41;
+    t.getAnimations().forEach((a) => a.cancel());
+    glide = null;
+    t.style.transform = o ? `translateX(${-o}px)` : '';
+    const dist = Math.abs(-o - from);
+    if (now || dist < 0.5) return;
+    const a = play(t, [{ transform: `translateX(${from}px)` }, { transform: `translateX(${-o}px)` }], {
+      duration: Math.max(420, (dist / GLIDE_SPEED) * 1000),
+      delay,
+      easing: GLIDE_EASE,
+      fill: 'backwards',
+    });
+    glide = a;
+    // The place changed while it glided (a pick still opening it, the sheet still gliding to its width): on to
+    // the end it has now, from where it landed, without a jump.
+    a.onfinish = () => {
+      if (glide !== a) return;
+      glide = null;
+      if (atEnd && Math.abs(over() - o) > 0.5) go(true, false, 0);
+    };
+  }
+  // Its place changes (a pick opens or folds it, the sheet changes width): clipped or not. At its end and still,
+  // it glides to where the end is now (back to the start if it fits); a glide under way corrects when it lands.
+  new ResizeObserver(() => {
+    l.classList.toggle('clip', over() > 0.5);
+    if (atEnd && !glide) go(true, false, 0);
+  }).observe(l);
+  return { go, reset: () => go(false, true), toggle: () => go(!atEnd) };
+}
+
 export function iconSeg<T extends string>(items: SegItem<T>[], value: T, onPick: (v: T) => void): IconSeg<T> {
   const pill = h('span', { class: 'seg-pill' });
   const el = h('div', { class: 'seg appseg', role: 'tablist' }, pill);
+  // A touch has no hover: a tap on the picked item glides its name instead.
+  let touch = false;
   const btns = items.map((it) => {
     const b = h(
       'button',
-      { type: 'button', class: 'seg-b', role: 'tab', 'aria-label': it.label, title: it.label, onclick: () => pick(it.value) },
+      {
+        type: 'button',
+        class: 'seg-b',
+        role: 'tab',
+        'aria-label': it.label,
+        title: it.label,
+        onclick: () => (it.value === value ? touch && marquees[btns.indexOf(b)].toggle() : pick(it.value)),
+      },
       ic(it.icon),
-      h('span', { class: 'seg-l' }, it.label),
+      h('span', { class: 'seg-l' }, h('span', { class: 'seg-t' }, it.label)),
     );
     b.dataset.v = it.value;
+    b.addEventListener('pointerdown', (e) => (touch = e.pointerType !== 'mouse'));
+    // The picked item's name glides to its end while the pointer (or the keyboard's focus) is on it.
+    b.addEventListener('pointerenter', (e) => {
+      if (e.pointerType === 'mouse' && b.classList.contains('on')) marquees[btns.indexOf(b)].go(true);
+    });
+    b.addEventListener('pointerleave', (e) => {
+      if (e.pointerType === 'mouse') marquees[btns.indexOf(b)].go(false);
+    });
+    b.addEventListener('focus', () => {
+      if (b.matches(':focus-visible') && b.classList.contains('on')) marquees[btns.indexOf(b)].go(true);
+    });
+    b.addEventListener('blur', () => marquees[btns.indexOf(b)].go(false));
     el.appendChild(b);
     return b;
   });
   const labelOf = (b: HTMLElement) => b.querySelector('.seg-l') as HTMLElement;
+  const marquees = btns.map((b) => marquee(labelOf(b)));
   const mark = () =>
     btns.forEach((b) => {
       const on = b.dataset.v === value;
@@ -102,10 +186,18 @@ export function iconSeg<T extends string>(items: SegItem<T>[], value: T, onPick:
       return { width: l.getBoundingClientRect().width, opacity: +s.opacity, filter: s.filter, marginLeft: s.marginLeft };
     });
     [...btns, ...labels].forEach((x) => x.getAnimations().forEach((a) => a.cancel()));
+    // Every name back at its start; the picked one glides once it has its place, if the pointer is still on it.
+    marquees.forEach((m) => m.reset());
+    window.setTimeout(() => {
+      if (value === v && btns[to].matches(':hover') && !touch) marquees[to].go(true);
+    }, SMOOTH.duration);
     value = v;
     mark();
-    // The picked name's whole width, as it will stand once its item has its share.
-    const w1 = labels[to].getBoundingClientRect().width;
+    // The picked name's own width (its words, up to the 180 px CSS gives a picked name), not the room it has
+    // now: the room changes while it opens (AmneziaVPN's dense code widens the sheet), and a width measured
+    // before that would jump to the new room when the animation hands back to CSS. Where there is less room,
+    // the item squeezes the name (it shrinks to its place: controls.css), so the end is where CSS puts it.
+    const w1 = Math.min(180, (labels[to].firstElementChild as HTMLElement).offsetWidth);
     btns.forEach((b, i) => {
       const g1 = i === to ? 1 : 0;
       const f1 = getComputedStyle(b).flexBasis;
@@ -184,6 +276,7 @@ export function iconSeg<T extends string>(items: SegItem<T>[], value: T, onPick:
     sync(v) {
       if (v === value) return;
       value = v;
+      marquees.forEach((m) => m.reset());
       mark();
       placePill();
     },

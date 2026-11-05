@@ -47,3 +47,9 @@ test('render: the table as it was', () => {
 	m.devices.b1.lan_bypass = true;
 	eq(render(m), golden, 'a device that keeps its own local network out of the tunnel changes nothing here');
 });
+
+test('shape: chains, sets and rules of a table script', () => {
+	let t = 'table inet dawnline {\n\tset inet_ok {\n\t\ttype ipv4_addr\n\t}\n\tchain forward {\n\t\ttype filter hook forward priority 0; policy accept;\n\t\tiifname "dawn0" ip saddr @inet_ok accept\n\t\t# a note\n\t\tiifname "dawn0" drop\n\t}\n}\n';
+	eq(nft.shape(t), { chains: 1, sets: 1, rules: 2 }, 'the hook line, the policy and a comment are no rules');
+	eq(nft.shape(''), { chains: 0, sets: 0, rules: 0 }, 'nothing');
+});

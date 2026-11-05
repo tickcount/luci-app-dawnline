@@ -84,6 +84,18 @@ export function resolve(host) {
 	return resolve_all([ host ])[host] ?? [];
 };
 
+/**
+ * The address to give an app that takes no name for the server (V2RayTun's
+ * Android core hands the endpoint over as it is): IPv4 first, as a phone on
+ * mobile data may have no IPv6. The host itself when it is an IP; null when
+ * the name does not resolve.
+ */
+export function host_ip(host) {
+	let ips = resolve(host);
+	let v4 = filter(ips, (x) => ip2int(x) != null);
+	return v4[0] ?? ips[0] ?? null;
+};
+
 /** The IPv4 address of a netifd interface (a zone name for older configs). */
 export function wan_ipv4(zone) {
 	let st = live.iface_status(zone == 'wan' ? 'wan' : zone);

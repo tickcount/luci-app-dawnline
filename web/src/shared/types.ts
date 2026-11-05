@@ -292,6 +292,8 @@ interface AmneziaFields {
   server_pub_key: string;
   persistent_keep_alive: string;
   obfuscation: Record<string, string>;
+  /** The server's address as an IP, from the portal (null: the name does not resolve; older routers leave it out). */
+  host_ip?: string | null;
 }
 
 export interface AwgConfig {

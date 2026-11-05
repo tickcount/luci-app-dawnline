@@ -189,7 +189,7 @@ export async function openDevice(person: Person, dev: Device, o: DeviceOpts) {
   let today = o.today ?? isoDay(new Date());
   let srv = o.server;
   // Phones and tablets are set up by scanning; computers and routers by a file.
-  const block = (c: ClientConfig) => core.connectBlock(c, dev.kind === 'phone' || dev.kind === 'tablet' ? 'qr' : 'file');
+  const block = (c: ClientConfig) => core.connectBlock(c, dev.kind, dev.kind === 'phone' || dev.kind === 'tablet' ? 'qr' : 'file');
   // An older configuration on the device: the new one waits for a click (the inline QR code is itself a delivery).
   // `relinked`: its MTU or keep-alive was just changed here, which outdates the configuration on screen even where
   // the router keeps no record of what the device got (never "stale" then, e.g. after a JSON import).
@@ -665,8 +665,8 @@ export function addDevice(person: Person, o: DeviceOpts) {
       ),
     ),
   );
-  // LAN Bypass: off unless chosen (the person chooses it on the portal, the admin here).
-  const bypass = sw(false, _('LAN Bypass'));
+  // LAN Bypass: on unless turned off (the person chooses it on the portal, the admin here).
+  const bypass = sw(true, _('LAN Bypass'));
   const over = person.devices.length >= person.device_limit;
   modal(
     fmt(_('Add a device for %s'), person.name),

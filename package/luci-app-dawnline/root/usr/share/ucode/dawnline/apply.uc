@@ -13,7 +13,7 @@
 // (dawnline.store) is never taken while 'apply' is held.
 
 import { readfile, writefile, stat, unlink } from 'fs';
-import { ensure_dir, write_file, write_json, with_lock, ip2int, slog, RUN_DIR } from 'dawnline.util';
+import { ensure_dir, write_file, write_json, with_lock, ip2int, slog, syslog, log_on, RUN_DIR } from 'dawnline.util';
 import * as core from 'dawnline.core';
 import * as net from 'dawnline.net';
 import * as loop from 'dawnline.loop';
@@ -54,8 +54,10 @@ export function sync_hosts(m) {
 	let body = length(lines) ? join('\n', lines) + '\n' : '';
 	// dnsmasq runs as its own user; rpcd's umask would leave the file 0600.
 	let readable = ((stat(HOSTS_FILE)?.perm?.other_read) ?? false);
-	if ((readfile(HOSTS_FILE) ?? '') == body && (body == '' || readable))
+	if ((readfile(HOSTS_FILE) ?? '') == body && (body == '' || readable)) {
+		syslog('debug', 'dns', `${HOSTS_FILE}: unchanged · ${length(lines)} names`);
 		return false;
+	}
 	ensure_dir('/tmp/hosts');
 	if (body == '')
 		unlink(HOSTS_FILE);
@@ -63,6 +65,7 @@ export function sync_hosts(m) {
 		writefile(HOSTS_FILE, body);
 		system(`chmod 644 ${HOSTS_FILE}`);
 	}
+	syslog('info', 'dns', body == '' ? `${HOSTS_FILE}: removed (no device names)` : `${HOSTS_FILE}: ${length(lines)} names written (*.${m.settings.domain}) · killall -HUP dnsmasq`);
 	system('killall -HUP dnsmasq 2>/dev/null');
 	return true;
 };
@@ -154,6 +157,21 @@ function sync_warning(m, table, peers) {
 	return length(out) ? join(' ', [ ...out, _('Open Diagnostics → Health.') ]) : null;
 }
 
+/**
+ * The same as sync_warning for syslog: in English whatever the admin's
+ * language (a log is read by anyone, searched and sent on), with what nft or
+ * awg said. Null when all went in.
+ */
+function sync_facts(m, table, peers) {
+	let out = [];
+	if (table != null)
+		push(out, `access rules ${nft.present() ? 'not updated, the previous ones stay' : 'not loaded, no device loaded'}: ${table}`);
+	for (let id, r in peers)
+		if (r != 'ok' && r != 'down')
+			push(out, `${m.servers[id]?.name ?? id}: devices not loaded: ${r}`);
+	return length(out) ? join(' · ', out) : null;
+}
+
 /*
  * With the lock held: access sets first, then devices into the tunnels.
  * Fail closed: without the table the firewall would let every loaded device
@@ -226,24 +244,60 @@ export function sync_loop(m, usage, force) {
 
 /* ---------- entry points ---------- */
 
-/** Full reconcile: router configuration + runtime state. */
+/** Milliseconds on the monotonic clock, for how long an apply's steps take. */
+function ms() {
+	let c = clock(true);
+	return c[0] * 1000 + c[1] / 1000000;
+}
+
+/**
+ * Full reconcile: router configuration + runtime state. In syslog: what it
+ * came to, with how long it took (info; warn when it did not fully take), and
+ * each step with its result at the debug level.
+ */
 export function apply(opts) {
 	opts ??= {};
+	let t0 = ms();
+	let debug = log_on('debug');
+	// One step, timed; `show` picks what of its result goes in the line (never the model: it holds keys).
+	let step = (name, fn, show) => {
+		let t = ms();
+		let out = fn();
+		let what = show ? show(out) : out;
+		if (debug)
+			syslog('debug', 'apply', sprintf('%s done in %d ms%s', name, ms() - t,
+				what == null ? '' : ` · ${type(what) == 'string' ? what : sprintf('%J', what)}`));
+		return out;
+	};
+	if (debug)
+		syslog('debug', 'apply', 'applying the configuration');
 	migrate.run();
 	let r = with_lock('apply', () => {
 		let m = core.load();
 		let usage = core.load_usage();
-		let network = netifd.sync(m);
-		let firewall = fw.sync(m);
-		let lp = loop.ensure(m, true);
-		loop.sync_resolver(m);
-		fw.sync_reply_routes(m);
-		let s = locked_sync(m, usage, true);
+		let changed = (x) => x ? 'changed' : 'unchanged';
+		let network = step('network (netifd)', () => netifd.sync(m), changed);
+		let firewall = step('firewall (fw4)', () => fw.sync(m), changed);
+		let lp = step('internet like a home device', () => loop.ensure(m, true));
+		step('resolver for Home-only devices', () => { loop.sync_resolver(m); });
+		step('reply routes', () => { fw.sync_reply_routes(m); });
+		let s = step('access rules and devices', () => locked_sync(m, usage, true), (x) => ({ table: x.table, peers: x.peers }));
 		ensure_dir(RUN_DIR);
 		write_file(NET_SIG, net_signature(m), 0o644);
-		return { network, firewall, lp, peers: s.peers, warning: s.warning };
+		return { network, firewall, lp, peers: s.peers, warning: s.warning, facts: sync_facts(m, s.table, s.peers),
+			counts: [ length(keys(m.servers)), length(keys(m.people)), length(keys(m.devices)) ] };
 	});
 	loop.remember(r.lp);
+	let n = (k, one, many) => `${k} ${k == 1 ? one : many}`;
+	let took = sprintf('configuration applied in %d ms · %s, %s, %s', ms() - t0,
+		n(r.counts[0], 'server', 'servers'), n(r.counts[1], 'person', 'people'), n(r.counts[2], 'device', 'devices'));
+	// Syslog in English (sync_facts, loop.error_note); the admin's answer carries the words in their language.
+	if (r.facts)
+		syslog('warn', 'apply', `${took} · ${r.facts}`);
+	else
+		syslog('info', 'apply', took);
+	if (r.lp.error)
+		syslog('warn', 'apply', `internet like a home device: ${type(r.lp.error) == 'object' ? loop.error_note(r.lp.error) : r.lp.error}`);
 	return { network: r.network, firewall: r.firewall, like_home: r.lp.error ? { error: loop.error_text(r.lp.error) } : !r.lp.off, peers: r.peers, warning: r.warning };
 };
 

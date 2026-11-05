@@ -8,7 +8,7 @@
 import { readfile, stat, unlink } from 'fs';
 import {
 	q, sh, sh_out, rand_int, rand_bytes, valid_key, ip2int, tunnel_name, ensure_dir, write_file, read_json, write_json, lock, unlock,
-	slog, iface_status, DATA_DIR, RUN_DIR
+	slog, syslog, some_of, iface_status, DATA_DIR, RUN_DIR
 } from 'dawnline.util';
 import * as core from 'dawnline.core';
 import * as net from 'dawnline.net';
@@ -763,32 +763,58 @@ export function peer_diff(devs, dmp, ifname) {
 };
 
 /** Push the peer list of every server to the kernel without restarting it. */
+// Each tunnel's peers as last loaded ({ ifname: [ "Person · Device (address)" ] }), so a log line can say who came and went.
+const PEERS_SEEN = `${RUN_DIR}/peers-seen.json`;
+
 export function sync_peers(m, states) {
 	ensure_dir(RUN_DIR);
 	let res = {};
+	let seen = read_json(PEERS_SEEN, {}), now = {};
 	for (let id, srv in m.servers) {
 		// Only Dawnline's own interfaces: never another tunnel of the same name (core.tunnels).
 		if (!srv.enabled || !length(core.tunnels(srv)))
 			continue;
 		if (system(`awg show ${q(srv.ifname)} public-key >/dev/null 2>&1`) != 0) {
 			res[id] = 'down';
+			syslog('debug', 'awg', `interface ${srv.ifname} (${srv.name}): down, no devices to load`);
 			continue;
 		}
 		let lines = [ '[Interface]', `PrivateKey = ${srv.private_key}`, `ListenPort = ${srv.port}`, '' ];
+		let who = [];
 		for (let d in tunnel_devices(m, id, states)) {
 			push(lines, '[Peer]', `PublicKey = ${d.public_key}`);
 			if (d.preshared_key)
 				push(lines, `PresharedKey = ${d.preshared_key}`);
 			push(lines, `AllowedIPs = ${d.address}/32`, '');
+			push(who, `${m.people[d.person]?.name ?? d.person} · ${d.name} (${d.address})`);
 		}
 		let f = `${RUN_DIR}/${srv.ifname}.conf`;
 		write_file(f, join('\n', lines));
 		let r = sh(`awg syncconf ${q(srv.ifname)} ${f}`);
 		unlink(f);
 		res[id] = r.code == 0 ? 'ok' : trim(r.out);
-		if (r.code != 0)
+		if (r.code != 0) {
 			slog('awg', 'error', L_("couldn't load devices into the tunnel"), trim(r.out), srv.name);
+			continue;
+		}
+		// Who came in and who left since the last load: info; the same peers: debug.
+		now[srv.ifname] = who;
+		let was = seen[srv.ifname];
+		let head = `interface ${srv.ifname} (${srv.name}): awg syncconf · listen port ${srv.port} · ${length(who)} ${length(who) == 1 ? 'peer' : 'peers'}`;
+		// The first load since the router started (or since the tunnel came up): how many, the names at debug.
+		if (was == null) {
+			syslog('info', 'awg', `${head} loaded`);
+			syslog('debug', 'awg', `interface ${srv.ifname}: ${join(', ', who)}`);
+			continue;
+		}
+		let add = filter(who, (x) => index(was, x) < 0), del = filter(was, (x) => index(who, x) < 0);
+		if (length(add) || length(del))
+			syslog('info', 'awg', `${head}${length(add) ? ' · added ' + some_of(add) : ''}${length(del) ? ' · removed ' + some_of(del) : ''}`);
+		else
+			syslog('debug', 'awg', `${head}, unchanged`);
 	}
+	if (sprintf('%J', now) != sprintf('%J', seen))
+		write_json(PEERS_SEEN, now, 0o600);
 	return res;
 };
 

@@ -29,6 +29,22 @@ export function need_awg() {
 	}
 };
 
+/**
+ * What a device_changed event says changed: each option with its new value
+ * ("lan_bypass=on", "mtu=1400", "keepalive=auto": '' is the server's again,
+ * "kind=phone"), so the activity log can say what it became.
+ */
+function change_detail(names, ch) {
+	return join(', ', map(names, (k) => {
+		if (k == 'lan_bypass')
+			return `lan_bypass=${ch.lan_bypass === true ? 'on' : 'off'}`;
+		if (k == 'kind')
+			return `kind=${ch.kind}`;
+		let v = trim(`${ch[k] ?? ''}`);
+		return `${k}=${v == '' ? 'auto' : v}`;
+	}));
+}
+
 /** The device `id` as `opts` may touch it (inside a transaction's model). */
 function own(m, id, opts) {
 	let d = m.devices[id];
@@ -58,9 +74,11 @@ export function add(person, name, kind, opts) {
 /**
  * Rename and/or turn a device off or on, or change how it connects (`ch` =
  * { name?, disabled?, mtu?, keepalive?, lan_bypass? }, see
- * core.set_device_link); only the admin turns devices off or changes the
- * rest. Returns the runtime sync ({} after a change of the link values alone:
- * they are in the device's configuration, nothing on the router changes).
+ * core.set_device_link); only the admin turns devices off or sets the MTU and
+ * keep-alive, the portal may switch LAN Bypass (the device then takes its
+ * updated configuration, keys unchanged). Returns the runtime sync ({} after a
+ * change of the link values alone: they are in the device's configuration,
+ * nothing on the router changes).
  */
 export function update(id, ch, opts) {
 	opts ??= {};
@@ -68,7 +86,7 @@ export function update(id, ch, opts) {
 	if (ch.disabled != null && by != 'admin')
 		die(_('Only the admin can turn devices off.'));
 	let link = ch.mtu != null || ch.keepalive != null || ch.lan_bypass != null;
-	if (link && by != 'admin')
+	if ((ch.mtu != null || ch.keepalive != null) && by != 'admin')
 		die(_('Only the admin can change how a device connects.'));
 	let linked = [];
 	let d0 = store.transact((c, m) => {
@@ -91,9 +109,9 @@ export function update(id, ch, opts) {
 		live.add_event({ type: 'device_changed', person: d0.person, device: id, detail: ch.disabled ? 'turned off' : 'turned on', by });
 	else if (ch.name != null && ch.name != d0.name)
 		live.add_event({ type: 'device_changed', person: d0.person, device: id, detail: `renamed from ${d0.name}`, by });
-	// The option names, as person_changed lists a person's.
+	// The options with what they became (change_detail).
 	if (length(linked))
-		live.add_event({ type: 'device_changed', person: d0.person, device: id, detail: join(', ', linked), by });
+		live.add_event({ type: 'device_changed', person: d0.person, device: id, detail: change_detail(linked, ch), by });
 	return r;
 };
 
@@ -106,10 +124,19 @@ export function update(id, ch, opts) {
 function rotate(id, opts) {
 	opts ??= {};
 	let by = opts.by ?? 'admin';
-	store.transact((c, m) => {
-		own(m, id, opts);
+	let changed = [];
+	let person = store.transact((c, m) => {
+		let d = own(m, id, opts);
+		if (opts.kind != null && core.set_device_kind(c, m, id, opts.kind))
+			push(changed, 'kind');
+		if (opts.lan_bypass != null)
+			push(changed, ...core.set_device_link(c, m, id, { lan_bypass: opts.lan_bypass === true }));
 		core.rotate_device(c, m, id, awg.new_keys());
+		return d.person;
 	});
+	if (length(changed))
+		live.add_event({ type: 'device_changed', person, device: id, by,
+			detail: change_detail(changed, { kind: opts.kind, lan_bypass: opts.lan_bypass === true }) });
 	// The device a portal page came through would lose its tunnel before the
 	// answer gets out: load the new key a moment after answering.
 	let s = null;
@@ -132,8 +159,10 @@ function rotate(id, opts) {
  * the admin changed; the portal's Reconnect and the admin's New keys): new
  * keys, so the configuration it holds stops working with the sync, and it
  * counts as not set up until it connects with the new one. The usage keeps
- * the old keys' last handshake: awg.handshake_since hides it. Returns the new
- * configuration (with `warning` when the sync did not fully take).
+ * the old keys' last handshake: awg.handshake_since hides it. `opts.kind` and
+ * `opts.lan_bypass` (the portal's Reconnect: what it is, LAN Bypass) change
+ * with the keys, in the same write. Returns the new configuration (with
+ * `warning` when the sync did not fully take).
  */
 export function reconnect(id, opts) {
 	opts ??= {};

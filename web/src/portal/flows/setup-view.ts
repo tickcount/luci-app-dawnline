@@ -11,11 +11,12 @@
 
 import type { ClientConfig, Device } from '../../shared/types';
 import { fmt } from '../../shared/i18n';
+import { awgLink } from '../../shared/awglink';
 import { vpnKey, vpnQrText } from '../../shared/vpnkey';
 import { ApiError, call } from '../api';
 import { h, put } from '../dom';
 import { SMOOTH, play } from '../motion';
-import { APP_NAME, appsFor, deviceNoun, inWebview, keyFileName, sameDevice, setupLink, type AppId } from '../setup';
+import { APP_NAME, appsFor, appsOn, deviceNoun, inWebview, keyFileName, sameDevice, setupLink, type AppId } from '../setup';
 import { pageUrl, platform, preset, repaint } from '../state';
 import { accordion, regrow } from '../ui/accordion';
 import { codeRow, linkRow, type CodeRow } from '../ui/codes';
@@ -124,11 +125,22 @@ function setupView(d: Device, cfg: ClientConfig, key: string, here = false): Vie
   const layout: Layout = same ? 'same' : router ? 'router' : handheld ? 'away' : 'pc-away';
   const there = deviceNoun(d.kind);
   const thereOn = deviceNoun(d.kind, true);
-  // A router takes AmneziaWG (or WireGuard), never AmneziaVPN.
-  const choices = apps.filter((a) => !router || a.id !== 'vpn');
-  let app: AppId = recallApp(d) ?? (router ? 'awg' : 'vpn');
+  // A router takes AmneziaWG or WireGuard, never AmneziaVPN; elsewhere WireGuard is AmneziaWG's choice; V2RayTun
+  // is for Android and Windows (setup.ts appsOn).
+  const choices = appsOn(d.kind, apps, same ? pf : null);
+  // AmneziaWG first, as the picker lists it; a device set up before opens on the app it was set up with.
+  let app: AppId = recallApp(d) ?? 'awg';
   if (!choices.some((a) => a.id === app)) app = choices[0].id;
-  const c: SetupCtx = { d, cfg, key, pf, there, app: () => app, same: () => same };
+  // V2RayTun takes the server by its IP (shared/awglink.ts): only when the address is a name do the words say what that means.
+  const ip = cfg.amnezia.host_ip;
+  // Its Windows app resolves the name itself (amneziawg-windows, before the tunnel starts): there the link keeps
+  // the name, so a new address at home does not break it, and nothing needs saying.
+  const named = same && pf === 'windows';
+  const link = awgLink(cfg.conf, cfg.server, named ? null : ip);
+  const byIp = !named && !!ip && ip !== cfg.amnezia.host.replace(/^\[(.*)\]$/, '$1');
+  // The disguise off: WireGuard takes AmneziaWG's file and code (one choice, both names; a router keeps both packages).
+  const wgToo = preset() === 'off' && !router;
+  const c: SetupCtx = { d, cfg, key, link, byIp, wgToo, pf, there, app: () => app, same: () => same };
 
   // The pickers and the boxes a pick changes live across repaints: a pick only
   // refills what it changes, so the pills glide and nothing else in the sheet moves.
@@ -178,9 +190,13 @@ function setupView(d: Device, cfg: ClientConfig, key: string, here = false): Vie
   const pill =
     layout === 'away'
       ? connPill(() => ({
+          // V2RayTun: its link, copied or as a .txt. Its "Import config from locally" takes a file line by line,
+          // each line a link: a .conf does not import that way (and its server's name would not connect either).
           ...(app === 'vpn'
             ? { text: key, msg: _('Key copied'), file: keyFileName(cfg.filename) }
-            : { text: cfg.conf, msg: _('Configuration copied'), file: cfg.filename }),
+            : app === 'v2r'
+              ? { text: link, msg: _('Link copied'), file: cfg.filename.replace(/\.conf$/i, '.txt'), link: true }
+              : { text: cfg.conf, msg: _('Configuration copied'), file: cfg.filename }),
           app: APP_NAME[app],
         }))
       : null;
@@ -188,13 +204,14 @@ function setupView(d: Device, cfg: ClientConfig, key: string, here = false): Vie
   /** Everything a pick changes, refilled in place. */
   function fill() {
     morphText(title1, router ? fmt(_('Get %s on the router'), APP_NAME[app]) : fmt(_('Get %s'), APP_NAME[app]), undefined, { whole: true });
-    morphInto(getBox, storeBlock(app, pf, router));
+    morphInto(getBox, storeBlock(app, pf, router, wgToo));
     // The router's file is the same for either app: it stays as it is (a folded configuration stays folded).
     if (!router) morphInto(addBox, connectKids(c));
     else if (!addBox.firstChild) put(addBox, filePane(cfg));
     // The connection as a code: only a phone or a tablet set up from here shows one.
     if (layout === 'away') {
-      const text = app === 'vpn' ? vpnQrText(key) : cfg.conf;
+      // V2RayTun scans its link: a .conf would come in named by the clock, the link carries the server's name.
+      const text = app === 'vpn' ? vpnQrText(key) : app === 'v2r' ? link : cfg.conf;
       // Another app: its words morph in place, the code changes only when it holds something else (codes.ts).
       if (code && scan && code.el.isConnected) {
         if (codeApp !== app) {
@@ -202,7 +219,7 @@ function setupView(d: Device, cfg: ClientConfig, key: string, here = false): Vie
           scan.set(app);
         }
       } else {
-        scan = scanLine(app);
+        scan = scanLine(app, byIp, wgToo);
         code = codeRow(text, [scan.el], tooLong);
         codeBox.replaceChildren(code.el);
       }

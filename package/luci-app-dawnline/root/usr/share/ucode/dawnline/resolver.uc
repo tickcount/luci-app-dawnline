@@ -6,7 +6,7 @@
 
 import { readfile, writefile, stat } from 'fs';
 import { cursor } from 'uci';
-import { ensure_dir, iface_status, uniq } from 'dawnline.util';
+import { ensure_dir, iface_status, uniq, syslog, syslog_lines } from 'dawnline.util';
 import * as net from 'dawnline.net';
 import * as core from 'dawnline.core';
 
@@ -90,10 +90,15 @@ export function sync(m, target, lan) {
 		for (let d in lan_domain(m))
 			push(lines, `server=/${d}/${lan}`);
 	let conf = join('\n', lines) + '\n';
-	if ((readfile(CONF) ?? '') == conf)
+	let where = target.mode == 'ns' ? `${target.address}:${target.port} in the netns` : length(ifs) ? `port ${target.port} on ${join(', ', ifs)}` : 'loopback only (no tunnel on)';
+	if ((readfile(CONF) ?? '') == conf) {
+		syslog('debug', 'dns', `resolver for Home-only devices: unchanged · ${where}`);
 		return false;
+	}
 	writefile(CONF, conf);
 	system(`chmod 644 ${CONF}`);
+	syslog('info', 'dns', `resolver for Home-only devices: ${CONF} written · ${where} · upstream ${join(' ', wan_dns()) || 'none'}${lan ? ` · home names via ${lan}` : ''}; restarting it`);
+	syslog_lines('debug', 'dns', conf, 'dnsmasq: ');
 	let pid = trim(readfile(PID) ?? '');
 	if (match(pid, /^[0-9]+$/))
 		system(`kill ${pid} 2>/dev/null`);

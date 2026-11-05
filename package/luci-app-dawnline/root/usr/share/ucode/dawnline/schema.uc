@@ -127,6 +127,8 @@ export const SETTINGS = {
 	geo_enabled: { type: 'bool', dflt: false },
 	geo_provider: { type: 'enum', dflt: 'ipwho.is', values: [ 'ipwho.is', 'ipapi.co' ] },
 	log_connections: { type: 'bool', dflt: true },
+	// What goes to syslog (dawnline.util syslog): error | warn | info | debug (each step of a start or an apply).
+	log_level: { type: 'enum', dflt: 'info', values: [ 'error', 'warn', 'info', 'debug' ] },
 	watchdog: { type: 'bool', dflt: true },
 	log_keep_days: { type: 'int', dflt: 30, min: 0, max: 9999 },
 	log_max: { type: 'int', dflt: 2000, min: 100, max: 20000 },
@@ -158,6 +160,7 @@ function messages() {
 		default_device_limit: _('Default device limit must be 1-32.'),
 		domain: _('Domain may use lowercase letters, digits, dashes and dots.'),
 		geo_provider: _('Unknown location service.'),
+		log_level: _('Choose a system log level: errors, warnings, normal or verbose.'),
 		log_keep_days: _('Keep activity for 0 (no age limit) to 9999 days.'),
 		log_max: _('Log size must be 100-20000 events.'),
 		log_persist: _('Save the log every 10min, hourly or off.'),

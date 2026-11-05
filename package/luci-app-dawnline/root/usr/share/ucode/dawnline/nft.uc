@@ -5,7 +5,7 @@
 // changes often (update, one atomic transaction).
 
 import { unlink } from 'fs';
-import { sh, ensure_dir, write_file, rand_hex, ip2int, uniq, RUN_DIR } from 'dawnline.util';
+import { sh, ensure_dir, write_file, rand_hex, ip2int, uniq, read_json, write_json, syslog, syslog_lines, some_of, RUN_DIR } from 'dawnline.util';
 import * as core from 'dawnline.core';
 import * as net from 'dawnline.net';
 import * as loop from 'dawnline.loop';
@@ -14,6 +14,55 @@ import * as loop from 'dawnline.loop';
 export const PRIVATE4 = [ '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '100.64.0.0/10', '169.254.0.0/16', '224.0.0.0/3' ];
 /** The sets whose members change at run time (update replaces them together). */
 const SETS = [ 'lan_ok', 'lan_all', 'lan_part', 'mesh_pairs', 'inet_ok', 'svc_ok', 'svc_host', 'dns_real' ];
+// The sets' members as last loaded, so a log line can say what changed.
+const SETS_SEEN = `${RUN_DIR}/nft-sets.json`;
+
+/** What a table script holds: its chains, its sets and the rules in its chains (for a log line). */
+export function shape(t) {
+	let n = { chains: 0, sets: 0, rules: 0 }, in_chain = false;
+	for (let l in split(t ?? '', '\n')) {
+		l = trim(l);
+		if (substr(l, 0, 6) == 'chain ') {
+			n.chains++;
+			in_chain = true;
+		}
+		else if (substr(l, 0, 4) == 'set ')
+			n.sets++;
+		else if (in_chain && l == '}')
+			in_chain = false;
+		else if (in_chain && l != '' && substr(l, 0, 5) != 'type ' && substr(l, 0, 7) != 'policy ' && substr(l, 0, 1) != '#')
+			n.rules++;
+	}
+	return n;
+};
+
+/**
+ * The sets in syslog: info with each set that changed ("inet_ok 3 → 4: +10.8.0.5"),
+ * debug when none did; remembered for the next time.
+ */
+function log_sets(sets, how) {
+	let first = read_json(SETS_SEEN, null) == null;
+	let was = read_json(SETS_SEEN, {}), now = {}, diff = [];
+	for (let name in SETS) {
+		let a = uniq(was[name] ?? []), b = uniq(sets[name] ?? []);
+		now[name] = b;
+		let add = filter(b, (x) => index(a, x) < 0), del = filter(a, (x) => index(b, x) < 0);
+		if (length(add) || length(del))
+			push(diff, `${name} ${length(a)} → ${length(b)}${length(add) ? ': +' + some_of(add) : ''}${length(del) ? (length(add) ? ' ' : ': ') + '-' + some_of(del) : ''}`);
+	}
+	write_json(SETS_SEEN, now, 0o600);
+	// The first load since the router started: how many in each set (the members at debug).
+	if (first) {
+		syslog('info', 'nftables', `table inet dawnline: ${how} · ${join(', ', map(SETS, (n) => `${n} ${length(now[n])}`))}`);
+		for (let n in SETS)
+			if (length(now[n]))
+				syslog('debug', 'nftables', `set ${n}: ${join(' ', now[n])}`);
+	}
+	else if (length(diff))
+		syslog('info', 'nftables', `table inet dawnline: ${how} · ${join('; ', diff)}`);
+	else
+		syslog('debug', 'nftables', `table inet dawnline: ${how} · sets unchanged (${join(', ', map(SETS, (n) => `${n} ${length(now[n])}`))})`);
+}
 
 function ip4(a) {
 	return ip2int(a ?? '') != null;
@@ -260,7 +309,17 @@ export function render(m, sets, ctx) {
 
 /** Full table rebuild (structure changes: servers, home networks, DNS paths); null or the error. */
 export function rebuild(m, sets) {
-	return load('table inet dawnline\ndelete table inet dawnline\n' + table(m, sets));
+	let t = table(m, sets);
+	let err = load('table inet dawnline\ndelete table inet dawnline\n' + t);
+	if (err) {
+		syslog('error', 'nftables', `table inet dawnline: rebuild failed · ${err}`);
+		return err;
+	}
+	let n = shape(t);
+	syslog('info', 'nftables', sprintf('table inet dawnline: rebuilt · %d chains, %d sets, %d rules', n.chains, n.sets, n.rules));
+	syslog_lines('debug', 'nftables', t, 'nft: ');
+	log_sets(sets, 'sets loaded with the table');
+	return null;
 };
 
 /**
@@ -276,7 +335,12 @@ export function update(sets) {
 		if (length(members))
 			s += `add element inet dawnline ${name} { ${join(', ', members)} }\n`;
 	}
-	return load(s);
+	let err = load(s);
+	if (err)
+		syslog('warn', 'nftables', `table inet dawnline: set update failed, rebuilding · ${err}`);
+	else
+		log_sets(sets, 'sets updated');
+	return err;
 };
 
 /** Is the table loaded (watchdog). */

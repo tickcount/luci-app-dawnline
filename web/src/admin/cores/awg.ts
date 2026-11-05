@@ -1,8 +1,8 @@
 // The AmneziaWG core in the admin: how a device connects (.conf, AmneziaVPN
-// key, QR), the disguise and its parameters, and the core's own settings on
+// key, QR, V2RayTun's link), the disguise and its parameters, and the core's own settings on
 // Server → AmneziaWG. Plain WireGuard is AmneziaWG with the disguise off.
 
-import type { AwgConfig, Server, Status } from '../../shared/types';
+import type { AwgConfig, Kind, Server, Status } from '../../shared/types';
 import { E } from '../e';
 import { api } from '../api';
 import { button } from '../ui/button';
@@ -14,10 +14,12 @@ import { callout, card, firstBad, group, liveRow, row } from '../ui/layout';
 import { qrCode } from '../ui/qr';
 import { keepaliveHelp, mtuHelp, portHelp, type PortHold } from '../netcheck';
 import { vpnKey } from '../../shared/vpnkey';
+import { awgLink, v2rFits } from '../../shared/awglink';
+import { V2R_WINDOWS } from '../../shared/flags';
 import { icon } from '../../shared/icons';
 import { methodInfo, methodPicker, type Method, defaultMethod, legacyTitle } from '../disguise';
 import { fmt, fill, num, plural } from '../../shared/i18n';
-import { coreHead, type Core, type CoreCtx } from './common';
+import { coreHead, type ConnectView, type Core, type CoreCtx } from './common';
 
 /** `.conf` names of the disguise parameters, in file order. */
 const CONF: [string, string][] = [
@@ -219,8 +221,71 @@ export function plainWg(cfg: AwgConfig): boolean {
   return Object.entries(o).every(([k, v]) => v == null || v === '' || v === (neutral[k] ?? '0'));
 }
 
-/** File / key / QR switcher for a client configuration; opens on the file unless asked otherwise. */
-async function connectBlock(cfg: AwgConfig, initial: 'file' | 'key' | 'qr' = 'file'): Promise<HTMLElement> {
+/**
+ * V2RayTun's way in: the connection as its awg:// link (shared/awglink.ts;
+ * the app's own words are in portal/setup.ts, with where they come from). A
+ * computer runs it on Windows, whose core looks the server's name up itself:
+ * the link keeps the name. That one is off for now (shared/flags.ts
+ * V2R_WINDOWS: its core leaves the server's DNS unused). Anything else is
+ * taken for Android, whose core takes no name: the link has the server's IP
+ * (amnezia.host_ip, from device_config).
+ */
+function v2rPane(cfg: AwgConfig, kind: Kind): HTMLElement {
+  const win = kind === 'computer';
+  const host = cfg.amnezia.host.replace(/^\[(.*)\]$/, '$1');
+  const ip = win ? null : (cfg.amnezia.host_ip ?? null);
+  const link = awgLink(cfg.conf, cfg.server, ip);
+  const box = E('div', { class: 'dl-linkbox' }, [
+    E('span', { class: 'dl-mono', title: link }, link),
+    button(_('Copy'), () => copyText(link, _('Link copied'))),
+  ]);
+  if (win)
+    return E('div', { class: 'dl-stack gap8' }, [
+      box,
+      E(
+        'span',
+        { class: 'dl-sub' },
+        fmt(
+          _(
+            'V2RayTun on Windows: %s, then set its mode to %s and connect. That mode needs administrator rights: the app offers to restart with them.',
+          ),
+          ['+', _('Import from clipboard', 'V2RayTun app')].join(' → '),
+          _('Tunnel', 'V2RayTun app'),
+        ),
+      ),
+    ]);
+  return E('div', { class: 'dl-qr-pane' }, [
+    qrCode(link),
+    E(
+      'span',
+      { class: 'dl-sub' },
+      fmt(
+        _('V2RayTun on Android: %s, or copy the link and %s.'),
+        ['+', _('Import config from QRcode', 'V2RayTun app')].join(' → '),
+        ['+', _('Import config from Clipboard', 'V2RayTun app')].join(' → '),
+      ),
+    ),
+    box,
+    // Honest about what the IP costs, and about a name that gives none.
+    ip && ip !== host
+      ? E(
+          'div',
+          { class: 'dl-hint' },
+          _('The link has the server’s IP address, not its name: if the address changes, set the device up again.'),
+        )
+      : !ip
+        ? callout('warn', fmt(_('%s does not resolve right now, and V2RayTun on Android connects by IP address only.'), host))
+        : '',
+  ]);
+}
+
+/**
+ * File / key / QR / V2RayTun switcher for a client configuration of a device
+ * of this kind; opens on the file unless asked otherwise. V2RayTun is left out
+ * for a router, for a computer while V2R_WINDOWS is off (shared/flags.ts) and
+ * for AmneziaWG 3.1 (the Maximum disguise), which it lacks.
+ */
+async function connectBlock(cfg: AwgConfig, kind: Kind, initial: ConnectView = 'file'): Promise<HTMLElement> {
   if (!cfg.has_private_key)
     return E(
       'div',
@@ -228,7 +293,7 @@ async function connectBlock(cfg: AwgConfig, initial: 'file' | 'key' | 'qr' = 'fi
       _('This device generated its own keys in the browser, so its full configuration only exists on that device.'),
     );
   const key = await vpnKey(cfg, cfg.server);
-  const panes: Record<string, () => Node> = {
+  const panes: Partial<Record<ConnectView, () => Node>> = {
     qr: () =>
       E('div', { class: 'dl-qr-pane' }, [
         qrCode(cfg.conf),
@@ -252,19 +317,22 @@ async function connectBlock(cfg: AwgConfig, initial: 'file' | 'key' | 'qr' = 'fi
       ]),
     file: () => fileCard(cfg),
   };
-  const body = E('div', { class: 'dl-connect-body' });
-  const seg = E('div', { class: 'dl-seg' });
-  const show = (id: string) => {
-    seg.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.id === id));
-    dom.content(body, panes[id]());
-  };
-  for (const [id, label] of [
+  if (kind !== 'router' && (kind !== 'computer' || V2R_WINDOWS) && v2rFits(cfg.conf)) panes.v2r = () => v2rPane(cfg, kind);
+  const labels: [ConnectView, string][] = [
     ['file', _('File')],
     ['key', _('Key')],
     ['qr', _('QR code')],
-  ])
-    seg.appendChild(E('button', { type: 'button', 'data-id': id, click: () => show(id) }, label));
-  show(initial);
+    ['v2r', 'V2RayTun'],
+  ];
+  const body = E('div', { class: 'dl-connect-body' });
+  const seg = E('div', { class: 'dl-seg' });
+  const show = (id: ConnectView) => {
+    seg.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.id === id));
+    dom.content(body, panes[id]!());
+  };
+  for (const [id, label] of labels)
+    if (panes[id]) seg.appendChild(E('button', { type: 'button', 'data-id': id, click: () => show(id) }, label));
+  show(panes[initial] ? initial : 'file');
   return E('div', { class: 'dl-stack gap12' }, [seg, body]);
 }
 

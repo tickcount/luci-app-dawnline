@@ -19,7 +19,7 @@ import type { PersonPage } from './index';
 async function showDeviceQr(page: PersonPage, d: Device) {
   const cfg = await attempt(() => api.deviceConfig(d.id, true));
   if (!cfg) return;
-  modal(fmt(_('Set up %s'), d.name), [await page.core.connectBlock(cfg, 'qr')], [cancelButton(_('Close'))]);
+  modal(fmt(_('Set up %s'), d.name), [await page.core.connectBlock(cfg, d.kind, 'qr')], [cancelButton(_('Close'))]);
 }
 
 async function downloadConfig(page: PersonPage, d: Device) {

@@ -26,6 +26,8 @@ test('validate: int', () => {
 test('validate: enum', () => {
 	eq(schema.validate('geo_provider', 'ipapi.co'), 'ipapi.co', 'known');
 	throws(() => schema.validate('geo_provider', 'maxmind'), /Unknown location service/, 'unknown');
+	eq(schema.validate('log_level', 'debug'), 'debug', 'a syslog level');
+	throws(() => schema.validate('log_level', 'trace'), /system log level/, 'not a syslog level');
 	eq(schema.validate('update_interval', '7d'), '7d', 'interval from dawnline.updates');
 	throws(() => schema.validate('update_interval', '2d'), /6h, 12h, 1d or 7d/, 'unknown interval');
 });

@@ -31,13 +31,13 @@ while [ "$i" -lt 12 ]; do
 	up && exit 0
 done
 
-logger -t dawnline "update to $to failed its check: luci.dawnline or the agent is not up"
+logger -t dawnline -p daemon.err "[error] [update] update to $to failed its check: luci.dawnline or the agent is not up"
 set --
 for f in "$KEEP"/*.ipk "$KEEP"/*.apk; do
 	[ -f "$f" ] && set -- "$@" "$f"
 done
 if [ "$#" -eq 0 ]; then
-	logger -t dawnline "no previous version is kept: nothing to roll back to"
+	logger -t dawnline -p daemon.err "[error] [update] no previous version is kept: nothing to roll back to"
 	exit 1
 fi
 if command -v apk >/dev/null 2>&1; then
@@ -50,5 +50,5 @@ fi
 mkdir -p "$RUN"
 # The restored agent reports it in the service log on its start.
 echo "$to" > "$RUN/update-rolled-back"
-logger -t dawnline "rolled back from $to to the kept version"
+logger -t dawnline -p daemon.warning "[warn] [update] rolled back from $to to the kept version"
 exit 0

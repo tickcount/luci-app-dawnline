@@ -318,3 +318,18 @@ test('host_label, tunnel_name, slugify: dashes trimmed without a regex', () => {
 		}
 	same(null);
 });
+
+test('syslog_line', () => {
+	eq(util.syslog_line('warn', 'awg', 'Home stopped unexpectedly'), '[warn] [awg] Home stopped unexpectedly', 'level, source, words');
+	eq(util.syslog_line('error', 'apply', 'failed:\n  no table\tthere'), '[error] [apply] failed: no table there', 'one line');
+	eq(util.syslog_line('loud', null, 'x'), '[info] [dawnline] x', 'an unknown level is info, no source is dawnline');
+	eq(length(util.syslog_line('info', 'x', replace(sprintf('%1500s', ''), ' ', 'y'))), 1000, 'at most 1000 characters');
+});
+
+test('opts_text: options in a log line, keys masked', () => {
+	eq(util.opts_text({ listen_port: 51820, addresses: [ '10.8.0.1/24' ], private_key: 'abc=', mtu: null }),
+		'listen_port=51820, addresses=10.8.0.1/24, private_key=***, mtu=-', 'values, lists, a secret, nothing');
+	eq(util.opts_text({ preshared_key: 'x', awg_header_protection_key: 'y', public_key: 'z' }),
+		'preshared_key=***, awg_header_protection_key=***, public_key=z', 'a public key is no secret');
+	eq(util.opts_text(null), '', 'none');
+});

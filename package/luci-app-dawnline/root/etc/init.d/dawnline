@@ -8,15 +8,33 @@ USE_PROCD=1
 
 PORTAL_ROOT=/usr/share/dawnline/portal/www
 
+# A line in syslog as dawnline.util syslog() writes them: "dawnline: [info] [service] …" at the
+# matching priority, when the admin's level (settings.log_level: error|warn|info|debug) takes it.
+log() {
+	local lvl="$1" want rank prio
+	shift
+	want="$(uci -q get dawnline.settings.log_level)"
+	case "$lvl" in error) rank=0 prio=err ;; warn) rank=1 prio=warning ;; debug) rank=3 prio=debug ;; *) rank=2 prio=info ;; esac
+	case "$want" in error) want=0 ;; warn) want=1 ;; debug) want=3 ;; *) want=2 ;; esac
+	[ "$rank" -le "$want" ] || return 0
+	logger -t dawnline -p "daemon.$prio" "[$lvl] [service] $*"
+}
+
 start_portal() {
 	local enabled port certs cert key hport http
 	config_get_bool enabled settings portal_enabled 0
-	[ "$enabled" = 1 ] || return 0
+	if [ "$enabled" != 1 ]; then
+		log info "personal portal is off"
+		return 0
+	fi
 	config_get port settings portal_port 8443
 	certs="$(/usr/bin/dawnline portal-cert 2>/dev/null)"
 	cert="${certs% *}"
 	key="${certs#* }"
-	[ -f "$cert" ] && [ -f "$key" ] || return 0
+	if ! [ -f "$cert" ] || ! [ -f "$key" ]; then
+		log warn "personal portal not started: no certificate (${cert:-none}): choose one in Settings, or save the portal settings again"
+		return 0
+	fi
 	# IP addresses in links get plain HTTP on the next port (names stay HTTPS-only).
 	hport="$(/usr/bin/dawnline portal-http-port 2>/dev/null)"
 	[ -n "$hport" ] && http="-p 0.0.0.0:$hport -p [::]:$hport"
@@ -34,23 +52,30 @@ start_portal() {
 	procd_set_param file "$cert"
 	procd_set_param respawn 3600 5 0
 	procd_close_instance
+	log info "personal portal on port $port (HTTPS${hport:+, plain HTTP on $hport for links with an IP address}) · certificate $cert$(openssl x509 -enddate -noout -in "$cert" 2>/dev/null | sed 's/^notAfter=/ until /') · $procs processes"
 }
 
 # Plain DNS for Home-only tunnel devices (config written by `dawnline apply`).
 start_resolver() {
-	[ -f /var/etc/dawnline-dns.conf ] || return 0
+	if ! [ -f /var/etc/dawnline-dns.conf ]; then
+		log debug "no DNS for Home-only devices (nobody needs it)"
+		return 0
+	fi
 	procd_open_instance dns
 	procd_set_param command /usr/libexec/dawnline/resolver
 	procd_set_param file /var/etc/dawnline-dns.conf
 	# A new config kills it (dawnline.resolver): back within a second, not five.
 	procd_set_param respawn 3600 1 0
 	procd_close_instance
+	log info "DNS for Home-only devices started (/var/etc/dawnline-dns.conf)"
 }
 
 start_service() {
 	config_load dawnline
 	mkdir -p /var/run/dawnline
-	/usr/bin/dawnline apply >/dev/null 2>&1
+	log info "starting"
+	# The apply writes its own lines: what it came to and how long it took (each step at debug).
+	/usr/bin/dawnline apply >/dev/null 2>&1 || log error "applying the configuration failed: run \"dawnline apply\" to see why"
 
 	procd_open_instance agent
 	procd_set_param command /usr/libexec/dawnline/agent
@@ -60,10 +85,12 @@ start_service() {
 
 	start_portal
 	start_resolver
+	log info "started"
 }
 
 # Noted for the service log: the next agent start is a restart, not a crash or a boot.
 stop_service() {
+	log info "stopping"
 	mkdir -p /var/run/dawnline
 	date +%s > /var/run/dawnline/agent.stopped
 	# Copies procd doesn't know about (started by hand, or left by an older version) go too.
@@ -71,7 +98,8 @@ stop_service() {
 }
 
 reload_service() {
-	/usr/bin/dawnline apply >/dev/null 2>&1
+	log info "reloading: settings changed"
+	/usr/bin/dawnline apply >/dev/null 2>&1 || log error "applying the configuration failed: run \"dawnline apply\" to see why"
 	start
 }
 

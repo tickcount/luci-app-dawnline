@@ -544,7 +544,7 @@ Glass icons (`ui/glass.ts`) draw a tinted back shape, the same shape blurred beh
 | `t-grey` | `#cfcfcd` → `#5a5a59` | `#a9a9a7` → `#3d3d3c` | Device cards (default), access rows, Add |
 | `t-blue` | `#a6d9ff` → `#1d84e6` | `#7cc4ff` → `#0a6fd6` | This device, first device, kinds, reach tiles that are on, the LAN Bypass row when on, lock |
 | `t-green` | `#a8f29c` → `#30d158` | `#82e070` → `#30d158` | "Everything works" (demo) |
-| `t-orange` | `#ffc08f` → `#ff8d28` | *same as dark* | Warn notices, Reconnect question |
+| `t-orange` | `#ffc08f` → `#ff8d28` | *same as dark* | Warn notices |
 | `t-red` | `#ffadad` → `#ff383c` | `#ff9090` → `#ff383c` | Bad notices, Remove question |
 
 Frosted pane: dark `--gi-a .58 / --gi-b .14` white with a `.5` rim and no edge stroke. Light uses a `.72 / .5` grey pane, a `.9` rim and an `rgba(0,0,0,.11)` edge, with dark detail strokes.
@@ -779,7 +779,8 @@ The ⋯ menu, the pick pills' popups and the page code card are one kind of thin
 
 | Variant | Fill / text | Weight | Use |
 |---|---|---|---|
-| `accent` | accent / white | 600 | The one primary action: Add this device, Reconnect, Open securely, Download (router) |
+| `accent` | accent / white | 600 | The one primary action: Add this device, Open securely, Download (router) |
+| `warn` | warn / `#241300` | 600 | Reconnect (its sheet): the colour Reconnect has in the ⋯ menu; dark ink, white on it reads at 2.3:1 |
 | `tint` | accent 13% / accent | 600 | A card's **Connect** (quiet primary) |
 | `soft` | knob / text | 500 | Cancel, "Add it from the device", Show key, Copy, Start over |
 | `red` | bad / white | 600 | Remove |
@@ -869,7 +870,7 @@ A longer reason sits in `title` and, for a screen reader, in hidden text right a
 | Row | Head | Body |
 |---|---|---|
 | **What it reaches** (shield, home or globe glass) | Title only | Two **reach tiles** (radius 16, `field`, padding `12 12 12 14`, glass 28, title 14/20 500, sub 12/16; a 20 px round mark at the top right: ok-soft check or knob minus, the tile dimmed when off). Then a sentence with the hostname pattern in mono, and **name chips** (32 high, radius 10, mono 13, the domain part in `text-3`, a copy icon 14). |
-| **Data this month** (chart glass) | A 16 px **ring** (track `--bar`, arc accent, warn ≥ 90%, bad ≥ 100%) and "38.6 GB / 100 GB"; hidden while open | The **month**: one bar per day (flex, gap 3, 64 high, radius 2.5, min 3; days to come at 45% bar; today accent), an axis 11 px `text-3` with "Today" in accent under its bar (the month's ends hide when it comes close), the total line (`bad` when out), a 6 px **meter** (same tone thresholds), and a `.desc`. A picked day (*Reading the bars*) puts its down and up in place of the total and "21 Oct · +62%" (its date and how it compares with the month's other days; today "so far") in place of what is left, instantly. With a limit not reached, a line under the meter (12/16 `text-2`, warn when it fills within a week): the pace lately (the devices' last 7 days) and when the limit fills at it, or what a monthly one reaches by the reset (`shared/pace.ts`). |
+| **Data this month** (chart glass) | A 16 px **ring** (track `--bar`, arc accent, warn ≥ 90%, bad ≥ 100%) and "38.6 GB / 100 GB"; hidden while open | The **month**: one bar per day (flex, gap 3, 64 high, radius 2.5, min 3; days to come at 45% bar; today accent), an axis 11 px `text-3` with "Today" in accent under its bar, kept inside the axis (each of the month's ends hides where "Today" comes within 6 px of it, measured: the words' widths follow the language), the total line (`bad` when out), a 6 px **meter** (same tone thresholds), and a `.desc`. A picked day (*Reading the bars*) puts its down and up in place of the total and "21 Oct · +62%" (its date and how it compares with the month's other days; today "so far") in place of what is left, instantly. With a limit not reached, a line under the meter (12/16 `text-2`, warn when it fills within a week): the pace lately (the devices' last 7 days) and when the limit fills at it, or what a monthly one reaches by the reset (`shared/pace.ts`). |
 | **Access until** (calendar glass) | "30 Nov" plus "42 days" in ok, warn when soon, or "ended" in bad | The **until block** (`field`, radius 16, padding `14 16`): the days left as a 36/40 600 number (warn when soon), "days left", the end date in `text-3`, and a **calendar** of the weeks to the end. 7 columns of 10 px cells with gap 5 and radius 3: past at text 5%, left at text 16%, today in accent, the last day ringed 1.5 px accent; warn colours when soon. Under it the **hours bar**: 8 px track, the allowed window in ok 70%, a 2 × 16 "now" marker (`text`, warn when outside, with a 2 px field ring), and axis 00/06/12/18/24 at 10 px, then how long the window still runs ("3h 20m left") or, outside it in warn, when it opens (12/16 `text-2`). With nothing to open, the row is still. |
 
 A repaint keeps the rows on the page and changes what they hold in place, the same row open (see *Motion → Repaint choreography*).
@@ -906,12 +907,14 @@ A repaint keeps the rows on the page and changes what they hold in place, the sa
 
 - **Tooltip:** one 26 px pill in toast colours under the keys. It appears after 420 ms of hover, then follows the pointer (or Tab) from key to key at once, gliding from where it stands, and says "Copied" after a copy. Back on a key while it still fades out, it turns back from there.
 
-**Question view** (`.ask`: Reconnect, Remove):
+**Question view** (`.ask`: Remove):
 
 - left-aligned, as iOS asks now, with 24 px top padding;
 - a 64 px glass icon in the action's tone, a 20/28 500 question and a 15/21 `text-2` paragraph;
-- two equal buttons: **Cancel** (soft) and the action (accent for Reconnect, red for Remove);
+- two equal buttons: **Cancel** (soft) and the action (red for Remove);
 - no × beside them.
+
+**Reconnect view** (`flows/device-actions.ts`): Add a device without its name. The head ("Reconnect Phone"), what happens as its subline, the kinds with what it is now ringed, the LAN Bypass row as it stands, and a `warn` block **Reconnect** (refresh icon) where the name field would be, 12 px under the row. × stays.
 
 **Secure view:** centred lock glass, an accent "Open securely" button and a short note.
 
@@ -921,7 +924,7 @@ Apple's iOS 26 menu (Figma kit, "Menu – iPhone"), made compact: smaller type a
 
 **Surface:** a dropdown (see *Dropdowns*): at least 210 wide, radius 24, padding `6 0`.
 
-**Rows**, 6 px in, in groups (copy actions, then Rename, Reconnect, Remove): 8 px above and below the words (34 high, 50 with a line under the label), radius 18 (concentric); the icon 14 px in from the rounded edge, more than the 10 px from it to the words, so it doesn't crowd the curve; 12 px at the right end: a 16 px icon, a 14 px 400 label (line 18) and an 11.5 px subtitle under it where the item has one (the address it copies, tabular figures), 1 px apart. Reconnect `warn`, Remove destructive.
+**Rows**, 6 px in, in groups (copy actions; LAN Bypass; then Rename, Reconnect, Remove): 8 px above and below the words (34 high, 50 with a line under the label), radius 18 (concentric); the icon 14 px in from the rounded edge, more than the 10 px from it to the words, so it doesn't crowd the curve; 12 px at the right end: a 16 px icon, a 14 px 400 label (line 18) and an 11.5 px subtitle under it where the item has one (the address it copies, tabular figures; On or Off under LAN Bypass), 1 px apart. Reconnect `warn`, Remove destructive.
 
 **Separators** between groups: 13 px high, their 1 px line 16 px in from the edge.
 
@@ -937,12 +940,14 @@ Apple's iOS 26 menu (Figma kit, "Menu – iPhone"), made compact: smaller type a
 
 ### App picker · `ui/seg.ts`
 
-- **Track:** 48 high, radius 16, `field`, padding `0 4`.
+- **Track:** 48 high, radius 16, `field`, padding `0 4`. The sheet opens on AmneziaWG, the first item (or the app the device was set up with).
+- **WireGuard has no item of its own** except for a router (its own package): with the disguise off it takes AmneziaWG's file and code through the same menus, so AmneziaWG's item is both. The words name both ("In AmneziaWG or WireGuard:", "Open AmneziaWG or WireGuard", "import … in AmneziaWG or WireGuard"), a hint line under AmneziaWG's store says WireGuard works too (its name links to its store), and the share badge's small line says "Straight into the app" (two names do not fit it). On Linux a last step gives wireguard-tools' `wg-quick`.
 - **Items:** icons only (20 px) at 56 px each. The picked item takes the remaining width (`flex-grow`) and shows its name.
 - **Pill:** 40 px, radius 12. It stretches like skiper21's tabs: the leading edge reaches the new item first and the trailing edge follows. At rest it sits on its item by layout alone (4 px and the items before it on the left, the items after it on the right, each 56 or 44 px), so the sheet changing width carries it along with nothing watching.
 - **Item colours:** idle `text-3`, hover `text-2`, picked `text`.
+- **A name too long for its place** (four apps on a phone): it fades to nothing at the edge it runs past (an 18 px alpha mask, the right edge at its start). Under the pointer, or with the keyboard's focus, it glides to its end a beat later (240 ms) at 40 px/s, eased at both ends, the fade sliding to the left edge (320 ms, `--fade-l`/`--fade-r` as registered properties); it glides back as the pointer leaves, from where it stands. On touch a tap on the picked item glides it there and back. Another pick puts every name back at its start.
 
-### Kinds picker · `flows/add.ts`
+### Kinds picker · `flows/device-form.ts` (Add a device, Reconnect)
 
 - **Tiles:** four in a grid (`--n` columns, gap 8): PC, Mobile, Router, Other. Each is 56 high, radius 14, `field`.
 - **Icons and labels:** a 26 px blue glass icon, greyscale at 55% opacity until picked. The label sits under the tile at 12/16 500.
@@ -966,7 +971,7 @@ One choice with a switch (Add a device's **LAN Bypass**). A line that unfolds un
 - Two lines: top 12/16 `text-2`, main 15/20 500.
 - A 16 px trailing mark: chevron for an action, "open" for a page in a new tab.
 - `.primary` (the one thing to tap in a step): the icon tile is accent-soft / accent.
-- `.badges2`: two side by side, no trailing mark.
+- `.badges2`: two side by side, no trailing mark, while each has 150 px, room for its words on one line (a store's name never wraps); narrower, one under the other.
 - Inside an inset row: knob 65% over field, hover `knob`, one step above the row.
 
 ### Set-up sheet · `flows/setup-view.ts`
@@ -977,7 +982,7 @@ One choice with a switch (Add a device's **LAN Bypass**). A line that unfolds un
 
 **"How to" path:** `Open AmneziaWG › + › Import Tunnel(s) from File…` in 13 px `text-2`, the app's own words in `text` 500.
 
-**Scan line:** "In WireGuard: + › Create from QR code". Where iOS and Android name a step differently, that word alternates every 3 s, with the  or Android mark beside it.
+**Scan line:** "In AmneziaWG: + › Create from QR code" ("In AmneziaWG or WireGuard:" with the disguise off). Where iOS and Android name a step differently, that word alternates every 3 s, with the  or Android mark beside it.
 
 **The way:** a picture of the connection, with no buttons.
 
@@ -1477,7 +1482,7 @@ CSS hover and press transitions (`scale(.8–.98)`, colours, the switch) are not
 - **Short, plain and whole.** "Your devices can't connect until it's resumed." A sentence that adds to a title never repeats it. Full rules for strings and Russian: `rules/i18n.md`.
 - **Buttons are verbs, with no ellipsis:** Connect, Update, Add device, Reconnect, Remove, Cancel, Open securely, Show key, Copy.
 - **Statuses are short and fit one line.** The full wording goes in the tooltip: "Settings changed, update needed".
-- **Other apps are quoted word for word, in each language:** "+ › Insert › Continue" for AmneziaVPN, "Import Tunnel(s) from File…" for WireGuard.
+- **Other apps are quoted word for word, in each language:** "+ › Insert › Continue" for AmneziaVPN, "Import Tunnel(s) from File…" for WireGuard, "+ › Import config from Clipboard" for V2RayTun on Android, "+ › Import from clipboard" on Windows.
 - **Honest warnings sit where the choice is made**, said once: one line where space is short, the why in `title`.
 - **Numbers, sizes and dates** follow the page's language.
 - **The language pill switches in place.**

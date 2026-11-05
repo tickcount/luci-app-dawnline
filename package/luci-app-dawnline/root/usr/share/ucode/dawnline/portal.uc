@@ -5,7 +5,7 @@
 //   GET  /<code>/api/state
 //   POST /<code>/api/devices              { name, kind, public_key?, lan_bypass? }
 //   GET  /<code>/api/devices/<id>/config
-//   POST /<code>/api/devices/<id>         { action: rename|rotate|delete, name? }
+//   POST /<code>/api/devices/<id>         { action: rename|reconnect|bypass|delete, name?, kind?, lan_bypass?, on? }
 //
 // The personal link is the key: every request carries its code, there are
 // no sessions. Without a valid code every path answers the same bare 404 —
@@ -33,10 +33,11 @@
 // that answers anything not shaped like a link (its not_found() twin).
 
 import { stat, readfile } from 'fs';
-import { read_json, write_json, ensure_dir, lock, unlock, cloudflare_ip, ip2int, today, VERSION, RUN_DIR } from 'dawnline.util';
+import { read_json, write_json, ensure_dir, lock, unlock, cloudflare_ip, ip2int, today, syslog, VERSION, RUN_DIR } from 'dawnline.util';
 import * as core from 'dawnline.core';
 import * as awg from 'dawnline.awg';
 import * as live from 'dawnline.live';
+import * as lookup from 'dawnline.lookup';
 import * as view from 'dawnline.view';
 import * as schema from 'dawnline.schema';
 import * as devices from 'dawnline.devices';
@@ -423,6 +424,17 @@ function api_state(r) {
 	send_json(r, '200 OK', state(r));
 }
 
+/**
+ * A configuration as the portal sends it: with the server's address as an IP
+ * too (amnezia.host_ip, lookup.host_ip()), for V2RayTun on Android, which
+ * takes no name for AmneziaWG. Lookups are cached for minutes (lookup.uc).
+ */
+function with_ip(cfg) {
+	if (cfg?.amnezia)
+		cfg.amnezia.host_ip = lookup.host_ip(cfg.amnezia.host);
+	return cfg;
+}
+
 function api_add(r) {
 	need_open(r);
 	need_https(r);
@@ -433,7 +445,7 @@ function api_add(r) {
 	// lan_bypass: JSON true keeps the device's own local network out of the tunnel; anything else is off.
 	let res = guard(r, () => devices.add(r.person.id, b.name, b.kind, { by: 'portal', public_key: b.public_key, lan_bypass: b.lan_bypass === true }));
 	reload(r);
-	send_json(r, '200 OK', { id: res.id, config: res.config, state: state(r) });
+	send_json(r, '200 OK', { id: res.id, config: with_ip(res.config), state: state(r) });
 }
 
 function api_config(r, id) {
@@ -441,7 +453,7 @@ function api_config(r, id) {
 	need_open(r);
 	need_https(r);
 	awg.mark_issued(r.m, d.id);
-	send_json(r, '200 OK', awg.client_config(r.m, d));
+	send_json(r, '200 OK', with_ip(awg.client_config(r.m, d)));
 }
 
 /** POST /devices/<id> { action }: what each action does; the answer carries the new state. */
@@ -455,8 +467,20 @@ const ACTIONS = {
 		need_https(r);
 		if (!devices.ready())
 			fail(r, '503 Service Unavailable', not_ready());
-		let config = guard(r, () => devices.reconnect(d.id, { by: 'portal', person: r.person.id, defer: d.address == r.peer }));
-		return { config };
+		// What it is and LAN Bypass may change with the keys (the sheet asks again); left out, they stay.
+		let kind = type(b.kind) == 'string' ? b.kind : null;
+		let bypass = type(b.lan_bypass) == 'bool' ? b.lan_bypass : null;
+		let config = guard(r, () => devices.reconnect(d.id, { by: 'portal', person: r.person.id, defer: d.address == r.peer,
+			kind, lan_bypass: bypass }));
+		return { config: with_ip(config) };
+	},
+	// LAN Bypass on or off, keys unchanged: the device takes its updated configuration (the set-up sheet opens on it).
+	bypass: (r, d, b) => {
+		need_https(r);
+		if (type(b.on) != 'bool')
+			fail(r, '400 Bad Request', _('Unknown action.'));
+		guard(r, () => devices.update(d.id, { lan_bypass: b.on }, { by: 'portal', person: r.person.id }));
+		return {};
 	},
 	'delete': (r, d, b) => {
 		guard(r, () => devices.remove(d.id, { by: 'portal', person: r.person.id }));
@@ -590,7 +614,11 @@ export function serve(io) {
 		handle(io);
 	}
 	catch (e) {
-		if (e.message != DONE)
+		if (e.message != DONE) {
+			// What broke and where; the path without its first part (the person's link code is a secret).
+			let path = replace(split(io.env.REQUEST_URI ?? '', '?')[0], /^\/[^\/]*/, '/<link>');
+			syslog('error', 'portal', `${io.env.REQUEST_METHOD ?? '?'} ${path}: 500 · ${e.message}${e.stacktrace?.[0]?.context ? ' · ' + replace(e.stacktrace[0].context, /[\r\n\t]+/g, ' ') : ''}`);
 			io.write(`Status: 500 Internal Server Error\r\nContent-Type: text/plain\r\n\r\nError\n`);
+		}
 	}
 };

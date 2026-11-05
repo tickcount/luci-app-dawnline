@@ -154,6 +154,18 @@ function recorder() {
 	return { w, c: { set: (cfg, s, k, v) => { w[`${s}.${k}`] = v; }, delete: (cfg, s, k) => { w[`${s}.${k}`] = null; } } };
 }
 
+test('set_device_kind', () => {
+	let mm = { devices: { d: { id: 'd', kind: 'phone' } } };
+	let r = recorder();
+	eq(core.set_device_kind(r.c, mm, 'd', 'tablet'), true, 'changed');
+	eq([ r.w, mm.devices.d.kind ], [ { 'd.kind': 'tablet' }, 'tablet' ], 'written, and the model follows');
+	r = recorder();
+	eq(core.set_device_kind(r.c, mm, 'd', 'tablet'), false, 'the same kind changes nothing');
+	eq(r.w, {}, 'nothing written');
+	throws(() => core.set_device_kind(r.c, mm, 'd', 'toaster'), /^Unknown device type\.$/, 'not a kind');
+	throws(() => core.set_device_kind(r.c, mm, 'x', 'phone'), /^Unknown device\.$/, 'unknown device');
+});
+
 test('set_device_link', () => {
 	let mm = { devices: { d: { id: 'd', mtu: 0, keepalive: null, lan_bypass: false } } };
 	let r = recorder();

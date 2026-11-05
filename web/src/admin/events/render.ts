@@ -179,6 +179,14 @@ export function eventText(st: Pick<Status, 'people'>, e: LogEvent, personId?: st
         ];
       if (detail === 'turned off') return say(_('Device %s turned off'), wd);
       if (detail === 'turned on') return say(_('Device %s turned on'), wd);
+      // On the portal: LAN Bypass from its ⋯ menu, what it is and LAN Bypass with Reconnect.
+      if (by === 'portal')
+        return [
+          ...(scoped
+            ? say(_('Device %s changed on the portal'), b(dev || _('a device')))
+            : say(_('Person %s changed device %s on their portal'), b(who), b(dev || _('a device')))),
+          ...(detail ? [m(` · ${deviceChangedText(detail)}`)] : []),
+        ];
       return [...say(_('Device %s changed'), wd), ...(detail ? [m(` · ${deviceChangedText(detail)}`)] : [])];
     case 'device_keys':
       return scoped

@@ -15,7 +15,7 @@ import * as store from 'dawnline.store';
 import * as devices from 'dawnline.devices';
 import { L_ } from 'dawnline.i18n';
 import {
-	VERSION, slog, slog_read, sh_out, q, take_iface_intent, read_json, write_json, ensure_dir, with_lock, RUN_DIR
+	VERSION, slog, syslog, slog_read, sh_out, q, take_iface_intent, read_json, write_json, ensure_dir, with_lock, RUN_DIR
 } from 'dawnline.util';
 
 /** Options that take no value. */
@@ -338,5 +338,7 @@ try {
 }
 catch (e) {
 	warn(`dawnline: ${e.message}\n`);
+	// Run from the init script or cron, stderr goes nowhere: syslog keeps why.
+	syslog('error', 'cli', `dawnline ${cmd} failed: ${e.message}`);
 	exit(1);
 }

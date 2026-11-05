@@ -1,4 +1,5 @@
-// Settings → Logs & history: retention, what is recorded, and the stored data.
+// Settings → Logs & history: retention, what is recorded, what goes to the
+// router's system log, and the stored data.
 
 import { E } from '../../e';
 import { api } from '../../api';
@@ -67,6 +68,17 @@ export function logsCard(host: SettingsHost): HTMLElement {
     String(p.usage_months),
     _('Monthly traffic'),
   );
+  // The router's system log (logread): dawnline.util syslog() writes at these levels.
+  const level = select(
+    [
+      ['error', _('Errors only')],
+      ['warn', _('Warnings and errors')],
+      ['info', _('Normal')],
+      ['debug', _('Verbose (debug)')],
+    ],
+    String(host.d.effective.log_level ?? 'info'),
+    _('System log'),
+  );
   const cats = multiSelect(
     CATEGORIES.map((c): [string, Node] => [
       c,
@@ -110,6 +122,13 @@ export function logsCard(host: SettingsHost): HTMLElement {
         _('Save to flash'),
         persist,
         _('The log lives in memory and is copied to flash. Memory only saves flash writes but is lost on reboot.'),
+      ),
+      row(
+        _('System log'),
+        level,
+        _(
+          'What Dawnline writes to the router’s system log (logread -e dawnline). Verbose adds each step of a start and of applying settings.',
+        ),
       ),
       row(_('Daily traffic'), days, _('Per-day history behind the charts.')),
       row(_('Monthly traffic'), months, _('Per-month totals; data limits use the current month.')),
@@ -173,6 +192,7 @@ export function logsCard(host: SettingsHost): HTMLElement {
               usage_keep_days: days.value,
               usage_keep_months: months.value,
               log_category: cats.value(),
+              log_level: level.value,
             },
             _('Saved'),
             'logs',

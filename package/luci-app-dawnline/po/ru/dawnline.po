@@ -389,6 +389,10 @@ msgstr "Интерфейса %s нет."
 msgid "%s does not overlap other networks."
 msgstr "%s не пересекается с другими сетями."
 
+#: web/src/admin/cores/awg.ts
+msgid "%s does not resolve right now, and V2RayTun on Android connects by IP address only."
+msgstr "Сейчас не удаётся узнать IP-адрес %s, а V2RayTun на Android подключается только по IP-адресу."
+
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/health.uc
 msgid "%s does not resolve."
 msgstr "%s не разрешается в IP-адрес."
@@ -1086,6 +1090,10 @@ msgstr "%s: %s из 4"
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
 msgid "%s: <%s> is not a tag AmneziaWG apps accept: use <b 0x…> with an even number of hex digits, <r N>, <rc N> or <rd N> with N from 1 to 1000, or <t>."
 msgstr "%s: тег <%s> не примут приложения AmneziaWG: используйте <b 0x…> с чётным числом шестнадцатеричных цифр, <r N>, <rc N> или <rd N> с N от 1 до 1000 либо <t>."
+
+#: web/src/admin/events/model.ts
+msgid "%s: automatic"
+msgstr "%s: автоматически"
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/access.uc
 msgid "%s: the device's own network handles it."
@@ -2182,6 +2190,10 @@ msgstr "Выберите свободный порт от 1 до 65535 (кром
 msgid "Choose a server on their page"
 msgstr "Выберите сервер на странице человека"
 
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/schema.uc
+msgid "Choose a system log level: errors, warnings, normal or verbose."
+msgstr "Выберите уровень системного журнала: ошибки, предупреждения, обычный или подробный."
+
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
 msgid "Choose another interface name in the server settings."
 msgstr "Выберите другое имя интерфейса в настройках сервера."
@@ -2654,6 +2666,10 @@ msgid "Device %s changed network %s"
 msgstr "Устройство %s сменило сеть %s"
 
 #: web/src/admin/events/render.ts
+msgid "Device %s changed on the portal"
+msgstr "Устройство %s: настройки изменены через портал"
+
+#: web/src/admin/events/render.ts
 msgid "Device %s connected"
 msgstr "Устройство %s подключилось"
 
@@ -3080,6 +3096,10 @@ msgstr "Укажите оба времени, например 07:00 и 23:00."
 #: package/luci-app-dawnline/root/usr/libexec/dawnline/updater
 msgid "Error: %s"
 msgstr "Ошибка: %s"
+
+#: web/src/admin/pages/settings/logs.ts
+msgid "Errors only"
+msgstr "Только ошибки"
 
 #: web/src/admin/pages/settings/logs.ts
 msgid "Every 10 min"
@@ -3527,6 +3547,21 @@ msgstr "Импортировать"
 msgid "Import JSON"
 msgstr "Импорт JSON"
 
+#: web/src/admin/cores/awg.ts
+msgctxt "V2RayTun app"
+msgid "Import config from Clipboard"
+msgstr "Импорт из буфера обмена"
+
+#: web/src/admin/cores/awg.ts
+msgctxt "V2RayTun app"
+msgid "Import config from QRcode"
+msgstr "Импорт из QR-кода"
+
+#: web/src/admin/cores/awg.ts
+msgctxt "V2RayTun app"
+msgid "Import from clipboard"
+msgstr "Импорт из буфера обмена"
+
 #: web/src/admin/pages/settings/backups.ts
 msgid "Import?"
 msgstr "Импортировать?"
@@ -3928,6 +3963,14 @@ msgstr "Не удалось создать ключ."
 msgid "LAN Bypass"
 msgstr "Обход локальной сети"
 
+#: web/src/admin/events/model.ts
+msgid "LAN Bypass off"
+msgstr "обход локальной сети выкл."
+
+#: web/src/admin/events/model.ts
+msgid "LAN Bypass on"
+msgstr "обход локальной сети вкл."
+
 #: web/src/admin/widgets/tiles.ts
 msgid "Last 30 days"
 msgstr "За 30 дней"
@@ -3975,6 +4018,7 @@ msgstr "Сертификат Let’s Encrypt для портала"
 msgid "Limit hours"
 msgstr "Ограничить часы"
 
+#: web/src/admin/cores/awg.ts
 #: web/src/admin/invite.ts
 msgid "Link copied"
 msgstr "Ссылка скопирована"
@@ -4651,6 +4695,10 @@ msgstr "Бессрочно"
 msgid "None: without the tunnel those devices have no DNS."
 msgstr "Нет: без туннеля у этих устройств не будет DNS."
 
+#: web/src/admin/pages/settings/logs.ts
+msgid "Normal"
+msgstr "Обычный"
+
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/backup.uc
 msgid "Not a Dawnline export."
 msgstr "Файл не является экспортом Dawnline."
@@ -5161,6 +5209,10 @@ msgstr "%s: добавлено устройство %s"
 #: web/src/admin/events/render.ts
 msgid "Person %s added device %s on their portal"
 msgstr "%s: добавлено устройство %s через портал"
+
+#: web/src/admin/events/render.ts
+msgid "Person %s changed device %s on their portal"
+msgstr "Пользователь %s изменил настройки устройства %s в личном портале"
 
 #: web/src/admin/events/render.ts
 msgid "Person %s issued new keys for device %s on their portal"
@@ -6314,6 +6366,10 @@ msgstr "Переход на AmneziaWG %s"
 msgid "System"
 msgstr "Система"
 
+#: web/src/admin/pages/settings/logs.ts
+msgid "System log"
+msgstr "Системный журнал"
+
 #: package/luci-app-dawnline/root/usr/libexec/dawnline/updater
 #: web/src/admin/pages/components/activity.ts
 #: web/src/admin/pages/settings/updates.ts
@@ -6501,6 +6557,10 @@ msgstr "Модуль ядра не загружается: %s Переустан
 #: web/src/admin/pages/components/index.ts
 msgid "The latest release is %s"
 msgstr "Последний релиз - %s"
+
+#: web/src/admin/cores/awg.ts
+msgid "The link has the server’s IP address, not its name: if the address changes, set the device up again."
+msgstr "В ссылке IP-адрес сервера, а не его имя: если адрес сменится, настройте устройство заново."
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/health.uc
 msgid "The link is up but not attached to %s."
@@ -6872,6 +6932,11 @@ msgstr "Пробуем зеркало %s"
 msgid "Tunnel"
 msgstr "Туннель"
 
+#: web/src/admin/cores/awg.ts
+msgctxt "V2RayTun app"
+msgid "Tunnel"
+msgstr "Туннель"
+
 #: web/src/admin/pages/overview.ts
 msgid "Tunnel %s is down."
 msgstr "Туннель %s не работает."
@@ -7001,6 +7066,10 @@ msgstr "Неизвестный город"
 #: package/luci-app-dawnline/root/usr/libexec/dawnline/updater
 msgid "Unknown component %s"
 msgstr "Неизвестный компонент: %s"
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Unknown device type."
+msgstr "Неизвестный тип устройства."
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/devices.uc
@@ -7270,9 +7339,21 @@ msgstr "Используется самоподписанный сертифик
 msgid "Using a self-signed certificate: browsers will show a warning. ACME can get a free Let’s Encrypt one."
 msgstr "Используется самоподписанный сертификат: браузеры покажут предупреждение. Через ACME можно получить бесплатный сертификат Let’s Encrypt."
 
+#: web/src/admin/cores/awg.ts
+msgid "V2RayTun on Android: %s, or copy the link and %s."
+msgstr "V2RayTun на Android: %s или скопируйте ссылку и %s."
+
+#: web/src/admin/cores/awg.ts
+msgid "V2RayTun on Windows: %s, then set its mode to %s and connect. That mode needs administrator rights: the app offers to restart with them."
+msgstr "V2RayTun на Windows: %s, затем выберите режим «%s» и подключитесь. Для этого режима нужны права администратора: приложение предложит перезапуститься с ними."
+
 #: web/src/admin/interfaces.ts
 msgid "VPN & tunnels"
 msgstr "VPN и туннели"
+
+#: web/src/admin/pages/settings/logs.ts
+msgid "Verbose (debug)"
+msgstr "Подробный (отладка)"
 
 #: web/src/admin/pages/components/hero.ts
 msgid "Versions"
@@ -7315,6 +7396,10 @@ msgstr "Внимание: не удалось сохранить %s: %s"
 msgid "Warning: the installed build is no longer published, nothing to keep for rollback"
 msgstr "Внимание: установленная сборка больше не публикуется, сохранить для отката нечего"
 
+#: web/src/admin/pages/settings/logs.ts
+msgid "Warnings and errors"
+msgstr "Предупреждения и ошибки"
+
 #: package/luci-app-dawnline/root/usr/libexec/dawnline/agent
 #: web/src/admin/pages/diagnostics/health.ts
 msgid "Watchdog"
@@ -7343,6 +7428,10 @@ msgstr "Раз в неделю"
 #: web/src/admin/device.ts
 msgid "Went offline"
 msgstr "Вышло из сети"
+
+#: web/src/admin/pages/settings/logs.ts
+msgid "What Dawnline writes to the router’s system log (logread -e dawnline). Verbose adds each step of a start and of applying settings."
+msgstr "Что Dawnline пишет в системный журнал роутера (logread -e dawnline). Подробный добавляет каждый шаг запуска и применения настроек."
 
 #: web/src/admin/pages/server.ts
 #: web/src/admin/pages/settings/portal.ts
@@ -8151,6 +8240,10 @@ msgid "keep-alive"
 msgstr "keep-alive"
 
 #: web/src/admin/events/model.ts
+msgid "keep-alive %s s"
+msgstr "keep-alive %s с"
+
+#: web/src/admin/events/model.ts
 msgid "kept in memory only (lost on reboot)"
 msgstr "только в памяти (пропадают при перезагрузке)"
 
@@ -8581,6 +8674,14 @@ msgstr "сегодня %s"
 #: web/src/admin/events/model.ts
 msgid "tunnel network"
 msgstr "сеть туннеля"
+
+#: web/src/admin/events/model.ts
+msgid "type"
+msgstr "тип"
+
+#: web/src/admin/events/model.ts
+msgid "type: %s"
+msgstr "тип: %s"
 
 #: web/src/admin/pages/people.ts
 #: web/src/admin/pages/settings/portal.ts

@@ -315,8 +315,10 @@ By hand: <kbd>Settings</kbd> › <kbd>Remove Dawnline from this router</kbd>
 
 <br>
 
-AmneziaVPN or AmneziaWG on phones and computers, and plain WireGuard when the
-disguise is off. The portal shows each person the app for their system and how
+AmneziaVPN or AmneziaWG on phones and computers, V2RayTun on Android (its
+`awg://` link; not with the Maximum disguise, which it cannot
+run yet),
+and plain WireGuard when the disguise is off. The portal shows each person the app for their system and how
 to add the connection in it.
 
 </details>
@@ -377,6 +379,14 @@ Data lives in `/etc/config/dawnline` (mode 0600, contains private keys) and
 are kept in `/var/run/dawnline` and flushed to flash at most hourly. Access
 changes reach the tunnel with `awg syncconf`, without restarting the interface;
 `dawnline log` on the router shows the service log.
+
+Everything service-related also goes to the router's system log, one line per
+event with its syslog priority: `logread -e dawnline` shows
+`[info] [service] starting`, `[info] [apply] configuration applied in 310 ms · …`,
+tunnels and the portal going down and back, crashes with what syslog knew about
+them, every settings change (`admin changed settings · domain: lan → home`) and
+people's and devices' changes. Settings → Logs & history → System log picks the
+level: errors, warnings, normal or verbose (each step of a start and an apply).
 
 ## 🧰 Development
 

@@ -157,8 +157,16 @@ msgstr[1] ""
 msgid "%s options"
 msgstr ""
 
+#: web/src/portal/setup.ts
+msgid "%s or %s"
+msgstr ""
+
 #: web/src/shared/format.ts
 msgid "%s this month"
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "%s works too, if it is already there: the disguise is off."
 msgstr ""
 
 #: web/src/portal/page/notices.ts
@@ -299,6 +307,10 @@ msgstr ""
 msgid "Can’t finish connecting"
 msgstr ""
 
+#: web/src/portal/setup.ts
+msgid "Channel on"
+msgstr ""
+
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
 msgid "Circle %s: server %s does not exist."
 msgstr ""
@@ -325,6 +337,11 @@ msgid "Confirm the import and connect"
 msgstr ""
 
 #: web/src/portal/page/devices.ts
+msgid "Connect"
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+msgctxt "step"
 msgid "Connect"
 msgstr ""
 
@@ -374,6 +391,10 @@ msgstr ""
 msgid "Copy %s config"
 msgstr ""
 
+#: web/src/portal/flows/setup-parts.ts
+msgid "Copy %s link"
+msgstr ""
+
 #: web/src/portal/page/devices.ts
 msgid "Copy IP address"
 msgstr ""
@@ -404,6 +425,7 @@ msgid "Copy the key"
 msgstr ""
 
 #: web/src/portal/flows/page-code.ts
+#: web/src/portal/flows/setup-parts.ts
 #: web/src/portal/ui/codes.ts
 msgid "Copy the link"
 msgstr ""
@@ -539,6 +561,10 @@ msgstr ""
 msgid "Download %s config"
 msgstr ""
 
+#: web/src/portal/flows/setup-parts.ts
+msgid "Download %s link"
+msgstr ""
+
 #: web/src/portal/setup.ts
 msgid "Download for Linux"
 msgstr ""
@@ -587,7 +613,7 @@ msgstr ""
 msgid "Enter a device name: up to %d letters, digits, spaces and - _ ."
 msgstr ""
 
-#: web/src/portal/flows/add.ts
+#: web/src/portal/flows/device-form.ts
 msgid "Except %s: those addresses lead to the home network."
 msgstr ""
 
@@ -671,6 +697,21 @@ msgstr ""
 #: web/src/portal/setup.ts
 msgctxt "WireGuard app"
 msgid "Import Tunnel(s) from File…"
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgctxt "V2RayTun app"
+msgid "Import config from Clipboard"
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgctxt "V2RayTun app"
+msgid "Import config from QRcode"
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgctxt "V2RayTun app"
+msgid "Import from clipboard"
 msgstr ""
 
 #: web/src/portal/setup.ts
@@ -775,8 +816,17 @@ msgstr ""
 msgid "Key generation failed."
 msgstr ""
 
-#: web/src/portal/flows/add.ts
+#: web/src/portal/flows/device-form.ts
+#: web/src/portal/page/devices.ts
 msgid "LAN Bypass"
+msgstr ""
+
+#: web/src/portal/flows/device-actions.ts
+msgid "LAN Bypass is off: add the updated connection"
+msgstr ""
+
+#: web/src/portal/flows/device-actions.ts
+msgid "LAN Bypass is on: add the updated connection"
 msgstr ""
 
 #: web/src/portal/page/frame.ts
@@ -792,6 +842,8 @@ msgid "Last connected %s"
 msgstr ""
 
 #: web/src/portal/flows/page-code.ts
+#: web/src/portal/flows/setup-parts.ts
+#: web/src/portal/flows/setup-view.ts
 #: web/src/portal/ui/codes.ts
 msgid "Link copied"
 msgstr ""
@@ -892,8 +944,16 @@ msgstr ""
 msgid "OR"
 msgstr ""
 
+#: web/src/portal/page/devices.ts
+msgid "Off"
+msgstr ""
+
 #: web/src/portal/setup.ts
 msgid "Official release on GitHub"
+msgstr ""
+
+#: web/src/portal/page/devices.ts
+msgid "On"
 msgstr ""
 
 #: web/src/portal/page/notices.ts
@@ -979,6 +1039,10 @@ msgstr ""
 msgid "OpenWrt packages + kmod"
 msgstr ""
 
+#: web/src/portal/setup.ts
+msgid "Or, with wireguard-tools,"
+msgstr ""
+
 #: web/src/shared/format.ts
 msgid "Other"
 msgstr ""
@@ -1061,12 +1125,9 @@ msgstr ""
 msgid "Reconnect"
 msgstr ""
 
+#: web/src/portal/flows/device-actions.ts
 #: web/src/portal/page/devices.ts
 msgid "Reconnect %s"
-msgstr ""
-
-#: web/src/portal/flows/device-actions.ts
-msgid "Reconnect %s?"
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
@@ -1132,6 +1193,10 @@ msgid "Send it to the %s in a message or a note, then in AmneziaVPN: %s."
 msgstr ""
 
 #: web/src/portal/flows/setup-parts.ts
+msgid "Send it to the %s in a message or a note, then in V2RayTun: %s."
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
 msgid "Send it to the %s, then import %s in %s."
 msgstr ""
 
@@ -1189,12 +1254,21 @@ msgstr ""
 msgid "Straight into %s"
 msgstr ""
 
+#: web/src/portal/flows/setup-parts.ts
+msgid "Straight into the app"
+msgstr ""
+
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
 msgid "Subnet must look like 10.77.0.0/24."
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
 msgid "Subnet overlaps %s."
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+msgctxt "step"
+msgid "Switch to %s mode and connect"
 msgstr ""
 
 #: web/src/shared/format.ts
@@ -1239,6 +1313,10 @@ msgstr ""
 
 #: web/src/portal/flows/setup-parts.ts
 msgid "The connection as one key"
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "The connection as one link"
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
@@ -1315,6 +1393,11 @@ msgstr ""
 msgid "Too many changes in a short time. Try again in a few minutes."
 msgstr ""
 
+#: web/src/portal/setup.ts
+msgctxt "V2RayTun app"
+msgid "Tunnel"
+msgstr ""
+
 #: web/src/portal/flows/setup-view.ts
 msgid "Two steps, about a minute"
 msgstr ""
@@ -1337,6 +1420,10 @@ msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
 msgid "Unknown circle."
+msgstr ""
+
+#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+msgid "Unknown device type."
 msgstr ""
 
 #: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
@@ -1368,6 +1455,18 @@ msgstr ""
 msgid "Uploaded"
 msgstr ""
 
+#: web/src/portal/flows/setup-parts.ts
+msgid "V2RayTun needs administrator rights for this mode: it offers to restart with them."
+msgstr ""
+
+#: web/src/portal/flows/setup-parts.ts
+msgid "V2RayTun reaches the server by its IP address, not its hostname: if the address changes, add the connection again."
+msgstr ""
+
+#: web/src/portal/setup.ts
+msgid "V2RayTun’s own channel: news and updates of the app."
+msgstr ""
+
 #: web/src/portal/flows/wait.ts
 msgid "Waiting for the connection"
 msgstr ""
@@ -1376,7 +1475,7 @@ msgstr ""
 msgid "Warning must be 0-60 days."
 msgstr ""
 
-#: web/src/portal/flows/add.ts
+#: web/src/portal/flows/device-form.ts
 msgid "What is it?"
 msgstr ""
 
@@ -1440,7 +1539,7 @@ msgstr ""
 msgid "Your devices can’t connect until it’s resumed."
 msgstr ""
 
-#: web/src/portal/flows/add.ts
+#: web/src/portal/flows/device-form.ts
 msgid "Your local network stays reachable while connected."
 msgstr ""
 

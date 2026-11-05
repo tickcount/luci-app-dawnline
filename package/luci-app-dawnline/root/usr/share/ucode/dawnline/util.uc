@@ -5,7 +5,7 @@
 import { open, readfile, writefile, rename, mkdir, stat, unlink, popen, lsdir } from 'fs';
 import { _ } from 'dawnline.i18n';
 
-export const VERSION = '0.17.0';
+export const VERSION = '0.18.0';
 /** GitHub repository with Dawnline releases (updates and the installer). */
 export const REPO = 'tickcount/luci-app-dawnline';
 export const RUN_DIR = '/var/run/dawnline';
@@ -226,6 +226,96 @@ export function ack_config(confs) {
 	writefile(md5f, join('\n', lines) + '\n');
 };
 
+/* ---------- syslog ---------- */
+
+/*
+ * Every line Dawnline puts in syslog, as podkop and sing-box do it:
+ *   dawnline: [info] [awg] Home started · accepting connections on port 51820
+ * with the matching priority (daemon.err, .warning, .info, .debug), so
+ * `logread -e dawnline` or a remote syslog filters by level. The admin's
+ * level (settings.log_level) decides what goes out: error | warn | info
+ * (the default) | debug (each step of a start or an apply).
+ */
+const LOG_RANK = { error: 0, warn: 1, info: 2, debug: 3 };
+const LOG_PRIO = { error: 'err', warn: 'warning', info: 'info', debug: 'debug' };
+const LOG_LEVEL_RE = regexp("option log_level '?(error|warn|info|debug)'?");
+// The level as last read, and the config file's mtime it was read at (a long-running agent sees a change).
+let log_cfg = { mtime: -1, level: 'info' };
+
+/** The admin's syslog level (settings.log_level): error | warn | info | debug; info when not set. */
+export function log_level() {
+	let mt = stat('/etc/config/dawnline')?.mtime ?? 0;
+	if (mt != log_cfg.mtime) {
+		let m = match(readfile('/etc/config/dawnline') ?? '', LOG_LEVEL_RE);
+		log_cfg = { mtime: mt, level: m?.[1] ?? 'info' };
+	}
+	return log_cfg.level;
+};
+
+/** Does a line at `level` go out at the admin's level? */
+export function log_on(level) {
+	return (LOG_RANK[level] ?? 2) <= LOG_RANK[log_level()];
+};
+
+// A line break or a tab with the blanks around it: one space in a syslog line (compiled once, syslog runs often).
+const LOG_BREAK = /[ \t\r\n]*[\t\r\n][ \t\r\n]*/g;
+
+/** One syslog line's words: "[level] [src] line", on one line, at most 1000 characters. */
+export function syslog_line(level, src, line) {
+	let one = replace(trim(`${line ?? ''}`), LOG_BREAK, ' ');
+	return substr(`[${LOG_RANK[level] != null ? level : 'info'}] [${src ?? 'dawnline'}] ${one}`, 0, 1000);
+};
+
+/**
+ * A line in syslog at `level` (error | warn | info | debug) from `src`
+ * (dawnline, awg, portal, apply, agent, service, settings, people, …), when
+ * the admin's level takes it. Nothing is kept anywhere else: what the admin UI
+ * shows goes through slog() below, which calls this too.
+ */
+export function syslog(level, src, line) {
+	if (!log_on(level))
+		return;
+	system(`logger -t dawnline -p daemon.${LOG_PRIO[level] ?? 'info'} ${q(syslog_line(level, src, line))}`);
+};
+
+// Option names whose values never go in a log line: private, preshared and header-protection keys.
+const SECRET_OPT = /(private|preshared|protection)_?key/;
+
+/**
+ * Options as a log line's words: "listen_port=51820, addresses=10.8.0.1/24,
+ * private_key=***" (arrays joined with spaces, null as "-", secrets masked).
+ */
+export function opts_text(o) {
+	let out = [];
+	for (let k, v in o ?? {}) {
+		let s = v == null ? '-' : type(v) == 'array' ? join(' ', v) : `${v}`;
+		push(out, `${k}=${match(k, SECRET_OPT) ? '***' : s}`);
+	}
+	return join(', ', out);
+};
+
+/**
+ * A block of text in syslog, a line per line (an nft script, a peer list),
+ * each "[level] [src] <prefix><line>": one logger for all of them.
+ */
+export function syslog_lines(level, src, text, prefix) {
+	if (!log_on(level) || trim(`${text ?? ''}`) == '')
+		return;
+	let p = popen(`logger -t dawnline -p daemon.${LOG_PRIO[level] ?? 'info'}`, 'w');
+	if (!p)
+		return;
+	for (let l in split(`${text ?? ''}`, '\n'))
+		if (trim(l) != '')
+			p.write(syslog_line(level, src, `${prefix ?? ''}${trim(l)}`) + '\n');
+	p.close();
+};
+
+/** A list in a log line: the first `n` (10) and how many more ("a, b, c and 12 more"). */
+export function some_of(list, n) {
+	n ??= 10;
+	return length(list) <= n ? join(', ', list) : `${join(', ', slice(list, 0, n))} and ${length(list) - n} more`;
+};
+
 /* ---------- service log ---------- */
 
 /*
@@ -257,7 +347,11 @@ export function slog(src, level, msg, detail, who, extra) {
 		f.close();
 	}
 	let line = e.by == 'admin' ? join(' ', filter([ 'admin', msg, e.kind, who, e.note ? '· ' + e.note : null ], (x) => x)) : who ? `${who} ${msg}` : msg;
-	system(`logger -t dawnline${level == 'error' ? ' -p user.err' : ''} ${q(line)}`);
+	// Problems carry what went wrong (the service log's detail: an error's text, the syslog lines around a crash).
+	let lvl = { error: 'error', repair: 'warn', down: 'warn' }[level] ?? 'info';
+	if (e.detail && lvl != 'info')
+		line += ` · ${substr(replace(e.detail, /[\r\n\t]+/g, ' | '), 0, 400)}`;
+	syslog(lvl, src, line);
 };
 
 /** A change the admin made in LuCI, for the service log. */

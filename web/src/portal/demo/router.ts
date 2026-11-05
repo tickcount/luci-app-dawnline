@@ -1,5 +1,5 @@
 // The demo's router: portal.uc's API (state, add a device, its settings,
-// rename / reconnect / remove) answered from the demo's own devices, which it
+// rename / reconnect / LAN Bypass / remove) answered from the demo's own devices, which it
 // keeps per visitor. The refusals are the router's (paused, ended, plain HTTP,
 // no free slot, a name taken). Nothing is installed and no tunnel exists: the
 // keys are random and the server's address never resolves. The page state
@@ -158,6 +158,7 @@ export function createRouter(o: RouterOpts) {
       created: clock(),
       by: 'portal',
       stale: false,
+      bypass: b.lan_bypass === true,
     };
     db.devs.push(d);
     issued = d.id;
@@ -182,12 +183,24 @@ export function createRouter(o: RouterOpts) {
     if (b.action === 'rename') d.name = checkName(b.name, d);
     else if (b.action === 'reconnect') {
       needHttps();
+      // What it is and LAN Bypass change with the keys, as on the router.
+      if (typeof b.kind === 'string') {
+        if (!KINDS.includes(b.kind as Kind)) refuse(400, 'Unknown device type.');
+        d.kind = b.kind as Kind;
+      }
+      if (typeof b.lan_bypass === 'boolean') d.bypass = b.lan_bypass;
       // New keys: the old handshake no longer counts, the device connects again once set up.
       d.hs = 0;
       d.stale = false;
       d.connectAt = soon();
       issued = d.id;
       extra = { config: config(d) };
+    } else if (b.action === 'bypass') {
+      needHttps();
+      if (typeof b.on !== 'boolean') refuse(400, 'Unknown action.');
+      // The keys stay; the configuration it holds is out of date until it takes the updated one.
+      d.bypass = b.on as boolean;
+      d.stale = true;
     } else if (b.action === 'delete') db.devs = db.devs.filter((x) => x !== d);
     else refuse(400, 'Unknown action.');
     return { ok: true, ...extra, state: state() };

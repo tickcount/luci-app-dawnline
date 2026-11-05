@@ -180,3 +180,15 @@ test('add_event_merged: per device', () => {
 	eq(live.category_of('device_recovered'), 'problems', 'and so is its end');
 	had == null ? unlink(path) : writefile(path, had);
 });
+
+test('event_level and event_line: the system\'s events in syslog', () => {
+	eq(live.event_level({ type: 'connect' }), null, 'a connection stays out of syslog');
+	eq(live.event_level({ type: 'roam' }), null, 'so does a device moving networks');
+	eq(live.event_level({ type: 'device_failing' }), null, "and a device's link trouble");
+	eq(live.event_level({ type: 'device_changed' }), 'info', 'people and devices are info');
+	eq(live.event_level({ type: 'server_down' }), 'warn', 'a problem is warn');
+	eq(live.event_level({ type: 'server_up' }), 'info', 'its end is info');
+	eq(live.event_line({ type: 'device_changed', pname: 'Myata', dname: 'Phone', detail: 'kind=phone, lan_bypass=on', by: 'portal' }),
+		'Myata · Phone device changed · kind=phone, lan_bypass=on (portal)', 'names, what, detail, by whom');
+	eq(live.event_line({ type: 'paused', person: 'p1' }), 'p1 paused', 'the id where there is no name');
+});

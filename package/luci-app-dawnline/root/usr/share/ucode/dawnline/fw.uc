@@ -5,7 +5,7 @@
 // named dawnline_* are ever changed.
 
 import { readfile, unlink } from 'fs';
-import { q, sh, sh_out, uniq, in_nets, uci_put, uci_section, ack_config, write_file, RUN_DIR } from 'dawnline.util';
+import { sh, sh_out, uniq, in_nets, uci_put, uci_section, ack_config, write_file, syslog, opts_text, RUN_DIR } from 'dawnline.util';
 import { cursor } from 'uci';
 import * as core from 'dawnline.core';
 import * as net from 'dawnline.net';
@@ -33,12 +33,21 @@ export function sync(m, dry) {
 	let c = cursor();
 	c.load('firewall');
 	let changed = false, want = {};
+	// What changed, section by section, for syslog once it is saved (a dry run says nothing).
+	let notes = [];
 
 	let sec = (name, stype, opts) => {
 		want[name] = true;
-		changed = uci_section(c, 'firewall', name, stype) || changed;
+		let created = uci_section(c, 'firewall', name, stype), diff = {};
 		for (let k, v in opts)
-			changed = uci_put(c, 'firewall', name, k, v) || changed;
+			if (uci_put(c, 'firewall', name, k, v))
+				diff[k] = v;
+		if (created || length(keys(diff))) {
+			changed = true;
+			push(notes, [ 'info', `${stype} ${name}: ${created ? 'created' : 'updated'} · ${opts_text(created ? opts : diff)}` ]);
+		}
+		else
+			push(notes, [ 'debug', `${stype} ${name}: unchanged` ]);
 	};
 
 	let snap = net.snapshot(true);
@@ -130,17 +139,20 @@ export function sync(m, dry) {
 			push(stale, s['.name']);
 	});
 	for (let s in stale) {
+		push(notes, [ 'info', `${c.get('firewall', s) ?? 'section'} ${s}: removed` ]);
 		c.delete('firewall', s);
 		changed = true;
 	}
 	if (dry)
 		return changed;
 
+	for (let n in notes)
+		syslog(n[0], 'firewall', n[1]);
 	if (changed) {
 		c.commit('firewall');
 		ack_config([ 'firewall' ]);
+		syslog('info', 'firewall', 'fw4 -q reload');
 		system('fw4 -q reload');
-		system("logger -t dawnline 'firewall updated'");
 	}
 	return changed;
 };
@@ -268,18 +280,24 @@ export function sync_reply_routes(m) {
 		}
 	let s = reply_script(m, proxy_diverts());
 	if (s == '') {
-		if (reply_loaded())
+		if (reply_loaded()) {
+			syslog('info', 'nftables', `table inet ${REPLY_TABLE}: removed (no proxy to keep Dawnline's answers out of)`);
 			system(`nft delete table inet ${REPLY_TABLE} 2>/dev/null`);
+		}
 		unlink(REPLY_SIG);
 		return;
 	}
-	if (s == readfile(REPLY_SIG) && reply_loaded())
+	if (s == readfile(REPLY_SIG) && reply_loaded()) {
+		syslog('debug', 'nftables', `table inet ${REPLY_TABLE}: unchanged`);
 		return;
+	}
 	let err = nft.load(`table inet ${REPLY_TABLE}\ndelete table inet ${REPLY_TABLE}\n${s}`);
 	if (err) {
 		unlink(REPLY_SIG);
-		system(`logger -t dawnline -p user.err ${q('reply table: ' + err)}`);
+		syslog('error', 'nftables', `table inet ${REPLY_TABLE}: loading failed · ${err}`);
 		return;
 	}
+	syslog('info', 'nftables', `table inet ${REPLY_TABLE}: loaded · ${length(match(s, /\n/g) ?? []) + 1} lines (Dawnline's own answers kept out of proxies)`);
+	syslog('debug', 'nftables', `table inet ${REPLY_TABLE}: ${s}`);
 	write_file(REPLY_SIG, s, 0o644);
 };

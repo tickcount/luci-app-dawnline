@@ -17,7 +17,7 @@
 import * as uloop from 'uloop';
 import { open, readfile, writefile, stat, unlink } from 'fs';
 import {
-	read_json, write_json, ensure_dir, sh_out, q, uniq, slog, slog_trim, slog_restore, date_end, DATA_DIR, RUN_DIR, VERSION
+	read_json, write_json, ensure_dir, sh_out, q, uniq, slog, syslog, slog_trim, slog_restore, date_end, DATA_DIR, RUN_DIR, VERSION
 } from 'dawnline.util';
 import * as core from 'dawnline.core';
 import * as live from 'dawnline.live';
@@ -641,8 +641,9 @@ function nightly_backup() {
 	let st = read_json(`${DATA_DIR}/backup-state.json`, {});
 	if (sum && sum != st.auto) {
 		try {
-			backup.backup_create('auto');
+			let b = backup.backup_create('auto');
 			write_json(`${DATA_DIR}/backup-state.json`, { auto: sum }, 0o600);
+			syslog('info', 'backup', `nightly backup saved${b ? ': ' + b : ''}`);
 		}
 		catch (e) {
 			// Tried again tomorrow; meanwhile the admin should know (a full flash, mostly).
@@ -794,9 +795,11 @@ function step(i, s, fn) {
 		delete step_err[i];
 	}
 	catch (e) {
-		system(`logger -t dawnline-agent ${q(`${s.who}: ${e.message}`)}`);
+		// A new error goes to the service log (and from there to syslog); a repeat, or a quiet step's, to syslog alone.
 		if (!s.quiet && step_err[i] != e.message)
 			slog('dawnline', 'error', sprintf(L_('failed: %s'), e.message), e.stacktrace?.[0]?.context, s.who);
+		else
+			syslog('error', 'agent', `${s.who}: ${e.message}`);
 		step_err[i] = e.message;
 	}
 }
@@ -835,7 +838,14 @@ function tick() {
 	});
 }
 
+// Once: a signal ends the loop and calls it, and so does the line after uloop.run().
+let stopping = false;
+
 function shutdown() {
+	if (stopping)
+		return;
+	stopping = true;
+	syslog('info', 'agent', 'stopping · saving the counters and the logs');
 	live.save_usage(usage, true);
 	live.persist_events();
 	geo.flush();
@@ -876,6 +886,7 @@ else if (live.uptime() < 600)
 	slog('dawnline', 'info', sprintf(L_('started with the router · version %s'), VERSION), null, 'Dawnline');
 else
 	slog('dawnline', 'info', sprintf(L_('started · version %s'), VERSION), null, 'Dawnline');
+syslog('debug', 'agent', sprintf('watching connections every %d ms, checking the rest every %d ms', WATCH, TICK));
 // A module Dawnline did not install has no record of its kernel: without one
 // Health cannot tell a firmware upgrade from a missing module.
 builds.adopt();

@@ -97,6 +97,15 @@
 .btn.red:hover {
   background: color-mix(in srgb, var(--bad) 82%, transparent);
 }
+/* Reconnect: the warn colour it has in the ⋯ menu and on the card's status. Dark ink: white on it reads at 2.3:1. */
+.btn.warn {
+  background: var(--warn);
+  color: #241300;
+  font-weight: 600;
+}
+.btn.warn:hover {
+  background: color-mix(in srgb, var(--warn) 82%, transparent);
+}
 /* Waiting for the router: the button keeps its size, its content blurs away and an orb comes up in
    its place (ui/busy.ts runs the change). The orb is B4 Converge from aicss.dev's Orbs, at its own
    28px stage and twice its speed: one circle walks a triangle, sharp at each corner and smaller,
@@ -510,12 +519,43 @@
   opacity: 1;
   margin-left: 0;
 }
+/* A name wider than its place (ui/seg.ts marquee): it fades to nothing at the edge it runs past, the right one
+   at its start, the left one at its end, the fade sliding across as the name glides. */
+@property --fade-l {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+@property --fade-r {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+.appseg .seg-l {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--fade-l), #000 calc(100% - var(--fade-r)), transparent);
+  mask-image: linear-gradient(to right, transparent, #000 var(--fade-l), #000 calc(100% - var(--fade-r)), transparent);
+  transition:
+    --fade-l 320ms var(--ease-out),
+    --fade-r 320ms var(--ease-out);
+}
+.appseg .seg-l.clip {
+  --fade-r: 18px;
+}
+.appseg .seg-l.clip.end {
+  --fade-l: 18px;
+  --fade-r: 0px;
+}
+.appseg .seg-t {
+  display: inline-block;
+}
 /* Three apps on a phone: the icons take less room, so the picked one's name fits whole. */
 .appseg {
   container-type: inline-size;
 }
+/* The pill takes the narrow width too: a container query reaches only what is inside the track, never the track
+   itself, so --b is set on the pill (on .appseg it would stay 56 and the pill fall short of its item). */
 @container (max-width: 300px) {
-  .appseg {
+  .appseg .seg-pill {
     --b: 44px;
   }
   .appseg .seg-b {
@@ -770,10 +810,18 @@
   background: var(--accent-soft);
   color: var(--accent);
 }
+/* Two side by side while each has room for its words on one line (a store's name never wraps); else one under
+   the other. */
 .badges2 {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
   gap: 8px;
+}
+.badges2 .b-top,
+.badges2 .b-main {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .badges2 .badge {
   padding: 0 10px;

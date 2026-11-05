@@ -7,7 +7,7 @@
 import { readfile, stat, unlink } from 'fs';
 import { cursor } from 'uci';
 import {
-	ensure_dir, read_json, write_json, lock, unlock, month_key, day_key, day_key_ago, uniq,
+	ensure_dir, read_json, write_json, lock, unlock, month_key, day_key, day_key_ago, uniq, syslog,
 	iface_status as util_iface_status, RUN_DIR, DATA_DIR
 } from 'dawnline.util';
 import * as awg from 'dawnline.awg';
@@ -422,13 +422,51 @@ function with_names(e, c) {
 	return e;
 }
 
+// Events about someone's connection, not about the system: they stay out of syslog
+// (the activity log has them). Connects, roams, a device's link trouble and its end.
+const NOT_SYSTEM = [ 'connect', 'disconnect', 'roam', 'device_failing', 'device_recovered' ];
+
+/**
+ * An activity event at its syslog level, or null when it stays out (a
+ * connection: syslog says what the system does). People and their devices
+ * (what changes the tunnels and the rules) are info, problems warn and their
+ * end ("…_up") info.
+ */
+export function event_level(e) {
+	let cat = category_of(e.type);
+	if (cat == 'connections' || index(NOT_SYSTEM, e.type) >= 0)
+		return null;
+	if (cat == 'problems' && !match(e.type, /_up$/))
+		return 'warn';
+	return 'info';
+};
+
+/** An activity event as a syslog line: "Myata · Phone device changed · kind=phone, lan_bypass=on (portal)". */
+export function event_line(e) {
+	let who = join(' · ', filter([ e.pname ?? e.person, e.dname ?? e.device ], (x) => x != null && x != ''));
+	return join(' ', filter([ who, replace(e.type ?? 'event', /_/g, ' '), e.detail ? `· ${e.detail}` : '', e.by ? `(${e.by})` : '' ], (x) => x != ''));
+};
+
+/** The system's events to syslog, whatever the activity log records (its categories are the admin's choice for the page). */
+function syslog_events(list, c) {
+	for (let e in list) {
+		let lvl = event_level(e);
+		if (lvl)
+			syslog(lvl, category_of(e.type), event_line(with_names(e, c)));
+	}
+}
+
 export function add_events(list, pol) {
 	pol ??= policy();
-	list = filter(list ?? [], (e) => index(pol.categories, category_of(e.type)) >= 0);
+	list ??= [];
 	if (!length(list))
 		return;
 	let c = cursor();
 	c.load('dawnline');
+	syslog_events(list, c);
+	list = filter(list, (e) => index(pol.categories, category_of(e.type)) >= 0);
+	if (!length(list))
+		return;
 	let l = lock('events');
 	let ev = load_events();
 	let ts = time();
@@ -451,6 +489,9 @@ export function add_event(e) {
  * and device (when it has one) within `window` s.
  */
 export function add_event_merged(e, window) {
+	let c0 = cursor();
+	c0.load('dawnline');
+	syslog_events([ { ...e } ], c0);
 	let pol = policy();
 	if (index(pol.categories, category_of(e.type)) < 0)
 		return;

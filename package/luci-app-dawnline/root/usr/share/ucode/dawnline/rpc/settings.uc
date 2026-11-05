@@ -2,7 +2,7 @@
 // history, updates). What may be saved is dawnline.schema's.
 
 import { stat } from 'fs';
-import { q, sh_out, admin_log, RUN_DIR, DATA_DIR } from 'dawnline.util';
+import { q, sh_out, admin_log, syslog, RUN_DIR, DATA_DIR } from 'dawnline.util';
 import * as core from 'dawnline.core';
 import * as live from 'dawnline.live';
 import * as apply from 'dawnline.apply';
@@ -96,16 +96,25 @@ function settings_update(a) {
 		die(_('Nothing to save.'));
 	let res = store.transact((c, m) => {
 		let restart = false;
+		// What each key was and became, as uci holds them (for syslog: every change, not only those worth a line).
+		let diff = [];
+		let note = (k, to) => {
+			let from = c.get(core.CONFIG, 'settings', k);
+			if (!same(to, from))
+				push(diff, { k, from, to });
+		};
 		c.set(core.CONFIG, 'settings', 'settings');
 		for (let k, val in v) {
 			if (k == 'log_category') {
 				let lst = filter(type(val) == 'array' ? val : [], (x) => index(live.CATEGORIES, x) >= 0);
+				note(k, length(lst) ? lst : [ '' ]);
 				c.set(core.CONFIG, 'settings', 'log_category', length(lst) ? lst : [ '' ]);
 				// Superseded by the category list.
 				c.delete(core.CONFIG, 'settings', 'log_connections');
 				continue;
 			}
 			let nv = schema.validate(k, val);
+			note(k, nv);
 			if (schema.SETTINGS[k].restart && !same(nv, c.get(core.CONFIG, 'settings', k)))
 				restart = true;
 			if (nv == null)
@@ -114,8 +123,13 @@ function settings_update(a) {
 				c.set(core.CONFIG, 'settings', k, nv);
 		}
 		check_portal(core.load(c), m);
-		return { restart, was: m.settings };
+		return { restart, was: m.settings, diff };
 	});
+	// Every setting that changed, in syslog: "admin changed settings · log_keep_days: 30 → 90, domain: lan → home".
+	if (length(res.diff)) {
+		let val = (x) => x == null || x == '' ? 'default' : type(x) == 'array' ? join(' ', filter(x, (y) => y != '')) || 'none' : `${x}`;
+		syslog('info', 'settings', `admin changed settings · ${join(', ', map(res.diff, (d) => `${d.k}: ${val(d.from)} → ${val(d.to)}`))}`);
+	}
 	let s = null;
 	if (res.restart)
 		system('/etc/init.d/dawnline reload >/dev/null 2>&1');

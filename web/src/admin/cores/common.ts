@@ -1,8 +1,11 @@
 // What every tunnel core gives the admin (cores/index.ts holds the registry),
 // what a core's settings card gets from the Server page, and that card's head.
 
-import type { ClientConfig, Server, Status } from '../../shared/types';
+import type { ClientConfig, Kind, Server, Status } from '../../shared/types';
 import { E } from '../e';
+
+/** The ways a device takes its configuration, as the set-up switcher names them. */
+export type ConnectView = 'file' | 'key' | 'qr' | 'v2r';
 
 /** What the Server page hands a core's settings card. */
 export interface CoreCtx {
@@ -21,8 +24,8 @@ export interface Core {
   settingsCard(ctx: CoreCtx, srv: Server): HTMLElement;
   /** Overview: how the tunnel looks on the wire (the disguise tile). */
   overviewTile(srv: Server): HTMLElement;
-  /** How a device connects: file / key / QR. */
-  connectBlock(cfg: ClientConfig, initial?: 'file' | 'key' | 'qr'): Promise<HTMLElement>;
+  /** How a device of this kind connects: file / key / QR / V2RayTun's link, opening on `initial`. */
+  connectBlock(cfg: ClientConfig, kind: Kind, initial?: ConnectView): Promise<HTMLElement>;
   /** What a QR code for the device carries. */
   qrText(cfg: ClientConfig): string;
   /** The key the device's app imports (⋯ → Copy key), with the menu label. */

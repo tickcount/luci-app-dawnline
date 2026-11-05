@@ -5,7 +5,7 @@
 
 import { cursor } from 'uci';
 import { stat, unlink } from 'fs';
-import { q, slog } from 'dawnline.util';
+import { slog, syslog } from 'dawnline.util';
 import * as core from 'dawnline.core';
 import * as store from 'dawnline.store';
 import { L_ } from 'dawnline.i18n';
@@ -47,7 +47,7 @@ export function uhttpd() {
 		c.delete('uhttpd', 'main', 'error_page');
 		c.commit('uhttpd');
 		system('/etc/init.d/uhttpd reload >/dev/null 2>&1');
-		system(`logger -t dawnline ${q('portal removed from the LuCI web server')}`);
+		syslog('info', 'portal', 'portal removed from the LuCI web server');
 	}
 	if (stat(LAN_CGI))
 		unlink(LAN_CGI);

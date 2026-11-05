@@ -135,6 +135,14 @@ describe('a device’s link', () => {
       'You changed device Phone of Myata · MTU',
     );
   });
+  it('says what each option became, and names the portal where a person changed it', () => {
+    expect(deviceChangedText('lan_bypass=on, kind=tablet')).toBe('LAN Bypass on, type: Tablet');
+    expect(deviceChangedText('lan_bypass=off, mtu=1400, keepalive=25')).toBe('LAN Bypass off, MTU 1400, keep-alive 25 s');
+    expect(deviceChangedText('mtu=auto, keepalive=auto')).toBe('MTU: automatic, keep-alive: automatic');
+    const change = ev({ type: 'device_changed', by: 'portal', person: 'p1', device: 'd1', detail: 'kind=phone, lan_bypass=on' });
+    expect(text(eventText({ people }, change))).toBe('Person Myata changed device Phone on their portal · type: Phone, LAN Bypass on');
+    expect(text(eventText({ people }, change, 'p1'))).toBe('Device Phone changed on the portal · type: Phone, LAN Bypass on');
+  });
 });
 
 describe('the router’s words', () => {

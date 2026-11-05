@@ -123,16 +123,26 @@ function month(p: Person, used: number, pct: number): HTMLElement {
   say(-1);
   const chart = bars(series, 'bars-month', 64, days - day);
   readBars(chart, _('Your data this month'), say);
-  // "Today" under its bar; the month's ends step aside when it comes close.
+  // "Today" under its bar, kept inside the axis; the month's ends step aside where it comes within 6 px of
+  // either of them, measured (the words' widths follow the language and the axis the screen). Until the first
+  // measure, which comes before the first paint: under its bar, and the ends by the day.
   const td = h('span', { class: 'td' }, _('Today'));
   td.style.left = pc(day - 0.5, days);
-  const axis = h(
-    'div',
-    { class: 'month-axis' },
-    h('span', { class: day <= 4 ? 'hide' : '' }, short(1)),
-    td,
-    h('span', { class: day >= days - 3 ? 'hide' : '' }, short(days)),
-  );
+  const first = h('span', { class: day <= 4 ? 'hide' : '' }, short(1));
+  const last = h('span', { class: day >= days - 3 ? 'hide' : '' }, short(days));
+  const axis = h('div', { class: 'month-axis' }, first, td, last);
+  const fit = () => {
+    const room = axis.clientWidth;
+    const w = td.offsetWidth;
+    if (!room || !w) return;
+    const x = Math.min(Math.max(((day - 0.5) / days) * room, w / 2), room - w / 2);
+    td.style.left = `${x}px`;
+    first.classList.toggle('hide', x - w / 2 < first.offsetWidth + 6);
+    last.classList.toggle('hide', x + w / 2 > room - last.offsetWidth - 6);
+  };
+  // The axis on another width (a phone turned, the card's columns), or the words on theirs (the font arrived).
+  const ro = new ResizeObserver(fit);
+  for (const x of [axis, td, first, last]) ro.observe(x);
   // With a limit not yet reached: the pace lately (the devices' last 7 days, so the month's first days have one
   // too) and when the limit fills at it, orange within a week.
   const pace = paceOf(

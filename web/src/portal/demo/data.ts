@@ -62,6 +62,8 @@ export interface DemoDevice {
   created: number;
   by: 'admin' | 'portal';
   stale: boolean;
+  /** LAN Bypass (unset: off). */
+  bypass?: boolean;
   /** A set-up state the visitor picked in the sheet (way-pick.ts), held until they pick another; none: as it comes. */
   way?: DemoWay;
   /** When it was picked: the knocks' or the handshake's time. */
@@ -168,7 +170,7 @@ function device(d: DemoDevice, t: number, st: Person['state']): Device {
     hostname: `${label(d.name)}.user.lan`,
     browser_key: false,
     config_stale: d.stale,
-    lan_bypass: false,
+    lan_bypass: !!d.bypass,
     mtu: 0,
     keepalive: null,
     // The server's for its kind, as the router works it out (the portal never shows it).

@@ -10,6 +10,7 @@ import { h, ic, type Kid } from '../dom';
 import { EASE_IN, EASE_OUT, POP, SMOOTH, play } from '../motion';
 import {
   APP_NAME,
+  appName,
   importPath,
   importSteps,
   keyFileName,
@@ -18,6 +19,7 @@ import {
   routerStore,
   scanPath,
   vpnContinue,
+  v2rTunnelMode,
   storeFor,
   type AppId,
   type Platform,
@@ -29,14 +31,14 @@ import { glass } from '../ui/glass';
 import { menuLine, morphText, setText } from '../ui/morph';
 import { hint } from '../ui/sheet';
 
-export const APP_ICON: Record<AppId, string> = { vpn: 'amnezia', awg: 'amneziawg', wg: 'wireguard' };
+export const APP_ICON: Record<AppId, string> = { vpn: 'amnezia', awg: 'amneziawg', v2r: 'v2raytun', wg: 'wireguard' };
 
 /** The app a device was set up with last time, so the sheet reopens on it. */
 const memo = (d: Device) => `dl.app.${d.id}`;
 export function recallApp(d: Device): AppId | null {
   try {
     const v = localStorage.getItem(memo(d));
-    return v === 'vpn' || v === 'awg' || v === 'wg' ? v : null;
+    return v === 'vpn' || v === 'awg' || v === 'v2r' || v === 'wg' ? v : null;
   } catch {
     return null;
   }
@@ -49,11 +51,17 @@ export function rememberApp(d: Device, app: AppId) {
   }
 }
 
-/** What the steps work with: the device, its configuration, the key, and the choices made. */
+/** What the steps work with: the device, its configuration, the key, the link, and the choices made. */
 export interface SetupCtx {
   d: Device;
   cfg: ClientConfig;
   key: string;
+  /** The connection as V2RayTun's awg:// link (shared/awglink.ts). */
+  link: string;
+  /** The link names the server by an IP in place of its name (false: the address is an IP already, or did not resolve). */
+  byIp: boolean;
+  /** The disguise is off and this is no router: AmneziaWG's choice is WireGuard's too (setup.ts appName). */
+  wgToo: boolean;
   /** The platform this page is open on. */
   pf: Platform;
   /** "the phone": the device in a sentence. */
@@ -83,13 +91,26 @@ function badge(
   return h('a', { class: cls, href: st.href, target: app ? null : '_blank', rel: 'noopener noreferrer' }, inner);
 }
 
-/** Where the app comes from: the store (and, on Android, the APK beside it), or a line to go and get it. */
-export function storeBlock(app: AppId, os: Platform, router: boolean): Kid[] {
+/**
+ * Where the app comes from: the store (and, on Android, the APK beside it), or
+ * a line to go and get it. With the disguise off (`wgToo`), a line under
+ * AmneziaWG's says WireGuard takes the connection too, its name a link to its
+ * store here.
+ */
+export function storeBlock(app: AppId, os: Platform, router: boolean, wgToo = false): Kid[] {
   const st: Store | null = router ? routerStore(app) : storeFor(app, os);
-  if (!st) return [hint(fmt(_('Get %s on the %s and come back here.'), APP_NAME[app], platformLabel(os)))];
+  const wg = wgToo && app === 'awg' && !router ? wgLine(os) : null;
+  if (!st) return [hint(fmt(_('Get %s on the %s and come back here.'), appName(app, wgToo && !router), platformLabel(os)))];
   // Android: the store can fail (no Google Play, or it hides the app), so the APK sits beside it.
-  if (st.alt) return [h('div', { class: 'badges2' }, badge(st), badge(st.alt)), hint(st.alt.why)];
-  return [badge(st)];
+  if (st.alt) return [h('div', { class: 'badges2' }, badge(st), badge(st.alt)), hint(st.alt.why), wg];
+  return [badge(st), wg];
+}
+
+/** "WireGuard works too, if it is already there": the name links to its store on this platform. */
+function wgLine(os: Platform): HTMLElement {
+  const st = storeFor('wg', os);
+  const name = st ? h('a', { href: st.href, target: '_blank', rel: 'noopener noreferrer' }, APP_NAME.wg) : h('b', {}, APP_NAME.wg);
+  return hint(...fill<Node | string>(_('%s works too, if it is already there: the disguise is off.'), name));
 }
 
 const howto = (steps: [string, string][]) =>
@@ -101,10 +122,42 @@ const howto = (steps: [string, string][]) =>
 
 const linkBtn = (label: string, run: (ev: Event) => void) => h('button', { type: 'button', onclick: run }, label);
 
-/** Step 2: a link for AmneziaVPN, the file for the others, in the words of where they go. */
+/** V2RayTun has the server by its IP, not its name: once the router's address changes, the connection goes stale. The IP itself stays off the page. */
+const byIpWords = () =>
+  _('V2RayTun reaches the server by its IP address, not its hostname: if the address changes, add the connection again.');
+
+/** V2RayTun takes the connection as a link from the clipboard: copied, then "+ › Import config from Clipboard". */
+function v2rKids(c: SetupCtx): Kid[] {
+  // The words of the app on this device when the page is open on it (Windows has its own); else Android's.
+  const os = c.same() ? c.pf : 'unknown';
+  const path = importPath('v2r', os);
+  const win = os === 'windows';
+  return [
+    badge(
+      {
+        top: _('The connection as one link'),
+        main: _('Copy the link'),
+        mark: 'copy',
+        onclick: (ev) => copy(c.link, _('Link copied'), ev.currentTarget),
+      },
+      true,
+    ),
+    howto([
+      [fmt(_('Open %s', 'step'), APP_NAME.v2r), ''],
+      [path.replace(/ → [^→]*$/, ' → '), path.replace(/^.* → /, '')],
+      // On Windows AmneziaWG runs in its Tunnel mode (the Mode switch on its main screen), which needs administrator rights.
+      win ? [fmt(_('Switch to %s mode and connect', 'step'), v2rTunnelMode()), ''] : [_('Connect', 'step'), ''],
+    ]),
+    win ? hint(_('V2RayTun needs administrator rights for this mode: it offers to restart with them.')) : null,
+    c.byIp ? hint(byIpWords()) : null,
+  ];
+}
+
+/** Step 2: a link for AmneziaVPN and V2RayTun, the file for the others, in the words of where they go. */
 export function connectKids(c: SetupCtx): Kid[] {
   const app = c.app();
-  const name = APP_NAME[app];
+  const name = appName(app, c.wgToo);
+  if (app === 'v2r') return v2rKids(c);
   const hereHandheld = c.pf === 'ios' || c.pf === 'android';
   // On the phone being set up, a link opens AmneziaVPN only on Android; an
   // iPhone takes the key as a .vpn file from the share sheet.
@@ -141,7 +194,12 @@ export function connectKids(c: SetupCtx): Kid[] {
     share
       ? badge(
           {
-            top: c.same() ? fmt(_('Straight into %s'), name) : fmt(_('Send it to the %s'), c.there),
+            // Two apps' names do not fit the badge's small line: "the app" then.
+            top: c.same()
+              ? c.wgToo && app === 'awg'
+                ? _('Straight into the app')
+                : fmt(_('Straight into %s'), name)
+              : fmt(_('Send it to the %s'), c.there),
             main: _('Share the file'),
             mark: 'share',
             onclick: () => void share(),
@@ -158,15 +216,29 @@ export function connectKids(c: SetupCtx): Kid[] {
           true,
         ),
     // In the words of the app where the file goes: the phone in hand, or the computer's system.
-    howto(importSteps(app, c.pf, c.cfg.filename, !!share && c.same())),
+    howto(importSteps(app, c.pf, c.cfg.filename, !!share && c.same(), c.wgToo)),
   ];
 }
 
-/** A computer set up from elsewhere: the connection to send there, as the key or the file. */
+/** A computer (or a TV, a box) set up from elsewhere: the connection to send there, as the key, the link or the file. */
 export function sendKids(c: SetupCtx): Kid[] {
   const app = c.app();
   const btn = (icon: string, label: string, run: (ev: Event) => void) =>
     h('button', { type: 'button', class: 'btn soft sm', onclick: run }, ic(icon), h('span', { class: 'lbl' }, label));
+  if (app === 'v2r')
+    return [
+      h(
+        'p',
+        { class: 'desc' },
+        fmt(_('Send it to the %s in a message or a note, then in V2RayTun: %s.'), c.there, importPath('v2r').replace(/ → /g, ' › ')),
+      ),
+      h(
+        'div',
+        { class: 'btnrow2' },
+        btn('copy', _('Copy the link'), (ev) => copy(c.link, _('Link copied'), ev.currentTarget)),
+      ),
+      c.byIp ? hint(byIpWords()) : null,
+    ];
   if (app === 'vpn') {
     const file = keyFileName(c.cfg.filename);
     const share = !!shareFile(file, c.key);
@@ -189,7 +261,7 @@ export function sendKids(c: SetupCtx): Kid[] {
     h(
       'p',
       { class: 'desc' },
-      ...fill<Node | string>(_('Send it to the %s, then import %s in %s.'), c.there, h('b', {}, c.cfg.filename), APP_NAME[app]),
+      ...fill<Node | string>(_('Send it to the %s, then import %s in %s.'), c.there, h('b', {}, c.cfg.filename), appName(app, c.wgToo)),
     ),
     h(
       'div',
@@ -315,15 +387,26 @@ export interface ScanLine {
   set(app: AppId): void;
 }
 
-/** "In AmneziaWG: + › Create from QR code", with both phone systems' wording where they differ. */
-export function scanLine(app: AppId): ScanLine {
-  const name = h('span', { class: 'osm-p' }, APP_NAME[app]);
+/**
+ * "In AmneziaWG: + › Create from QR code", with both phone systems' wording
+ * where they differ ("In AmneziaWG or WireGuard:" with the disguise off,
+ * `wgToo`: the same code and menus). For V2RayTun, where the link names the
+ * server by its IP (`byIp`), a line under it says what that means.
+ */
+export function scanLine(app: AppId, byIp = false, wgToo = false): ScanLine {
+  const name = h('span', { class: 'osm-p' }, appName(app, wgToo));
   const path = menuLine(scanPath(app, 'ios'), scanPath(app, 'android'));
+  const note = byIp ? hint(byIpWords()) : null;
+  const shows = (a: AppId) => {
+    if (note) note.hidden = a !== 'v2r';
+  };
+  shows(app);
   return {
-    el: h('span', { class: 'scanline' }, h('span', {}, ...fill(_('In %s:'), name)), path.el),
+    el: h('div', { class: 'scanwrap' }, h('span', { class: 'scanline' }, h('span', {}, ...fill(_('In %s:'), name)), path.el), note),
     set(a) {
-      morphText(name, APP_NAME[a], undefined, { whole: true });
+      morphText(name, appName(a, wgToo), undefined, { whole: true });
       path.set(scanPath(a, 'ios'), scanPath(a, 'android'));
+      shows(a);
     },
   };
 }
@@ -342,7 +425,7 @@ export interface ConnPill {
  * still fades out), each move from where it stands. Copied: a check, and the
  * tooltip says so.
  */
-export function connPill(get: () => { text: string; msg: string; file: string; app: string }): ConnPill {
+export function connPill(get: () => { text: string; msg: string; file: string; app: string; link?: boolean }): ConnPill {
   const tt = h('span', { class: 'tt' });
   const tm = h('span', { class: 'tt-m' });
   const tip = h('span', { class: 'hp-tip', 'aria-hidden': 'true' }, tt, tm);
@@ -473,9 +556,9 @@ export function connPill(get: () => { text: string; msg: string; file: string; a
   return {
     el,
     sync() {
-      const app = get().app;
-      dl.setAttribute('aria-label', fmt(_('Download %s config'), app));
-      cp.setAttribute('aria-label', fmt(_('Copy %s config'), app));
+      const { app, link } = get();
+      dl.setAttribute('aria-label', link ? fmt(_('Download %s link'), app) : fmt(_('Download %s config'), app));
+      cp.setAttribute('aria-label', link ? fmt(_('Copy %s link'), app) : fmt(_('Copy %s config'), app));
     },
   };
 }

@@ -90,6 +90,8 @@ export function load(c) {
 			hostnames: g('hostnames'),
 			domain: g('domain'),
 			log_connections: g('log_connections'),
+			// What goes to syslog (dawnline.util syslog).
+			log_level: g('log_level'),
 			// Repair tunnels and services on its own (the agent, every minute).
 			watchdog: g('watchdog'),
 			// Second DNS for "home names" devices, used by the device when the tunnel is down.
@@ -787,6 +789,24 @@ export function set_device_link(c, m, id, a) {
 	if (a.lan_bypass != null)
 		put('lan_bypass', a.lan_bypass === true ? 1 : null, d.lan_bypass ? 1 : null);
 	return changed;
+};
+
+/**
+ * Change what a device is (one of KINDS): true when it changed, false when it
+ * already was. Its configuration follows (device_mtu: phones and tablets take
+ * smaller packets); nothing on the router changes.
+ */
+export function set_device_kind(c, m, id, kind) {
+	let d = m.devices[id];
+	if (!d)
+		fail(_('Unknown device.'));
+	if (index(KINDS, kind) < 0)
+		fail(_('Unknown device type.'));
+	if (kind == d.kind)
+		return false;
+	c.set(CONFIG, id, 'kind', kind);
+	d.kind = kind;
+	return true;
 };
 
 export function delete_device(c, m, id) {

@@ -17,7 +17,7 @@ import { glass } from '../ui/glass';
 import { openMenu, type MenuItem } from '../ui/menu';
 import { appear, fadeAway, look, morphChanged, morphText, setText, textsOf, type Look } from '../ui/morph';
 import { startAdd } from '../flows/add';
-import { reconnect, removeDevice } from '../flows/device-actions';
+import { reconnect, removeDevice, toggleBypass } from '../flows/device-actions';
 import { renameOnCard } from '../flows/rename';
 import { openSetup } from '../flows/setup-view';
 
@@ -108,6 +108,10 @@ function menuItems(d: Device, st: State): (MenuItem | null)[] {
     ...(d.disabled
       ? []
       : [
+          // A setting in a group of its own: on or off now, under it; a tap switches it and opens the set-up of the
+          // updated configuration. Then what is done to the device itself.
+          { label: _('LAN Bypass'), icon: 'ethernet', sub: d.lan_bypass ? _('On') : _('Off'), run: () => toggleBypass(d) },
+          null,
           { label: _('Rename'), icon: 'edit', run: () => renameHere(d) },
           { label: _('Reconnect'), icon: 'refresh', tone: 'warn' as const, run: () => reconnect(d) },
           { label: _('Remove'), icon: 'trash', tone: 'bad' as const, run: () => removeDevice(d) },
