@@ -1,0 +1,33 @@
+name: Feature request
+description: Something Dawnline cannot do yet, or could do better
+type: Feature
+labels: ["needs triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you are trying to do
+      description: The situation, not the solution. Who connects, from where, to what, and where it stops today.
+    validations:
+      required: true
+
+  - type: textarea
+    id: wish
+    attributes:
+      label: What would help
+      description: How you imagine it working, in the admin, the portal or on the router.
+    validations:
+      required: true
+
+  - type: textarea
+    id: today
+    attributes:
+      label: What you do today
+      description: A workaround you use, or another tool that does it.
+
+  - type: input
+    id: setup
+    attributes:
+      label: Your setup
+      description: Dawnline and OpenWrt versions, the router, how many people and servers. Only what matters for the request.
+      placeholder: Dawnline 0.20.0, OpenWrt 25.12, one server, 12 people

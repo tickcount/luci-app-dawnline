@@ -839,21 +839,23 @@
   flex: none;
 }
 
-/* the packages close-up (flows/packages.ts): a block a feature, its packages as rows of name and version */
+/* the packages close-up (flows/packages.ts): a block a feature, its packages as rows of name and version. Its
+   classes are `pks-*`: `pk` and `pk-*` are the People list's while picking (pages/people/pick.ts), and a block named
+   `.pk` here painted that whole list as one grey panel (the owner, 2026-11-13: «появился какой-то серый фон») */
 .pks {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
-.pk {
+.pks-f {
   border-radius: 16px;
   background: var(--field);
 }
-.pk > .chk {
+.pks-f > .chk {
   background: none;
   padding: 12px 8px 4px 12px;
 }
-.pk-l {
+.pks-l {
   list-style: none;
   margin: 0;
   padding: 4px 14px 14px 52px;
@@ -863,25 +865,25 @@
   font-size: 13px;
   line-height: 18px;
 }
-.pk-l > li {
+.pks-l > li {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
   gap: 0 16px;
 }
-.pk-l .mono {
+.pks-l .mono {
   font-family: var(--mono);
   font-size: 12px;
   letter-spacing: 0;
 }
-.pk-l span {
+.pks-l span {
   overflow-wrap: anywhere;
 }
-.pk-v {
+.pks-v {
   margin-left: auto;
   color: var(--text-2);
 }
-.pk-v.new {
+.pks-v.new {
   color: var(--warn);
 }
 .opt[disabled] {

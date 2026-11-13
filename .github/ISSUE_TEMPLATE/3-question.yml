@@ -1,0 +1,33 @@
+name: Question
+description: How something works, or how to set it up
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The [README](https://github.com/tickcount/luci-app-dawnline#readme) answers the common ones in its FAQ. If yours is not there, ask here.
+
+        Remove private keys, personal links and public IP addresses from anything you paste.
+
+  - type: textarea
+    id: question
+    attributes:
+      label: What you want to do
+      description: What you are setting up and what you want to end up with.
+    validations:
+      required: true
+
+  - type: textarea
+    id: tried
+    attributes:
+      label: What you tried
+      description: The settings you changed and what came of it.
+
+  - type: input
+    id: setup
+    attributes:
+      label: Versions
+      description: Dawnline and OpenWrt, and the router.
+      placeholder: Dawnline 0.20.0, OpenWrt 25.12, Xiaomi AX3000T
+    validations:
+      required: true

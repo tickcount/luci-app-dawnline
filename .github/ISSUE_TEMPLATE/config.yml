@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security problem
+    url: https://github.com/tickcount/luci-app-dawnline/security/advisories/new
+    about: Report a vulnerability privately. Please do not open a public issue for it.
+  - name: Install, requirements and FAQ
+    url: https://github.com/tickcount/luci-app-dawnline#readme
+    about: How to install and update, what Dawnline needs, and answers to common questions.

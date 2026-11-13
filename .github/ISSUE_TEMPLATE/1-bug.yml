@@ -1,0 +1,121 @@
+name: Bug report
+description: Something in Dawnline does not work as it should
+type: Bug
+labels: ["needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. A report that can be reproduced gets fixed much sooner, so the fields below ask for what is usually needed.
+
+        **Before you send it, remove from everything you paste:** private and preshared keys, people's personal links (`https://…/p/…`) and public IP addresses. The service log masks keys by itself; `awg show` does not.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where it happens
+      options:
+        - Admin (LuCI)
+        - Personal portal
+        - A device connecting, or the tunnel itself
+        - Access, limits and end dates
+        - Site to site (networks behind a router)
+        - Install and updates
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you saw. A screenshot can be dragged into this field.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open …
+        2. Press …
+        3. See …
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Dawnline version
+      description: Settings → Updates, or `cat /usr/share/dawnline/version` on the router.
+      placeholder: "0.20.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: openwrt
+    attributes:
+      label: OpenWrt
+      options:
+        - "25.12"
+        - "24.10"
+        - Snapshot
+        - Other (say which below)
+    validations:
+      required: true
+
+  - type: input
+    id: router
+    attributes:
+      label: Router and architecture
+      description: The model, and the architecture from `ubus call system board` (the `target` line) or `/etc/openwrt_release`.
+      placeholder: Xiaomi AX3000T, aarch64_cortex-a53
+    validations:
+      required: true
+
+  - type: input
+    id: client
+    attributes:
+      label: App and system of the device
+      description: For a problem with one device, the app it connects with and its system. For a problem in a page, the browser.
+      placeholder: AmneziaWG 2.0 on iOS 26 · Safari 26
+
+  - type: textarea
+    id: health
+    attributes:
+      label: Health
+      description: Overview → Health. Which checks are not green, and what they say.
+
+  - type: textarea
+    id: log
+    attributes:
+      label: Service log
+      description: The last lines around the moment it happened. Settings → History and storage → System log set to «verbose» says more.
+      placeholder: logread -e dawnline | tail -n 100
+      render: text
+
+  - type: textarea
+    id: awg
+    attributes:
+      label: awg show
+      description: For a device that does not connect or cannot reach something. Remove the keys and replace public addresses before you paste.
+      placeholder: awg show
+      render: text
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before sending
+      options:
+        - label: I removed keys, personal links and public addresses from what I pasted.
+          required: true
+        - label: I looked through the open issues and did not find this one.
+          required: true

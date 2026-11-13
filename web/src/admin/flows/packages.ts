@@ -57,11 +57,11 @@ function view(items: SysItem[], pkgs: NonNullable<UpdateComponent['pkgs']>): Vie
       ...items.map((it) =>
         h(
           'div',
-          { class: 'pk' },
+          { class: 'pks-f' },
           h('div', { class: 'chk' }, glass(it.icon, 'grey'), h('span', { class: 'chk-t' }, h('b', {}, it.title), h('span', {}, it.sub))),
           h(
             'ul',
-            { class: 'pk-l' },
+            { class: 'pks-l' },
             ...it.pkgs.map((name) => {
               const x = pkgs[name];
               return h(
@@ -69,8 +69,8 @@ function view(items: SysItem[], pkgs: NonNullable<UpdateComponent['pkgs']>): Vie
                 {},
                 h('span', { class: 'mono' }, name),
                 !x?.installed
-                  ? h('span', { class: 'pk-v' }, _('not installed'))
-                  : h('span', { class: `pk-v mono${x.latest ? ' new' : ''}` }, x.latest ? `${x.installed} → ${x.latest}` : x.installed),
+                  ? h('span', { class: 'pks-v' }, _('not installed'))
+                  : h('span', { class: `pks-v mono${x.latest ? ' new' : ''}` }, x.latest ? `${x.installed} → ${x.latest}` : x.installed),
               );
             }),
           ),
