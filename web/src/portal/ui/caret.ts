@@ -135,7 +135,9 @@ export function smoothCaret(field: HTMLElement) {
     g.v = 0;
   };
   let selecting = false;
-  const focused = () => document.activeElement === input;
+  // read from the input's own root: inside a Shadow DOM (the admin's pages and its layer) the document's active
+  // element is the host, and the caret would never be drawn while the input's own one is hidden
+  const focused = () => (input.getRootNode() as Document | ShadowRoot).activeElement === input;
 
   const draw = () => {
     caret.style.transform = `translateX(${(cur.x - 1).toFixed(2)}px)`;

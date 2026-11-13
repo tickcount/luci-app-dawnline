@@ -7,15 +7,14 @@
 
 import { h, ic, markup } from '../dom';
 import { EASE_OUT, SOFT, play } from '../motion';
-import { placeName, state } from '../state';
+import { placeName } from '../state';
 import { closePageCode, showPageCode } from '../flows/page-code';
 import { pickPill, type PickPill } from '../ui/pick';
 import { LANGS, lang, setLang } from '../i18n';
+import { MARK } from '../../shared/mark';
 
 // The sun rises from behind the horizon once, on the visit's first paint.
-const LOGO =
-  '<svg class="logo" viewBox="0 0 24 24" aria-hidden="true"><defs><clipPath id="dl-sky"><rect width="24" height="17"/></clipPath></defs>' +
-  '<g clip-path="url(#dl-sky)"><path class="sun" d="M3 15a9 9 0 0 1 18 0z"/></g><rect class="bar" x="2" y="17" width="20" height="2" rx="1"/></svg>';
+const LOGO = MARK;
 
 let crumbsEl: HTMLElement | null = null;
 let bodyEl: HTMLElement | null = null;
@@ -127,12 +126,12 @@ export const onCrumbs = (fn: () => void) => void drawnCrumbs.push(fn);
 
 export function crumbs(gone = false, card = false) {
   if (!crumbsEl) return;
-  const p = gone ? null : state()?.person;
   crumbsEl.replaceChildren(
     h('span', { class: 'cr-mark' }, markup(LOGO)),
     h('nav', { class: 'cr-path', 'aria-label': _('Breadcrumb') }, h('span', { class: 'cur', 'aria-current': 'page' }, placeName())),
     ...(card ? [] : [langPicker()]),
-    ...(p && !card ? [qrKnob()] : []),
+    // the page's own code needs the link alone: it stands with the breadcrumb, before the router has answered
+    ...(!gone && !card ? [qrKnob()] : []),
   );
   // No knob to fold back into: the card goes with it.
   if (!qr?.isConnected) closePageCode(true);

@@ -1,0 +1,133 @@
+/* A segmented track with words (ui/tabs.ts): the portal's track and pill, labelled, each tab as wide as its
+   words; a caption beside (a count) or an icon before. The pill takes the picked tab's place and stretches to
+   the next pick (DESIGN.md Motion 10: its leading edge on LEAD, the trailing one on SMOOTH). */
+.tabs {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(max-content, 1fr);
+  height: 40px;
+  padding: 4px;
+  gap: 0;
+  width: auto;
+  max-width: 100%;
+  background: var(--on-ground);
+  /* A track wider than its place scrolls, wherever it stands (a page, a sheet, a dialog): every tab stays in the
+     track and in the keyboard's order, and a finger swipes it. No scrollbar; each end that has more beyond it fades
+     (ui/tabs.ts registers the two lengths, so they can be animated). */
+  overflow-x: auto;
+  scrollbar-width: none;
+  --tabs-fade: 28px;
+  scroll-padding-inline: var(--tabs-fade);
+  mask:
+    linear-gradient(#000, #000) no-clip subtract,
+    linear-gradient(to right, #000, transparent) 0 0 / var(--tabs-fade-start, 0px) 100% no-repeat no-clip,
+    linear-gradient(to right, transparent, #000) 100% 0 / var(--tabs-fade-end, 0px) 100% no-repeat no-clip;
+}
+.tabs::-webkit-scrollbar {
+  display: none;
+}
+/* each fade grows over the first stretch of scrolling away from its end, and is gone at the other end; a track that
+   fits has no scroll timeline and no fade */
+@supports (animation-timeline: scroll()) {
+  .tabs {
+    animation:
+      tabs-fade-start linear both,
+      tabs-fade-end linear both;
+    animation-timeline: scroll(self inline);
+    animation-range:
+      0 var(--tabs-fade),
+      calc(100% - var(--tabs-fade)) 100%;
+  }
+}
+@keyframes tabs-fade-start {
+  to {
+    --tabs-fade-start: var(--tabs-fade);
+  }
+}
+@keyframes tabs-fade-end {
+  from {
+    --tabs-fade-end: var(--tabs-fade);
+  }
+}
+/* without scroll-driven animations ui/tabs.ts marks the ends that have more beyond them */
+@supports not (animation-timeline: scroll()) {
+  .tabs {
+    transition:
+      --tabs-fade-start 0.2s,
+      --tabs-fade-end 0.2s;
+  }
+  .tabs.more-start {
+    --tabs-fade-start: var(--tabs-fade);
+  }
+  .tabs.more-end {
+    --tabs-fade-end: var(--tabs-fade);
+  }
+}
+.tabs-pill {
+  top: 4px;
+  bottom: 4px;
+  height: auto;
+  transition: none;
+}
+.tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  font-size: 15px;
+  line-height: 20px;
+  white-space: nowrap;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+.tabs .seg-b.tab:not(.on) {
+  color: var(--text-2);
+}
+@media (hover: hover) and (pointer: fine) {
+  .tabs .seg-b.tab:not(.on):hover {
+    color: var(--text);
+  }
+}
+.tab .i {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+.tab-l {
+  max-width: 16ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tab-s:empty {
+  display: none;
+}
+.tab-s {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  color: var(--text-2);
+}
+.kbd .tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: 12px;
+}
+/* narrow: a track of icons, the picked one with its word (it scrolls when even that does not fit, as any track) */
+@container dlpage (max-width: 559px) {
+  .tabs.icons .tab:not(.on) .tab-l,
+  .tabs.icons .tab .tab-s {
+    display: none;
+  }
+  .tabs.icons {
+    grid-auto-columns: auto;
+  }
+  .tabs.icons .tab {
+    padding: 0 12px;
+  }
+  .tabs.icons .tab.on {
+    padding: 0 14px;
+  }
+}

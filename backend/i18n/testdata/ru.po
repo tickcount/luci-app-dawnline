@@ -1,0 +1,51 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: ru\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+msgid "Save"
+msgstr "Сохранить"
+
+msgctxt "state"
+msgid "Off"
+msgstr "Выкл."
+
+msgid "%s device"
+msgid_plural "%s devices"
+msgstr[0] "%s устройство"
+msgstr[1] "%s устройства"
+msgstr[2] "%s устройств"
+
+msgid "%d day"
+msgid_plural "%d days"
+msgstr[0] "%d день"
+msgstr[1] "%d дня"
+msgstr[2] ""
+
+msgid "Dawnline"
+msgstr "Dawnline"
+
+msgid "Untranslated"
+msgstr ""
+
+msgid "Say \"hi\" \\ there"
+msgstr "Скажи «привет» \\ там"
+
+msgid "abc"
+msgstr "abcde"
+
+msgid "%s is kept down."
+msgstr "%s не запускается."
+
+msgid "two  spaces inside"
+msgstr "два пробела внутри"
+
+msgid " space around "
+msgstr " пробел вокруг "
+
+msgid "a line\nbreak"
+msgstr "перенос\nстроки"
+
+msgid "No LAN detected."
+msgstr "Локальная сеть не найдена."

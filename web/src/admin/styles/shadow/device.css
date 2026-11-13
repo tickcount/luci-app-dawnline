@@ -1,0 +1,189 @@
+/* A device's panel (pages/people/device): its link card (the portal's way, the link timeline, the brief
+   diagnosis) and its traffic. The way itself is the portal's (setup.css .way), drawn once per page. */
+
+.ph-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-weight: 500;
+}
+.ph-fact .mono {
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: 0;
+}
+
+/* ── the link card ── */
+.card.link {
+  padding: 8px;
+}
+.way.dway {
+  margin-bottom: 0;
+}
+.way.dway .way-text {
+  margin-top: 8px;
+}
+.way.dway .way-text b {
+  white-space: normal;
+}
+.way-text .ws {
+  text-wrap: balance;
+}
+.way.dway.stopped .way-end.home {
+  color: var(--text-2);
+  background: var(--knob);
+}
+.way.dway.still .way-fill,
+.way.dway.still .way-end,
+.way.dway.still .way-end .i {
+  transition: none;
+  animation: none;
+}
+/* what the device's way does not show does not loop unseen: the light never shows here, the knock and the break
+   only for "cannot finish" */
+.way.dway .run i,
+.way.dway:not(.trying) .knock i,
+.way.dway:not(.trying) .way-break i {
+  animation: none;
+}
+.way.dway + .lt {
+  margin-top: 8px;
+}
+
+/* the diagnosis: the way turned on its side, a track from the person's access to the data, filled green as far
+   as it holds, the first break in its tone with its fix */
+.dg {
+  list-style: none;
+  margin: 0;
+  padding: 0 8px 4px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+.lt + .dg {
+  margin-top: 14px;
+}
+.dg-s {
+  display: flex;
+  gap: 12px;
+  position: relative;
+  padding-bottom: 14px;
+}
+.dg-s:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 9px;
+  top: 22px;
+  bottom: 2px;
+  width: 2px;
+  background-image: radial-gradient(circle, color-mix(in srgb, var(--text-3) 80%, transparent) 0.7px, transparent 1.2px);
+  background-size: 2px 9px;
+}
+.dg-s.ok:not(:last-child)::before {
+  background-image: none;
+  background-color: color-mix(in srgb, var(--ok) 55%, transparent);
+  border-radius: 1px;
+}
+.dg-m {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex: none;
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+.dg-m .i {
+  width: 14px;
+  height: 14px;
+}
+.dg-s.bad .dg-m {
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+  color: var(--warn);
+}
+.dg-s.warn .dg-m {
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+  color: var(--warn);
+}
+.dg-s.wait .dg-m {
+  background: var(--knob);
+}
+.dg-s.wait .dg-t {
+  opacity: 0.6;
+}
+.dg-t {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding-top: 1px;
+}
+.dg-t b {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+}
+.dg-t > span {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+.dg-s.bad .dg-t b {
+  color: var(--warn);
+}
+.dg-s.bad .dg-t > span:not(.dg-h) {
+  color: var(--text);
+}
+.dg-h {
+  margin-top: 4px;
+}
+.dg-fix {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* ── traffic: the week as bars, then numbers on fields ── */
+.card > .dev-use {
+  padding: 14px 16px;
+  border-radius: var(--r-row);
+  background: var(--field);
+}
+.card > .dev-use + .stats {
+  margin-top: 8px;
+}
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+.stat {
+  background: var(--field);
+  border-radius: var(--r-row);
+  padding: 12px 14px 12px 16px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.stat b {
+  font-size: 17px;
+  line-height: 24px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+.stat-sub {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+@container dlpage (max-width: 559px) {
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

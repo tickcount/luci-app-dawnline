@@ -1,0 +1,307 @@
+{
+	"steps": [
+		{
+			"what": "the first time: two tunnels made, a third whose name is taken",
+			"changed": true,
+			"network": "\nconfig interface 'loopback'\n\toption device 'lo'\n\toption proto 'static'\n\tlist ipaddr '127.0.0.1/8'\n\nconfig globals 'globals'\n\toption ula_prefix 'fd00:1234::/48'\n\nconfig device\n\toption name 'br-lan'\n\toption type 'bridge'\n\tlist ports 'lan1'\n\tlist ports 'lan2'\n\nconfig interface 'lan'\n\toption device 'br-lan'\n\toption proto 'static'\n\toption ipaddr '192.168.77.1/24'\n\toption note 'it'\\''s the LAN'\n\nconfig interface 'dawn2'\n\toption proto 'wireguard'\n\toption private_key 'someone else'\\''s'\n\nconfig interface 'dawn0'\n\toption proto 'amneziawg'\n\toption private_key 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaA='\n\toption listen_port '4500'\n\tlist addresses '10.77.0.1/24'\n\toption mtu '1380'\n\toption _dawnline 'home'\n\toption _dawnline_name 'Home'\n\nconfig interface 'dawn1'\n\toption proto 'amneziawg'\n\toption private_key 'ccccccccccccccccccccccccccccccccccccccccccA='\n\toption listen_port '4600'\n\tlist addresses '10.78.0.1/24'\n\toption mtu '1380'\n\toption _dawnline 'cabin'\n\toption _dawnline_name 'Cabin'\n\n",
+			"blocked": {
+				"open": {
+					"code": "taken",
+					"ifname": "dawn2"
+				}
+			},
+			"model_blocked": {
+				"home": null,
+				"cabin": null,
+				"open": {
+					"code": "taken",
+					"ifname": "dawn2"
+				}
+			},
+			"cmds": [
+				"ubus call network reload",
+				"ifup dawn0",
+				"ifup dawn1"
+			],
+			"intents": {
+				"dawn0": {
+					"reason": "settings",
+					"name": "Home"
+				},
+				"dawn1": {
+					"reason": "settings",
+					"name": "Cabin"
+				}
+			},
+			"no_awg": false
+		},
+		{
+			"what": "again: nothing to do",
+			"changed": false,
+			"network": "\nconfig interface 'loopback'\n\toption device 'lo'\n\toption proto 'static'\n\tlist ipaddr '127.0.0.1/8'\n\nconfig globals 'globals'\n\toption ula_prefix 'fd00:1234::/48'\n\nconfig device\n\toption name 'br-lan'\n\toption type 'bridge'\n\tlist ports 'lan1'\n\tlist ports 'lan2'\n\nconfig interface 'lan'\n\toption device 'br-lan'\n\toption proto 'static'\n\toption ipaddr '192.168.77.1/24'\n\toption note 'it'\\''s the LAN'\n\nconfig interface 'dawn2'\n\toption proto 'wireguard'\n\toption private_key 'someone else'\\''s'\n\nconfig interface 'dawn0'\n\toption proto 'amneziawg'\n\toption private_key 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaA='\n\toption listen_port '4500'\n\tlist addresses '10.77.0.1/24'\n\toption mtu '1380'\n\toption _dawnline 'home'\n\toption _dawnline_name 'Home'\n\nconfig interface 'dawn1'\n\toption proto 'amneziawg'\n\toption private_key 'ccccccccccccccccccccccccccccccccccccccccccA='\n\toption listen_port '4600'\n\tlist addresses '10.78.0.1/24'\n\toption mtu '1380'\n\toption _dawnline 'cabin'\n\toption _dawnline_name 'Cabin'\n\n",
+			"blocked": {
+				"open": {
+					"code": "taken",
+					"ifname": "dawn2"
+				}
+			},
+			"model_blocked": {
+				"home": null,
+				"cabin": null,
+				"open": {
+					"code": "taken",
+					"ifname": "dawn2"
+				}
+			},
+			"cmds": [
+			],
+			"intents": {
+				"dawn0": {
+					"reason": "settings",
+					"name": "Home"
+				},
+				"dawn1": {
+					"reason": "settings",
+					"name": "Cabin"
+				}
+			},
+			"no_awg": false
+		},
+		{
+			"what": "a port changed, a server turned off",
+			"changed": true,
+			"network": "\nconfig interface 'loopback'\n\toption device 'lo'\n\toption proto 'static'\n\tlist ipaddr '127.0.0.1/8'\n\nconfig globals 'globals'\n\toption ula_prefix 'fd00:1234::/48'\n\nconfig device\n\toption name 'br-lan'\n\toption type 'bridge'\n\tlist ports 'lan1'\n\tlist ports 'lan2'\n\nconfig interface 'lan'\n\toption device 'br-lan'\n\toption proto 'static'\n\toption ipaddr '192.168.77.1/24'\n\toption note 'it'\\''s the LAN'\n\nconfig interface 'dawn2'\n\toption proto 'wireguard'\n\toption private_key 'someone else'\\''s'\n\nconfig interface 'dawn0'\n\toption proto 'amneziawg'\n\toption private_key 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaA='\n\toption listen_port '4501'\n\tlist addresses '10.77.0.1/24'\n\toption mtu '1380'\n\toption _dawnline 'home'\n\toption _dawnline_name 'Home'\n\nconfig interface 'dawn1'\n\toption proto 'amneziawg'\n\toption private_key 'ccccccccccccccccccccccccccccccccccccccccccA='\n\toption listen_port '4600'\n\tlist addresses '10.78.0.1/24'\n\toption mtu '1380'\n\toption _dawnline 'cabin'\n\toption _dawnline_name 'Cabin'\n\toption disabled '1'\n\toption auto '0'\n\n",
+			"blocked": {
+				"open": {
+					"code": "taken",
+					"ifname": "dawn2"
+				}
+			},
+			"model_blocked": {
+				"home": null,
+				"cabin": null,
+				"open": {
+					"code": "taken",
+					"ifname": "dawn2"
+				}
+			},
+			"cmds": [
+				"ubus call network reload",
+				"ifup dawn0"
+			],
+			"intents": {
+				"dawn0": {
+					"reason": "settings",
+					"name": "Home"
+				},
+				"dawn1": {
+					"reason": "off",
+					"name": "Cabin"
+				}
+			},
+			"no_awg": false
+		},
+		{
+			"what": "a disguise AmneziaWG cannot take: the tunnel goes",
+			"changed": true,
+			"network": "\nconfig interface 'loopback'\n\toption device 'lo'\n\toption proto 'static'\n\tlist ipaddr '127.0.0.1/8'\n\nconfig globals 'globals'\n\toption ula_prefix 'fd00:1234::/48'\n\nconfig device\n\toption name 'br-lan'\n\toption type 'bridge'\n\tlist ports 'lan1'\n\tlist ports 'lan2'\n\nconfig interface 'lan'\n\toption device 'br-lan'\n\toption proto 'static'\n\toption ipaddr '192.168.77.1/24'\n\toption note 'it'\\''s the LAN'\n\nconfig interface 'dawn2'\n\toption proto 'wireguard'\n\toption private_key 'someone else'\\''s'\n\nconfig interface 'dawn1'\n\toption proto 'amneziawg'\n\toption private_key 'ccccccccccccccccccccccccccccccccccccccccccA='\n\toption listen_port '4600'\n\tlist addresses '10.78.0.1/24'\n\toption mtu '1380'\n\toption _dawnline 'cabin'\n\toption _dawnline_name 'Cabin'\n\toption disabled '1'\n\toption auto '0'\n\n",
+			"blocked": {
+				"home": {
+					"code": "disguise_invalid"
+				},
+				"open": {
+					"code": "taken",
+					"ifname": "dawn2"
+				}
+			},
+			"model_blocked": {
+				"home": {
+					"code": "disguise_invalid"
+				},
+				"cabin": null,
+				"open": {
+					"code": "taken",
+					"ifname": "dawn2"
+				}
+			},
+			"cmds": [
+				"ifdown dawn0",
+				"ubus call network reload"
+			],
+			"intents": {
+				"dawn0": {
+					"reason": "removed",
+					"name": "Home"
+				},
+				"dawn1": {
+					"reason": "off",
+					"name": "Cabin"
+				}
+			},
+			"no_awg": false
+		},
+		{
+			"what": "put right, and the server renamed",
+			"changed": true,
+			"network": "\nconfig interface 'loopback'\n\toption device 'lo'\n\toption proto 'static'\n\tlist ipaddr '127.0.0.1/8'\n\nconfig globals 'globals'\n\toption ula_prefix 'fd00:1234::/48'\n\nconfig device\n\toption name 'br-lan'\n\toption type 'bridge'\n\tlist ports 'lan1'\n\tlist ports 'lan2'\n\nconfig interface 'lan'\n\toption device 'br-lan'\n\toption proto 'static'\n\toption ipaddr '192.168.77.1/24'\n\toption note 'it'\\''s the LAN'\n\nconfig interface 'dawn2'\n\toption proto 'wireguard'\n\toption private_key 'someone else'\\''s'\n\nconfig interface 'dawn1'\n\toption proto 'amneziawg'\n\toption private_key 'ccccccccccccccccccccccccccccccccccccccccccA='\n\toption listen_port '4600'\n\tlist addresses '10.78.0.1/24'\n\toption mtu '1380'\n\toption _dawnline 'cabin'\n\toption _dawnline_name 'Cabin'\n\toption disabled '1'\n\toption auto '0'\n\nconfig interface 'dawn0'\n\toption proto 'amneziawg'\n\toption private_key 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaA='\n\toption listen_port '4501'\n\tlist addresses '10.77.0.1/24'\n\toption mtu '1380'\n\toption _dawnline 'home'\n\toption _dawnline_name 'Anna'\\''s house'\n\n",
+			"blocked": {
+				"open": {
+					"code": "taken",
+					"ifname": "dawn2"
+				}
+			},
+			"model_blocked": {
+				"home": null,
+				"cabin": null,
+				"open": {
+					"code": "taken",
+					"ifname": "dawn2"
+				}
+			},
+			"cmds": [
+				"ubus call network reload",
+				"ifup dawn0"
+			],
+			"intents": {
+				"dawn0": {
+					"reason": "settings",
+					"name": "Anna's house"
+				},
+				"dawn1": {
+					"reason": "off",
+					"name": "Cabin"
+				}
+			},
+			"no_awg": false
+		},
+		{
+			"what": "renamed again: only the marker moves",
+			"changed": true,
+			"network": "\nconfig interface 'loopback'\n\toption device 'lo'\n\toption proto 'static'\n\tlist ipaddr '127.0.0.1/8'\n\nconfig globals 'globals'\n\toption ula_prefix 'fd00:1234::/48'\n\nconfig device\n\toption name 'br-lan'\n\toption type 'bridge'\n\tlist ports 'lan1'\n\tlist ports 'lan2'\n\nconfig interface 'lan'\n\toption device 'br-lan'\n\toption proto 'static'\n\toption ipaddr '192.168.77.1/24'\n\toption note 'it'\\''s the LAN'\n\nconfig interface 'dawn2'\n\toption proto 'wireguard'\n\toption private_key 'someone else'\\''s'\n\nconfig interface 'dawn1'\n\toption proto 'amneziawg'\n\toption private_key 'ccccccccccccccccccccccccccccccccccccccccccA='\n\toption listen_port '4600'\n\tlist addresses '10.78.0.1/24'\n\toption mtu '1380'\n\toption _dawnline 'cabin'\n\toption _dawnline_name 'Cabin'\n\toption disabled '1'\n\toption auto '0'\n\nconfig interface 'dawn0'\n\toption proto 'amneziawg'\n\toption private_key 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaA='\n\toption listen_port '4501'\n\tlist addresses '10.77.0.1/24'\n\toption mtu '1380'\n\toption _dawnline 'home'\n\toption _dawnline_name 'House'\n\n",
+			"blocked": {
+				"open": {
+					"code": "taken",
+					"ifname": "dawn2"
+				}
+			},
+			"model_blocked": {
+				"home": null,
+				"cabin": null,
+				"open": {
+					"code": "taken",
+					"ifname": "dawn2"
+				}
+			},
+			"cmds": [
+			],
+			"intents": {
+				"dawn0": {
+					"reason": "settings",
+					"name": "Anna's house"
+				},
+				"dawn1": {
+					"reason": "off",
+					"name": "Cabin"
+				}
+			},
+			"no_awg": false
+		},
+		{
+			"what": "a server removed, another given a name that will not do",
+			"changed": true,
+			"network": "\nconfig interface 'loopback'\n\toption device 'lo'\n\toption proto 'static'\n\tlist ipaddr '127.0.0.1/8'\n\nconfig globals 'globals'\n\toption ula_prefix 'fd00:1234::/48'\n\nconfig device\n\toption name 'br-lan'\n\toption type 'bridge'\n\tlist ports 'lan1'\n\tlist ports 'lan2'\n\nconfig interface 'lan'\n\toption device 'br-lan'\n\toption proto 'static'\n\toption ipaddr '192.168.77.1/24'\n\toption note 'it'\\''s the LAN'\n\nconfig interface 'dawn2'\n\toption proto 'wireguard'\n\toption private_key 'someone else'\\''s'\n\nconfig interface 'dawn0'\n\toption proto 'amneziawg'\n\toption private_key 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaA='\n\toption listen_port '4501'\n\tlist addresses '10.77.0.1/24'\n\toption mtu '1380'\n\toption _dawnline 'home'\n\toption _dawnline_name 'House'\n\n",
+			"blocked": {
+				"open": {
+					"code": "ifname",
+					"ifname": "Not-A-Name"
+				}
+			},
+			"model_blocked": {
+				"home": null,
+				"open": {
+					"code": "ifname",
+					"ifname": "Not-A-Name"
+				}
+			},
+			"cmds": [
+				"ifdown dawn1",
+				"ubus call network reload"
+			],
+			"intents": {
+				"dawn0": {
+					"reason": "settings",
+					"name": "Anna's house"
+				},
+				"dawn1": {
+					"reason": "removed",
+					"name": "Cabin"
+				}
+			},
+			"no_awg": false
+		},
+		{
+			"what": "a 3.1 disguise, and a list of DNS-shaped packets",
+			"changed": true,
+			"network": "\nconfig interface 'loopback'\n\toption device 'lo'\n\toption proto 'static'\n\tlist ipaddr '127.0.0.1/8'\n\nconfig globals 'globals'\n\toption ula_prefix 'fd00:1234::/48'\n\nconfig device\n\toption name 'br-lan'\n\toption type 'bridge'\n\tlist ports 'lan1'\n\tlist ports 'lan2'\n\nconfig interface 'lan'\n\toption device 'br-lan'\n\toption proto 'static'\n\toption ipaddr '192.168.77.1/24'\n\toption note 'it'\\''s the LAN'\n\nconfig interface 'dawn2'\n\toption proto 'wireguard'\n\toption private_key 'someone else'\\''s'\n\nconfig interface 'dawn0'\n\toption proto 'amneziawg'\n\toption private_key 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaA='\n\toption listen_port '4501'\n\tlist addresses '10.77.0.1/24'\n\toption mtu '1368'\n\toption _dawnline 'home'\n\toption _dawnline_name 'House'\n\toption awg_s1 '12'\n\toption awg_s2 '12'\n\toption awg_s3 '12'\n\toption awg_s4 '12'\n\toption awg_i1 '<b 0x01><r 2>'\n\toption awg_header_protection_key 'yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk='\n\n",
+			"blocked": {
+				"open": {
+					"code": "ifname",
+					"ifname": "Not-A-Name"
+				}
+			},
+			"model_blocked": {
+				"home": null,
+				"open": {
+					"code": "ifname",
+					"ifname": "Not-A-Name"
+				}
+			},
+			"cmds": [
+				"ubus call network reload",
+				"ifup dawn0"
+			],
+			"intents": {
+				"dawn0": {
+					"reason": "settings",
+					"name": "House"
+				},
+				"dawn1": {
+					"reason": "removed",
+					"name": "Cabin"
+				}
+			},
+			"no_awg": false
+		},
+		{
+			"what": "the tools are gone: nothing is touched",
+			"changed": false,
+			"network": "\nconfig interface 'loopback'\n\toption device 'lo'\n\toption proto 'static'\n\tlist ipaddr '127.0.0.1/8'\n\nconfig globals 'globals'\n\toption ula_prefix 'fd00:1234::/48'\n\nconfig device\n\toption name 'br-lan'\n\toption type 'bridge'\n\tlist ports 'lan1'\n\tlist ports 'lan2'\n\nconfig interface 'lan'\n\toption device 'br-lan'\n\toption proto 'static'\n\toption ipaddr '192.168.77.1/24'\n\toption note 'it'\\''s the LAN'\n\nconfig interface 'dawn2'\n\toption proto 'wireguard'\n\toption private_key 'someone else'\\''s'\n\nconfig interface 'dawn0'\n\toption proto 'amneziawg'\n\toption private_key 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaA='\n\toption listen_port '4501'\n\tlist addresses '10.77.0.1/24'\n\toption mtu '1368'\n\toption _dawnline 'home'\n\toption _dawnline_name 'House'\n\toption awg_s1 '12'\n\toption awg_s2 '12'\n\toption awg_s3 '12'\n\toption awg_s4 '12'\n\toption awg_i1 '<b 0x01><r 2>'\n\toption awg_header_protection_key 'yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk='\n\n",
+			"blocked": {
+				"open": {
+					"code": "ifname",
+					"ifname": "Not-A-Name"
+				}
+			},
+			"model_blocked": {
+				"home": null,
+				"open": {
+					"code": "ifname",
+					"ifname": "Not-A-Name"
+				}
+			},
+			"cmds": [
+			],
+			"intents": {
+				"dawn0": {
+					"reason": "settings",
+					"name": "House"
+				},
+				"dawn1": {
+					"reason": "removed",
+					"name": "Cabin"
+				}
+			},
+			"no_awg": true
+		}
+	]
+}

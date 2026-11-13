@@ -7,6 +7,7 @@
 
 import type { AwgConfig, Kind } from '../../shared/types';
 import { DEVICE_NAME_MAX, validDeviceName } from '../../shared/format';
+import { BEHIND_MOST, netRefusal, normNet } from '../../shared/nets';
 import {
   ENDPOINT,
   deviceLimit,
@@ -143,6 +144,29 @@ export function createRouter(o: RouterOpts) {
     };
   }
 
+  /**
+   * The networks a page names for a router, as the router keeps them, or its refusal: what the page itself checks
+   * (shared/nets.ts), said in the router's own words where it has them.
+   */
+  function netsOf(v: unknown, self?: DemoDevice): string[] {
+    const out: string[] = [];
+    for (const x of Array.isArray(v) ? v : []) {
+      const s = String(x ?? '').trim();
+      // the same one written twice is one
+      if (!s || out.includes(normNet(s))) continue;
+      const bad = netRefusal(s, [
+        { cidr: '10.8.0.0/24', who: 'the tunnel network' },
+        { cidr: '192.168.1.0/24', who: 'a network at home' },
+        ...db.devs.filter((d) => d !== self).flatMap((d) => (d.behind ?? []).map((n) => ({ cidr: n, who: `behind your ${d.name}` }))),
+        ...out.map((n) => ({ cidr: n, who: 'another of these' })),
+      ]);
+      if (bad) refuse(400, bad);
+      out.push(normNet(s));
+    }
+    if (out.length > BEHIND_MOST) refuse(400, `A router has ${BEHIND_MOST} networks behind it at the most.`);
+    return out;
+  }
+
   function add(b: Record<string, unknown>) {
     needOpen();
     needHttps();
@@ -160,6 +184,14 @@ export function createRouter(o: RouterOpts) {
       stale: false,
       bypass: b.lan_bypass === true,
     };
+    // a router is asked of the admin, its networks with it: it waits, and nothing is handed out (nobody answers here)
+    if (d.kind === 'router') {
+      const nets = netsOf(b.networks);
+      Object.assign(d, { waiting: true, connectAt: 0, ...(nets.length ? { ask: nets } : {}) });
+      db.devs.push(d);
+      return { id: d.id, waiting: true, state: state() };
+    }
+    if (Array.isArray(b.networks) && b.networks.length) refuse(400, 'Only a router has networks behind it.');
     db.devs.push(d);
     issued = d.id;
     return { id: d.id, config: config(d), state: state() };
@@ -170,6 +202,7 @@ export function createRouter(o: RouterOpts) {
     const d = own(id);
     needOpen();
     needHttps();
+    if (d.waiting) refuse(409, 'This router waits for an answer to its request: it has no configuration yet.');
     d.stale = false;
     if (!d.hs && !d.connectAt) d.connectAt = soon();
     issued = d.id;
@@ -183,6 +216,8 @@ export function createRouter(o: RouterOpts) {
     if (b.action === 'rename') d.name = checkName(b.name, d);
     else if (b.action === 'reconnect') {
       needHttps();
+      if (d.waiting) refuse(400, 'This router waits for an answer to its request: it has no configuration yet.');
+      if (b.kind === 'router' && d.kind !== 'router') refuse(400, 'Add the router as a new device: a device cannot be made one here.');
       // What it is and LAN Bypass change with the keys, as on the router.
       if (typeof b.kind === 'string') {
         if (!KINDS.includes(b.kind as Kind)) refuse(400, 'Unknown device type.');
@@ -201,6 +236,17 @@ export function createRouter(o: RouterOpts) {
       // The keys stay; the configuration it holds is out of date until it takes the updated one.
       d.bypass = b.on as boolean;
       d.stale = true;
+    } else if (b.action === 'networks') {
+      // The list its owner wants: one it has and the list lacks goes at once, a new one is asked of the admin;
+      // turned-down ones they put away, or ask for again.
+      if (d.kind !== 'router') refuse(400, 'Only a router has networks behind it.');
+      const wanted = netsOf(b.networks, d);
+      const cleared = Array.isArray(b.cleared) ? b.cleared.map(String) : [];
+      const has = d.waiting ? [] : (d.behind ?? []);
+      d.behind = has.filter((n) => wanted.includes(n));
+      d.ask = wanted.filter((n) => !has.includes(n));
+      d.declinedNets = (d.declinedNets ?? []).filter((n) => !cleared.includes(n) && !wanted.includes(n));
+      if (!d.declinedNets.length && !d.waiting) delete d.declined;
     } else if (b.action === 'delete') db.devs = db.devs.filter((x) => x !== d);
     else refuse(400, 'Unknown action.');
     return { ok: true, ...extra, state: state() };

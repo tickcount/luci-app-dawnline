@@ -76,6 +76,9 @@ interface LuciRpc {
     filter?: (data: any, args: unknown[], ...extra: unknown[]) => any;
     reject?: boolean;
   }): (...args: any[]) => Promise<T>;
+  /** Where LuCI sends its calls (uhttpd's /ubus, or LuCI's own door to it). */
+  getBaseURL?(): string;
+  getSessionID?(): string;
 }
 
 interface LuciPoll {
@@ -95,6 +98,8 @@ interface LuciDom {
 
 interface LuciEnv {
   sessionid?: string;
+  /** uhttpd's own ubus door (uhttpd-mod-ubus), where an event stream can be held; absent behind another web server. */
+  ubuspath?: string;
   rpctimeout?: number;
   [key: string]: unknown;
 }
@@ -102,8 +107,12 @@ interface LuciEnv {
 interface LuciL {
   env: LuciEnv;
   url(...parts: string[]): string;
+  /** false when the current view is read-only for this login (its ACL grants read only); LuCI 23.05+. */
+  hasViewPermission?(): boolean | null;
   resolveDefault<T>(p: Promise<T>, def: T): Promise<T>;
   resource(...parts: string[]): string;
+  /** Load a LuCI module (`dawnline.map` → resources/dawnline/map.js) once per page load: its instance. */
+  require(name: string): Promise<unknown>;
   itemlist(node: Node, items: unknown[], separators?: unknown): HTMLElement;
   bind<F extends (...args: any[]) => any>(fn: F, self: unknown, ...args: unknown[]): F;
   raise(type: string, fmt: string, ...args: unknown[]): never;

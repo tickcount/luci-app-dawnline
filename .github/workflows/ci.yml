@@ -125,21 +125,20 @@ jobs:
         run: |
           shellcheck --version
           files="$(grep -rlIE '^#!(/usr)?/bin/(sh|bash|env (sh|bash))( |$)' \
-            install.sh uninstall.sh package/luci-app-dawnline/root scripts tests | sort)"
+            install.sh uninstall.sh package/luci-app-dawnline/root scripts | sort)"
           echo "$files"
           for f in package/luci-app-dawnline/root/etc/init.d/dawnline \
                    package/luci-app-dawnline/root/etc/hotplug.d/iface/95-dawnline \
                    package/luci-app-dawnline/root/usr/libexec/dawnline/resolver \
-                   package/luci-app-dawnline/root/usr/libexec/dawnline/heartbeat \
                    package/luci-app-dawnline/root/usr/libexec/dawnline/postupdate \
-                   package/luci-app-dawnline/root/usr/share/dawnline/portal/www/cgi-bin/portal; do
+                   package/luci-app-dawnline/root/usr/libexec/dawnline/fetch-backend; do
             echo "$files" | grep -qx "$f" || { echo "::error file=$f::not found by the shebang scan"; exit 1; }
           done
           # shellcheck disable=SC2086
           shellcheck -S warning $files
 
-  ucode:
-    name: ucode static checks
+  backend:
+    name: "Backend (Go: vet, tests, a real ubusd and uhttpd)"
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
@@ -147,24 +146,37 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Lint (use before definition, exports, POSIX regexes, rpcd methods)
-        run: python3 scripts/lint-ucode.py
+      # The goldens in backend/*/testdata are the ucode backend's own answers, taken before it was removed
+      # (0.18.0): they are fixed now, and hold the Go backend to what that one did.
+      # gofmt, go vet and the unit tests in the Go toolchain image, then the object, the calls, the stream
+      # and a page's whole path against the ubusd, rpcd and uhttpd of OpenWrt 24.10 and 25.12.
+      - name: Format, vet, unit tests, and the tests in the OpenWrt containers
+        run: scripts/backend-container.sh
+
+  package:
+    name: Package files
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Executables keep their mode
         run: |
-          for f in usr/bin/dawnline usr/libexec/dawnline/agent usr/libexec/dawnline/updater usr/libexec/dawnline/resolver usr/libexec/dawnline/heartbeat usr/libexec/dawnline/postupdate \
-                   etc/init.d/dawnline etc/uci-defaults/90_dawnline usr/share/dawnline/portal/www/cgi-bin/portal usr/share/dawnline/portal/cgi.uc; do
+          for f in usr/bin/dawnline usr/libexec/dawnline/updater usr/libexec/dawnline/fetch-backend usr/libexec/dawnline/resolver usr/libexec/dawnline/postupdate \
+                   etc/init.d/dawnline etc/uci-defaults/90_dawnline etc/hotplug.d/iface/95-dawnline; do
             [ -x "package/luci-app-dawnline/root/$f" ] || { echo "::error file=package/luci-app-dawnline/root/$f::not executable (git update-index --chmod=+x $f)"; exit 1; }
           done
-          for f in scripts/check-ucode.sh scripts/compile-ucode.sh scripts/ucode-container.sh tests/ucode/run.sh tests/ucode/fixtures/bin/awg; do
+          for f in scripts/backend-container.sh scripts/build-backend.sh scripts/build-packages.sh scripts/build-release.sh scripts/deploy.sh; do
             [ -x "$f" ] || { echo "::error file=$f::not executable (git update-index --chmod=+x $f)"; exit 1; }
           done
 
       - name: Versions agree
         run: |
           v="$(sed -n 's/^PKG_VERSION:=//p' package/luci-app-dawnline/Makefile)"
-          grep -q "^export const VERSION = '$v';" package/luci-app-dawnline/root/usr/share/ucode/dawnline/util.uc ||
-            { echo "::error::util.uc VERSION differs from the Makefile ($v)"; exit 1; }
+          [ "$(cat package/luci-app-dawnline/root/usr/share/dawnline/version)" = "$v" ] ||
+            { echo "::error::usr/share/dawnline/version differs from the Makefile ($v)"; exit 1; }
           grep -q "\"version\": \"$v\"" web/package.json ||
             { echo "::error::web/package.json version differs from the Makefile ($v)"; exit 1; }
           python3 - "$v" <<'PY'
@@ -177,22 +189,3 @@ jobs:
               sys.exit(1)
           PY
           echo "Version $v"
-
-  ucode-compile:
-    # scripts/compile-ucode.sh and tests/ucode on the release's own ucode and
-    # libuci, in the OpenWrt rootfs containers scripts/ucode-container.sh pins
-    # by digest (24.10 = opkg, 25.12 = apk: the two the packages are built for).
-    name: ucode compiles and tests pass (OpenWrt ${{ matrix.release }})
-    runs-on: ubuntu-24.04
-    strategy:
-      fail-fast: false
-      matrix:
-        release: ['24.10', '25.12']
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Compile every ucode file and run tests/ucode
-        run: scripts/ucode-container.sh ${{ matrix.release }}

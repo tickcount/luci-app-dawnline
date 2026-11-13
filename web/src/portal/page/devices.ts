@@ -20,9 +20,12 @@ import { startAdd } from '../flows/add';
 import { reconnect, removeDevice, toggleBypass } from '../flows/device-actions';
 import { renameOnCard } from '../flows/rename';
 import { openSetup } from '../flows/setup-view';
+import { behindSummary, cardSignal, isTurnedDown, isWaiting, netsMatter, openBehind, turnedDownWords } from '../flows/behind';
+import { tip } from '../ui/tip';
+import { putChildren } from '../ui/put';
 
 /** The home network can open connections to it: home access, active, and the device on. */
-export const reachableFromHome = (p: Person, d: Device) => p.access !== 'internet' && p.state === 'active' && !d.disabled;
+const reachableFromHome = (p: Person, d: Device) => p.access !== 'internet' && p.state === 'active' && !d.disabled;
 
 /** A link failing in a named way (the router's watcher held it 3 minutes): the card's line, and why. */
 function linkWords(s: LinkState): [string, string] {
@@ -50,12 +53,15 @@ function linkWords(s: LinkState): [string, string] {
  */
 function statusOf(d: Device, p: Person): [string, string, string?] {
   if (d.disabled) return ['', _('Disabled')];
+  // A router asked for here: that is its whole state (it cannot connect before the admin takes it, whatever its
+  // tunnel would say), so its line says it; one turned down says that, with the reason on hover.
+  if (isWaiting(d)) return ['warn-t', _('Waiting for approval'), _('The admin confirms a router before it can connect.')];
+  if (isTurnedDown(d)) return ['bad-t', _('Turned down'), turnedDownWords(d)];
   // The Reconnect button under it says what to do.
   if (d.config_stale && d.handshake) return ['warn-t', _('Settings changed')];
-  // Over the data limit or outside the hours the tunnel stays up but passes nothing: the app says
-  // "connected", so say here why nothing works.
+  // Over the data limit the tunnel stays up but passes nothing: the app says "connected", so say here why
+  // nothing works.
   if (d.online && p.state === 'quota') return ['warn-t', _('Connected, no data left')];
-  if (d.online && p.state === 'hours') return ['warn-t', _('Connected, outside your hours')];
   // Connected, and what it sends is dropped: the set-up sheet's no data, right away (the router's watcher names it
   // only once it held 3 minutes), so a sheet closed on it doesn't leave the card saying Connected.
   if (d.online && d.setup?.state === 'nodata')
@@ -93,6 +99,17 @@ function renameHere(d: Device) {
 }
 
 function menuItems(d: Device, st: State): (MenuItem | null)[] {
+  // a router that waits for the admin (or was turned down) has nothing to copy or set up: its name, and its removal
+  if (d.waiting && !d.disabled)
+    return [
+      { label: _('Rename'), icon: 'edit', run: () => renameHere(d) },
+      {
+        label: isWaiting(d) ? _('Take the request back') : _('Remove'),
+        icon: 'trash',
+        tone: 'bad' as const,
+        run: () => removeDevice(d),
+      },
+    ];
   return [
     // How devices at home reach it: only where the router actually lets them through.
     ...(reachableFromHome(st.person, d)
@@ -111,6 +128,10 @@ function menuItems(d: Device, st: State): (MenuItem | null)[] {
           // A setting in a group of its own: on or off now, under it; a tap switches it and opens the set-up of the
           // updated configuration. Then what is done to the device itself.
           { label: _('LAN Bypass'), icon: 'ethernet', sub: d.lan_bypass ? _('On') : _('Off'), run: () => toggleBypass(d) },
+          // a router's own networks: where the server knows of them and home reaches this person's devices
+          ...(d.kind === 'router' && st.server.nets && netsMatter(st)
+            ? [{ label: _('Networks behind it'), icon: 'network', sub: behindSummary(d), run: () => openBehind(d) }]
+            : []),
           null,
           { label: _('Rename'), icon: 'edit', run: () => renameHere(d) },
           { label: _('Reconnect'), icon: 'refresh', tone: 'warn' as const, run: () => reconnect(d) },
@@ -153,7 +174,7 @@ function card(d: Device, st: State): HTMLElement {
   const locked = !!st.locked;
   // The device this page was opened from (through the tunnel): it is connected, so say which one it is instead.
   const here = st.here === d.id;
-  const [cls, words, why] = here ? ['here-t', _('This device')] : statusOf(d, p);
+  const [cls, words, why] = here && !d.waiting ? ['here-t', _('This device')] : statusOf(d, p);
   const setUp = !d.handshake && !d.disabled;
   const stale = d.config_stale && !setUp && !locked && !d.disabled;
   // Connected, but nothing it sends gets through (an old configuration): new keys fix it, as changed settings.
@@ -182,6 +203,25 @@ function card(d: Device, st: State): HTMLElement {
           ic('more'),
         );
   more?.addEventListener('click', () => openMenu(more, items, d.name));
+  // What waits for the admin, or was turned down, is a knob beside the ⋯ with its words on hover (and its sheet on
+  // a press: a touch screen has no hover). The status line keeps saying what it always does.
+  const sig = locked ? null : cardSignal(d);
+  const signal = sig
+    ? h('button', { type: 'button', class: `knob pb-clock${sig.bad ? ' pb-no' : ''}`, 'aria-label': sig.words }, ic(sig.icon))
+    : null;
+  if (signal && sig) {
+    signal.addEventListener('click', () => openBehind(d));
+    tip(signal, () => sig.words, { acts: true });
+  }
+  // A name or a status cut short by «…» (the knob takes room beside them) says itself whole in the tooltip; one
+  // that fits says only what its hover always did (when it last connected, why a link fails).
+  const cut = (el: HTMLElement) => el.scrollWidth > el.clientWidth + 1;
+  const name = nameOf(d, !d.disabled && !locked);
+  tip(name, () => (cut(name) ? (name.textContent ?? '') : ''));
+  const stat = h('span', { class: `dev-stat ${cls}`, 'data-t': `${d.id}:stat` }, words);
+  const more_ = title !== words ? title : '';
+  // (under the status: over it, it would cover the name)
+  tip(stat, () => (cut(stat) ? (more_ ? `${stat.textContent} · ${more_}` : (stat.textContent ?? '')) : more_), { below: true });
   return h(
     'article',
     { class: `dev${here ? ' is-here' : ''}${d.disabled ? ' off' : ''}`, 'data-id': d.id },
@@ -192,12 +232,13 @@ function card(d: Device, st: State): HTMLElement {
       h(
         'div',
         { class: 'dev-id' },
-        nameOf(d, !d.disabled && !locked),
-        h('span', { class: `dev-stat ${cls}`, title, 'data-t': `${d.id}:stat` }, words),
+        name,
+        stat,
         // Why a link fails: a pointer reads it on hover, a screen reader right after the status (a touch screen
         // has neither; the card keeps its one line).
         why ? h('span', { class: 'offscreen' }, why) : null,
       ),
+      signal,
       more,
     ),
     // Stopped by the admin: a device never set up has nothing to show. Its settings changed, or no data gets
@@ -205,31 +246,39 @@ function card(d: Device, st: State): HTMLElement {
     // Connect.
     setUp && locked
       ? null
-      : setUp
-        ? h(
+      : d.waiting && !d.disabled
+        ? // a router that waits: Connect stands where it will, at rest until the admin has answered
+          h(
             'button',
-            {
-              type: 'button',
-              class: 'btn tint block setup-btn',
-              'aria-label': fmt(_('Set up %s'), d.name),
-              onclick: (ev: Event) => openSetup(d, ev.currentTarget),
-            },
+            { type: 'button', class: 'btn tint block setup-btn', disabled: true, 'aria-label': fmt(_('Set up %s'), d.name) },
             ic('qr'),
             h('span', {}, _('Connect')),
           )
-        : renew
+        : setUp
           ? h(
               'button',
               {
                 type: 'button',
                 class: 'btn tint block setup-btn',
-                'aria-label': fmt(_('Reconnect %s'), d.name),
-                onclick: () => reconnect(d),
+                'aria-label': fmt(_('Set up %s'), d.name),
+                onclick: (ev: Event) => openSetup(d, ev.currentTarget),
               },
-              ic('refresh'),
-              h('span', {}, _('Reconnect')),
+              ic('qr'),
+              h('span', {}, _('Connect')),
             )
-          : usage(d),
+          : renew
+            ? h(
+                'button',
+                {
+                  type: 'button',
+                  class: 'btn tint block setup-btn',
+                  'aria-label': fmt(_('Reconnect %s'), d.name),
+                  onclick: () => reconnect(d),
+                },
+                ic('refresh'),
+                h('span', {}, _('Reconnect')),
+              )
+            : usage(d),
   );
 }
 
@@ -362,7 +411,7 @@ export function fillDevices(section: HTMLElement, st: State, o: RepaintOpts = {}
   // Paused or ended: the router refuses a new device, so there is no card to offer one (the notice says why).
   else if (st.can_add && !st.locked) cards.push(addCard());
   grid.classList.toggle('empty', !p.devices.length);
-  grid.replaceChildren(...cards);
+  putChildren(grid, cards);
   const heights = cards.map((c) => c.getBoundingClientRect().height);
   cards.forEach((c, i) => {
     const w = was.cards.get(c.dataset.id!);

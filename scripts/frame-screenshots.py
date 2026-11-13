@@ -2,11 +2,13 @@
 """Frame the README screenshots the way the portal draws its own surfaces.
 
 Raw captures live in docs/screenshots/raw/<name>.png at SCALE device pixels
-per CSS pixel (scripts/capture-screenshots.mjs takes the admin's from a router,
-scripts/capture-portal.mjs the portal's from its demo); the framed images
+per CSS pixel (the admin's taken from its pages over made-up answers, in the
+Outline theme with its navbar on top; scripts/capture-portal.mjs takes the
+portal's from its demo); the framed images
 are written to docs/screenshots/<name>.png at the same scale. Each page sits on
 a panel like the portal's sheets (#121212, radius 36, 16px around it, the page
-inside at radius 20) on the portal's own black. A shot in FLOWS gets its steps
+inside at radius 20) on the portal's own black. A shot in ALONE is a dialog
+captured by itself: it stands on that black with no panel. A shot in FLOWS gets its steps
 in a row in front of the page's lower edge, numbered: sheets captured alone on
 a transparent page (raw/<step>.png, FLOW_MARGIN around each). Needs a
 Chromium-based browser for the headless render (BROWSER=/path/to/chrome,
@@ -24,13 +26,17 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 RAW = os.path.join(ROOT, 'docs', 'screenshots', 'raw')
 OUT = os.path.join(ROOT, 'docs', 'screenshots')
 
-SHOTS = ['overview', 'people', 'person', 'portal', 'overview-ru', 'people-ru', 'person-ru', 'portal-ru']
+SHOTS = ['people', 'person', 'places', 'core', 'device', 'portal',
+         'people-ru', 'person-ru', 'places-ru', 'core-ru', 'device-ru', 'portal-ru']
 # name -> the steps in front of its page, in order (raw captures). The portal's come from its demo
 # (scripts/capture-portal.mjs), not a router: adding a device there would add one. -ru: README_ru's.
 FLOWS = {
     'portal': ['portal-add-1', 'portal-add-2', 'portal-add-3'],
     'portal-ru': ['portal-add-1-ru', 'portal-add-2-ru', 'portal-add-3-ru'],
 }
+# A dialog captured alone (transparent around it, FLOW_MARGIN on each side, as a step is): it stands on the canvas
+# as it is, with no panel under it.
+ALONE = {'device', 'device-ru'}
 PAD_X, PAD_Y, INSET = 96, 80, 16  # canvas around the panel; panel around the page
 FLOW_MARGIN = (56, 40, 56, 72)  # around a step's sheet in its capture: left, top, right, bottom
 STEP_GAP, STEP_OVER, STEP_PAD = 28, 150, 120  # between steps; how far they reach over the page; canvas beside them
@@ -47,15 +53,17 @@ CANDIDATES = [
 TEMPLATE = """<!doctype html><html><head><meta charset="utf-8"><style>
 html,body{{margin:0;width:{w}px;height:{h}px;overflow:hidden}}
 body{{position:relative;background:#080808}}
-.panel{{position:absolute;left:{px}px;top:{py}px;width:{pw}px;height:{ph}px;
+.panel{{position:absolute;
  border-radius:36px;background:#121212;box-shadow:inset 0 0 0 1px rgba(255,255,255,.05),0 30px 80px rgba(0,0,0,.5)}}
-.page{{position:absolute;left:{x}px;top:{y}px;width:{iw}px;height:{ih}px;display:block;border-radius:20px;
+.page{{position:absolute;display:block;border-radius:20px;
  box-shadow:0 0 0 1px rgba(255,255,255,.04)}}
 .sheet{{position:absolute;display:block;filter:drop-shadow(0 24px 48px rgba(0,0,0,.6))}}
 .n{{position:absolute;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;
  font:600 16px system-ui,-apple-system,sans-serif;color:#ededed;background:#232323;
  box-shadow:0 0 0 1px rgba(255,255,255,.12),0 6px 16px rgba(0,0,0,.5)}}
-</style></head><body><div class="panel"></div><img class="page" src="file://{src}">{steps}</body></html>"""
+</style></head><body>{body}</body></html>"""
+PAGE = '<div class="panel" style="left:{px}px;top:{py}px;width:{pw}px;height:{ph}px"></div><img class="page" style="left:{x}px;top:{y}px;width:{iw}px;height:{ih}px" src="file://{src}">{steps}'
+SHEET = '<img class="sheet" style="left:{x}px;top:{y}px;width:{iw}px;height:{ih}px" src="file://{src}">'
 
 
 def png_size(path):
@@ -106,11 +114,17 @@ def main():
         if not all(os.path.exists(p) for p in flow):
             print(f'{name}: a step is missing, the page alone')
             flow = []
-        w, h, x, y, steps = layout(iw, ih, flow)
+        if name in ALONE:
+            ml, mt, mr, mb = FLOW_MARGIN
+            w, h = iw - ml - mr + 2 * PAD_X, ih - mt - mb + 2 * PAD_Y
+            body = SHEET.format(x=PAD_X - ml, y=PAD_Y - mt, iw=iw, ih=ih, src=src)
+        else:
+            w, h, x, y, steps = layout(iw, ih, flow)
+            body = PAGE.format(x=x, y=y, iw=iw, ih=ih, px=x - INSET, py=y - INSET, pw=iw + 2 * INSET, ph=ih + 2 * INSET,
+                               src=src, steps=steps)
         html = os.path.join(tmp, f'{name}.html')
         with open(html, 'w', encoding='utf-8') as f:
-            f.write(TEMPLATE.format(w=w, h=h, x=x, y=y, iw=iw, ih=ih, px=x - INSET, py=y - INSET, pw=iw + 2 * INSET,
-                                    ph=ih + 2 * INSET, src=src, steps=steps))
+            f.write(TEMPLATE.format(w=w, h=h, body=body))
         out = os.path.join(OUT, f'{name}.png')
         subprocess.run([browser, '--headless=new', '--disable-gpu', '--hide-scrollbars', '--allow-file-access-from-files',
                         f'--force-device-scale-factor={SCALE}', f'--window-size={w},{h}', f'--screenshot={out}', f'file://{html}'],

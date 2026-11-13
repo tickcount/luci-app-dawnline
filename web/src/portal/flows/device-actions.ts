@@ -57,7 +57,12 @@ function vReconnect(d: Device): View {
   const st = state()!;
   const here = st.here === d.id;
   // The kinds this router takes, as the four choices; what it is now ringed.
-  const picks = PICKS.filter((k) => st.kinds.some((x) => pickOf(x) === k));
+  // A device does not turn into a router by being set up again: a router is asked of the admin (flows/add.ts), and
+  // this would be a way round the question. One that is a router already stays one; where routers are added at
+  // once there is no question to go round.
+  const picks = PICKS.filter(
+    (k) => st.kinds.some((x) => pickOf(x) === k) && (k !== 'router' || d.kind === 'router' || st.server.routers === 'free'),
+  );
   let pick: KindPick = picks.includes(pickOf(d.kind)) ? pickOf(d.kind) : picks[0];
   let bypass = d.lan_bypass;
   const kinds = kindTiles(picks, (k) => (pick = k));

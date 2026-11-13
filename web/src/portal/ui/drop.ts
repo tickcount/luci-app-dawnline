@@ -56,9 +56,11 @@ export function vanish(el: Element) {
  */
 export function opened(panel: Element, button: HTMLElement, shut: (now?: boolean) => void): () => boolean {
   if (current) current(true);
+  // By the event's path, not its target: inside a shadow root (the admin's layer) the target the document sees is
+  // the host, and a press on the panel or its button would pass for one outside.
   const outside = (e: PointerEvent) => {
-    const t = e.target as Node;
-    if (!panel.contains(t) && !button.contains(t)) shut();
+    const path = e.composedPath();
+    if (!path.includes(panel) && !path.includes(button)) shut();
   };
   const esc = (e: KeyboardEvent) => {
     if (e.key !== 'Escape') return;

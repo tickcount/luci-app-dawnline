@@ -1,0 +1,4 @@
+/* The map's module sheet (map-module.ts): the map itself, then a device's places and its close-up. Built like
+   index.css (tsup.config.ts) and adopted next to it by every host once the module is in (shell/maps.ts). */
+@import './map.css';
+@import './closeup.css';

@@ -1,0 +1,51 @@
+# The settings the usage trace runs on (testdata/trace.uc): two servers, three people, five devices, a
+# short history kept so the trace's old days and months are pruned.
+
+config settings 'settings'
+	option usage_keep_days '30'
+	option usage_keep_months '12'
+
+config server 'home'
+	option ifname 'dawn0'
+	option subnet '10.77.0.0/24'
+	option private_key 'yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk='
+
+config server 'cabin'
+	option ifname 'dawn1'
+	option subnet '10.78.0.0/24'
+	option private_key 'yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk='
+	option keepalive '300'
+
+config person 'anna'
+	option server 'home'
+
+config person 'boris'
+	option server 'home'
+
+config person 'vera'
+	option server 'cabin'
+
+config device 'd1'
+	option person 'anna'
+	option kind 'phone'
+	option public_key 'HIgo9xNzJMWLKASShiTqIybxZ0U3wGLiUeJ1PKf8ykw='
+
+config device 'd2'
+	option person 'anna'
+	option kind 'computer'
+	option public_key 'TrMvSoP4jYQlY6RIzBgbssQqY3vxI2Pi+y71lOWWXX0='
+
+config device 'd3'
+	option person 'boris'
+	option kind 'computer'
+	option public_key 'u4pL0000000000000000000000000000000000DyRrM='
+
+config device 'd4'
+	option person 'vera'
+	option kind 'router'
+	option public_key 'Yc0000000000000000000000000000000000ovbrNy4='
+
+config device 'd5'
+	option person 'vera'
+	option kind 'tablet'
+	option public_key 'xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg='

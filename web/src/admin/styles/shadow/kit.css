@@ -1,0 +1,1423 @@
+/* The admin's kit on the portal's tokens (ui/): a face, a chip that leads to an object, the empty state; the
+   filter bar; the table's heads; master–detail (a list and the panel of what is picked in it) and a panel's frame;
+   a map with its list; place rows with strips. Pages lay their own columns and rows out over these. */
+
+/* a face: the map marker's initials (.pav), ringed in its state's tone */
+.kt-face {
+  width: 32px;
+  height: 32px;
+}
+.kt-face.ok {
+  color: var(--text);
+  background: color-mix(in srgb, var(--live) 22%, var(--raised));
+  box-shadow: inset 0 0 0 1.5px var(--live);
+}
+.kt-face.warn {
+  color: var(--text);
+  box-shadow: inset 0 0 0 1.5px var(--warn);
+}
+.kt-face.bad {
+  color: var(--text);
+  box-shadow: inset 0 0 0 1.5px var(--bad);
+}
+
+/* a quiet pill that leads to an object (a device that waits, a match of the search): knob, 32 */
+.kt-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  height: 32px;
+  padding: 0 12px 0 10px;
+  border-radius: 999px;
+  background: var(--knob);
+  color: var(--text);
+  font: 500 13px/18px var(--font);
+  text-decoration: none;
+  white-space: nowrap;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  transition:
+    transform 150ms var(--ease-out),
+    background-color 150ms;
+}
+.kt-chip > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kt-chip .i {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--text-2);
+}
+.kt-chip.more {
+  padding: 0 8px 0 12px;
+  color: var(--text-2);
+}
+@media (hover: hover) and (pointer: fine) {
+  .kt-chip:hover {
+    background: color-mix(in srgb, var(--knob), var(--text) 6%);
+  }
+}
+.kt-chip:active {
+  transform: scale(0.96);
+}
+
+/* the empty state: a grey glass, the Empty title, one balanced line, one button */
+.kt-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 28px 24px 24px;
+  text-align: center;
+}
+.kt-empty > .gi {
+  width: 44px;
+  height: 44px;
+  margin-bottom: 8px;
+}
+.kt-empty > b {
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+.kt-empty > span {
+  max-width: 34ch;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--text-2);
+  text-wrap: balance;
+}
+.kt-empty > .btn {
+  margin-top: 14px;
+}
+
+/* ── the filter bar: the search and the page's own controls; under them the filters as chips and the count ── */
+.kt-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0 0 24px;
+}
+.kt-bar1.bar {
+  margin: 0;
+  flex-wrap: nowrap;
+}
+.kt-bar1 .field.srch {
+  flex: 1 1 0;
+  width: auto;
+  max-width: 420px;
+  min-width: 0;
+}
+.kt-bar2 {
+  display: flex;
+  align-items: center;
+  gap: 8px 10px;
+  min-height: 32px;
+  min-width: 0;
+}
+.kt-range[hidden] {
+  display: none;
+}
+.kt-chips {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+/* a chip: offered (knob, a plus and its name), active (accent-soft, the accent's words, × takes it off) */
+.kt-fchip {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  max-width: 100%;
+  height: 32px;
+  border-radius: 999px;
+  background: var(--knob);
+  color: var(--text-2);
+  transition:
+    background-color 150ms,
+    color 150ms,
+    transform 150ms var(--ease-out);
+}
+.kt-fb {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 32px;
+  padding: 0 12px 0 10px;
+  border-radius: 999px;
+  color: inherit;
+  font: 500 14px/20px var(--font);
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.kt-fb > span:not(.kt-fn) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kt-fb .i {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+.kt-fb .i.kt-drop {
+  order: 3;
+  transform: rotate(90deg);
+  color: var(--text-3);
+}
+.kt-fn {
+  color: var(--text-3);
+  font-weight: 500;
+}
+.kt-fchip.on {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.kt-fchip.on .kt-fb {
+  padding: 0 4px 0 12px;
+}
+.kt-fchip.on .kt-fn {
+  color: inherit;
+  opacity: 0.7;
+}
+.kt-fx {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 32px;
+  margin-right: 2px;
+  border-radius: 999px;
+  color: inherit;
+  cursor: pointer;
+}
+.kt-fx .i {
+  width: 14px;
+  height: 14px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .kt-fchip:not(.on):hover {
+    background: color-mix(in srgb, var(--knob), var(--text) 6%);
+    color: var(--text);
+  }
+  .kt-fchip.on:hover {
+    background: color-mix(in srgb, var(--accent) 20%, transparent);
+  }
+}
+.kt-fchip:has(.kt-fb:active) {
+  transform: scale(0.96);
+}
+.kt-reset {
+  flex: none;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 999px;
+  color: var(--text-2);
+  font: 500 14px/20px var(--font);
+  cursor: pointer;
+}
+@media (hover: hover) and (pointer: fine) {
+  .kt-reset:hover {
+    color: var(--text);
+  }
+}
+.kt-count {
+  flex: none;
+  margin-left: auto;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.kt-count:empty {
+  display: none;
+}
+/* a phone: the search takes the first row; the chips are one row that scrolls sideways, its end fading */
+@container dlpage (max-width: 559px) {
+  .kt-bar1.bar {
+    flex-wrap: wrap;
+  }
+  .kt-bar .kt-bar1.bar .field.srch {
+    flex: 1 1 100%;
+    width: 100%;
+    max-width: none;
+  }
+  /* the chips in one row that scrolls sideways, its end fading; no wrapping */
+  .kt-bar2 {
+    flex-wrap: wrap;
+  }
+  .kt-chips {
+    flex: 1 1 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+    margin: 0 -4px;
+    padding: 0 4px;
+    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 18px), transparent);
+    mask-image: linear-gradient(90deg, #000 calc(100% - 18px), transparent);
+  }
+  .kt-chips::-webkit-scrollbar {
+    display: none;
+  }
+  .kt-chips > :last-child {
+    margin-right: 14px;
+  }
+  .kt-range {
+    flex: 1 1 100%;
+  }
+  .kt-count {
+    margin-left: 4px;
+  }
+}
+
+/* ── a list and the page of one thing in it (ui/subpage.ts): the page takes the whole column, the list with the
+   page's head and bar waits under it ── */
+.kt-md,
+.kt-list,
+.kt-sub {
+  min-width: 0;
+}
+.kt-list,
+.kt-sub {
+  container: dlpage / inline-size;
+}
+.kt-sub,
+.kt-md.open > .kt-list,
+.page.has-sub > .ph,
+.page.has-sub > .kt-bar {
+  display: none;
+}
+.kt-md.open > .kt-sub {
+  display: block;
+}
+.page.has-sub > .dl-nav {
+  margin-bottom: 18px;
+}
+
+/* ── a page's frame: the way back and ×, the head a size down, then its blocks one under another, each a
+   section head over a raised card ── */
+.kt-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.kt-pbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 36px;
+  margin: 0 0 12px;
+}
+.kt-pbar .back {
+  margin: 0;
+  min-width: 0;
+}
+.kt-px {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  background: var(--on-ground);
+}
+@media (hover: hover) and (pointer: fine) {
+  .kt-px:hover {
+    background: color-mix(in srgb, var(--on-ground), var(--text) 6%);
+  }
+}
+/* a phone: the way back is enough */
+@container dlpage (max-width: 479px) {
+  .kt-px {
+    display: none;
+  }
+}
+.kt-phead .ph {
+  margin-bottom: 24px;
+}
+.kt-phead .ph-title {
+  font-size: 24px;
+  line-height: 30px;
+}
+.kt-phead .ph-ic .gi {
+  width: 40px;
+  height: 40px;
+}
+/* the head's facts in a panel's width: a long note keeps inside it */
+.kt-phead .ph-f {
+  max-width: 100%;
+}
+.kt-phead .ph-fact {
+  min-width: 0;
+}
+.kt-phead .ph-fact .chip {
+  max-width: min(220px, 100%);
+}
+/* the head's actions in one row while they fit: the one action takes what the others leave */
+.kt-phead .ph-acts > .btn:first-child:nth-last-child(n + 3) {
+  flex: 1 1 auto;
+}
+.kt-blocks {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  min-width: 0;
+}
+.kt-b {
+  min-width: 0;
+}
+.kt-bh .aside {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.kt-bh .sh-end {
+  display: flex;
+  align-items: center;
+}
+/* words in a block's place: nothing yet */
+.kt-none {
+  padding: 18px 16px;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--text-2);
+}
+/* the segmented track in a block's head: the pick pill's frame (34 high, radius 10) */
+.kt-segs.tabs {
+  height: 34px;
+  padding: 3px;
+  border-radius: 12px;
+  background: var(--on-ground);
+}
+.kt-segs .tabs-pill {
+  top: 3px;
+  bottom: 3px;
+  border-radius: 9px;
+}
+.kt-segs .tab {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+.kt-rv .kt-segs.tabs {
+  background: var(--field);
+}
+/* the switch alone, in a block's head (the portal's .sw) */
+.kt-sw {
+  display: inline-flex;
+  padding: 5px 0;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+@media (pointer: coarse) {
+  .kt-sw {
+    padding: 9px 0;
+  }
+}
+.kt-sw .sw {
+  background: var(--on-ground);
+}
+.kt-sw.on .sw {
+  background: var(--accent);
+}
+.kt-sw.on .sw::after {
+  transform: translateX(18px);
+  background: var(--accent-ink);
+}
+.kt-sw:active .sw::after {
+  width: 27px;
+}
+.kt-sw.on:active .sw::after {
+  transform: translateX(11px);
+}
+/* a quiet label over a part of a card */
+.kt-lbl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 -2px;
+  padding: 0 6px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+
+/* ── a map with its inspector, one stage (ui/split.ts): one card, the map and the inspector side by side from 840 px
+   of the column, as high as the window leaves (--stage-h, measured); narrower, the map over the inspector ── */
+.kt-stage {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+.kt-stage-map .map-box {
+  height: 320px;
+}
+.kt-stage-side {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.kt-stage-body {
+  position: relative;
+  outline: none;
+}
+@container dlpage (min-width: 840px) {
+  .kt-stage {
+    grid-template-columns: minmax(0, 1fr) 360px;
+    height: var(--stage-h, 600px);
+  }
+  .kt-stage-map,
+  .kt-stage-map .map-box {
+    height: 100%;
+    min-height: 0;
+  }
+  /* the body scrolls inside the stage; its edges fade only where rows are hidden past them */
+  .kt-stage-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+  }
+  .kt-stage-body::-webkit-scrollbar {
+    display: none;
+  }
+  .kt-stage-body.more-down {
+    mask-image: linear-gradient(#000 calc(100% - 28px), transparent);
+  }
+  .kt-stage-body.more-up {
+    mask-image: linear-gradient(transparent, #000 28px);
+  }
+  .kt-stage-body.more-up.more-down {
+    mask-image: linear-gradient(transparent, #000 28px, #000 calc(100% - 28px), transparent);
+  }
+}
+/* a place row with the strip of when the device was there (the close-up's strip, 6 px) */
+.kt-plist > :last-child {
+  border-radius: 0 0 var(--r-row) var(--r-row);
+}
+.kt-plist > :only-child {
+  border-radius: var(--r-row);
+}
+.kt-prow .prow2-t {
+  gap: 0;
+}
+.kt-prow-ic {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--knob);
+  color: var(--text-2);
+}
+.kt-prow-ic .i {
+  width: 17px;
+  height: 17px;
+}
+.kt-strip {
+  position: relative;
+  display: block;
+  height: 6px;
+  margin-top: 7px;
+  border-radius: 3px;
+  background: var(--bar);
+  overflow: hidden;
+}
+.prow2-t .kt-strip {
+  overflow: hidden;
+}
+/* the runs as one layer (data-flat: a refill keeps it or crosses it whole) */
+.kt-runs {
+  position: absolute;
+  inset: 0;
+}
+.kt-strip i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  min-width: 2px;
+  border-radius: 2px;
+  background: var(--past, #8a8a8a);
+}
+.kt-runs.live i {
+  background: var(--live, #3b82f6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kt-chip:active,
+  .kt-fchip:has(.kt-fb:active) {
+    transform: none;
+  }
+  .kt-sorti {
+    transition: none;
+  }
+}
+
+/* ── a state dot: a server in the track of servers, an address row ── */
+.dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-3);
+}
+.dot.ok {
+  background: var(--ok);
+  box-shadow: 0 0 0 3px var(--ok-soft);
+}
+.dot.warn {
+  background: var(--warn);
+}
+.dot.bad {
+  background: var(--bad);
+}
+
+/* ── the section rail (ui/rail.ts) ── */
+.kt-rl {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.kt-rl-g {
+  display: flex;
+  flex-direction: column;
+}
+.kt-rl-l {
+  padding: 0 10px 6px;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* a rail of one group has no name over it: the page or the track over it names what the sections are of */
+.kt-rl-l:empty {
+  display: none;
+}
+.kt-rl-i {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 4px 10px;
+  border-radius: 14px;
+  color: var(--text-2);
+  text-decoration: none;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: color 150ms var(--ease-out);
+}
+.kt-rl-i:has(.kt-rl-v) {
+  min-height: 52px;
+}
+.kt-rl-ic {
+  position: relative;
+  z-index: 1;
+  flex: none;
+}
+.kt-rl-ic .gi {
+  display: block;
+  width: 22px;
+  height: 22px;
+  opacity: 0.6;
+  transition: opacity 260ms var(--ease-out);
+}
+.kt-rl-i.on .kt-rl-ic .gi,
+.kt-rl-i.warn .kt-rl-ic .gi,
+.kt-rl-i.bad .kt-rl-ic .gi {
+  opacity: 1;
+}
+.kt-rl-t {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.kt-rl-t b {
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kt-rl-v {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kt-rl-i.on {
+  color: var(--text);
+}
+.kt-rl-al {
+  flex: none;
+  display: grid;
+}
+.kt-rl-al .i {
+  width: 14px;
+  height: 14px;
+}
+.kt-rl-hl {
+  position: absolute;
+  z-index: 0;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 44px;
+  border-radius: 14px;
+  background: var(--raised);
+  opacity: 0;
+  pointer-events: none;
+  /* it comes in on its link softly (a beat after the link begins to rise with its page), and goes the same way */
+  transition: opacity 320ms var(--ease-out) 100ms;
+}
+/* from link to link it glides, as a menu's highlight does (ui/rail.ts: not the first time it stands on one) */
+.kt-rl-hl.glides {
+  transition:
+    opacity 320ms var(--ease-out),
+    transform var(--spring-glide-dur) var(--spring-glide),
+    height var(--spring-glide-dur) var(--spring-glide);
+}
+@media (hover: hover) and (pointer: fine) {
+  .kt-rl-i:not(.on):hover {
+    color: var(--text);
+  }
+}
+.kbd .kt-rl-i:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 65%, transparent);
+  outline-offset: -2px;
+}
+/* a phone: the rail is a jump menu, a pill that stays in sight */
+.kt-rl-jump {
+  position: sticky;
+  top: calc(8px - var(--sc-pad, 0px));
+  z-index: 6;
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  margin: 0 0 12px;
+  padding: 0 12px 0 14px;
+  border-radius: 999px;
+  background: var(--knob);
+  box-shadow: var(--pop-shadow);
+  color: var(--text);
+  font: 500 15px/22px var(--font);
+  letter-spacing: -0.015em;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+  transition:
+    transform 150ms var(--ease-out),
+    background-color 150ms;
+}
+.kt-rl-jump:active {
+  transform: scale(0.96);
+}
+.kt-rl-jump > .i {
+  width: 18px;
+  height: 18px;
+  color: var(--text-2);
+}
+.kt-rl-jump > .kt-rl-jc {
+  width: 14px;
+  height: 14px;
+  transform: rotate(90deg);
+  transition: transform 260ms var(--ease-out);
+}
+.kt-rl-jump[aria-expanded='true'] > .kt-rl-jc {
+  transform: rotate(-90deg);
+}
+.kt-rl-ja {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.kt-rl-ja:empty {
+  display: none;
+}
+.kt-rl-ja .i {
+  width: 14px;
+  height: 14px;
+}
+
+/* ── a section of a page with a rail (ui/section.ts) ── */
+.kt-sx {
+  scroll-margin-top: 16px;
+  margin-top: 40px;
+  min-width: 0;
+}
+.kt-sx-h {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  min-width: 0;
+  padding: 0 4px 12px;
+}
+.kt-sx-ic .gi {
+  display: block;
+  width: 22px;
+  height: 22px;
+}
+.kt-sx-h h2 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  outline: none;
+}
+.kt-sx-aside {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  min-width: 0;
+}
+.kt-sx-aside:empty {
+  display: none;
+}
+.kt-sx-end {
+  margin-left: auto;
+}
+.kt-sx-st {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+.kt-sx-st > span {
+  min-width: 0;
+}
+.kt-sx-st .i {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+.kt-sx-st.ok .i {
+  color: var(--ok);
+}
+.kt-sx-st.warn-t {
+  color: var(--warn);
+}
+.kt-sx-st.bad-t {
+  color: var(--bad);
+}
+.kt-sx-st.val > span {
+  color: var(--text-2);
+}
+.kt-sx-st.val > .warn-t {
+  color: var(--warn);
+}
+.kt-sx-st.val > .bad-t {
+  color: var(--bad);
+}
+
+.kt-sx-b {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.kt-sx-b > .card + .card,
+.kt-sx-b > .notice-slot + .card {
+  margin-top: 0;
+}
+.kt-sx-b > .notice-slot:empty {
+  display: none;
+}
+.kt-sx-b > .notice-slot .notice {
+  margin: 0;
+}
+.kt-sx-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px;
+  border-radius: 24px;
+}
+.kt-sx-card > .desc,
+.kt-sx-card .row-act .desc {
+  margin: 0;
+  padding: 0 14px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+  opacity: 1;
+}
+.kt-sx-card > .desc.warn-t {
+  color: var(--warn);
+}
+.kt-sx-card > .row-act {
+  padding: 0 2px;
+}
+.kt-sx-card > .pill-link,
+.kt-sx-card > .btn {
+  align-self: flex-start;
+}
+.kt-sx-card .swrow {
+  background: var(--field);
+}
+.kt-sx-card > .ed-hint {
+  margin-top: -6px;
+}
+
+.kt-sx-card .editrow.static > .stepper,
+.kt-sx-card .editrow.static > .st-ro {
+  margin-left: auto;
+}
+.kt-sx-card .rt-rest {
+  padding: 0 6px;
+}
+.kt-sx-cap {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  min-height: 40px;
+  padding: 0 0 0 8px;
+}
+.kt-sx-cap-t {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  min-width: 0;
+}
+.kt-sx-cap-e {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: auto;
+}
+.kt-sx-card > .kt-sx-cap:not(:first-child) {
+  margin-top: 6px;
+}
+/* ⟳N at a caption's end stands 16 px from the card's edge, as the caption's words do on the other side (a button
+   there reaches the tiles' edge, 8 px; a small pill that close to the corner looked pushed into it) */
+.kt-sx-cap-e > .reimp:last-child {
+  margin-right: 8px;
+}
+/* a caption with nothing at its end is a label: it stands close over what it names (12 px), not at the height a
+   row of buttons needs (the owner, 2026-11-11: «паддинг между „Записывать“ и кнопками всё ещё большой») */
+.kt-sx-cap:not(:has(> .kt-sx-cap-e)) {
+  min-height: 28px;
+  /* wrapped to two lines it keeps the same 4 over and under its words */
+  padding-block: 4px;
+}
+.kt-sx-card > .kt-sx-cap:first-child:not(:has(> .kt-sx-cap-e)) {
+  margin-top: 4px;
+}
+/* a caption whose buttons dropped under its words (a phone): the words keep 14 from the card's top */
+@container dlpage (max-width: 559px) {
+  .kt-sx-card > .kt-sx-cap:first-child:has(> .kt-sx-cap-e) {
+    padding-top: 6px;
+  }
+}
+/* a row's own line of help that ends a card: 14 px over the card's foot, as a note there */
+.kt-sx-card > .ed:last-child > .ed-hint:last-child {
+  padding-bottom: 6px;
+}
+/* A note belongs to what stands over it, and looks it: 6 px under that block (the card's gap is 10), 16 before
+   whatever follows, and its words start where that block's words do (14 in from the tile's edge), not where a
+   caption's do. Nearness and the left edge say the relation; a caption (a name) is the text's colour and a
+   weight, a note the second tone and regular: the two are never the same look. */
+.kt-sx-note {
+  margin: -4px 0 0;
+  padding: 0 14px 2px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+.kt-sx-card > .kt-sx-note + :not(.kt-sx-note) {
+  margin-top: 6px;
+}
+/* the same for a row's own line of help (ui/edit-rows.ts): the next row keeps its distance from it */
+.kt-sx-card > .ed:has(> .ed-hint) + * {
+  margin-top: 6px;
+}
+.kt-sx-note.ok-t {
+  color: var(--ok);
+}
+.kt-sx-note.warn-t {
+  color: var(--warn);
+}
+.kt-sx-card > .kt-sx-note:last-child {
+  padding-bottom: 6px;
+}
+
+/* ── the address row with the router's verdict (widgets/endpoint.ts) ── */
+.kt-ep {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+/* ── a measure with its limit (ui/measure.ts) ── */
+.kt-lm {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 12px 14px 12px 16px;
+  border-radius: 16px;
+  background: var(--field);
+}
+.kt-lm-top {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  min-height: 22px;
+}
+.kt-lm-l {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+/* ⟳N of a measure: at the end of its label's line */
+.kt-lm-re {
+  display: inline-flex;
+  margin-left: auto;
+}
+.kt-lm-re:empty {
+  display: none;
+}
+.kt-lm-act {
+  display: inline-flex;
+  gap: 6px;
+  margin-left: auto;
+}
+.kt-lm-val {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 2px 6px;
+  font-size: 17px;
+  line-height: 24px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+.kt-lm-val b {
+  font-weight: 500;
+}
+.kt-lm-of {
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 400;
+  letter-spacing: -0.011em;
+  color: var(--text-2);
+}
+.kt-lm-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bar);
+  overflow: hidden;
+}
+.kt-lm-bar > i {
+  display: block;
+  height: 100%;
+  min-width: 6px;
+  border-radius: 3px;
+  background: var(--accent);
+  transition:
+    width var(--spring-smooth-dur, 524ms) var(--spring-smooth, ease-out),
+    background-color 280ms var(--ease-out);
+}
+.kt-lm-bar.warn > i {
+  background: var(--warn);
+}
+.kt-lm-bar.bad > i {
+  background: var(--bad);
+}
+.kt-lm-sub {
+  margin: 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-2);
+}
+.kt-lm-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+@container dlpage (max-width: 559px) {
+  .kt-lm-pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+/* a value that takes one of a few: the value and a pencil; the choices open under it */
+.kt-vpk {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: -2px -6px;
+  padding: 2px 6px;
+  border-radius: 8px;
+  color: var(--text);
+  font: inherit;
+  letter-spacing: inherit;
+  white-space: nowrap;
+  transition:
+    background-color 150ms,
+    transform 150ms var(--ease-out);
+}
+.kt-vpk > b {
+  font-weight: 500;
+}
+.kt-vpk:active {
+  transform: scale(0.97);
+}
+.kt-vpk-ic {
+  flex: none;
+  align-self: center;
+  width: 16px;
+  height: 16px;
+  color: var(--text-2);
+}
+@media (hover: hover) and (pointer: fine) {
+  .kt-vpk:hover {
+    background: color-mix(in srgb, var(--field), var(--text) 7%);
+  }
+  .kt-vpk.pill:hover {
+    background: color-mix(in srgb, var(--knob), var(--text) 6%);
+  }
+}
+.kt-vpk.pill {
+  height: 32px;
+  margin: 0;
+  padding: 0 8px 0 12px;
+  border-radius: 999px;
+  background: var(--knob);
+  font-size: 14px;
+  line-height: 20px;
+}
+.kt-vpk-chev {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--text-2);
+  transform: rotate(90deg);
+  transition: transform 260ms var(--ease-out);
+}
+.kt-vpk[aria-expanded='true'] .kt-vpk-chev {
+  transform: rotate(-90deg);
+}
+.kt-vpk-still {
+  font-weight: 500;
+}
+.kt-vpk.kt-lm-net,
+span.kt-lm-net {
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 20px;
+  letter-spacing: 0;
+  font-weight: 400;
+}
+.kt-lm-pen {
+  margin-left: -2px;
+}
+.editrow.static.pickrow {
+  padding-block: 7px;
+  padding-right: 8px;
+}
+.editrow.static.pickrow > .kt-vpk,
+.editrow.static.pickrow > .kt-vpk-still {
+  margin-left: auto;
+}
+
+/* ── a field that picks from a list as it is typed in (ui/combo.ts) ── */
+.field.kt-cb {
+  position: relative;
+  height: 48px;
+  gap: 10px;
+  padding: 0 4px 0 14px;
+  border-radius: 16px;
+  background: var(--field);
+  cursor: text;
+}
+.kt-cb-l {
+  flex: none;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+.kt-cb-ic {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-right: -2px;
+  border-radius: 9px;
+  background: var(--knob);
+  color: var(--text-2);
+}
+.kt-cb-ic[hidden] {
+  display: none;
+}
+.kt-cb-ic .i {
+  width: 15px;
+  height: 15px;
+}
+.field.kt-cb input {
+  min-width: 0;
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  text-overflow: ellipsis;
+}
+.field.kt-cb.mono:not(.picked) input {
+  font-family: var(--mono);
+  font-size: 14px;
+  letter-spacing: 0;
+}
+@media (pointer: coarse) {
+  .field.kt-cb input {
+    font-size: 16px;
+  }
+}
+.kt-cb-k {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: none;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: background-color 150ms;
+}
+.kt-cb-k .i {
+  width: 16px;
+  height: 16px;
+  transform: rotate(90deg);
+}
+@media (hover: hover) and (pointer: fine) {
+  .kt-cb-k:hover {
+    background: var(--knob);
+    color: var(--text);
+  }
+}
+/* the row the arrows (or the pointer) stand on: the dropdowns' highlight, still */
+.kt-cb-pop .mi {
+  cursor: pointer;
+  border-radius: 14px;
+}
+.kt-cb-pop .mi.on {
+  background: var(--glass-hl);
+}
+
+/* ── a list of choices under its button (ui/list-drop.ts) ── */
+.kt-ld-body {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.kt-ld .mi-l {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kt-ld-in {
+  position: relative;
+}
+.kt-ld .mi > .kt-ld-none {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+.kt-ld .mi.picked > .i {
+  color: var(--accent);
+}
+
+/* ── choice tiles with their consequence (ui/choice-tiles.ts) ── */
+.kt-ct {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+/* ── the component row for other lists (ui/comp-row.ts) ── */
+.kt-cr > .knob {
+  background: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .kt-cr > .knob:hover {
+    background: var(--knob);
+  }
+}
+.kt-cr .chk-t b {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .kt-rl-hl,
+  .kt-lm-bar > i {
+    transition: none;
+  }
+}
+
+/* ── a dock: the glass at the bottom of the window, in the layer (under the sheet, beside the toasts): People's
+   selection, Settings' changes that wait ── */
+.kt-dock {
+  position: fixed;
+  z-index: 40;
+  left: 0;
+  right: 0;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(520px, calc(100vw - 32px));
+  height: 60px;
+  margin: 0 auto;
+  padding: 0 10px 0 14px;
+  border-radius: 30px;
+  color: var(--glass-text);
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(28px) saturate(1.8);
+  backdrop-filter: blur(28px) saturate(1.8);
+  box-shadow:
+    inset 0 0 0 1px var(--glass-edge),
+    var(--glass-shadow);
+}
+.kt-dock .knob {
+  flex: none;
+  background: color-mix(in srgb, var(--glass-text) 6%, transparent);
+  color: var(--glass-text);
+}
+@media (hover: hover) and (pointer: fine) {
+  .kt-dock .knob:hover {
+    background: color-mix(in srgb, var(--glass-text) 11%, transparent);
+  }
+}
+.kt-dock .btn {
+  flex: none;
+}
+.kt-dock .btn:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+.kt-dock .btn span {
+  display: inline-block;
+}
+@media (max-width: 440px) {
+  .kt-dock {
+    padding-left: 12px;
+    gap: 6px;
+  }
+  .kt-dock .btn {
+    padding: 0 14px;
+  }
+  .kt-dock .btn .i {
+    display: none;
+  }
+}
+
+/* a switch waiting for the router (ui/edit-rows.ts flipping), as the busy orb waits: from the click a ring comes in
+   on the knob (in, s.6, b2 → 340 / 70 EASE_OUT: whole by 410 ms, before the change is sent once the knob is over) and
+   rides it (SMOOTH, as the knob), turning until the answer; then it stops where it is and goes (out, s.6, b2, 180
+   EASE_IN), from wherever it stood; a repaint that draws the switch anew carries it on (portal morphInto, deep). It
+   takes the colour that shows on the knob. Reduced motion: it only fades (160), and stands still. */
+.sw {
+  --sx: 0px;
+}
+.on > .sw {
+  --sx: 18px;
+}
+.sw::before {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  top: 7px;
+  left: 7px;
+  width: 12px;
+  height: 12px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  border-top-color: var(--raised);
+  border-right-color: var(--raised);
+  opacity: 0;
+  scale: 0.6;
+  filter: blur(2px);
+  translate: var(--sx) 0;
+  pointer-events: none;
+  animation: sw-wait 700ms linear infinite paused;
+  transition:
+    opacity 180ms var(--ease-in),
+    scale 180ms var(--ease-in),
+    filter 180ms var(--ease-in),
+    translate var(--spring-smooth-dur, 524ms) var(--spring-smooth, ease);
+}
+.on > .sw::before {
+  border-top-color: var(--accent);
+  border-right-color: var(--accent);
+}
+.wait > .sw::before {
+  opacity: 1;
+  scale: 1;
+  filter: blur(0px);
+  animation-play-state: running;
+  transition:
+    opacity 340ms var(--ease-out) 70ms,
+    scale 340ms var(--ease-out) 70ms,
+    filter 340ms var(--ease-out) 70ms,
+    translate var(--spring-smooth-dur, 524ms) var(--spring-smooth, ease);
+}
+@keyframes sw-wait {
+  to {
+    rotate: 360deg;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sw::before,
+  .wait > .sw::before {
+    scale: 1;
+    filter: none;
+    animation: none;
+    transition: opacity 160ms ease-out;
+  }
+}
+
+/* the chevrons that turn as a fold opens: off with less motion (DESIGN.md › Reduced motion) */
+@media (prefers-reduced-motion: reduce) {
+  .kt-rl-jump > .kt-rl-jc,
+  .kt-vpk-chev,
+  .pp-nfold-c {
+    transition: none;
+  }
+}

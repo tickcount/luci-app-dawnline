@@ -3,7 +3,7 @@
 // here. It also holds the one hook back to the page (`repaint`), so a flow can
 // redraw the page without knowing how the page is built (main.ts sets it).
 
-import type { Kind, Person } from '../shared/types';
+import type { Kind, Person, PortalNets, PortalRouters } from '../shared/types';
 import { isoDay } from '../shared/format';
 import { platformOf, type Platform, type Preset } from './setup';
 
@@ -12,7 +12,18 @@ export interface State {
   /** device_mesh: devices with home access reach each other through the tunnel. */
   /** awg_disguise: false = plain WireGuard, any WireGuard app connects. */
   /** home: the home networks a device with LAN Bypass still sends into the tunnel (home and internet access). */
-  server: { name?: string; endpoint: string; device_mesh?: boolean; awg_disguise?: boolean; preset?: Preset; home?: string[] };
+  /** routers, nets: what a person may do about a router here (add one: not at all, asked of the admin, at once) and
+   *  about the networks behind it (asked, or at once); absent on a router that knows neither: nothing is offered. */
+  server: {
+    name?: string;
+    endpoint: string;
+    device_mesh?: boolean;
+    awg_disguise?: boolean;
+    preset?: Preset;
+    home?: string[];
+    routers?: PortalRouters;
+    nets?: PortalNets;
+  };
   /** The device this page was opened from (through the tunnel), if any. */
   here?: string | null;
   can_add: boolean;
@@ -26,8 +37,6 @@ export interface State {
   today?: string;
   /** The router's clock (epoch seconds): relative times are measured against it, not the phone's. */
   now?: number;
-  /** The router's UTC offset in minutes: the admin sets hours in its time, the page shows the visitor's. */
-  tz_offset?: number;
 }
 
 let current: State | null = null;
@@ -37,10 +46,13 @@ export function setState(st: State | null) {
   current = st;
 }
 
-const app = document.getElementById('app')!;
-/** The page's path: the personal link. Its last part is the code (no sessions). */
-export const base = app.dataset.base ?? '';
-export const code = /^\/[a-z]{6}-[a-z]{6}-[a-z]{6}$/.test(base) ? base.slice(1) : '';
+/**
+ * The page's path: the personal link (#app's data-base). Its last part is the
+ * code (no sessions). Read when asked, not on load: the admin imports modules
+ * that import this one, on a page with no #app.
+ */
+export const base = (): string => document.getElementById('app')?.dataset.base ?? '';
+export const code = (): string => (/^\/[a-z]{6}-[a-z]{6}-[a-z]{6}$/.test(base()) ? base().slice(1) : '');
 /** This page's own address, without the fragment: what a link to another device carries. */
 export const pageUrl = () => location.origin + location.pathname;
 
@@ -58,7 +70,7 @@ export const preset = (): Preset => current?.server.preset ?? (plainWg() ? 'off'
 /** The secure twin when this page is plain HTTP, else null. */
 export const httpsTwin = () => current?.https_url || null;
 /** The place this page belongs to: the server's name, "Dawnline" where there is none to name. */
-export const placeName = () => current?.server.name || 'Dawnline';
+export const placeName = () => current?.server.name || document.getElementById('app')?.dataset.title || 'Dawnline';
 
 export interface RepaintOpts {
   /** A card that is new: it pops in. */

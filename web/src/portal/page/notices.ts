@@ -1,16 +1,15 @@
 // What stops the person's devices, said once at the top of the page: paused,
-// ended, out of data, outside the hours, the server off or missing, or access
+// ended, out of data, the server off or missing, or access
 // ending soon. A notice wears its tone (orange or red) in its tint. On a
 // repaint it comes, goes or changes in place while its slot glides to its new
 // height, so the page under it moves instead of jumping.
 
 import type { Person } from '../../shared/types';
-import { daysLeft, date, endsIn, endsSoon } from '../../shared/format';
+import { daysLeft, date, endsIn, endsSoon, until } from '../../shared/format';
 import { fmt } from '../../shared/i18n';
 import { h, put } from '../dom';
 import { SMOOTH, play } from '../motion';
-import { clockOf, hoursFor } from '../days';
-import { state, today } from '../state';
+import { now, today } from '../state';
 import { glass } from '../ui/glass';
 import { appear, morphInto } from '../ui/morph';
 
@@ -25,14 +24,6 @@ export function notice(tone: Tone, icon: string, title: string | null, sub: stri
   );
 }
 
-/** The admin's hours as the visitor reads them: "08:00–22:00 your time" (or the router's, said so). */
-function hoursText(hours: string): string {
-  const hw = hoursFor(hours, state()?.tz_offset, -new Date().getTimezoneOffset());
-  if (!hw) return fmt(_('%s (router time)'), hours.replace('-', '–'));
-  const span = `${clockOf(hw.from)}–${clockOf(hw.to)}`;
-  return fmt(hw.yours ? _('%s your time') : _('%s (router time)'), span);
-}
-
 /** Why the person's devices can't connect: icon, a short title, and a line that adds to it (never says it again). */
 export function stateNotice(p: Person): [string, string, string] {
   switch (p.state) {
@@ -41,11 +32,16 @@ export function stateNotice(p: Person): [string, string, string] {
     case 'no_server':
       return ['server', _('No server yet'), _('You haven’t been added to one.')];
     case 'quota':
-      return ['chart', _('Out of data'), _('Nothing gets through until it resets.')];
+      return [
+        'chart',
+        _('Out of data'),
+        // a monthly limit says when it starts again; one for the whole access does not reset
+        p.quota_period === 'month' && p.quota_resets
+          ? fmt(_('Nothing gets through until it resets in %s.'), until(p.quota_resets - now()))
+          : _('Nothing gets through until the limit is raised.'),
+      ];
     case 'expired':
       return ['calendar', _('Access ended'), _('Your devices can’t connect until it’s extended.')];
-    case 'hours':
-      return ['clock', _('Outside your hours'), fmt(_('Open %s.'), hoursText(p.hours))];
     default:
       return ['pause', _('Access paused'), _('Your devices can’t connect until it’s resumed.')];
   }
@@ -55,9 +51,7 @@ export function stateNotice(p: Person): [string, string, string] {
 function pageNotice(p: Person): HTMLElement | null {
   if (p.state !== 'active') return notice(p.state === 'quota' || p.state === 'expired' ? 'bad' : 'warn', ...stateNotice(p));
   const left = daysLeft(p.expires, today());
-  return endsSoon(p, left)
-    ? notice('warn', 'calendar', fmt(_('Access %s'), endsIn(left as number)), fmt(_('On %s.'), date(p.expires)))
-    : null;
+  return endsSoon(left) ? notice('warn', 'calendar', fmt(_('Access %s'), endsIn(left as number)), fmt(_('On %s.'), date(p.expires))) : null;
 }
 
 /**

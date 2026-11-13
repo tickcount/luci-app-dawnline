@@ -1,0 +1,738 @@
+/* Settings' router-wide sections (pages/settings/router: Updates, Personal portal, New people, History and
+   storage, Backups, Remove Dawnline): what each needs beyond the kit (kit.css: the section, its cards, the
+   measure, the component row) and the rows of checks (widgets.css). The Updates block as it was (its latest
+   updates, the update notice over it), the portal's addresses and its certificate as a term, the sample of a new
+   person, the log's kinds as chips, the backups' table; and the sheets these sections open (an updater job, a
+   release's notes, the versions, the packages, a restore's file, the word to type before removing). Only the
+   portal's tokens; layout by the page's width (container dlpage). */
+
+/* ── Updates: the block as it was ── */
+/* a choice row's value wraps (the list of what it installs) instead of pushing its name out */
+.st-upd .crow-t {
+  flex: 0 1 auto;
+  min-width: 0;
+  white-space: normal;
+}
+.st-upd .crow-h > b {
+  flex: none;
+}
+/* «Checked 3 h ago» keeps the height «Check now» gives its row when the button is not there (a job runs, a login
+   that only views): alone, the words stood 9 px over the card's foot; in two lines on a phone they keep 14 from it */
+.st-upd > .row-act:not(:has(.btn)) {
+  box-sizing: border-box;
+  min-height: 40px;
+  padding-block: 6px;
+}
+/* after the title: a new version waits */
+.kt-sx-st > span.st-upd-new {
+  color: var(--accent);
+}
+
+/* How it updates on its own (updates-policy.ts policyPanel): its choices as lines touching on one field list (the
+   Health checks' recipe), each its name and a note under it, the control at its end; a narrow page puts the control
+   under them, full width */
+.pol {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-radius: 16px;
+  overflow: hidden;
+}
+.pol-l {
+  display: grid;
+  /* the control keeps its own width; the words never get less than half the line */
+  grid-template-columns: minmax(50%, 1fr) auto;
+  align-items: center;
+  gap: 12px 20px;
+  padding: 14px 14px 14px 16px;
+  background: var(--field);
+}
+.pol-t {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.pol-t > b {
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 500;
+}
+.pol-n {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+  text-wrap: pretty;
+}
+.pol-c {
+  display: flex;
+  justify-content: flex-end;
+  min-width: 0;
+}
+.pol-v {
+  font-size: 15px;
+  line-height: 22px;
+  color: var(--text-2);
+}
+/* the sentence with the time in it, and under it how to finish an edit (or why not) */
+.pol-w {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pol-chips {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.pol-chips > .chipb {
+  flex: 0 0 auto;
+}
+/* the time of a scheduled run, edited where the line says it: mono, with its pencil */
+.pol-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 2px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-family: var(--mono);
+  cursor: pointer;
+}
+.pol-time .i {
+  width: 14px;
+  height: 14px;
+  color: var(--text-2);
+}
+.pol-time:disabled {
+  cursor: default;
+}
+
+/* the rows on one list, touching (the Health checks' recipe): a mark, what it was about with how it came about
+   under it, how long ago at the end */
+.hists-l {
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  background: var(--field);
+  overflow: hidden;
+}
+.hist {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 8px 14px 8px 12px;
+}
+.hist > .dg-m {
+  flex: none;
+}
+.hist.found > .dg-m {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+.hist.bad > .dg-m {
+  background: var(--bad-soft);
+  color: var(--bad);
+}
+.hist-t {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.hist-t b {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0 8px;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  letter-spacing: -0.011em;
+}
+/* the versions: where it came from quieter than where it came to */
+.hist-v {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.hist-v span,
+.hist-v i {
+  font-style: normal;
+  color: var(--text-2);
+}
+.hist-l {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+}
+.hist.bad .hist-l {
+  color: var(--bad);
+}
+.hist-w {
+  flex: none;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
+/* ── the update notice over the block: a quiet primary (accent glass, the accent button), its actions at its end;
+   its slot takes no room while it is empty, and the section's own step stands between it and the block ── */
+.st-upd-notice:empty {
+  display: none;
+}
+.st-upd-notice .notice {
+  margin: 0;
+}
+/* the notice's words are its spans, not its buttons' */
+.notice .n-acts .btn span {
+  color: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+.notice.upd {
+  background: var(--raised);
+}
+.notice.upd .t {
+  flex: 1 1 auto;
+}
+.notice.upd .t > span {
+  overflow-wrap: anywhere;
+}
+.n-acts {
+  display: flex;
+  gap: 8px;
+  flex: none;
+}
+@container dlpage (max-width: 559px) {
+  .notice.upd {
+    flex-wrap: wrap;
+  }
+  .notice.upd .t {
+    flex: 1 1 calc(100% - 50px);
+  }
+  .n-acts {
+    flex: 1 1 100%;
+    justify-content: flex-end;
+  }
+}
+
+/* ── Personal portal: an address row, what the portal lacks ── */
+.st-pa-url {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+  -webkit-user-select: text;
+  user-select: text;
+}
+/* a phone: a row's actions go under its words, whatever they are (the rows' own rule moves buttons only), and a
+   notice's button under its words */
+@container dlpage (max-width: 559px) {
+  .checks > .chk.st-pa {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+  .checks > .chk.st-pa > .chk-t {
+    flex: 1 1 calc(100% - 44px);
+  }
+  .checks > .chk.st-pa > .btn {
+    margin-left: 40px;
+  }
+  .checks > .chk.st-pa > .gi + .chk-t + .knob {
+    margin-left: 34px;
+  }
+  .st-pa-note {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+  .st-pa-note > .sn-t {
+    flex: 1 1 calc(100% - 44px);
+  }
+  .st-pa-note > .btn {
+    margin-left: 40px;
+  }
+}
+
+/* ── the certificate as a term: its days large in the state's tone, what it is beside them, a bar of what is
+   left, its file, its actions at the end (the number over the words where they do not fit beside it) ── */
+.st-cert {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  /* the days stand 20 from the tile's edge and 20 from what is beside them: the same air on both sides */
+  gap: 12px 20px;
+  padding: 14px 12px 14px 20px;
+  border-radius: 16px;
+  background: var(--field);
+}
+/* as wide as its number and word (no fixed column: a one-digit number would leave a hole beside it) */
+.st-cert-n {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+}
+.st-cert-n b {
+  font-size: 36px;
+  line-height: 40px;
+  font-weight: 600;
+  letter-spacing: -0.045em;
+}
+.st-cert.warn .st-cert-n b {
+  color: var(--warn);
+}
+.st-cert-n span {
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--text-2);
+}
+.st-cert-n .st-cert-none,
+.st-cert.warn .st-cert-n .st-cert-none {
+  color: var(--text-2);
+}
+.st-cert-b {
+  flex: 1 1 240px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.st-cert-b > b {
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+.st-cert-l {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+}
+.st-cert.warn .st-cert-l {
+  color: var(--warn);
+}
+.st-cert-bar {
+  margin: 6px 0 4px;
+}
+.st-cert-f {
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: 0;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.st-cert-a {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 100%;
+}
+
+/* ── New people: a sample of one ── */
+.st-np {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 12px 14px 16px;
+  border-radius: 16px;
+  background: var(--field);
+}
+.st-np > .pav {
+  width: 44px;
+  height: 44px;
+  font-size: 15px;
+  line-height: 20px;
+}
+.st-np-t {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.st-np-t b {
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+.st-np-t > span {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+/* the name at home: a name chip that is read, not pressed; a long domain wraps inside it */
+.namechip.st-np-host {
+  height: auto;
+  min-height: 26px;
+  max-width: 100%;
+  gap: 0;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: var(--knob);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+  cursor: default;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.namechip.st-np-host > span {
+  min-width: 0;
+}
+.namechip.st-np-host:hover {
+  background: var(--knob);
+}
+.namechip.st-np-host:active {
+  transform: none;
+}
+.st-np-lim {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.st-np-ll {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+.st-np-slots {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.st-np-slot,
+.st-np-more {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--knob) 65%, var(--field));
+}
+.st-np-slot .gi {
+  width: 26px;
+  height: 26px;
+  opacity: 0.75;
+}
+.st-np-more {
+  color: var(--text-2);
+  font-size: 14px;
+  font-weight: 500;
+}
+@container dlpage (max-width: 559px) {
+  .st-np {
+    grid-template-columns: 44px minmax(0, 1fr);
+  }
+  .st-np-lim {
+    grid-column: 1 / -1;
+    justify-content: space-between;
+  }
+}
+
+/* ── History and storage: the kinds recorded as chips, a setting as a row with its pill ── */
+.st-rec {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+@container dlpage (max-width: 639px) {
+  .st-rec {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.st-rec-t {
+  min-height: 60px;
+}
+div.st-rec-t {
+  cursor: default;
+}
+.st-rec-s {
+  flex: none;
+  font-size: 14px;
+  color: var(--text-2);
+}
+/* a phone: the cache's button goes under its words (the rows' own rule), in line with them */
+@container dlpage (max-width: 559px) {
+  .checks > .chk.st-hs-cache > .btn {
+    margin-left: 40px;
+  }
+}
+/* the pill goes under the name where the two do not fit a line */
+.editrow.static.st-hs-pick {
+  flex-wrap: wrap;
+  row-gap: 4px;
+  padding-block: 7px;
+}
+.editrow.static.st-hs-pick > button:last-child {
+  margin-right: -4px;
+}
+.editrow.static.st-hs-pick > :last-child {
+  margin-left: auto;
+  max-width: 100%;
+}
+
+/* ── Backups: a table (when, why, how big), its actions in sight ── */
+.st-bk-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.st-bk {
+  --st-bk-cols: 28px minmax(0, 1.25fr) minmax(0, 1fr) 68px 208px;
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--field);
+}
+/* a read-only login: no actions, no column for them */
+.st-bk.still {
+  --st-bk-cols: 28px minmax(0, 1.25fr) minmax(0, 1fr) 68px;
+}
+.st-bk-h,
+.st-bk-r {
+  display: grid;
+  grid-template-columns: var(--st-bk-cols);
+  align-items: center;
+  column-gap: 12px;
+  padding: 8px 8px 8px 12px;
+}
+.st-bk-h {
+  min-height: 34px;
+  padding-block: 10px 2px;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+  color: var(--text-2);
+}
+.st-bk-r {
+  min-height: 56px;
+}
+.st-bk.still .st-bk-h,
+.st-bk.still .st-bk-r {
+  padding-right: 14px;
+}
+.st-bk-ic .gi {
+  display: block;
+  width: 28px;
+  height: 28px;
+}
+.st-bk-w {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.st-bk-w b {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+}
+.st-bk-f {
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 18px;
+  letter-spacing: 0;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.st-bk-why {
+  min-width: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+}
+.st-bk-sz {
+  text-align: right;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.st-bk-h > .st-bk-sz {
+  font-size: 13px;
+  line-height: 18px;
+}
+.st-bk-a {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  min-width: 0;
+}
+.st-bk-a .btn {
+  margin-right: 4px;
+}
+.st-bk-a .knob {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  background: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .st-bk-a .knob:hover {
+    background: var(--knob);
+  }
+  .st-bk-a .st-bk-del:hover {
+    color: var(--bad);
+  }
+}
+/* narrower than the table: a copy is a block (when and its file; why and how big; its actions under them) */
+@container dlpage (max-width: 699px) {
+  .st-bk-h {
+    display: none;
+  }
+  .st-bk-r,
+  .st-bk.still .st-bk-r {
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+    row-gap: 2px;
+    padding-block: 10px;
+  }
+  .st-bk-w {
+    grid-column: 2 / -1;
+  }
+  .st-bk-ic {
+    grid-row: 1 / span 2;
+    align-self: start;
+    margin-top: 4px;
+  }
+  .st-bk-why {
+    grid-column: 2;
+    font-size: 13px;
+    line-height: 18px;
+  }
+  .st-bk-sz {
+    grid-column: 3;
+    font-size: 13px;
+    line-height: 18px;
+  }
+  .st-bk-a {
+    grid-column: 2 / -1;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    margin-top: 6px;
+  }
+}
+
+/* ── Remove Dawnline: what it does, and the one red button ── */
+.st-rm {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  padding: 8px 8px 8px 12px;
+}
+.st-rm-t {
+  flex: 1 1 280px;
+  min-width: 0;
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--text-2);
+}
+
+/* ── the portal's port as a part of its link, and what an unknown link opens (router/portal.ts) ── */
+.st-port,
+.st-unk {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--field);
+}
+.st-port-l {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  color: var(--text-2);
+}
+.st-port-a {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  margin-top: -4px;
+  font-size: 15px;
+  line-height: 24px;
+  letter-spacing: 0;
+}
+.st-port-q {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-2);
+}
+.st-port-q:last-child {
+  flex: none;
+}
+/* the port: the one part of the link that is set here */
+.st-port-v,
+.st-port-a .kt-ie-f {
+  flex: none;
+  margin: 0 1px;
+  padding: 2px 7px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--knob) 65%, var(--field));
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+}
+@media (hover: hover) and (pointer: fine) {
+  button.st-port-v:hover {
+    background: var(--knob);
+  }
+}
+.st-port-say {
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+  text-wrap: pretty;
+}
+.st-port-say.bad-t {
+  color: var(--bad);
+}
+.st-unk-t {
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+}
+.st-unk-track {
+  background: color-mix(in srgb, var(--knob) 65%, var(--field));
+}
+.st-unk > .ed > .editrow {
+  background: color-mix(in srgb, var(--knob) 65%, var(--field));
+}

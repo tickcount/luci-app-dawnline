@@ -1,0 +1,328 @@
+{
+	"steps": [
+		{
+			"what": "no table yet: the update fails, the table is built",
+			"peers": {
+				"home": "ok",
+				"cabin": "ok",
+				"open": "ok"
+			},
+			"table": null,
+			"warning": null,
+			"states": {
+				"anna": "active",
+				"boris": "active",
+				"clara": "active",
+				"dima": "active",
+				"eva": "active",
+				"fedor": "active",
+				"gleb": "paused",
+				"hana": "active",
+				"ivan": "active",
+				"kira": "active",
+				"lev": "active",
+				"nora": "active"
+			},
+			"scripts": [
+				"table inet dawnline\ndelete table inet dawnline\ntable inet dawnline {\n\tset home_home { type ipv4_addr; flags interval; elements = { 192.168.50.0/24, 192.168.77.0/24 } }\n\tset home_cabin { type ipv4_addr; flags interval; elements = { 192.168.50.0/24 } }\n\tset home_open { type ipv4_addr; flags interval; elements = { 192.168.77.0/24 } }\n\tset tun_nets { type ipv4_addr; flags interval; elements = { 10.77.0.0/24, 10.78.0.0/24, 10.79.0.0/24 } }\n\tset lan_ok { type ipv4_addr; flags interval; elements = { 10.77.0.2, 10.77.0.3, 10.77.0.5, 10.77.0.7, 10.77.0.9, 10.78.0.2, 10.78.0.3, 10.79.0.2, 10.79.0.3, 10.77.0.11 } }\n\tset lan_all { type ipv4_addr; flags interval; elements = { 10.77.0.2, 10.77.0.3, 10.77.0.5, 10.77.0.9, 10.78.0.2, 10.78.0.3, 10.79.0.2, 10.79.0.3 } }\n\tset lan_part { type ipv4_addr . ipv4_addr; flags interval; elements = { 10.77.0.7 . 192.168.50.0/24, 10.77.0.11 . 192.168.77.0/24 } }\n\tset mesh_pairs { type ipv4_addr . ipv4_addr; flags interval; elements = { 10.77.0.2 . 10.77.0.3, 10.77.0.2 . 10.77.0.5, 10.77.0.2 . 10.77.0.11, 10.77.0.3 . 10.77.0.2, 10.77.0.3 . 10.77.0.5, 10.77.0.3 . 10.77.0.11, 10.77.0.5 . 10.77.0.2, 10.77.0.5 . 10.77.0.3, 10.77.0.5 . 10.77.0.11, 10.77.0.11 . 10.77.0.2, 10.77.0.11 . 10.77.0.3, 10.77.0.11 . 10.77.0.5 } }\n\tset inet_ok { type ipv4_addr; flags interval; elements = { 10.77.0.2, 10.77.0.3, 10.77.0.5, 10.77.0.6, 10.77.0.9, 10.78.0.2, 10.78.0.3, 10.79.0.2, 10.79.0.3, 10.77.0.11 } }\n\tset svc_ok { type ipv4_addr . ipv4_addr . inet_service; flags interval;  }\n\tset svc_host { type ipv4_addr . ipv4_addr; flags interval; elements = { 10.77.0.8 . 192.168.77.5, 10.77.0.8 . 192.168.50.30 } }\n\tset dns_real { type ipv4_addr; flags interval;  }\n\tchain pre {\n\t\ttype filter hook prerouting priority -160; policy accept;\n\t\tiifname { \"dawn0\", \"dawn1\", \"dawn2\" } jump guard\n\t}\n\tchain guard {\n\t\tmeta nfproto ipv6 drop\n\t\tct state related accept\n\t\tct status dnat accept\n\t\ticmp type { echo-request, echo-reply } fib daddr type local accept\n\t\tfib daddr type local meta l4proto { tcp, udp } th dport 53 accept\n\t\tfib daddr type local tcp dport { 4500, 4501 } accept\n\t\tfib daddr type local ip saddr @lan_all accept\n\t\tfib daddr type local ip saddr . ip daddr @lan_part accept\n\t\tfib daddr type local counter drop\n\t\tiifname \"dawn0\" ip daddr @home_home ip daddr != @tun_nets ip saddr @lan_all accept\n\t\tiifname \"dawn1\" ip daddr @home_cabin ip daddr != @tun_nets ip saddr @lan_all accept\n\t\tiifname \"dawn2\" ip daddr @home_open ip daddr != @tun_nets ip saddr @lan_all accept\n\t\tip saddr . ip daddr @lan_part ip daddr != @tun_nets accept\n\t\tiifname \"dawn0\" ip saddr . ip daddr @mesh_pairs accept\n\t\tiifname \"dawn2\" ip saddr @lan_ok ip daddr @lan_ok accept\n\t\tmeta l4proto { tcp, udp } ip saddr . ip daddr . th dport @svc_ok accept\n\t\tip saddr . ip daddr @svc_host accept\n\t\tip daddr { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10, 169.254.0.0/16, 224.0.0.0/3 } counter drop\n\t\tip saddr @inet_ok accept\n\t\tcounter drop\n\t}\n\tchain inbound {\n\t\ttype filter hook forward priority filter - 5; policy accept;\n\t\toifname { \"dawn0\", \"dawn1\", \"dawn2\" } iifname != { \"dawn0\", \"dawn1\", \"dawn2\" } ct state new jump to_device\n\t}\n\tchain to_device {\n\t\tmeta nfproto ipv6 drop\n\t\tct status dnat accept\n\t\toifname \"dawn0\" ip saddr @home_home ip saddr != @tun_nets ip daddr @lan_all accept\n\t\toifname \"dawn1\" ip saddr @home_cabin ip saddr != @tun_nets ip daddr @lan_all accept\n\t\toifname \"dawn2\" ip saddr @home_open ip saddr != @tun_nets ip daddr @lan_all accept\n\t\tip daddr . ip saddr @lan_part ip saddr != @tun_nets accept\n\t\tcounter reject with icmpx admin-prohibited\n\t}\n\tchain dns {\n\t\ttype nat hook prerouting priority dstnat - 5; policy accept;\n\t\tiifname { \"dawn0\", \"dawn1\", \"dawn2\" } ip saddr @dns_real meta l4proto { tcp, udp } th dport 53 redirect to :5354\n\t}\n\tchain dns_lan {\n\t\ttype nat hook prerouting priority dstnat + 5; policy accept;\n\t\tiifname \"dawn0\" ip daddr 10.77.0.1 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.1:53\n\t\tiifname \"dawn1\" ip daddr 10.78.0.1 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.1:53\n\t\tiifname \"dawn2\" ip daddr 10.79.0.1 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.1:53\n\t}\n}\n"
+			],
+			"confs": {
+				"dawn0": "[Interface]\nPrivateKey = aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaA=\nListenPort = 4500\n\n[Peer]\nPublicKey = BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA=\nAllowedIPs = 10.77.0.2/32\n\n[Peer]\nPublicKey = CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCA=\nAllowedIPs = 10.77.0.3/32\n\n[Peer]\nPublicKey = EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEA=\nAllowedIPs = 10.77.0.5/32\n\n[Peer]\nPublicKey = FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFA=\nAllowedIPs = 10.77.0.6/32\n\n[Peer]\nPublicKey = GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGA=\nAllowedIPs = 10.77.0.7/32\n\n[Peer]\nPublicKey = HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHA=\nAllowedIPs = 10.77.0.8/32\n\n[Peer]\nPublicKey = IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIA=\nAllowedIPs = 10.77.0.9/32\n\n[Peer]\nPublicKey = OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOA=\nAllowedIPs = 10.77.0.11/32\n",
+				"dawn1": "[Interface]\nPrivateKey = ccccccccccccccccccccccccccccccccccccccccccA=\nListenPort = 4600\n\n[Peer]\nPublicKey = KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKA=\nAllowedIPs = 10.78.0.2/32\n\n[Peer]\nPublicKey = LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLA=\nAllowedIPs = 10.78.0.3/32\n",
+				"dawn2": "[Interface]\nPrivateKey = eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeA=\nListenPort = 4700\n\n[Peer]\nPublicKey = MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMA=\nAllowedIPs = 10.79.0.2/32\n\n[Peer]\nPublicKey = NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNA=\nAllowedIPs = 10.79.0.3/32\n"
+			},
+			"hosts": "10.77.0.2 phone.anna.lan\n10.77.0.3 laptop.anna.lan\n10.77.0.4 old.anna.lan\n10.77.0.5 bphone.boris.lan\n10.77.0.6 cphone.clara.lan\n10.77.0.7 dphone.dima.lan\n10.77.0.8 ephone.eva.lan\n10.77.0.9 fphone.fedor.lan\n10.77.0.10 gphone.gleb.lan\n10.78.0.2 hphone.hana.lan\n10.78.0.3 iphone.ivan.lan\n10.79.0.2 kphone.kira.lan\n10.79.0.3 lphone.lev.lan\n10.77.0.11 nphone.nora.lan\n",
+			"hosts_mode": true,
+			"nft_err": null,
+			"present": true
+		},
+		{
+			"what": "again: the sets alone",
+			"peers": {
+				"home": "ok",
+				"cabin": "ok",
+				"open": "ok"
+			},
+			"table": null,
+			"warning": null,
+			"states": {
+				"anna": "active",
+				"boris": "active",
+				"clara": "active",
+				"dima": "active",
+				"eva": "active",
+				"fedor": "active",
+				"gleb": "paused",
+				"hana": "active",
+				"ivan": "active",
+				"kira": "active",
+				"lev": "active",
+				"nora": "active"
+			},
+			"scripts": [
+				"table inet dawnline\ndelete table inet dawnline\ntable inet dawnline {\n\tset home_home { type ipv4_addr; flags interval; elements = { 192.168.50.0/24, 192.168.77.0/24 } }\n\tset home_cabin { type ipv4_addr; flags interval; elements = { 192.168.50.0/24 } }\n\tset home_open { type ipv4_addr; flags interval; elements = { 192.168.77.0/24 } }\n\tset tun_nets { type ipv4_addr; flags interval; elements = { 10.77.0.0/24, 10.78.0.0/24, 10.79.0.0/24 } }\n\tset lan_ok { type ipv4_addr; flags interval; elements = { 10.77.0.2, 10.77.0.3, 10.77.0.5, 10.77.0.7, 10.77.0.9, 10.78.0.2, 10.78.0.3, 10.79.0.2, 10.79.0.3, 10.77.0.11 } }\n\tset lan_all { type ipv4_addr; flags interval; elements = { 10.77.0.2, 10.77.0.3, 10.77.0.5, 10.77.0.9, 10.78.0.2, 10.78.0.3, 10.79.0.2, 10.79.0.3 } }\n\tset lan_part { type ipv4_addr . ipv4_addr; flags interval; elements = { 10.77.0.7 . 192.168.50.0/24, 10.77.0.11 . 192.168.77.0/24 } }\n\tset mesh_pairs { type ipv4_addr . ipv4_addr; flags interval; elements = { 10.77.0.2 . 10.77.0.3, 10.77.0.2 . 10.77.0.5, 10.77.0.2 . 10.77.0.11, 10.77.0.3 . 10.77.0.2, 10.77.0.3 . 10.77.0.5, 10.77.0.3 . 10.77.0.11, 10.77.0.5 . 10.77.0.2, 10.77.0.5 . 10.77.0.3, 10.77.0.5 . 10.77.0.11, 10.77.0.11 . 10.77.0.2, 10.77.0.11 . 10.77.0.3, 10.77.0.11 . 10.77.0.5 } }\n\tset inet_ok { type ipv4_addr; flags interval; elements = { 10.77.0.2, 10.77.0.3, 10.77.0.5, 10.77.0.6, 10.77.0.9, 10.78.0.2, 10.78.0.3, 10.79.0.2, 10.79.0.3, 10.77.0.11 } }\n\tset svc_ok { type ipv4_addr . ipv4_addr . inet_service; flags interval;  }\n\tset svc_host { type ipv4_addr . ipv4_addr; flags interval; elements = { 10.77.0.8 . 192.168.77.5, 10.77.0.8 . 192.168.50.30 } }\n\tset dns_real { type ipv4_addr; flags interval;  }\n\tchain pre {\n\t\ttype filter hook prerouting priority -160; policy accept;\n\t\tiifname { \"dawn0\", \"dawn1\", \"dawn2\" } jump guard\n\t}\n\tchain guard {\n\t\tmeta nfproto ipv6 drop\n\t\tct state related accept\n\t\tct status dnat accept\n\t\ticmp type { echo-request, echo-reply } fib daddr type local accept\n\t\tfib daddr type local meta l4proto { tcp, udp } th dport 53 accept\n\t\tfib daddr type local tcp dport { 4500, 4501 } accept\n\t\tfib daddr type local ip saddr @lan_all accept\n\t\tfib daddr type local ip saddr . ip daddr @lan_part accept\n\t\tfib daddr type local counter drop\n\t\tiifname \"dawn0\" ip daddr @home_home ip daddr != @tun_nets ip saddr @lan_all accept\n\t\tiifname \"dawn1\" ip daddr @home_cabin ip daddr != @tun_nets ip saddr @lan_all accept\n\t\tiifname \"dawn2\" ip daddr @home_open ip daddr != @tun_nets ip saddr @lan_all accept\n\t\tip saddr . ip daddr @lan_part ip daddr != @tun_nets accept\n\t\tiifname \"dawn0\" ip saddr . ip daddr @mesh_pairs accept\n\t\tiifname \"dawn2\" ip saddr @lan_ok ip daddr @lan_ok accept\n\t\tmeta l4proto { tcp, udp } ip saddr . ip daddr . th dport @svc_ok accept\n\t\tip saddr . ip daddr @svc_host accept\n\t\tip daddr { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10, 169.254.0.0/16, 224.0.0.0/3 } counter drop\n\t\tip saddr @inet_ok accept\n\t\tcounter drop\n\t}\n\tchain inbound {\n\t\ttype filter hook forward priority filter - 5; policy accept;\n\t\toifname { \"dawn0\", \"dawn1\", \"dawn2\" } iifname != { \"dawn0\", \"dawn1\", \"dawn2\" } ct state new jump to_device\n\t}\n\tchain to_device {\n\t\tmeta nfproto ipv6 drop\n\t\tct status dnat accept\n\t\toifname \"dawn0\" ip saddr @home_home ip saddr != @tun_nets ip daddr @lan_all accept\n\t\toifname \"dawn1\" ip saddr @home_cabin ip saddr != @tun_nets ip daddr @lan_all accept\n\t\toifname \"dawn2\" ip saddr @home_open ip saddr != @tun_nets ip daddr @lan_all accept\n\t\tip daddr . ip saddr @lan_part ip saddr != @tun_nets accept\n\t\tcounter reject with icmpx admin-prohibited\n\t}\n\tchain dns {\n\t\ttype nat hook prerouting priority dstnat - 5; policy accept;\n\t\tiifname { \"dawn0\", \"dawn1\", \"dawn2\" } ip saddr @dns_real meta l4proto { tcp, udp } th dport 53 redirect to :5354\n\t}\n\tchain dns_lan {\n\t\ttype nat hook prerouting priority dstnat + 5; policy accept;\n\t\tiifname \"dawn0\" ip daddr 10.77.0.1 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.1:53\n\t\tiifname \"dawn1\" ip daddr 10.78.0.1 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.1:53\n\t\tiifname \"dawn2\" ip daddr 10.79.0.1 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.1:53\n\t}\n}\n"
+			],
+			"confs": {
+				"dawn0": "[Interface]\nPrivateKey = aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaA=\nListenPort = 4500\n\n[Peer]\nPublicKey = BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA=\nAllowedIPs = 10.77.0.2/32\n\n[Peer]\nPublicKey = CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCA=\nAllowedIPs = 10.77.0.3/32\n\n[Peer]\nPublicKey = EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEA=\nAllowedIPs = 10.77.0.5/32\n\n[Peer]\nPublicKey = FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFA=\nAllowedIPs = 10.77.0.6/32\n\n[Peer]\nPublicKey = GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGA=\nAllowedIPs = 10.77.0.7/32\n\n[Peer]\nPublicKey = HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHA=\nAllowedIPs = 10.77.0.8/32\n\n[Peer]\nPublicKey = IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIA=\nAllowedIPs = 10.77.0.9/32\n\n[Peer]\nPublicKey = OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOA=\nAllowedIPs = 10.77.0.11/32\n",
+				"dawn1": "[Interface]\nPrivateKey = ccccccccccccccccccccccccccccccccccccccccccA=\nListenPort = 4600\n\n[Peer]\nPublicKey = KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKA=\nAllowedIPs = 10.78.0.2/32\n\n[Peer]\nPublicKey = LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLA=\nAllowedIPs = 10.78.0.3/32\n",
+				"dawn2": "[Interface]\nPrivateKey = eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeA=\nListenPort = 4700\n\n[Peer]\nPublicKey = MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMA=\nAllowedIPs = 10.79.0.2/32\n\n[Peer]\nPublicKey = NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNA=\nAllowedIPs = 10.79.0.3/32\n"
+			},
+			"hosts": "10.77.0.2 phone.anna.lan\n10.77.0.3 laptop.anna.lan\n10.77.0.4 old.anna.lan\n10.77.0.5 bphone.boris.lan\n10.77.0.6 cphone.clara.lan\n10.77.0.7 dphone.dima.lan\n10.77.0.8 ephone.eva.lan\n10.77.0.9 fphone.fedor.lan\n10.77.0.10 gphone.gleb.lan\n10.78.0.2 hphone.hana.lan\n10.78.0.3 iphone.ivan.lan\n10.79.0.2 kphone.kira.lan\n10.79.0.3 lphone.lev.lan\n10.77.0.11 nphone.nora.lan\n",
+			"hosts_mode": true,
+			"nft_err": null,
+			"present": true
+		},
+		{
+			"what": "someone is paused",
+			"peers": {
+				"home": "ok",
+				"cabin": "ok",
+				"open": "ok"
+			},
+			"table": null,
+			"warning": null,
+			"states": {
+				"anna": "paused",
+				"boris": "active",
+				"clara": "active",
+				"dima": "active",
+				"eva": "active",
+				"fedor": "active",
+				"gleb": "paused",
+				"hana": "active",
+				"ivan": "active",
+				"kira": "active",
+				"lev": "active",
+				"nora": "active"
+			},
+			"scripts": [
+				"table inet dawnline\ndelete table inet dawnline\ntable inet dawnline {\n\tset home_home { type ipv4_addr; flags interval; elements = { 192.168.50.0/24, 192.168.77.0/24 } }\n\tset home_cabin { type ipv4_addr; flags interval; elements = { 192.168.50.0/24 } }\n\tset home_open { type ipv4_addr; flags interval; elements = { 192.168.77.0/24 } }\n\tset tun_nets { type ipv4_addr; flags interval; elements = { 10.77.0.0/24, 10.78.0.0/24, 10.79.0.0/24 } }\n\tset lan_ok { type ipv4_addr; flags interval; elements = { 10.77.0.5, 10.77.0.7, 10.77.0.9, 10.78.0.2, 10.78.0.3, 10.79.0.2, 10.79.0.3, 10.77.0.11 } }\n\tset lan_all { type ipv4_addr; flags interval; elements = { 10.77.0.5, 10.77.0.9, 10.78.0.2, 10.78.0.3, 10.79.0.2, 10.79.0.3 } }\n\tset lan_part { type ipv4_addr . ipv4_addr; flags interval; elements = { 10.77.0.7 . 192.168.50.0/24, 10.77.0.11 . 192.168.77.0/24 } }\n\tset mesh_pairs { type ipv4_addr . ipv4_addr; flags interval; elements = { 10.77.0.5 . 10.77.0.11, 10.77.0.11 . 10.77.0.5 } }\n\tset inet_ok { type ipv4_addr; flags interval; elements = { 10.77.0.5, 10.77.0.6, 10.77.0.9, 10.78.0.2, 10.78.0.3, 10.79.0.2, 10.79.0.3, 10.77.0.11 } }\n\tset svc_ok { type ipv4_addr . ipv4_addr . inet_service; flags interval;  }\n\tset svc_host { type ipv4_addr . ipv4_addr; flags interval; elements = { 10.77.0.8 . 192.168.77.5, 10.77.0.8 . 192.168.50.30 } }\n\tset dns_real { type ipv4_addr; flags interval;  }\n\tchain pre {\n\t\ttype filter hook prerouting priority -160; policy accept;\n\t\tiifname { \"dawn0\", \"dawn1\", \"dawn2\" } jump guard\n\t}\n\tchain guard {\n\t\tmeta nfproto ipv6 drop\n\t\tct state related accept\n\t\tct status dnat accept\n\t\ticmp type { echo-request, echo-reply } fib daddr type local accept\n\t\tfib daddr type local meta l4proto { tcp, udp } th dport 53 accept\n\t\tfib daddr type local tcp dport { 4500, 4501 } accept\n\t\tfib daddr type local ip saddr @lan_all accept\n\t\tfib daddr type local ip saddr . ip daddr @lan_part accept\n\t\tfib daddr type local counter drop\n\t\tiifname \"dawn0\" ip daddr @home_home ip daddr != @tun_nets ip saddr @lan_all accept\n\t\tiifname \"dawn1\" ip daddr @home_cabin ip daddr != @tun_nets ip saddr @lan_all accept\n\t\tiifname \"dawn2\" ip daddr @home_open ip daddr != @tun_nets ip saddr @lan_all accept\n\t\tip saddr . ip daddr @lan_part ip daddr != @tun_nets accept\n\t\tiifname \"dawn0\" ip saddr . ip daddr @mesh_pairs accept\n\t\tiifname \"dawn2\" ip saddr @lan_ok ip daddr @lan_ok accept\n\t\tmeta l4proto { tcp, udp } ip saddr . ip daddr . th dport @svc_ok accept\n\t\tip saddr . ip daddr @svc_host accept\n\t\tip daddr { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10, 169.254.0.0/16, 224.0.0.0/3 } counter drop\n\t\tip saddr @inet_ok accept\n\t\tcounter drop\n\t}\n\tchain inbound {\n\t\ttype filter hook forward priority filter - 5; policy accept;\n\t\toifname { \"dawn0\", \"dawn1\", \"dawn2\" } iifname != { \"dawn0\", \"dawn1\", \"dawn2\" } ct state new jump to_device\n\t}\n\tchain to_device {\n\t\tmeta nfproto ipv6 drop\n\t\tct status dnat accept\n\t\toifname \"dawn0\" ip saddr @home_home ip saddr != @tun_nets ip daddr @lan_all accept\n\t\toifname \"dawn1\" ip saddr @home_cabin ip saddr != @tun_nets ip daddr @lan_all accept\n\t\toifname \"dawn2\" ip saddr @home_open ip saddr != @tun_nets ip daddr @lan_all accept\n\t\tip daddr . ip saddr @lan_part ip saddr != @tun_nets accept\n\t\tcounter reject with icmpx admin-prohibited\n\t}\n\tchain dns {\n\t\ttype nat hook prerouting priority dstnat - 5; policy accept;\n\t\tiifname { \"dawn0\", \"dawn1\", \"dawn2\" } ip saddr @dns_real meta l4proto { tcp, udp } th dport 53 redirect to :5354\n\t}\n\tchain dns_lan {\n\t\ttype nat hook prerouting priority dstnat + 5; policy accept;\n\t\tiifname \"dawn0\" ip daddr 10.77.0.1 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.1:53\n\t\tiifname \"dawn1\" ip daddr 10.78.0.1 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.1:53\n\t\tiifname \"dawn2\" ip daddr 10.79.0.1 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.1:53\n\t}\n}\n"
+			],
+			"confs": {
+				"dawn0": "[Interface]\nPrivateKey = aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaA=\nListenPort = 4500\n\n[Peer]\nPublicKey = EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEA=\nAllowedIPs = 10.77.0.5/32\n\n[Peer]\nPublicKey = FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFA=\nAllowedIPs = 10.77.0.6/32\n\n[Peer]\nPublicKey = GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGA=\nAllowedIPs = 10.77.0.7/32\n\n[Peer]\nPublicKey = HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHA=\nAllowedIPs = 10.77.0.8/32\n\n[Peer]\nPublicKey = IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIA=\nAllowedIPs = 10.77.0.9/32\n\n[Peer]\nPublicKey = OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOA=\nAllowedIPs = 10.77.0.11/32\n",
+				"dawn1": "[Interface]\nPrivateKey = ccccccccccccccccccccccccccccccccccccccccccA=\nListenPort = 4600\n\n[Peer]\nPublicKey = KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKA=\nAllowedIPs = 10.78.0.2/32\n\n[Peer]\nPublicKey = LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLA=\nAllowedIPs = 10.78.0.3/32\n",
+				"dawn2": "[Interface]\nPrivateKey = eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeA=\nListenPort = 4700\n\n[Peer]\nPublicKey = MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMA=\nAllowedIPs = 10.79.0.2/32\n\n[Peer]\nPublicKey = NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNA=\nAllowedIPs = 10.79.0.3/32\n"
+			},
+			"hosts": "10.77.0.2 phone.anna.lan\n10.77.0.3 laptop.anna.lan\n10.77.0.4 old.anna.lan\n10.77.0.5 bphone.boris.lan\n10.77.0.6 cphone.clara.lan\n10.77.0.7 dphone.dima.lan\n10.77.0.8 ephone.eva.lan\n10.77.0.9 fphone.fedor.lan\n10.77.0.10 gphone.gleb.lan\n10.78.0.2 hphone.hana.lan\n10.78.0.3 iphone.ivan.lan\n10.79.0.2 kphone.kira.lan\n10.79.0.3 lphone.lev.lan\n10.77.0.11 nphone.nora.lan\n",
+			"hosts_mode": true,
+			"nft_err": null,
+			"present": true
+		},
+		{
+			"what": "the table will not load, the old one stays",
+			"peers": {
+				"home": "ok",
+				"cabin": "ok",
+				"open": "ok"
+			},
+			"table": "rules:1:1-5: Error: a made-up failure",
+			"warning": "Access rules couldn't be updated (rules:1:1-5: Error: a made-up failure): the previous rules stay, so this change isn't in effect yet. Open Overview → Health.",
+			"states": {
+				"anna": "active",
+				"boris": "active",
+				"clara": "active",
+				"dima": "active",
+				"eva": "active",
+				"fedor": "active",
+				"gleb": "paused",
+				"hana": "active",
+				"ivan": "active",
+				"kira": "active",
+				"lev": "active",
+				"nora": "active"
+			},
+			"scripts": [
+				"table inet dawnline\ndelete table inet dawnline\ntable inet dawnline {\n\tset home_home { type ipv4_addr; flags interval; elements = { 192.168.50.0/24, 192.168.77.0/24 } }\n\tset home_cabin { type ipv4_addr; flags interval; elements = { 192.168.50.0/24 } }\n\tset home_open { type ipv4_addr; flags interval; elements = { 192.168.77.0/24 } }\n\tset tun_nets { type ipv4_addr; flags interval; elements = { 10.77.0.0/24, 10.78.0.0/24, 10.79.0.0/24 } }\n\tset lan_ok { type ipv4_addr; flags interval; elements = { 10.77.0.2, 10.77.0.3, 10.77.0.5, 10.77.0.7, 10.77.0.9, 10.78.0.2, 10.78.0.3, 10.79.0.2, 10.79.0.3, 10.77.0.11 } }\n\tset lan_all { type ipv4_addr; flags interval; elements = { 10.77.0.2, 10.77.0.3, 10.77.0.5, 10.77.0.9, 10.78.0.2, 10.78.0.3, 10.79.0.2, 10.79.0.3 } }\n\tset lan_part { type ipv4_addr . ipv4_addr; flags interval; elements = { 10.77.0.7 . 192.168.50.0/24, 10.77.0.11 . 192.168.77.0/24 } }\n\tset mesh_pairs { type ipv4_addr . ipv4_addr; flags interval; elements = { 10.77.0.2 . 10.77.0.3, 10.77.0.2 . 10.77.0.5, 10.77.0.2 . 10.77.0.11, 10.77.0.3 . 10.77.0.2, 10.77.0.3 . 10.77.0.5, 10.77.0.3 . 10.77.0.11, 10.77.0.5 . 10.77.0.2, 10.77.0.5 . 10.77.0.3, 10.77.0.5 . 10.77.0.11, 10.77.0.11 . 10.77.0.2, 10.77.0.11 . 10.77.0.3, 10.77.0.11 . 10.77.0.5 } }\n\tset inet_ok { type ipv4_addr; flags interval; elements = { 10.77.0.2, 10.77.0.3, 10.77.0.5, 10.77.0.6, 10.77.0.9, 10.78.0.2, 10.78.0.3, 10.79.0.2, 10.79.0.3, 10.77.0.11 } }\n\tset svc_ok { type ipv4_addr . ipv4_addr . inet_service; flags interval;  }\n\tset svc_host { type ipv4_addr . ipv4_addr; flags interval; elements = { 10.77.0.8 . 192.168.77.5, 10.77.0.8 . 192.168.50.30 } }\n\tset dns_real { type ipv4_addr; flags interval;  }\n\tchain pre {\n\t\ttype filter hook prerouting priority -160; policy accept;\n\t\tiifname { \"dawn0\", \"dawn1\", \"dawn2\" } jump guard\n\t}\n\tchain guard {\n\t\tmeta nfproto ipv6 drop\n\t\tct state related accept\n\t\tct status dnat accept\n\t\ticmp type { echo-request, echo-reply } fib daddr type local accept\n\t\tfib daddr type local meta l4proto { tcp, udp } th dport 53 accept\n\t\tfib daddr type local tcp dport { 4500, 4501 } accept\n\t\tfib daddr type local ip saddr @lan_all accept\n\t\tfib daddr type local ip saddr . ip daddr @lan_part accept\n\t\tfib daddr type local counter drop\n\t\tiifname \"dawn0\" ip daddr @home_home ip daddr != @tun_nets ip saddr @lan_all accept\n\t\tiifname \"dawn1\" ip daddr @home_cabin ip daddr != @tun_nets ip saddr @lan_all accept\n\t\tiifname \"dawn2\" ip daddr @home_open ip daddr != @tun_nets ip saddr @lan_all accept\n\t\tip saddr . ip daddr @lan_part ip daddr != @tun_nets accept\n\t\tiifname \"dawn0\" ip saddr . ip daddr @mesh_pairs accept\n\t\tiifname \"dawn2\" ip saddr @lan_ok ip daddr @lan_ok accept\n\t\tmeta l4proto { tcp, udp } ip saddr . ip daddr . th dport @svc_ok accept\n\t\tip saddr . ip daddr @svc_host accept\n\t\tip daddr { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10, 169.254.0.0/16, 224.0.0.0/3 } counter drop\n\t\tip saddr @inet_ok accept\n\t\tcounter drop\n\t}\n\tchain inbound {\n\t\ttype filter hook forward priority filter - 5; policy accept;\n\t\toifname { \"dawn0\", \"dawn1\", \"dawn2\" } iifname != { \"dawn0\", \"dawn1\", \"dawn2\" } ct state new jump to_device\n\t}\n\tchain to_device {\n\t\tmeta nfproto ipv6 drop\n\t\tct status dnat accept\n\t\toifname \"dawn0\" ip saddr @home_home ip saddr != @tun_nets ip daddr @lan_all accept\n\t\toifname \"dawn1\" ip saddr @home_cabin ip saddr != @tun_nets ip daddr @lan_all accept\n\t\toifname \"dawn2\" ip saddr @home_open ip saddr != @tun_nets ip daddr @lan_all accept\n\t\tip daddr . ip saddr @lan_part ip saddr != @tun_nets accept\n\t\tcounter reject with icmpx admin-prohibited\n\t}\n\tchain dns {\n\t\ttype nat hook prerouting priority dstnat - 5; policy accept;\n\t\tiifname { \"dawn0\", \"dawn1\", \"dawn2\" } ip saddr @dns_real meta l4proto { tcp, udp } th dport 53 redirect to :5354\n\t}\n\tchain dns_lan {\n\t\ttype nat hook prerouting priority dstnat + 5; policy accept;\n\t\tiifname \"dawn0\" ip daddr 10.77.0.1 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.1:53\n\t\tiifname \"dawn1\" ip daddr 10.78.0.1 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.1:53\n\t\tiifname \"dawn2\" ip daddr 10.79.0.1 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.1:53\n\t}\n}\n"
+			],
+			"confs": {
+				"dawn0": "[Interface]\nPrivateKey = aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaA=\nListenPort = 4500\n\n[Peer]\nPublicKey = BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA=\nAllowedIPs = 10.77.0.2/32\n\n[Peer]\nPublicKey = CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCA=\nAllowedIPs = 10.77.0.3/32\n\n[Peer]\nPublicKey = EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEA=\nAllowedIPs = 10.77.0.5/32\n\n[Peer]\nPublicKey = FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFA=\nAllowedIPs = 10.77.0.6/32\n\n[Peer]\nPublicKey = GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGA=\nAllowedIPs = 10.77.0.7/32\n\n[Peer]\nPublicKey = HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHA=\nAllowedIPs = 10.77.0.8/32\n\n[Peer]\nPublicKey = IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIA=\nAllowedIPs = 10.77.0.9/32\n\n[Peer]\nPublicKey = OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOA=\nAllowedIPs = 10.77.0.11/32\n",
+				"dawn1": "[Interface]\nPrivateKey = ccccccccccccccccccccccccccccccccccccccccccA=\nListenPort = 4600\n\n[Peer]\nPublicKey = KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKA=\nAllowedIPs = 10.78.0.2/32\n\n[Peer]\nPublicKey = LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLA=\nAllowedIPs = 10.78.0.3/32\n",
+				"dawn2": "[Interface]\nPrivateKey = eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeA=\nListenPort = 4700\n\n[Peer]\nPublicKey = MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMA=\nAllowedIPs = 10.79.0.2/32\n\n[Peer]\nPublicKey = NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNA=\nAllowedIPs = 10.79.0.3/32\n"
+			},
+			"hosts": "10.77.0.2 phone.anna.lan\n10.77.0.3 laptop.anna.lan\n10.77.0.4 old.anna.lan\n10.77.0.5 bphone.boris.lan\n10.77.0.6 cphone.clara.lan\n10.77.0.7 dphone.dima.lan\n10.77.0.8 ephone.eva.lan\n10.77.0.9 fphone.fedor.lan\n10.77.0.10 gphone.gleb.lan\n10.78.0.2 hphone.hana.lan\n10.78.0.3 iphone.ivan.lan\n10.79.0.2 kphone.kira.lan\n10.79.0.3 lphone.lev.lan\n10.77.0.11 nphone.nora.lan\n",
+			"hosts_mode": true,
+			"nft_err": "rules:1:1-5: Error: a made-up failure",
+			"present": true
+		},
+		{
+			"what": "the table will not load and there is none: nobody is loaded",
+			"peers": {
+				"home": "ok",
+				"cabin": "ok",
+				"open": "ok"
+			},
+			"table": "rules:1:1-5: Error: a made-up failure",
+			"warning": "Access rules couldn't load (rules:1:1-5: Error: a made-up failure): no device is loaded into the tunnels until they do. Open Overview → Health.",
+			"states": {
+				"anna": "active",
+				"boris": "active",
+				"clara": "active",
+				"dima": "active",
+				"eva": "active",
+				"fedor": "active",
+				"gleb": "paused",
+				"hana": "active",
+				"ivan": "active",
+				"kira": "active",
+				"lev": "active",
+				"nora": "active"
+			},
+			"scripts": [
+				"table inet dawnline\ndelete table inet dawnline\ntable inet dawnline {\n\tset home_home { type ipv4_addr; flags interval; elements = { 192.168.50.0/24, 192.168.77.0/24 } }\n\tset home_cabin { type ipv4_addr; flags interval; elements = { 192.168.50.0/24 } }\n\tset home_open { type ipv4_addr; flags interval; elements = { 192.168.77.0/24 } }\n\tset tun_nets { type ipv4_addr; flags interval; elements = { 10.77.0.0/24, 10.78.0.0/24, 10.79.0.0/24 } }\n\tset lan_ok { type ipv4_addr; flags interval; elements = { 10.77.0.2, 10.77.0.3, 10.77.0.5, 10.77.0.7, 10.77.0.9, 10.78.0.2, 10.78.0.3, 10.79.0.2, 10.79.0.3, 10.77.0.11 } }\n\tset lan_all { type ipv4_addr; flags interval; elements = { 10.77.0.2, 10.77.0.3, 10.77.0.5, 10.77.0.9, 10.78.0.2, 10.78.0.3, 10.79.0.2, 10.79.0.3 } }\n\tset lan_part { type ipv4_addr . ipv4_addr; flags interval; elements = { 10.77.0.7 . 192.168.50.0/24, 10.77.0.11 . 192.168.77.0/24 } }\n\tset mesh_pairs { type ipv4_addr . ipv4_addr; flags interval; elements = { 10.77.0.2 . 10.77.0.3, 10.77.0.2 . 10.77.0.5, 10.77.0.2 . 10.77.0.11, 10.77.0.3 . 10.77.0.2, 10.77.0.3 . 10.77.0.5, 10.77.0.3 . 10.77.0.11, 10.77.0.5 . 10.77.0.2, 10.77.0.5 . 10.77.0.3, 10.77.0.5 . 10.77.0.11, 10.77.0.11 . 10.77.0.2, 10.77.0.11 . 10.77.0.3, 10.77.0.11 . 10.77.0.5 } }\n\tset inet_ok { type ipv4_addr; flags interval; elements = { 10.77.0.2, 10.77.0.3, 10.77.0.5, 10.77.0.6, 10.77.0.9, 10.78.0.2, 10.78.0.3, 10.79.0.2, 10.79.0.3, 10.77.0.11 } }\n\tset svc_ok { type ipv4_addr . ipv4_addr . inet_service; flags interval;  }\n\tset svc_host { type ipv4_addr . ipv4_addr; flags interval; elements = { 10.77.0.8 . 192.168.77.5, 10.77.0.8 . 192.168.50.30 } }\n\tset dns_real { type ipv4_addr; flags interval;  }\n\tchain pre {\n\t\ttype filter hook prerouting priority -160; policy accept;\n\t\tiifname { \"dawn0\", \"dawn1\", \"dawn2\" } jump guard\n\t}\n\tchain guard {\n\t\tmeta nfproto ipv6 drop\n\t\tct state related accept\n\t\tct status dnat accept\n\t\ticmp type { echo-request, echo-reply } fib daddr type local accept\n\t\tfib daddr type local meta l4proto { tcp, udp } th dport 53 accept\n\t\tfib daddr type local tcp dport { 4500, 4501 } accept\n\t\tfib daddr type local ip saddr @lan_all accept\n\t\tfib daddr type local ip saddr . ip daddr @lan_part accept\n\t\tfib daddr type local counter drop\n\t\tiifname \"dawn0\" ip daddr @home_home ip daddr != @tun_nets ip saddr @lan_all accept\n\t\tiifname \"dawn1\" ip daddr @home_cabin ip daddr != @tun_nets ip saddr @lan_all accept\n\t\tiifname \"dawn2\" ip daddr @home_open ip daddr != @tun_nets ip saddr @lan_all accept\n\t\tip saddr . ip daddr @lan_part ip daddr != @tun_nets accept\n\t\tiifname \"dawn0\" ip saddr . ip daddr @mesh_pairs accept\n\t\tiifname \"dawn2\" ip saddr @lan_ok ip daddr @lan_ok accept\n\t\tmeta l4proto { tcp, udp } ip saddr . ip daddr . th dport @svc_ok accept\n\t\tip saddr . ip daddr @svc_host accept\n\t\tip daddr { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10, 169.254.0.0/16, 224.0.0.0/3 } counter drop\n\t\tip saddr @inet_ok accept\n\t\tcounter drop\n\t}\n\tchain inbound {\n\t\ttype filter hook forward priority filter - 5; policy accept;\n\t\toifname { \"dawn0\", \"dawn1\", \"dawn2\" } iifname != { \"dawn0\", \"dawn1\", \"dawn2\" } ct state new jump to_device\n\t}\n\tchain to_device {\n\t\tmeta nfproto ipv6 drop\n\t\tct status dnat accept\n\t\toifname \"dawn0\" ip saddr @home_home ip saddr != @tun_nets ip daddr @lan_all accept\n\t\toifname \"dawn1\" ip saddr @home_cabin ip saddr != @tun_nets ip daddr @lan_all accept\n\t\toifname \"dawn2\" ip saddr @home_open ip saddr != @tun_nets ip daddr @lan_all accept\n\t\tip daddr . ip saddr @lan_part ip saddr != @tun_nets accept\n\t\tcounter reject with icmpx admin-prohibited\n\t}\n\tchain dns {\n\t\ttype nat hook prerouting priority dstnat - 5; policy accept;\n\t\tiifname { \"dawn0\", \"dawn1\", \"dawn2\" } ip saddr @dns_real meta l4proto { tcp, udp } th dport 53 redirect to :5354\n\t}\n\tchain dns_lan {\n\t\ttype nat hook prerouting priority dstnat + 5; policy accept;\n\t\tiifname \"dawn0\" ip daddr 10.77.0.1 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.1:53\n\t\tiifname \"dawn1\" ip daddr 10.78.0.1 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.1:53\n\t\tiifname \"dawn2\" ip daddr 10.79.0.1 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.1:53\n\t}\n}\n"
+			],
+			"confs": {
+				"dawn0": "[Interface]\nPrivateKey = aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaA=\nListenPort = 4500\n",
+				"dawn1": "[Interface]\nPrivateKey = ccccccccccccccccccccccccccccccccccccccccccA=\nListenPort = 4600\n",
+				"dawn2": "[Interface]\nPrivateKey = eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeA=\nListenPort = 4700\n"
+			},
+			"hosts": "10.77.0.2 phone.anna.lan\n10.77.0.3 laptop.anna.lan\n10.77.0.4 old.anna.lan\n10.77.0.5 bphone.boris.lan\n10.77.0.6 cphone.clara.lan\n10.77.0.7 dphone.dima.lan\n10.77.0.8 ephone.eva.lan\n10.77.0.9 fphone.fedor.lan\n10.77.0.10 gphone.gleb.lan\n10.78.0.2 hphone.hana.lan\n10.78.0.3 iphone.ivan.lan\n10.79.0.2 kphone.kira.lan\n10.79.0.3 lphone.lev.lan\n10.77.0.11 nphone.nora.lan\n",
+			"hosts_mode": true,
+			"nft_err": "rules:1:1-5: Error: a made-up failure",
+			"present": false
+		},
+		{
+			"what": "the same failure again: told once",
+			"peers": {
+				"home": "ok",
+				"cabin": "ok",
+				"open": "ok"
+			},
+			"table": "rules:1:1-5: Error: a made-up failure",
+			"warning": "Access rules couldn't load (rules:1:1-5: Error: a made-up failure): no device is loaded into the tunnels until they do. Open Overview → Health.",
+			"states": {
+				"anna": "active",
+				"boris": "active",
+				"clara": "active",
+				"dima": "active",
+				"eva": "active",
+				"fedor": "active",
+				"gleb": "paused",
+				"hana": "active",
+				"ivan": "active",
+				"kira": "active",
+				"lev": "active",
+				"nora": "active"
+			},
+			"scripts": [
+				"table inet dawnline\ndelete table inet dawnline\ntable inet dawnline {\n\tset home_home { type ipv4_addr; flags interval; elements = { 192.168.50.0/24, 192.168.77.0/24 } }\n\tset home_cabin { type ipv4_addr; flags interval; elements = { 192.168.50.0/24 } }\n\tset home_open { type ipv4_addr; flags interval; elements = { 192.168.77.0/24 } }\n\tset tun_nets { type ipv4_addr; flags interval; elements = { 10.77.0.0/24, 10.78.0.0/24, 10.79.0.0/24 } }\n\tset lan_ok { type ipv4_addr; flags interval; elements = { 10.77.0.2, 10.77.0.3, 10.77.0.5, 10.77.0.7, 10.77.0.9, 10.78.0.2, 10.78.0.3, 10.79.0.2, 10.79.0.3, 10.77.0.11 } }\n\tset lan_all { type ipv4_addr; flags interval; elements = { 10.77.0.2, 10.77.0.3, 10.77.0.5, 10.77.0.9, 10.78.0.2, 10.78.0.3, 10.79.0.2, 10.79.0.3 } }\n\tset lan_part { type ipv4_addr . ipv4_addr; flags interval; elements = { 10.77.0.7 . 192.168.50.0/24, 10.77.0.11 . 192.168.77.0/24 } }\n\tset mesh_pairs { type ipv4_addr . ipv4_addr; flags interval; elements = { 10.77.0.2 . 10.77.0.3, 10.77.0.2 . 10.77.0.5, 10.77.0.2 . 10.77.0.11, 10.77.0.3 . 10.77.0.2, 10.77.0.3 . 10.77.0.5, 10.77.0.3 . 10.77.0.11, 10.77.0.5 . 10.77.0.2, 10.77.0.5 . 10.77.0.3, 10.77.0.5 . 10.77.0.11, 10.77.0.11 . 10.77.0.2, 10.77.0.11 . 10.77.0.3, 10.77.0.11 . 10.77.0.5 } }\n\tset inet_ok { type ipv4_addr; flags interval; elements = { 10.77.0.2, 10.77.0.3, 10.77.0.5, 10.77.0.6, 10.77.0.9, 10.78.0.2, 10.78.0.3, 10.79.0.2, 10.79.0.3, 10.77.0.11 } }\n\tset svc_ok { type ipv4_addr . ipv4_addr . inet_service; flags interval;  }\n\tset svc_host { type ipv4_addr . ipv4_addr; flags interval; elements = { 10.77.0.8 . 192.168.77.5, 10.77.0.8 . 192.168.50.30 } }\n\tset dns_real { type ipv4_addr; flags interval;  }\n\tchain pre {\n\t\ttype filter hook prerouting priority -160; policy accept;\n\t\tiifname { \"dawn0\", \"dawn1\", \"dawn2\" } jump guard\n\t}\n\tchain guard {\n\t\tmeta nfproto ipv6 drop\n\t\tct state related accept\n\t\tct status dnat accept\n\t\ticmp type { echo-request, echo-reply } fib daddr type local accept\n\t\tfib daddr type local meta l4proto { tcp, udp } th dport 53 accept\n\t\tfib daddr type local tcp dport { 4500, 4501 } accept\n\t\tfib daddr type local ip saddr @lan_all accept\n\t\tfib daddr type local ip saddr . ip daddr @lan_part accept\n\t\tfib daddr type local counter drop\n\t\tiifname \"dawn0\" ip daddr @home_home ip daddr != @tun_nets ip saddr @lan_all accept\n\t\tiifname \"dawn1\" ip daddr @home_cabin ip daddr != @tun_nets ip saddr @lan_all accept\n\t\tiifname \"dawn2\" ip daddr @home_open ip daddr != @tun_nets ip saddr @lan_all accept\n\t\tip saddr . ip daddr @lan_part ip daddr != @tun_nets accept\n\t\tiifname \"dawn0\" ip saddr . ip daddr @mesh_pairs accept\n\t\tiifname \"dawn2\" ip saddr @lan_ok ip daddr @lan_ok accept\n\t\tmeta l4proto { tcp, udp } ip saddr . ip daddr . th dport @svc_ok accept\n\t\tip saddr . ip daddr @svc_host accept\n\t\tip daddr { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10, 169.254.0.0/16, 224.0.0.0/3 } counter drop\n\t\tip saddr @inet_ok accept\n\t\tcounter drop\n\t}\n\tchain inbound {\n\t\ttype filter hook forward priority filter - 5; policy accept;\n\t\toifname { \"dawn0\", \"dawn1\", \"dawn2\" } iifname != { \"dawn0\", \"dawn1\", \"dawn2\" } ct state new jump to_device\n\t}\n\tchain to_device {\n\t\tmeta nfproto ipv6 drop\n\t\tct status dnat accept\n\t\toifname \"dawn0\" ip saddr @home_home ip saddr != @tun_nets ip daddr @lan_all accept\n\t\toifname \"dawn1\" ip saddr @home_cabin ip saddr != @tun_nets ip daddr @lan_all accept\n\t\toifname \"dawn2\" ip saddr @home_open ip saddr != @tun_nets ip daddr @lan_all accept\n\t\tip daddr . ip saddr @lan_part ip saddr != @tun_nets accept\n\t\tcounter reject with icmpx admin-prohibited\n\t}\n\tchain dns {\n\t\ttype nat hook prerouting priority dstnat - 5; policy accept;\n\t\tiifname { \"dawn0\", \"dawn1\", \"dawn2\" } ip saddr @dns_real meta l4proto { tcp, udp } th dport 53 redirect to :5354\n\t}\n\tchain dns_lan {\n\t\ttype nat hook prerouting priority dstnat + 5; policy accept;\n\t\tiifname \"dawn0\" ip daddr 10.77.0.1 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.1:53\n\t\tiifname \"dawn1\" ip daddr 10.78.0.1 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.1:53\n\t\tiifname \"dawn2\" ip daddr 10.79.0.1 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.1:53\n\t}\n}\n"
+			],
+			"confs": {
+				"dawn0": "[Interface]\nPrivateKey = aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaA=\nListenPort = 4500\n",
+				"dawn1": "[Interface]\nPrivateKey = ccccccccccccccccccccccccccccccccccccccccccA=\nListenPort = 4600\n",
+				"dawn2": "[Interface]\nPrivateKey = eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeA=\nListenPort = 4700\n"
+			},
+			"hosts": "10.77.0.2 phone.anna.lan\n10.77.0.3 laptop.anna.lan\n10.77.0.4 old.anna.lan\n10.77.0.5 bphone.boris.lan\n10.77.0.6 cphone.clara.lan\n10.77.0.7 dphone.dima.lan\n10.77.0.8 ephone.eva.lan\n10.77.0.9 fphone.fedor.lan\n10.77.0.10 gphone.gleb.lan\n10.78.0.2 hphone.hana.lan\n10.78.0.3 iphone.ivan.lan\n10.79.0.2 kphone.kira.lan\n10.79.0.3 lphone.lev.lan\n10.77.0.11 nphone.nora.lan\n",
+			"hosts_mode": true,
+			"nft_err": "rules:1:1-5: Error: a made-up failure",
+			"present": false
+		},
+		{
+			"what": "it loads again; a tunnel refuses its devices",
+			"peers": {
+				"home": "Line unrecognized: a made-up refusal",
+				"cabin": "ok",
+				"open": "ok"
+			},
+			"table": null,
+			"warning": "Couldn't load devices into Home: Line unrecognized: a made-up refusal. Open Overview → Health.",
+			"states": {
+				"anna": "active",
+				"boris": "active",
+				"clara": "active",
+				"dima": "active",
+				"eva": "active",
+				"fedor": "active",
+				"gleb": "paused",
+				"hana": "active",
+				"ivan": "active",
+				"kira": "active",
+				"lev": "active",
+				"nora": "active"
+			},
+			"scripts": [
+				"table inet dawnline\ndelete table inet dawnline\ntable inet dawnline {\n\tset home_home { type ipv4_addr; flags interval; elements = { 192.168.50.0/24, 192.168.77.0/24 } }\n\tset home_cabin { type ipv4_addr; flags interval; elements = { 192.168.50.0/24 } }\n\tset home_open { type ipv4_addr; flags interval; elements = { 192.168.77.0/24 } }\n\tset tun_nets { type ipv4_addr; flags interval; elements = { 10.77.0.0/24, 10.78.0.0/24, 10.79.0.0/24 } }\n\tset lan_ok { type ipv4_addr; flags interval; elements = { 10.77.0.2, 10.77.0.3, 10.77.0.5, 10.77.0.7, 10.77.0.9, 10.78.0.2, 10.78.0.3, 10.79.0.2, 10.79.0.3, 10.77.0.11 } }\n\tset lan_all { type ipv4_addr; flags interval; elements = { 10.77.0.2, 10.77.0.3, 10.77.0.5, 10.77.0.9, 10.78.0.2, 10.78.0.3, 10.79.0.2, 10.79.0.3 } }\n\tset lan_part { type ipv4_addr . ipv4_addr; flags interval; elements = { 10.77.0.7 . 192.168.50.0/24, 10.77.0.11 . 192.168.77.0/24 } }\n\tset mesh_pairs { type ipv4_addr . ipv4_addr; flags interval; elements = { 10.77.0.2 . 10.77.0.3, 10.77.0.2 . 10.77.0.5, 10.77.0.2 . 10.77.0.11, 10.77.0.3 . 10.77.0.2, 10.77.0.3 . 10.77.0.5, 10.77.0.3 . 10.77.0.11, 10.77.0.5 . 10.77.0.2, 10.77.0.5 . 10.77.0.3, 10.77.0.5 . 10.77.0.11, 10.77.0.11 . 10.77.0.2, 10.77.0.11 . 10.77.0.3, 10.77.0.11 . 10.77.0.5 } }\n\tset inet_ok { type ipv4_addr; flags interval; elements = { 10.77.0.2, 10.77.0.3, 10.77.0.5, 10.77.0.6, 10.77.0.9, 10.78.0.2, 10.78.0.3, 10.79.0.2, 10.79.0.3, 10.77.0.11 } }\n\tset svc_ok { type ipv4_addr . ipv4_addr . inet_service; flags interval;  }\n\tset svc_host { type ipv4_addr . ipv4_addr; flags interval; elements = { 10.77.0.8 . 192.168.77.5, 10.77.0.8 . 192.168.50.30 } }\n\tset dns_real { type ipv4_addr; flags interval;  }\n\tchain pre {\n\t\ttype filter hook prerouting priority -160; policy accept;\n\t\tiifname { \"dawn0\", \"dawn1\", \"dawn2\" } jump guard\n\t}\n\tchain guard {\n\t\tmeta nfproto ipv6 drop\n\t\tct state related accept\n\t\tct status dnat accept\n\t\ticmp type { echo-request, echo-reply } fib daddr type local accept\n\t\tfib daddr type local meta l4proto { tcp, udp } th dport 53 accept\n\t\tfib daddr type local tcp dport { 4500, 4501 } accept\n\t\tfib daddr type local ip saddr @lan_all accept\n\t\tfib daddr type local ip saddr . ip daddr @lan_part accept\n\t\tfib daddr type local counter drop\n\t\tiifname \"dawn0\" ip daddr @home_home ip daddr != @tun_nets ip saddr @lan_all accept\n\t\tiifname \"dawn1\" ip daddr @home_cabin ip daddr != @tun_nets ip saddr @lan_all accept\n\t\tiifname \"dawn2\" ip daddr @home_open ip daddr != @tun_nets ip saddr @lan_all accept\n\t\tip saddr . ip daddr @lan_part ip daddr != @tun_nets accept\n\t\tiifname \"dawn0\" ip saddr . ip daddr @mesh_pairs accept\n\t\tiifname \"dawn2\" ip saddr @lan_ok ip daddr @lan_ok accept\n\t\tmeta l4proto { tcp, udp } ip saddr . ip daddr . th dport @svc_ok accept\n\t\tip saddr . ip daddr @svc_host accept\n\t\tip daddr { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10, 169.254.0.0/16, 224.0.0.0/3 } counter drop\n\t\tip saddr @inet_ok accept\n\t\tcounter drop\n\t}\n\tchain inbound {\n\t\ttype filter hook forward priority filter - 5; policy accept;\n\t\toifname { \"dawn0\", \"dawn1\", \"dawn2\" } iifname != { \"dawn0\", \"dawn1\", \"dawn2\" } ct state new jump to_device\n\t}\n\tchain to_device {\n\t\tmeta nfproto ipv6 drop\n\t\tct status dnat accept\n\t\toifname \"dawn0\" ip saddr @home_home ip saddr != @tun_nets ip daddr @lan_all accept\n\t\toifname \"dawn1\" ip saddr @home_cabin ip saddr != @tun_nets ip daddr @lan_all accept\n\t\toifname \"dawn2\" ip saddr @home_open ip saddr != @tun_nets ip daddr @lan_all accept\n\t\tip daddr . ip saddr @lan_part ip saddr != @tun_nets accept\n\t\tcounter reject with icmpx admin-prohibited\n\t}\n\tchain dns {\n\t\ttype nat hook prerouting priority dstnat - 5; policy accept;\n\t\tiifname { \"dawn0\", \"dawn1\", \"dawn2\" } ip saddr @dns_real meta l4proto { tcp, udp } th dport 53 redirect to :5354\n\t}\n\tchain dns_lan {\n\t\ttype nat hook prerouting priority dstnat + 5; policy accept;\n\t\tiifname \"dawn0\" ip daddr 10.77.0.1 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.1:53\n\t\tiifname \"dawn1\" ip daddr 10.78.0.1 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.1:53\n\t\tiifname \"dawn2\" ip daddr 10.79.0.1 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.1:53\n\t}\n}\n"
+			],
+			"confs": {
+				"dawn0": "[Interface]\nPrivateKey = aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaA=\nListenPort = 4500\n\n[Peer]\nPublicKey = BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA=\nAllowedIPs = 10.77.0.2/32\n\n[Peer]\nPublicKey = CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCA=\nAllowedIPs = 10.77.0.3/32\n\n[Peer]\nPublicKey = EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEA=\nAllowedIPs = 10.77.0.5/32\n\n[Peer]\nPublicKey = FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFA=\nAllowedIPs = 10.77.0.6/32\n\n[Peer]\nPublicKey = GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGA=\nAllowedIPs = 10.77.0.7/32\n\n[Peer]\nPublicKey = HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHA=\nAllowedIPs = 10.77.0.8/32\n\n[Peer]\nPublicKey = IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIA=\nAllowedIPs = 10.77.0.9/32\n\n[Peer]\nPublicKey = OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOA=\nAllowedIPs = 10.77.0.11/32\n",
+				"dawn1": "[Interface]\nPrivateKey = ccccccccccccccccccccccccccccccccccccccccccA=\nListenPort = 4600\n\n[Peer]\nPublicKey = KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKA=\nAllowedIPs = 10.78.0.2/32\n\n[Peer]\nPublicKey = LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLA=\nAllowedIPs = 10.78.0.3/32\n",
+				"dawn2": "[Interface]\nPrivateKey = eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeA=\nListenPort = 4700\n\n[Peer]\nPublicKey = MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMA=\nAllowedIPs = 10.79.0.2/32\n\n[Peer]\nPublicKey = NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNA=\nAllowedIPs = 10.79.0.3/32\n"
+			},
+			"hosts": "10.77.0.2 phone.anna.lan\n10.77.0.3 laptop.anna.lan\n10.77.0.4 old.anna.lan\n10.77.0.5 bphone.boris.lan\n10.77.0.6 cphone.clara.lan\n10.77.0.7 dphone.dima.lan\n10.77.0.8 ephone.eva.lan\n10.77.0.9 fphone.fedor.lan\n10.77.0.10 gphone.gleb.lan\n10.78.0.2 hphone.hana.lan\n10.78.0.3 iphone.ivan.lan\n10.79.0.2 kphone.kira.lan\n10.79.0.3 lphone.lev.lan\n10.77.0.11 nphone.nora.lan\n",
+			"hosts_mode": true,
+			"nft_err": null,
+			"present": true
+		},
+		{
+			"what": "a tunnel is down",
+			"peers": {
+				"home": "ok",
+				"cabin": "down",
+				"open": "ok"
+			},
+			"table": null,
+			"warning": null,
+			"states": {
+				"anna": "active",
+				"boris": "active",
+				"clara": "active",
+				"dima": "active",
+				"eva": "active",
+				"fedor": "active",
+				"gleb": "paused",
+				"hana": "active",
+				"ivan": "active",
+				"kira": "active",
+				"lev": "active",
+				"nora": "active"
+			},
+			"scripts": [
+				"table inet dawnline\ndelete table inet dawnline\ntable inet dawnline {\n\tset home_home { type ipv4_addr; flags interval; elements = { 192.168.50.0/24, 192.168.77.0/24 } }\n\tset home_cabin { type ipv4_addr; flags interval; elements = { 192.168.50.0/24 } }\n\tset home_open { type ipv4_addr; flags interval; elements = { 192.168.77.0/24 } }\n\tset tun_nets { type ipv4_addr; flags interval; elements = { 10.77.0.0/24, 10.78.0.0/24, 10.79.0.0/24 } }\n\tset lan_ok { type ipv4_addr; flags interval; elements = { 10.77.0.2, 10.77.0.3, 10.77.0.5, 10.77.0.7, 10.77.0.9, 10.78.0.2, 10.78.0.3, 10.79.0.2, 10.79.0.3, 10.77.0.11 } }\n\tset lan_all { type ipv4_addr; flags interval; elements = { 10.77.0.2, 10.77.0.3, 10.77.0.5, 10.77.0.9, 10.78.0.2, 10.78.0.3, 10.79.0.2, 10.79.0.3 } }\n\tset lan_part { type ipv4_addr . ipv4_addr; flags interval; elements = { 10.77.0.7 . 192.168.50.0/24, 10.77.0.11 . 192.168.77.0/24 } }\n\tset mesh_pairs { type ipv4_addr . ipv4_addr; flags interval; elements = { 10.77.0.2 . 10.77.0.3, 10.77.0.2 . 10.77.0.5, 10.77.0.2 . 10.77.0.11, 10.77.0.3 . 10.77.0.2, 10.77.0.3 . 10.77.0.5, 10.77.0.3 . 10.77.0.11, 10.77.0.5 . 10.77.0.2, 10.77.0.5 . 10.77.0.3, 10.77.0.5 . 10.77.0.11, 10.77.0.11 . 10.77.0.2, 10.77.0.11 . 10.77.0.3, 10.77.0.11 . 10.77.0.5 } }\n\tset inet_ok { type ipv4_addr; flags interval; elements = { 10.77.0.2, 10.77.0.3, 10.77.0.5, 10.77.0.6, 10.77.0.9, 10.78.0.2, 10.78.0.3, 10.79.0.2, 10.79.0.3, 10.77.0.11 } }\n\tset svc_ok { type ipv4_addr . ipv4_addr . inet_service; flags interval;  }\n\tset svc_host { type ipv4_addr . ipv4_addr; flags interval; elements = { 10.77.0.8 . 192.168.77.5, 10.77.0.8 . 192.168.50.30 } }\n\tset dns_real { type ipv4_addr; flags interval;  }\n\tchain pre {\n\t\ttype filter hook prerouting priority -160; policy accept;\n\t\tiifname { \"dawn0\", \"dawn1\", \"dawn2\" } jump guard\n\t}\n\tchain guard {\n\t\tmeta nfproto ipv6 drop\n\t\tct state related accept\n\t\tct status dnat accept\n\t\ticmp type { echo-request, echo-reply } fib daddr type local accept\n\t\tfib daddr type local meta l4proto { tcp, udp } th dport 53 accept\n\t\tfib daddr type local tcp dport { 4500, 4501 } accept\n\t\tfib daddr type local ip saddr @lan_all accept\n\t\tfib daddr type local ip saddr . ip daddr @lan_part accept\n\t\tfib daddr type local counter drop\n\t\tiifname \"dawn0\" ip daddr @home_home ip daddr != @tun_nets ip saddr @lan_all accept\n\t\tiifname \"dawn1\" ip daddr @home_cabin ip daddr != @tun_nets ip saddr @lan_all accept\n\t\tiifname \"dawn2\" ip daddr @home_open ip daddr != @tun_nets ip saddr @lan_all accept\n\t\tip saddr . ip daddr @lan_part ip daddr != @tun_nets accept\n\t\tiifname \"dawn0\" ip saddr . ip daddr @mesh_pairs accept\n\t\tiifname \"dawn2\" ip saddr @lan_ok ip daddr @lan_ok accept\n\t\tmeta l4proto { tcp, udp } ip saddr . ip daddr . th dport @svc_ok accept\n\t\tip saddr . ip daddr @svc_host accept\n\t\tip daddr { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10, 169.254.0.0/16, 224.0.0.0/3 } counter drop\n\t\tip saddr @inet_ok accept\n\t\tcounter drop\n\t}\n\tchain inbound {\n\t\ttype filter hook forward priority filter - 5; policy accept;\n\t\toifname { \"dawn0\", \"dawn1\", \"dawn2\" } iifname != { \"dawn0\", \"dawn1\", \"dawn2\" } ct state new jump to_device\n\t}\n\tchain to_device {\n\t\tmeta nfproto ipv6 drop\n\t\tct status dnat accept\n\t\toifname \"dawn0\" ip saddr @home_home ip saddr != @tun_nets ip daddr @lan_all accept\n\t\toifname \"dawn1\" ip saddr @home_cabin ip saddr != @tun_nets ip daddr @lan_all accept\n\t\toifname \"dawn2\" ip saddr @home_open ip saddr != @tun_nets ip daddr @lan_all accept\n\t\tip daddr . ip saddr @lan_part ip saddr != @tun_nets accept\n\t\tcounter reject with icmpx admin-prohibited\n\t}\n\tchain dns {\n\t\ttype nat hook prerouting priority dstnat - 5; policy accept;\n\t\tiifname { \"dawn0\", \"dawn1\", \"dawn2\" } ip saddr @dns_real meta l4proto { tcp, udp } th dport 53 redirect to :5354\n\t}\n\tchain dns_lan {\n\t\ttype nat hook prerouting priority dstnat + 5; policy accept;\n\t\tiifname \"dawn0\" ip daddr 10.77.0.1 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.1:53\n\t\tiifname \"dawn1\" ip daddr 10.78.0.1 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.1:53\n\t\tiifname \"dawn2\" ip daddr 10.79.0.1 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.1:53\n\t}\n}\n"
+			],
+			"confs": {
+				"dawn0": "[Interface]\nPrivateKey = aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaA=\nListenPort = 4500\n\n[Peer]\nPublicKey = BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA=\nAllowedIPs = 10.77.0.2/32\n\n[Peer]\nPublicKey = CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCA=\nAllowedIPs = 10.77.0.3/32\n\n[Peer]\nPublicKey = EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEA=\nAllowedIPs = 10.77.0.5/32\n\n[Peer]\nPublicKey = FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFA=\nAllowedIPs = 10.77.0.6/32\n\n[Peer]\nPublicKey = GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGA=\nAllowedIPs = 10.77.0.7/32\n\n[Peer]\nPublicKey = HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHA=\nAllowedIPs = 10.77.0.8/32\n\n[Peer]\nPublicKey = IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIA=\nAllowedIPs = 10.77.0.9/32\n\n[Peer]\nPublicKey = OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOA=\nAllowedIPs = 10.77.0.11/32\n",
+				"dawn2": "[Interface]\nPrivateKey = eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeA=\nListenPort = 4700\n\n[Peer]\nPublicKey = MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMA=\nAllowedIPs = 10.79.0.2/32\n\n[Peer]\nPublicKey = NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNA=\nAllowedIPs = 10.79.0.3/32\n"
+			},
+			"hosts": "10.77.0.2 phone.anna.lan\n10.77.0.3 laptop.anna.lan\n10.77.0.4 old.anna.lan\n10.77.0.5 bphone.boris.lan\n10.77.0.6 cphone.clara.lan\n10.77.0.7 dphone.dima.lan\n10.77.0.8 ephone.eva.lan\n10.77.0.9 fphone.fedor.lan\n10.77.0.10 gphone.gleb.lan\n10.78.0.2 hphone.hana.lan\n10.78.0.3 iphone.ivan.lan\n10.79.0.2 kphone.kira.lan\n10.79.0.3 lphone.lev.lan\n10.77.0.11 nphone.nora.lan\n",
+			"hosts_mode": true,
+			"nft_err": null,
+			"present": true
+		},
+		{
+			"what": "all is well",
+			"peers": {
+				"home": "ok",
+				"cabin": "ok",
+				"open": "ok"
+			},
+			"table": null,
+			"warning": null,
+			"states": {
+				"anna": "active",
+				"boris": "active",
+				"clara": "active",
+				"dima": "active",
+				"eva": "active",
+				"fedor": "active",
+				"gleb": "paused",
+				"hana": "active",
+				"ivan": "active",
+				"kira": "active",
+				"lev": "active",
+				"nora": "active"
+			},
+			"scripts": [
+				"table inet dawnline\ndelete table inet dawnline\ntable inet dawnline {\n\tset home_home { type ipv4_addr; flags interval; elements = { 192.168.50.0/24, 192.168.77.0/24 } }\n\tset home_cabin { type ipv4_addr; flags interval; elements = { 192.168.50.0/24 } }\n\tset home_open { type ipv4_addr; flags interval; elements = { 192.168.77.0/24 } }\n\tset tun_nets { type ipv4_addr; flags interval; elements = { 10.77.0.0/24, 10.78.0.0/24, 10.79.0.0/24 } }\n\tset lan_ok { type ipv4_addr; flags interval; elements = { 10.77.0.2, 10.77.0.3, 10.77.0.5, 10.77.0.7, 10.77.0.9, 10.78.0.2, 10.78.0.3, 10.79.0.2, 10.79.0.3, 10.77.0.11 } }\n\tset lan_all { type ipv4_addr; flags interval; elements = { 10.77.0.2, 10.77.0.3, 10.77.0.5, 10.77.0.9, 10.78.0.2, 10.78.0.3, 10.79.0.2, 10.79.0.3 } }\n\tset lan_part { type ipv4_addr . ipv4_addr; flags interval; elements = { 10.77.0.7 . 192.168.50.0/24, 10.77.0.11 . 192.168.77.0/24 } }\n\tset mesh_pairs { type ipv4_addr . ipv4_addr; flags interval; elements = { 10.77.0.2 . 10.77.0.3, 10.77.0.2 . 10.77.0.5, 10.77.0.2 . 10.77.0.11, 10.77.0.3 . 10.77.0.2, 10.77.0.3 . 10.77.0.5, 10.77.0.3 . 10.77.0.11, 10.77.0.5 . 10.77.0.2, 10.77.0.5 . 10.77.0.3, 10.77.0.5 . 10.77.0.11, 10.77.0.11 . 10.77.0.2, 10.77.0.11 . 10.77.0.3, 10.77.0.11 . 10.77.0.5 } }\n\tset inet_ok { type ipv4_addr; flags interval; elements = { 10.77.0.2, 10.77.0.3, 10.77.0.5, 10.77.0.6, 10.77.0.9, 10.78.0.2, 10.78.0.3, 10.79.0.2, 10.79.0.3, 10.77.0.11 } }\n\tset svc_ok { type ipv4_addr . ipv4_addr . inet_service; flags interval;  }\n\tset svc_host { type ipv4_addr . ipv4_addr; flags interval; elements = { 10.77.0.8 . 192.168.77.5, 10.77.0.8 . 192.168.50.30 } }\n\tset dns_real { type ipv4_addr; flags interval;  }\n\tchain pre {\n\t\ttype filter hook prerouting priority -160; policy accept;\n\t\tiifname { \"dawn0\", \"dawn1\", \"dawn2\" } jump guard\n\t}\n\tchain guard {\n\t\tmeta nfproto ipv6 drop\n\t\tct state related accept\n\t\tct status dnat accept\n\t\ticmp type { echo-request, echo-reply } fib daddr type local accept\n\t\tfib daddr type local meta l4proto { tcp, udp } th dport 53 accept\n\t\tfib daddr type local tcp dport { 4500, 4501 } accept\n\t\tfib daddr type local ip saddr @lan_all accept\n\t\tfib daddr type local ip saddr . ip daddr @lan_part accept\n\t\tfib daddr type local counter drop\n\t\tiifname \"dawn0\" ip daddr @home_home ip daddr != @tun_nets ip saddr @lan_all accept\n\t\tiifname \"dawn1\" ip daddr @home_cabin ip daddr != @tun_nets ip saddr @lan_all accept\n\t\tiifname \"dawn2\" ip daddr @home_open ip daddr != @tun_nets ip saddr @lan_all accept\n\t\tip saddr . ip daddr @lan_part ip daddr != @tun_nets accept\n\t\tiifname \"dawn0\" ip saddr . ip daddr @mesh_pairs accept\n\t\tiifname \"dawn2\" ip saddr @lan_ok ip daddr @lan_ok accept\n\t\tmeta l4proto { tcp, udp } ip saddr . ip daddr . th dport @svc_ok accept\n\t\tip saddr . ip daddr @svc_host accept\n\t\tip daddr { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10, 169.254.0.0/16, 224.0.0.0/3 } counter drop\n\t\tip saddr @inet_ok accept\n\t\tcounter drop\n\t}\n\tchain inbound {\n\t\ttype filter hook forward priority filter - 5; policy accept;\n\t\toifname { \"dawn0\", \"dawn1\", \"dawn2\" } iifname != { \"dawn0\", \"dawn1\", \"dawn2\" } ct state new jump to_device\n\t}\n\tchain to_device {\n\t\tmeta nfproto ipv6 drop\n\t\tct status dnat accept\n\t\toifname \"dawn0\" ip saddr @home_home ip saddr != @tun_nets ip daddr @lan_all accept\n\t\toifname \"dawn1\" ip saddr @home_cabin ip saddr != @tun_nets ip daddr @lan_all accept\n\t\toifname \"dawn2\" ip saddr @home_open ip saddr != @tun_nets ip daddr @lan_all accept\n\t\tip daddr . ip saddr @lan_part ip saddr != @tun_nets accept\n\t\tcounter reject with icmpx admin-prohibited\n\t}\n\tchain dns {\n\t\ttype nat hook prerouting priority dstnat - 5; policy accept;\n\t\tiifname { \"dawn0\", \"dawn1\", \"dawn2\" } ip saddr @dns_real meta l4proto { tcp, udp } th dport 53 redirect to :5354\n\t}\n\tchain dns_lan {\n\t\ttype nat hook prerouting priority dstnat + 5; policy accept;\n\t\tiifname \"dawn0\" ip daddr 10.77.0.1 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.1:53\n\t\tiifname \"dawn1\" ip daddr 10.78.0.1 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.1:53\n\t\tiifname \"dawn2\" ip daddr 10.79.0.1 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.1:53\n\t}\n}\n"
+			],
+			"confs": {
+				"dawn0": "[Interface]\nPrivateKey = aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaA=\nListenPort = 4500\n\n[Peer]\nPublicKey = BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA=\nAllowedIPs = 10.77.0.2/32\n\n[Peer]\nPublicKey = CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCA=\nAllowedIPs = 10.77.0.3/32\n\n[Peer]\nPublicKey = EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEA=\nAllowedIPs = 10.77.0.5/32\n\n[Peer]\nPublicKey = FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFA=\nAllowedIPs = 10.77.0.6/32\n\n[Peer]\nPublicKey = GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGA=\nAllowedIPs = 10.77.0.7/32\n\n[Peer]\nPublicKey = HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHA=\nAllowedIPs = 10.77.0.8/32\n\n[Peer]\nPublicKey = IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIA=\nAllowedIPs = 10.77.0.9/32\n\n[Peer]\nPublicKey = OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOA=\nAllowedIPs = 10.77.0.11/32\n",
+				"dawn1": "[Interface]\nPrivateKey = ccccccccccccccccccccccccccccccccccccccccccA=\nListenPort = 4600\n\n[Peer]\nPublicKey = KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKA=\nAllowedIPs = 10.78.0.2/32\n\n[Peer]\nPublicKey = LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLA=\nAllowedIPs = 10.78.0.3/32\n",
+				"dawn2": "[Interface]\nPrivateKey = eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeA=\nListenPort = 4700\n\n[Peer]\nPublicKey = MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMA=\nAllowedIPs = 10.79.0.2/32\n\n[Peer]\nPublicKey = NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNA=\nAllowedIPs = 10.79.0.3/32\n"
+			},
+			"hosts": "10.77.0.2 phone.anna.lan\n10.77.0.3 laptop.anna.lan\n10.77.0.4 old.anna.lan\n10.77.0.5 bphone.boris.lan\n10.77.0.6 cphone.clara.lan\n10.77.0.7 dphone.dima.lan\n10.77.0.8 ephone.eva.lan\n10.77.0.9 fphone.fedor.lan\n10.77.0.10 gphone.gleb.lan\n10.78.0.2 hphone.hana.lan\n10.78.0.3 iphone.ivan.lan\n10.79.0.2 kphone.kira.lan\n10.79.0.3 lphone.lev.lan\n10.77.0.11 nphone.nora.lan\n",
+			"hosts_mode": true,
+			"nft_err": null,
+			"present": true
+		}
+	],
+	"settings": "\nconfig settings 'settings'\n\toption portal_enabled '1'\n\toption portal_port '4500'\n\toption portal_host 'vpn.example.org'\n\tlist portal_alt '203.0.113.7'\n\nconfig server 'home'\n\toption name 'Home'\n\toption ifname 'dawn0'\n\toption port '4500'\n\toption subnet '10.77.0.0/24'\n\toption private_key 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaA='\n\toption public_key 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbA='\n\toption auto_lan '0'\n\tlist lan_device 'dlhome'\n\tlist lan_device 'br-lan'\n\toption mesh 'circles'\n\toption lan_like '0'\n\nconfig server 'cabin'\n\toption name 'Cabin'\n\toption ifname 'dawn1'\n\toption port '4600'\n\toption subnet '10.78.0.0/24'\n\toption private_key 'ccccccccccccccccccccccccccccccccccccccccccA='\n\toption public_key 'ddddddddddddddddddddddddddddddddddddddddddA='\n\toption auto_lan '0'\n\tlist lan_device 'dlhome'\n\toption mesh 'off'\n\nconfig server 'open'\n\toption name 'Open'\n\toption ifname 'dawn2'\n\toption port '4700'\n\toption subnet '10.79.0.0/24'\n\toption private_key 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeA='\n\toption public_key 'ffffffffffffffffffffffffffffffffffffffffffA='\n\toption auto_lan '0'\n\tlist lan_device 'br-lan'\n\toption mesh 'all'\n\nconfig circle 'fam'\n\toption server 'home'\n\toption name 'Family'\n\nconfig circle 'work'\n\toption server 'home'\n\toption name 'Work'\n\nconfig service 'nas'\n\toption name 'NAS'\n\toption address '192.168.77.5'\n\tlist ports '445'\n\tlist ports '139'\n\nconfig service 'cam'\n\toption name 'Camera'\n\toption address '192.168.50.30'\n\nconfig person 'anna'\n\toption server 'home'\n\toption name 'Anna'\n\toption access 'both'\n\toption circle 'fam'\n\nconfig person 'boris'\n\toption server 'home'\n\toption name 'Boris'\n\toption access 'both'\n\toption circle 'fam'\n\nconfig person 'clara'\n\toption server 'home'\n\toption name 'Clara'\n\toption access 'internet'\n\nconfig person 'dima'\n\toption server 'home'\n\toption name 'Dima'\n\toption access 'lan'\n\tlist home_net 'dlhome'\n\nconfig person 'eva'\n\toption server 'home'\n\toption name 'Eva'\n\toption access 'lan'\n\tlist service 'nas'\n\tlist service 'cam'\n\nconfig person 'fedor'\n\toption server 'home'\n\toption name 'Fedor'\n\toption access 'both'\n\toption circle 'work'\n\nconfig person 'gleb'\n\toption server 'home'\n\toption name 'Gleb'\n\toption access 'both'\n\toption paused '1'\n\nconfig person 'hana'\n\toption server 'cabin'\n\toption name 'Hana'\n\toption access 'both'\n\nconfig person 'ivan'\n\toption server 'cabin'\n\toption name 'Ivan'\n\toption access 'both'\n\nconfig person 'kira'\n\toption server 'open'\n\toption name 'Kira'\n\toption access 'both'\n\nconfig person 'lev'\n\toption server 'open'\n\toption name 'Lev'\n\toption access 'both'\n\nconfig person 'nora'\n\toption server 'home'\n\toption name 'Nora'\n\toption access 'both'\n\toption circle 'fam'\n\tlist home_net 'br-lan'\n\nconfig device 'phone'\n\toption person 'anna'\n\toption name 'Phone'\n\toption address '10.77.0.2'\n\toption public_key 'BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA='\n\nconfig device 'laptop'\n\toption person 'anna'\n\toption name 'Laptop'\n\toption address '10.77.0.3'\n\toption public_key 'CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCA='\n\toption lan_bypass '1'\n\toption kind 'computer'\n\nconfig device 'old'\n\toption person 'anna'\n\toption name 'Old'\n\toption address '10.77.0.4'\n\toption public_key 'DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDA='\n\toption disabled '1'\n\nconfig device 'bphone'\n\toption person 'boris'\n\toption name 'Bphone'\n\toption address '10.77.0.5'\n\toption public_key 'EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEA='\n\nconfig device 'cphone'\n\toption person 'clara'\n\toption name 'Cphone'\n\toption address '10.77.0.6'\n\toption public_key 'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFA='\n\nconfig device 'dphone'\n\toption person 'dima'\n\toption name 'Dphone'\n\toption address '10.77.0.7'\n\toption public_key 'GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGA='\n\nconfig device 'ephone'\n\toption person 'eva'\n\toption name 'Ephone'\n\toption address '10.77.0.8'\n\toption public_key 'HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHA='\n\nconfig device 'fphone'\n\toption person 'fedor'\n\toption name 'Fphone'\n\toption address '10.77.0.9'\n\toption public_key 'IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIA='\n\nconfig device 'gphone'\n\toption person 'gleb'\n\toption name 'Gphone'\n\toption address '10.77.0.10'\n\toption public_key 'JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJA='\n\nconfig device 'hphone'\n\toption person 'hana'\n\toption name 'Hphone'\n\toption address '10.78.0.2'\n\toption public_key 'KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKA='\n\nconfig device 'iphone'\n\toption person 'ivan'\n\toption name 'Iphone'\n\toption address '10.78.0.3'\n\toption public_key 'LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLA='\n\nconfig device 'kphone'\n\toption person 'kira'\n\toption name 'Kphone'\n\toption address '10.79.0.2'\n\toption public_key 'MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMA='\n\nconfig device 'lphone'\n\toption person 'lev'\n\toption name 'Lphone'\n\toption address '10.79.0.3'\n\toption public_key 'NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNA='\n\nconfig device 'nphone'\n\toption person 'nora'\n\toption name 'Nphone'\n\toption address '10.77.0.11'\n\toption public_key 'OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOA='\n\n"
+}

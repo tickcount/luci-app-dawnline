@@ -1,0 +1,325 @@
+// The way from a new device to the server while it is set up, and the sheet
+// around it keeping pace: what the way says in each state (waiting, can't
+// finish, connected, no data: way.ts reads them off the router's answer) and
+// how the sheet follows. Connected, the way fills green and its line morphs
+// into "<device> connected", × and the sheet's buttons step away, everything
+// under the way folds shut and the sheet closes by itself onto the page.
+// Can't finish and no data fold what is under the way the same and keep the
+// sheet; waiting again unfolds it. What sits under the way is the view's
+// (`Around`).
+//
+// Drawing only: it never asks the router. Who watches the device is handed in
+// as a `Watcher` (the portal polls its own API, flows/wait.ts; the admin reads
+// its status poller), and calls `seen` with each new state. Nothing here may
+// import the portal's api or state: the admin draws this too.
+
+import type { Device } from '../../shared/types';
+import { fmt } from '../../shared/i18n';
+import { h, ic } from '../dom';
+import { EASE_IN, EASE_OUT, calm, play } from '../motion';
+import { morphText, setText, textOf } from './morph';
+import { closeSheet, onClosed, scrollTop, settle, showing } from './sheet';
+import type { WayState } from '../way';
+
+export interface Way {
+  el: HTMLElement;
+  /** Show this state: its look, its line morphing, the line under it gliding in or out or changing in place. */
+  set(st: WayState): void;
+  /** Ten minutes and nothing: the light goes out, and the way says so. */
+  gaveUp(): void;
+}
+
+/** The way's line and the one under it (empty: none) in a state. */
+function lines(st: WayState, d: Device): [string, string] {
+  switch (st) {
+    case 'trying':
+      return [_('Unable to complete the handshake'), _('Your network may be blocking the connection.')];
+    case 'connected':
+      return [fmt(_('%s connected'), d.name), ''];
+    case 'nodata':
+      return [_('Handshake complete, but no data'), _('The router drops its traffic: the address does not match.')];
+    case 'waiting':
+      return [_('Waiting for the connection'), ''];
+  }
+}
+
+/** The way's class in a state (setup.css). */
+const LOOK: Record<WayState, string> = { waiting: '', trying: 'trying', connected: 'done', nodata: 'nodata' };
+
+export function waitWay(d: Device): Way {
+  const line = h('b', {}, _('Waiting for the connection'));
+  const more = h('span', { class: 'ws', hidden: true });
+  const t = h('span', { class: 't' }, line, more);
+  const text = h('div', { class: 'way-text' }, t);
+  // The light's two loops (running, knocking) and the break at the router run all along, each showing in its own
+  // state (setup.css): a change of state cross-fades them where they stand instead of starting one over.
+  const track = h(
+    'span',
+    { class: 'way-track' },
+    h('span', { class: 'way-glow' }, h('span', { class: 'run' }, h('i')), h('span', { class: 'knock' }, h('i'))),
+    h('span', { class: 'way-fill' }),
+    h('span', { class: 'way-break' }, h('i')),
+  );
+  const el = h(
+    'div',
+    { class: 'way', role: 'status', 'aria-live': 'polite' },
+    h(
+      'div',
+      { class: 'way-row' },
+      h('span', { class: 'way-end' }, ic(d.kind)),
+      track,
+      h('span', { class: 'way-end home' }, ic('terminal')),
+    ),
+    text,
+  );
+
+  // The lines sit centred in their block: when the second comes or goes, the block's height and the lines' place
+  // glide together (a FLIP of the lines), so the first never jumps to its new centre. `from` and `top`: the block's
+  // height and the lines' top on screen before the change.
+  const glide = (from: number, top: number) => {
+    text.getAnimations().forEach((a) => a.cancel());
+    t.getAnimations().forEach((a) => a.cancel());
+    const to = text.offsetHeight;
+    text.style.overflow = '';
+    if (from !== to) {
+      text.style.overflow = 'hidden';
+      play(text, [{ height: `${from}px` }, { height: `${to}px` }], { duration: 340, easing: EASE_OUT }).onfinish = () => {
+        text.style.overflow = '';
+      };
+    }
+    // Measured with the block held at its old height (its glide has just started), the sheet around it at its old
+    // size too: the lines start exactly where they stood, however the sheet is anchored and however they centre.
+    const dy = top - t.getBoundingClientRect().top;
+    if (Math.abs(dy) > 0.5) play(t, [{ transform: `translateY(${dy}px)` }, { transform: 'none' }], { duration: 340, easing: EASE_OUT });
+  };
+  /** Where the line under it shows its words on screen (mid-morph, the words it is turning into). */
+  const words = () => {
+    const r = document.createRange();
+    r.selectNodeContents(more.querySelector(':scope > .mt-new') ?? more);
+    return r.getBoundingClientRect();
+  };
+  // The line under it comes, goes and changes without the block snapping: in, it blurs in as the block opens; out,
+  // it blurs away first, then the block closes; another in its place, the words blur from the old into the new
+  // where they stand as the block glides to the new one's height. A fade under way turns round from where it is.
+  let says = '';
+  let hiding = 0;
+  const second = (why: string) => {
+    if (why === says) return;
+    says = why;
+    clearTimeout(hiding);
+    const shown = !more.hidden;
+    const cs = getComputedStyle(more);
+    const cur = { opacity: cs.opacity, filter: cs.filter };
+    if (!why) {
+      if (!shown) return;
+      more.getAnimations().forEach((a) => a.cancel());
+      play(more, [cur, { opacity: 0, filter: 'blur(4px)' }], { duration: 180, easing: EASE_OUT, fill: 'forwards' });
+      hiding = window.setTimeout(() => {
+        const from = text.offsetHeight;
+        const top = t.getBoundingClientRect().top;
+        more.hidden = true;
+        more.getAnimations().forEach((a) => a.cancel());
+        glide(from, top);
+      }, 170);
+      return;
+    }
+    const from = text.offsetHeight;
+    const top = t.getBoundingClientRect().top;
+    if (!shown) {
+      setText(more, why);
+      more.hidden = false;
+      glide(from, top);
+      play(
+        more,
+        [
+          { opacity: 0, filter: 'blur(4px)' },
+          { opacity: 1, filter: 'none' },
+        ],
+        { duration: 300, easing: EASE_OUT, delay: 60, fill: 'backwards' },
+      );
+      return;
+    }
+    // The old words go from where they stand now, placed against the block as the glide holds it on its first frame.
+    const was = textOf(more);
+    const at = words();
+    setText(more, why);
+    glide(from, top);
+    morphText(more, why, was, { whole: true, at });
+    more.getAnimations().forEach((a) => a.cancel());
+    if (+cur.opacity < 1) play(more, [cur, { opacity: 1, filter: 'none' }], { duration: 300, easing: EASE_OUT });
+  };
+  const packets = (on: boolean) => {
+    // Those on their way out are not counted: back to no data while they fade, a fresh pair sets off.
+    const pk = track.querySelectorAll<HTMLElement>('.way-pkt:not(.out)');
+    if (on) {
+      // Two, half a loop apart: one is always on its way.
+      if (!pk.length) track.append(h('span', { class: 'way-pkt' }), h('span', { class: 'way-pkt b' }));
+      return;
+    }
+    // Each fades where it is, falling on (a fade from script wins over its loop's own opacity), then goes.
+    pk.forEach((p) => {
+      p.classList.add('out');
+      const o = getComputedStyle(p).opacity;
+      play(p, [{ opacity: o }, { opacity: 0 }], { duration: 200, easing: EASE_IN, fill: 'forwards' }).onfinish = () => p.remove();
+    });
+  };
+  return {
+    el,
+    set(st) {
+      el.classList.remove('trying', 'nodata', 'done', 'stopped');
+      if (LOOK[st]) el.classList.add(LOOK[st]);
+      const [a, b] = lines(st, d);
+      morphText(line, a);
+      second(b);
+      packets(st === 'nodata');
+    },
+    gaveUp() {
+      el.classList.remove('trying', 'nodata', 'done');
+      el.classList.add('stopped');
+      packets(false);
+      morphText(line, _('No connection yet'));
+      second(_('Close this and open it again to keep checking.'));
+    },
+  };
+}
+
+/**
+ * Who watches the device being set up while its sheet is open: calls `seen`
+ * with each new state of the way (wayState() in way.ts reads one off a
+ * device), `gaveUp` when it stops waiting with nothing seen; returns the stop
+ * function (the sheet's onLeave). The portal polls its API (flows/wait.ts),
+ * the admin reads its status poller.
+ */
+export type Watcher = (d: Device, seen: (st: WayState) => void, gaveUp: () => void) => () => void;
+
+/** What the sheet around the way is made of (setup-view.ts). */
+export interface Around {
+  /** The line under the sheet's title. */
+  sub: HTMLElement;
+  /** Everything under the way. */
+  rest: HTMLElement;
+  /** Once the sheet has closed itself after the connection (the portal repaints its page with the card flashing). */
+  closed?: () => void;
+}
+
+/** Blocks folded away, held at nothing until they come back. */
+const folded = new WeakSet<Element>();
+
+/**
+ * Fold a block away (its height and margins to nothing, blurring out) or bring
+ * it back, from wherever it stands now: a fold turned round half-way never jumps.
+ * With less motion it fades out and then is gone, its space with it (or comes
+ * back at once and fades in): nothing travels, and nothing keeps a blank band.
+ */
+function fold(el: HTMLElement, away: boolean, duration: number) {
+  if (folded.has(el) === away) return;
+  if (away) folded.add(el);
+  else folded.delete(el);
+  if (calm()) {
+    el.getAnimations().forEach((a) => a.cancel());
+    if (!away) {
+      el.hidden = false;
+      play(el, [{ opacity: 0 }, { opacity: 1 }], { duration });
+      return;
+    }
+    play(el, [{ opacity: 1 }, { opacity: 0 }], { duration, fill: 'forwards' }).onfinish = () => {
+      if (folded.has(el)) el.hidden = true;
+    };
+    return;
+  }
+  el.hidden = false;
+  const cs = getComputedStyle(el);
+  const cur = {
+    height: `${el.getBoundingClientRect().height}px`,
+    marginTop: cs.marginTop,
+    marginBottom: cs.marginBottom,
+    opacity: cs.opacity,
+    filter: cs.filter,
+  };
+  el.getAnimations().forEach((a) => a.cancel());
+  const own = getComputedStyle(el);
+  const to = away
+    ? { height: '0px', marginTop: '0px', marginBottom: '0px', opacity: 0, filter: 'blur(4px)' }
+    : {
+        height: `${el.getBoundingClientRect().height}px`,
+        marginTop: own.marginTop,
+        marginBottom: own.marginBottom,
+        opacity: 1,
+        filter: 'none',
+      };
+  el.style.overflow = 'hidden';
+  play(el, [cur, to], { duration, easing: EASE_OUT, fill: away ? 'forwards' : 'none' }).onfinish = () => {
+    if (!away) el.style.overflow = '';
+  };
+}
+
+/** The way's own gap to what is under it (18 px, setup.css) goes with it, and comes back with it. */
+function gap(way: HTMLElement, away: boolean) {
+  const from = getComputedStyle(way).marginBottom;
+  way.getAnimations().forEach((a) => a.cancel());
+  const to = away ? '0px' : getComputedStyle(way).marginBottom;
+  play(way, [{ marginBottom: from }, { marginBottom: to }], { duration: 520, easing: EASE_OUT, fill: away ? 'forwards' : 'none' });
+}
+
+/** What the sheet does as the wait goes on (follow). */
+export interface Following {
+  /** A new state of the way. */
+  seen(st: WayState): void;
+  /** The watcher stopped waiting with nothing seen (ten minutes on the portal). */
+  gaveUp(): void;
+}
+
+/**
+ * The sheet keeps pace with the way. Connected: × and the buttons beside it
+ * step away, the sheet goes back up to the way if it was scrolled, everything
+ * under the way folds shut with the way's gap to it, and after two seconds to
+ * read it the sheet closes by itself onto the page, the card ringing green.
+ * Can't finish or no data: what is under the way folds shut the same, at once,
+ * and the sheet stays (adding the connection again would not help: the way
+ * says what would). Waiting again undoes that (× comes back, what folded
+ * unfolds). The subtitle says what setting up takes, so it shows only while
+ * waiting: once the device is heard from, or the wait gives up, it folds away,
+ * the way then right under the head.
+ */
+export function follow(d: Device, way: Way, a: Around): Following {
+  /** What is under the way is folded shut, the way's gap to it with it. */
+  let shut = false;
+  const shutRest = (away: boolean) => {
+    if (shut === away) return;
+    shut = away;
+    fold(a.rest, away, 520);
+    gap(way.el, away);
+  };
+  let timers: number[] = [];
+  const later = (ms: number, f: () => void) => timers.push(window.setTimeout(f, ms));
+  const seen = (st: WayState) => {
+    timers.forEach(clearTimeout);
+    timers = [];
+    way.set(st);
+    fold(a.sub, st !== 'waiting', 380);
+    settle(st === 'connected');
+    if (st === 'connected') {
+      scrollTop();
+      later(400, () => {
+        if (!showing(way.el)) return;
+        shutRest(true);
+        // Reading time, not motion: the same with less motion.
+        later(2400, () => {
+          // Only this sheet: not one the visitor went on to.
+          if (!showing(way.el)) return;
+          if (a.closed) onClosed(a.closed);
+          closeSheet();
+        });
+      });
+      return;
+    }
+    shutRest(st !== 'waiting');
+  };
+  return {
+    seen,
+    gaveUp() {
+      fold(a.sub, true, 380);
+      way.gaveUp();
+    },
+  };
+}

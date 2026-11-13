@@ -1,0 +1,29 @@
+/* The new admin pages' stylesheet: the portal's own (unchanged), then the admin's parts, which only add
+   classes on the portal's tokens. Built into one text by tsup.config.ts (shadow-css: the document's root
+   becomes the shadow host, the colour scheme follows the host's data-theme) and adopted by every host. */
+@import './reset.css';
+@import '../../../portal/styles/index.css';
+@import './ground.css';
+@import './nav.css';
+@import './page.css';
+@import './tabs.css';
+@import './log.css';
+@import './places.css';
+@import './timeline.css';
+@import './chart.css';
+@import './rows.css';
+@import './device.css';
+@import './kit.css';
+@import './widgets.css';
+@import './people.css';
+@import './panel.css';
+@import './person.css';
+@import './overview.css';
+@import './rollout.css';
+@import './sheets.css';
+@import './settings.css';
+@import './settings-router.css';
+@import './server.css';
+@import './choices.css';
+@import './behind.css';
+@import './toast.css';

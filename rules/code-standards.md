@@ -2,7 +2,7 @@
 
 How code in our own projects (Dawnline first, the same spirit for Tachyon, liminal and the rest) is written. This file holds what applies everywhere; per area:
 
-- `backend.md` — ucode on the router: layers, conventions, what things cost there.
+- `backend-go.md` — the backend (Go): packages, the stream, what things cost on the router.
 - `frontend.md` — TypeScript admin UI and portal: layout, live data.
 - `shell.md` — install, uninstall, init and CI scripts.
 - `ui-design.md` — how anything visible looks and how it gets approved.
@@ -13,7 +13,7 @@ Match the code around you: its naming, comment density and idiom win over person
 
 - **One module, one job, named after it.** A file you cannot describe in one sentence is two files. Starting points: ~300–400 lines for a ucode/TS module, ~60 lines for a function. Past that, split by responsibility, not by line count.
 - **Every module opens with a header comment**: what it owns, what it deliberately does not (and where that lives), and any invariant callers rely on (locks, files it writes, who may call it).
-- **Layers point one way.** Pure helpers and the data model know nothing about the router or the UI; orchestration calls them, never the reverse. Dawnline's layers are in `backend.md`.
+- **Layers point one way.** Pure helpers and the data model know nothing about the router or the UI; orchestration calls them, never the reverse. Dawnline's layers are in `backend-go.md` and `backend/version.go`.
 - **No god files, no grab-bag `ops`/`misc`/`kit` modules.** When a helper is used by one module, it stays private in that module.
 - **Delete, don't deprecate.** When something is replaced, move every caller and remove the old code in the same change; no shims, no commented-out blocks. The same goes for its strings: new text is translated in the same change, removed text leaves the catalogs (`i18n.md`).
 

@@ -1,6 +1,6 @@
 // A headless Chromium driven over the DevTools protocol, no npm packages: what
-// the README screenshot scripts share (capture-screenshots.mjs from a router,
-// capture-portal.mjs from the portal demo). BROWSER=/path/to/chrome picks the
+// the README screenshot scripts share (capture-screenshots.mjs from the admin's
+// demo, capture-portal.mjs from the portal's). BROWSER=/path/to/chrome picks the
 // browser (default: Brave or Chrome on macOS); its profile is a throwaway one.
 
 import { spawn } from 'node:child_process';
@@ -63,8 +63,7 @@ export async function connect(wsUrl) {
 
 /**
  * Start the browser headless on a fresh profile and connect to its first page. `flags` go on its command line
- * (a language, certificate errors). Returns the page, its helpers, and close() that ends the browser and removes
- * the profile.
+ * (a language). Returns the page, its helpers, and close() that ends the browser and removes the profile.
  */
 export async function launch(flags = []) {
   const profile = mkdtempSync(join(tmpdir(), 'dawnline-shots-'));
@@ -107,14 +106,16 @@ export async function launch(flags = []) {
       await page.send('Page.navigate', { url });
       await loaded;
     };
-    const waitSel = async (sel, ms = 20000) => {
+    // Until an expression is true in the page (what a selector cannot say: something inside a shadow root).
+    const waitFor = async (expression, what = expression, ms = 20000) => {
       for (let t = 0; t < ms; t += 250) {
-        if (await evaluate(`!!document.querySelector(${JSON.stringify(sel)})`)) return;
+        if (await evaluate(`!!(${expression})`)) return;
         await sleep(250);
       }
-      throw new Error(`timed out waiting for ${sel}`);
+      throw new Error(`timed out waiting for ${what}`);
     };
-    return { page, evaluate, go, waitSel, close };
+    const waitSel = (sel, ms) => waitFor(`document.querySelector(${JSON.stringify(sel)})`, sel, ms);
+    return { page, evaluate, go, waitFor, waitSel, close };
   } catch (e) {
     await close();
     throw e;

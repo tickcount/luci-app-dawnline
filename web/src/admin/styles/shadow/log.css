@@ -1,0 +1,321 @@
+/* The feed's rows (widgets/feed.ts: the Log, and the short feed of a person's and a device's panel). A row: the
+   glass of what it is about, one sentence (names as links, the rest quiet), the time. A device's connection is
+   one row, its session. A service log line with details folds them out under its sentence.
+   Then the Log's own (pages/log, `lg-*`): its bar on the kit's filter bar, days whose heads stay in sight, the
+   time as the rows' first column and the server as a quiet word at their end; and the sheet that clears it. */
+.evs {
+  display: flex;
+  flex-direction: column;
+}
+.ev {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 6px 8px;
+  font-size: 14px;
+  line-height: 20px;
+}
+.ev > .gi {
+  flex: none;
+  width: 22px;
+  height: 22px;
+}
+.ev-t {
+  flex: 1 1 0;
+  min-width: 0;
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+  -webkit-user-select: text;
+  user-select: text;
+  cursor: text;
+}
+.ev-t :is(a, button) {
+  cursor: pointer;
+}
+.ev-t a,
+.ev-t b {
+  color: var(--text);
+  font-weight: 500;
+  text-decoration: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .ev-t a:hover {
+    color: var(--accent);
+  }
+}
+.ev-t a:active {
+  color: var(--accent);
+}
+.ev .you {
+  font-weight: 500;
+  color: var(--text);
+}
+.ev-sep,
+.ev-now {
+  color: var(--text-2);
+}
+.ev-where::before,
+.ev-rejoin::before {
+  content: ' · ';
+}
+.ev-rejoin {
+  color: var(--text-2);
+}
+@container dlpage (max-width: 559px) {
+  .ev-where {
+    display: block;
+  }
+  .ev-where::before {
+    content: none;
+  }
+}
+.ev-time {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  margin-top: 6px;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 20px;
+}
+.ev > .gi {
+  align-self: flex-start;
+  margin-top: 5px;
+}
+.ev-t .mono {
+  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 13px;
+}
+.warn-t {
+  color: var(--warn);
+}
+.bad-t {
+  color: var(--bad);
+}
+.ok-t {
+  color: var(--ok);
+}
+/* the router's own words from events/render.ts (dl-* classes): quiet text, names as names */
+.ev-t .dl-muted,
+.ev-t .dl-faint {
+  color: var(--text-2);
+}
+.ev-t .dl-you {
+  color: var(--text);
+  font-weight: 500;
+}
+.ev-t .dl-mono {
+  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 13px;
+  color: var(--text);
+}
+.ev-t .dl-ev-kind {
+  color: var(--text-2);
+}
+/* with several servers, which one: a quiet word after the sentence */
+.ev-srv {
+  color: var(--text-3);
+  white-space: nowrap;
+}
+.ev-srv::before {
+  content: ' · ';
+}
+.card.flat-list:has(> .evs > .ev:only-child) {
+  border-radius: var(--r-row);
+}
+
+/* a line with details: the whole row folds them out (a chevron says so), the details as the router wrote them */
+.ev.has-detail {
+  cursor: pointer;
+  border-radius: 14px;
+  transition: background-color 150ms;
+}
+@media (hover: hover) and (pointer: fine) {
+  .ev.has-detail:hover {
+    background: color-mix(in srgb, var(--raised), var(--text) 3%);
+  }
+}
+.ev-more {
+  display: inline-grid;
+  place-items: center;
+  vertical-align: -3px;
+  margin-left: 4px;
+  color: var(--text-3);
+}
+.ev-more .i {
+  width: 14px;
+  height: 14px;
+  transform: rotate(90deg);
+  transition: transform 200ms var(--ease-out);
+}
+.ev.open .ev-more .i {
+  transform: rotate(-90deg);
+}
+.ev-detail {
+  margin: 8px 0 4px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--field);
+  color: var(--text);
+  font: 12px/18px var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  cursor: text;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* ── the Log page (pages/log) ── */
+
+/* the bar (ui/filter-bar.ts, pages/log/filters.ts): the kinds' track; under it the search, the chips beside it
+   (32 on the search's 40, wrapping under themselves) and the count at the row's end */
+.kt-bar.lg-bar {
+  margin-bottom: 20px;
+}
+.lg-bar .kt-bar2 {
+  align-items: flex-start;
+}
+.lg-bar .kt-bar2 > .field.srch {
+  flex: 0 0 260px;
+  width: 260px;
+}
+.lg-bar .kt-chips {
+  padding: 4px 0;
+}
+.lg-bar .kt-count {
+  line-height: 40px;
+}
+/* a day is one of three, not one more filter: the word alone, no plus */
+.lg-daychip:not(.on) .kt-fb {
+  padding: 0 12px;
+}
+.lg-daychip .kt-fb > .i {
+  display: none;
+}
+/* «Person: a long name» ends in an ellipsis */
+.kt-fchip.lg-pick {
+  max-width: min(260px, 100%);
+}
+/* narrower: the search and the count share a row, the chips are one row under them that scrolls sideways, its
+   end fading (as the kit's on a phone) */
+@container dlpage (max-width: 759px) {
+  .lg-bar .kt-bar2 {
+    flex-wrap: wrap;
+  }
+  .lg-bar .kt-bar2 > .field.srch {
+    order: 1;
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+  }
+  .lg-bar .kt-count {
+    order: 2;
+    margin-left: 0;
+  }
+  .lg-bar .kt-chips {
+    order: 3;
+    flex: 1 1 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+    margin: 0 -4px;
+    padding: 0 4px;
+    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 18px), transparent);
+    mask-image: linear-gradient(90deg, #000 calc(100% - 18px), transparent);
+  }
+  .lg-bar .kt-chips::-webkit-scrollbar {
+    display: none;
+  }
+  .lg-bar .kt-chips > :last-child {
+    margin-right: 14px;
+  }
+}
+
+/* «Export» in the head: on the page's ground, as the knob beside it */
+.ph-acts > .btn.lg-exp {
+  background: var(--on-ground);
+}
+@media (hover: hover) and (pointer: fine) {
+  .ph-acts > .btn.lg-exp:hover {
+    background: color-mix(in srgb, var(--on-ground), var(--text) 6%);
+  }
+}
+
+/* a day's head stays under the top edge while its rows scroll: the ground's own colour, fading out over the rows
+   that pass under (--sc-pad: the scroller's top padding, ui/rail.ts publishScrollPad) */
+.grp.lg-day + .lg-day {
+  margin-top: 12px;
+}
+.sec-head.lg-dh {
+  position: sticky;
+  top: calc(0px - var(--sc-pad, 0px));
+  z-index: 4;
+  margin: 0 -4px;
+  padding: 12px 8px 14px;
+  background: linear-gradient(var(--bg) calc(100% - 12px), transparent);
+}
+/* the time is the rows' first column; a phone keeps it at the row's end */
+.lg-feed .ev {
+  gap: 10px;
+}
+.lg-feed .ev-time {
+  order: -1;
+  flex: 0 0 46px;
+}
+/* with several servers, which one: out of the sentence, a quiet word at the row's end (none where it is narrow) */
+.lg-feed .lg-srv {
+  flex: none;
+  align-self: flex-start;
+  max-width: 14em;
+  margin: 6px 4px 0 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  line-height: 20px;
+}
+.lg-feed .lg-srv::before {
+  content: none;
+}
+@container dlpage (max-width: 699px) {
+  .lg-feed .lg-srv {
+    display: none;
+  }
+}
+@container dlpage (max-width: 559px) {
+  .lg-feed .ev-time {
+    order: 0;
+    flex: 0 0 auto;
+  }
+}
+
+/* Clearing the log (pages/log/clear.ts): what and how old, as two tracks on the sheet's ground */
+.ask-picks {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  margin: -6px 0 24px;
+}
+.ask-pick-l {
+  padding: 0 4px;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 18px;
+}
+.ask-pick-l:not(:first-child) {
+  margin-top: 6px;
+}
+.ask-picks .tabs {
+  width: 100%;
+  background: var(--field);
+}
+.ask-picks .tab {
+  padding: 0 10px;
+}
+.ask-picks .tab-s:empty,
+.ask-picks .tabs.icons .tab:not(.on) .tab-l {
+  display: none;
+}
+.ask-picks .tabs.icons {
+  grid-auto-columns: auto;
+}

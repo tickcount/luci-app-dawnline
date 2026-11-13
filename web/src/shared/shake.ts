@@ -15,15 +15,16 @@ const RED_HOLD = 700;
 const RED_FADE = 800;
 
 /**
- * The outline red at once (a 1.5 px ring: inside the portal's field, as its focus ring is; around the admin's
- * input), then back to whatever the field shows now, focused or not. Another one starts red again.
+ * The outline red at once (a 1.5 px ring: inside the portal's field, as its focus ring is, and inside the frame of
+ * a value edited in place, where it takes the frame's own place and corners; around any other input), then back
+ * to whatever the field shows now, focused or not. Another one starts red again.
  */
 function redden(el: HTMLElement) {
   el.getAnimations()
     .filter((a) => a.id === 'redden')
     .forEach((a) => a.cancel());
   const cs = getComputedStyle(el);
-  const inset = el.classList.contains('field') ? 'inset ' : '';
+  const inset = el.matches('.field, .kt-ie-f') ? 'inset ' : '';
   const red = `${inset}0 0 0 1.5px ${cs.getPropertyValue('--bad').trim() || '#e5484d'}`;
   const all = RED_HOLD + RED_FADE;
   // No last frame: it fades into the field's own ring as it is then, a focus ring still coming in included.

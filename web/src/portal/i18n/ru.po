@@ -8,11 +8,11 @@ msgstr ""
 "Language-Team: Russian\n"
 "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "\"%s\" already exists."
 msgstr "Устройство «%s» уже есть."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "\"%s\" is already taken."
 msgstr "Идентификатор «%s» уже занят."
 
@@ -21,30 +21,30 @@ msgstr "Идентификатор «%s» уже занят."
 msgid "%s (Android: %s)"
 msgstr "%s (на Android: %s)"
 
-#: web/src/portal/page/notices.ts
-msgid "%s (router time)"
-msgstr "%s (по времени роутера)"
-
 #: web/src/shared/pace.ts
 msgid "%s a day lately"
 msgstr "%s в день за последние дни"
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "%s already has %d device. Remove one first to lower the limit to %d."
 msgid_plural "%s already has %d devices. Remove one first to lower the limit to %d."
 msgstr[0] "%s: уже %d устройство. Чтобы снизить лимит до %d, сначала удалите одно из них."
 msgstr[1] "%s: уже %d устройства. Чтобы снизить лимит до %d, сначала удалите одно из них."
 msgstr[2] "%s: уже %d устройств. Чтобы снизить лимит до %d, сначала удалите одно из них."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+#: backend/i18n/portal-messages.js
 msgid "%s and %s overlap: each packet type needs values of its own."
 msgstr "%s и %s пересекаются: у каждого типа пакетов должны быть свои значения."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+#: backend/i18n/portal-messages.js
 msgid "%s can't use the network interface %s: it exists and isn't Dawnline's."
 msgstr "Сервер %s не может использовать сетевой интерфейс %s: он уже существует и создан не Dawnline."
 
-#: web/src/portal/flows/wait.ts
+#: backend/i18n/portal-messages.js
+msgid "%s cannot be changed for several people at once."
+msgstr "%s нельзя менять сразу у нескольких человек."
+
+#: web/src/portal/ui/wait-way.ts
 msgid "%s connected"
 msgstr "Подключено: %s"
 
@@ -63,15 +63,15 @@ msgstr[2] "%s дней"
 msgid "%s h ago"
 msgstr "%s ч назад"
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+#: backend/i18n/portal-messages.js
 msgid "%s has a tag that is not closed with >."
 msgstr "%s: тег не закрыт символом >."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+#: backend/i18n/portal-messages.js
 msgid "%s has an invalid interface name \"%s\"."
 msgstr "У сервера %s недопустимое имя интерфейса «%s»."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "%s has no room for every device on %s."
 msgstr "В подсети %s не хватит адресов для всех устройств сервера %s."
 
@@ -79,27 +79,43 @@ msgstr "В подсети %s не хватит адресов для всех у
 msgid "%s in total"
 msgstr "%s всего"
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+#: backend/i18n/portal-messages.js
+msgid "%s is in the list twice."
+msgstr "%s в списке дважды."
+
+#: backend/i18n/portal-messages.js
 msgid "%s is kept down."
 msgstr "Сервер %s остановлен."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+#: backend/i18n/portal-messages.js
 msgid "%s is kept down: its disguise has values AmneziaWG cannot take. %s"
 msgstr "Сервер %s остановлен: в его маскировке есть значения, которые AmneziaWG не примет. %s"
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+#: backend/i18n/portal-messages.js
 msgid "%s is kept down: its disguise needs AmneziaWG %s (installed: %s)."
 msgstr "Сервер %s остановлен: для его маскировки нужен AmneziaWG %s (установлен %s)."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+#: backend/i18n/portal-messages.js
 msgid "%s is kept down: its disguise needs AmneziaWG %s (installed: none)."
 msgstr "Сервер %s остановлен: для его маскировки нужен AmneziaWG %s (не установлен)."
+
+#: web/src/shared/nets.ts
+msgid "%s is not a private network (10.x, 172.16–31.x, 192.168.x)."
+msgstr "%s не частная сеть (10.x, 172.16–31.x, 192.168.x)."
+
+#: web/src/shared/nets.ts
+msgid "%s is taken: it is %s. The two ends need different ranges."
+msgstr "%s занята: это %s. Двум концам нужны разные диапазоны."
+
+#: web/src/shared/nets.ts
+msgid "%s is too wide: /16 at the most."
+msgstr "%s слишком широкая: не шире /16."
 
 #: web/src/portal/page/access.ts
 msgid "%s left"
 msgstr "осталось %s"
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+#: backend/i18n/portal-messages.js
 msgid "%s may not contain # or a line break."
 msgstr "%s не может содержать # или перенос строки."
 
@@ -107,33 +123,44 @@ msgstr "%s не может содержать # или перенос строк
 msgid "%s min ago"
 msgstr "%s мин назад"
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+#: backend/i18n/portal-messages.js
 msgid "%s must be a number or a range like 10-100, up to 65535."
 msgstr "%s: нужно число или диапазон вида 10-100, не больше 65535."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+#: backend/i18n/portal-messages.js
 msgid "%s must be a number or a range like 100-200, up to 4294967295."
 msgstr "%s: нужно число или диапазон вида 100-200, не больше 4294967295."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+#: backend/i18n/portal-messages.js
 msgid "%s must be a number or a range like 5-15, from 1 to 65535."
 msgstr "%s: нужно число или диапазон вида 5-15, от 1 до 65535."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+#: backend/i18n/portal-messages.js
+msgid "%s must be a value, not a list."
+msgstr "%s: нужно значение, а не список."
+
+#: backend/i18n/portal-messages.js
 msgid "%s must be a whole number from 0 to 65535."
 msgstr "%s: нужно целое число от 0 до 65535."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+#: backend/i18n/portal-messages.js
 msgid "%s must be at least 12 with header protection."
 msgstr "%s: с защитой заголовков нужно не меньше 12."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+#: backend/i18n/portal-messages.js
 msgid "%s must be from %d to %d."
 msgstr "%s: от %d до %d."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+#: backend/i18n/portal-messages.js
 msgid "%s must be on or off."
 msgstr "%s: нужно on или off."
+
+#: web/src/shared/nets.ts
+msgid "%s network behind one router at the most."
+msgid_plural "%s networks behind one router at the most."
+msgstr[0] "Не больше %s сети за одним роутером."
+msgstr[1] "Не больше %s сетей за одним роутером."
+msgstr[2] "Не больше %s сетей за одним роутером."
 
 #: web/src/portal/page/devices.ts
 msgid "%s of %s"
@@ -174,21 +201,29 @@ msgstr "%s в этом месяце"
 msgid "%s works too, if it is already there: the disguise is off."
 msgstr "Подойдёт и %s, если он уже стоит: маскировка выключена."
 
-#: web/src/portal/page/notices.ts
-msgid "%s your time"
-msgstr "%s по вашему времени"
-
 #: web/src/portal/page/devices.ts
 msgid "%s, last 7 days"
 msgstr "%s, последние 7 дней"
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+#: web/src/shared/format.ts
+msgid "%s/s"
+msgstr "%s/с"
+
+#: backend/i18n/portal-messages.js
 msgid "%s: <%s> is not a tag AmneziaWG apps accept: use <b 0x…> with an even number of hex digits, <r N>, <rc N> or <rd N> with N from 1 to 1000, or <t>."
 msgstr "%s: тег <%s> не примут приложения AmneziaWG: используйте <b 0x…> с чётным числом шестнадцатеричных цифр, <r N>, <rc N> или <rd N> с N от 1 до 1000 либо <t>."
 
 #: web/src/shared/format.ts
+msgid "%sd"
+msgstr "%s д"
+
+#: web/src/shared/format.ts
 msgid "%sd %sh"
 msgstr "%s д %s ч"
+
+#: web/src/shared/format.ts
+msgid "%sh"
+msgstr "%s ч"
 
 #: web/src/shared/format.ts
 msgid "%sh %sm"
@@ -197,6 +232,18 @@ msgstr "%s ч %s мин"
 #: web/src/shared/format.ts
 msgid "%sm"
 msgstr "%s мин"
+
+#: web/src/portal/flows/behind.ts
+msgid "A network behind it waits for the admin"
+msgstr "Сеть за ним ждёт подтверждения администратора"
+
+#: backend/i18n/portal-messages.js
+msgid "A router has %d networks behind it at the most."
+msgstr "За одним роутером может быть не больше %d сетей."
+
+#: web/src/portal/flows/add.ts
+msgid "A router is confirmed by the admin"
+msgstr "Роутер подтверждает администратор"
 
 #: web/src/portal/page/access.ts
 msgid "A total for your whole access, it does not reset."
@@ -214,7 +261,7 @@ msgstr "Доступ %s"
 msgid "Access ended"
 msgstr "Доступ закончился"
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "Access must be lan, internet or both."
 msgstr "Доступ должен быть lan, internet или both."
 
@@ -225,10 +272,6 @@ msgstr "Доступ на паузе"
 #: web/src/portal/page/access.ts
 msgid "Access until"
 msgstr "Доступ до"
-
-#: web/src/shared/format.ts
-msgid "Active"
-msgstr "Активен"
 
 #: web/src/portal/setup.ts
 msgctxt "WireGuard app"
@@ -251,6 +294,10 @@ msgstr "Добавить с самого устройства"
 msgid "Add the connection"
 msgstr "Добавьте подключение"
 
+#: backend/i18n/portal-messages.js
+msgid "Add the router as a new device: a device cannot be made one here."
+msgstr "Добавьте роутер как новое устройство: сделать им это устройство здесь нельзя."
+
 #: web/src/portal/page/devices.ts
 msgid "Add this device"
 msgstr "Добавить это устройство"
@@ -263,20 +310,19 @@ msgstr "Добавить этот телефон"
 msgid "Add your first device"
 msgstr "Добавьте первое устройство"
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/portal.uc
+#: backend/i18n/portal-messages.js
 msgid "Adding devices isn't available right now: the VPN server isn't ready. Ask whoever sent you this link."
 msgstr "Сейчас добавить устройство нельзя: VPN-сервер не готов. Обратитесь к тому, кто прислал вам эту ссылку."
 
-#: web/src/portal/page/access.ts
 #: web/src/portal/page/devices.ts
 msgid "Address copied"
 msgstr "Адрес скопирован"
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/devices.uc
+#: backend/i18n/portal-messages.js
 msgid "AmneziaWG is not installed (%s): install it in Dawnline → Components."
 msgstr "AmneziaWG не установлен (%s): установите его в Dawnline → Компоненты."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/devices.uc
+#: backend/i18n/portal-messages.js
 msgid "AmneziaWG is not installed: install it in Dawnline → Components."
 msgstr "AmneziaWG не установлен: установите его в Dawnline → Компоненты."
 
@@ -291,6 +337,27 @@ msgstr "Планшет Android"
 #: web/src/portal/main.ts
 msgid "Ask for a new one."
 msgstr "Попросите новую."
+
+#: web/src/shared/format.ts
+msgid "Ask me first"
+msgstr "Сначала напишите мне"
+
+#: web/src/portal/flows/add.ts
+#: web/src/portal/flows/behind.ts
+msgid "Ask the admin"
+msgstr "Отправить запрос"
+
+#: web/src/portal/flows/add.ts
+msgid "Asked the admin"
+msgstr "Запрос отправлен"
+
+#: web/src/portal/flows/behind.ts
+msgid "Asked: the admin decides"
+msgstr "Запрос отправлен: решает администратор"
+
+#: backend/i18n/portal-messages.js
+msgid "At most %d people at once."
+msgstr "Не больше %d человек за раз."
 
 #: web/src/shared/format.ts
 msgid "B"
@@ -316,15 +383,19 @@ msgstr "Не удаётся подключиться"
 msgid "Channel on"
 msgstr "Канал в"
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "Circle %s: server %s does not exist."
 msgstr "Круг %s: сервера %s нет."
+
+#: web/src/portal/flows/behind.ts
+msgid "Clear"
+msgstr "Очистить"
 
 #: web/src/portal/ui/sheet.ts
 msgid "Close"
 msgstr "Закрыть"
 
-#: web/src/portal/flows/wait.ts
+#: web/src/portal/ui/wait-way.ts
 msgid "Close this and open it again to keep checking."
 msgstr "Закройте окно и откройте его снова, чтобы проверить ещё раз."
 
@@ -363,10 +434,6 @@ msgid "Connected, no data left"
 msgstr "Подключено, трафик закончился"
 
 #: web/src/portal/page/devices.ts
-msgid "Connected, outside your hours"
-msgstr "Подключено, вне часов доступа"
-
-#: web/src/portal/page/devices.ts
 msgid "Connection keeps dropping"
 msgstr "Связь постоянно рвётся"
 
@@ -387,10 +454,6 @@ msgstr "Скопировано"
 #: web/src/portal/flows/setup-parts.ts
 msgid "Copy"
 msgstr "Скопировать"
-
-#: web/src/portal/page/access.ts
-msgid "Copy %s"
-msgstr "Скопировать %s"
 
 #: web/src/portal/flows/setup-parts.ts
 msgid "Copy %s config"
@@ -453,17 +516,17 @@ msgctxt "WireGuard app"
 msgid "Create from file or archive"
 msgstr "Создать из файла или архива"
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/portal.uc
+#: backend/i18n/portal-messages.js
 msgid "Cross-site request refused."
 msgstr "Запрос с другого сайта отклонён."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: web/src/portal/page/access.ts
+msgid "Data in 30 days"
+msgstr "Данные за 30 дней"
+
+#: backend/i18n/portal-messages.js
 msgid "Data limit must be a positive number of GB."
 msgstr "Лимит трафика должен быть положительным числом ГБ."
-
-#: web/src/shared/format.ts
-msgid "Data limit reached"
-msgstr "Лимит трафика исчерпан"
 
 #: web/src/portal/page/access.ts
 msgid "Data this month"
@@ -474,62 +537,66 @@ msgid "Data used"
 msgstr "Трафик всего"
 
 #: web/src/shared/format.ts
+msgid "Declined"
+msgstr "Отклонено"
+
+#: web/src/shared/format.ts
 msgid "Device"
 msgstr "Устройство"
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "Device %s of %s: MTU %d is not between 1280 and 1500."
 msgstr "Устройство %s (%s): MTU %d вне пределов от 1280 до 1500."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "Device %s of %s: address %s is also used by device %s of %s."
 msgstr "Устройство %s (%s): адрес %s уже занят устройством %s (%s)."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "Device %s of %s: address %s is not a plain IPv4 address."
 msgstr "Устройство %s (%s): адрес %s не является обычным IPv4-адресом."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "Device %s of %s: address %s is outside %s's tunnel %s."
 msgstr "Устройство %s (%s): адрес %s вне туннеля сервера %s (%s)."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "Device %s of %s: address %s is the router's own address on %s."
 msgstr "Устройство %s (%s): адрес %s принадлежит самому роутеру на сервере %s."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "Device %s of %s: address (none) is not a plain IPv4 address."
 msgstr "Устройство %s (%s): нет IPv4-адреса."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "Device %s of %s: keep-alive %d is not between 0 and 600 seconds."
 msgstr "Устройство %s (%s): keep-alive %d вне пределов от 0 до 600 секунд."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "Device %s of %s: the preshared key is not a key."
 msgstr "Устройство %s (%s): общий ключ (PSK) некорректен."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "Device %s of %s: the private key is not a key."
 msgstr "Устройство %s (%s): приватный ключ некорректен."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "Device %s of %s: the public key is not a key."
 msgstr "Устройство %s (%s): публичный ключ некорректен."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "Device %s of %s: the public key is the server's own."
 msgstr "Устройство %s (%s): публичный ключ совпадает с ключом сервера."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "Device %s: person %s does not exist."
 msgstr "Устройство %s: человека %s нет."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "Device limit must be between 1 and 32."
 msgstr "Лимит устройств: от 1 до 32."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "Device limit reached (%d)."
 msgstr "Достигнут лимит устройств (%d)."
 
@@ -537,8 +604,7 @@ msgstr "Достигнут лимит устройств (%d)."
 msgid "Device name"
 msgstr "Имя устройства"
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/devices.uc
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/portal.uc
+#: backend/i18n/portal-messages.js
 msgid "Device not found."
 msgstr "Устройство не найдено."
 
@@ -550,13 +616,25 @@ msgstr "Устройство удалено"
 msgid "Devices at home"
 msgstr "Устройства дома"
 
-#: web/src/portal/page/access.ts
-msgid "Devices at home and on this VPN reach yours as %s"
-msgstr "Устройства дома и в этом VPN обращаются к вашим по адресу %s"
+#: web/src/portal/flows/behind.ts
+msgid "Devices at home reach them through it."
+msgstr "Домашние устройства попадут в них через него."
+
+#: web/src/portal/flows/behind.ts
+msgid "Devices at home reach these through the router."
+msgstr "Домашние устройства попадают в них через роутер."
+
+#: web/src/portal/flows/behind.ts
+msgid "Devices at home reach these through the router. A new one is confirmed by the admin."
+msgstr "Домашние устройства попадают в них через роутер. Новую сеть подтверждает администратор."
 
 #: web/src/portal/page/devices.ts
 msgid "Disabled"
 msgstr "Отключено"
+
+#: web/src/portal/flows/behind.ts
+msgid "Done"
+msgstr "Готово"
 
 #: web/src/portal/flows/setup-parts.ts
 msgid "Download"
@@ -602,11 +680,15 @@ msgstr "Скачать ключ"
 msgid "Downloaded"
 msgstr "Получено"
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
+msgid "Each change needs the id of a person."
+msgstr "У каждого изменения должен быть id человека."
+
+#: backend/i18n/portal-messages.js
 msgid "End date must be YYYY-MM-DD."
 msgstr "Дата окончания должна быть в формате ГГГГ-ММ-ДД."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "Endpoint must be a hostname or IP address."
 msgstr "Адрес сервера должен быть именем хоста или IP-адресом."
 
@@ -614,19 +696,19 @@ msgstr "Адрес сервера должен быть именем хоста 
 msgid "Ends %s"
 msgstr "Закончится %s"
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "Enter a device name: up to %d letters, digits, spaces and - _ ."
 msgstr "Введите название устройства: до %d букв, цифр, пробелов и - _ ."
+
+#: web/src/portal/ui/inline-edit.ts
+msgid "Enter: save, Esc: cancel"
+msgstr "Enter: сохранить, Esc: отменить"
 
 #: web/src/portal/flows/device-form.ts
 msgid "Except %s: those addresses lead to the home network."
 msgstr "Кроме %s: эти адреса ведут в домашнюю сеть."
 
-#: web/src/shared/format.ts
-msgid "Expired"
-msgstr "Срок истёк"
-
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "Extra data must be a positive number of GB."
 msgstr "Дополнительный трафик должен быть положительным числом ГБ."
 
@@ -637,10 +719,6 @@ msgstr "Для компьютеров и роутеров"
 #: web/src/shared/format.ts
 msgid "GB"
 msgstr "ГБ"
-
-#: web/src/shared/format.ts
-msgid "Gbit/s"
-msgstr "Гбит/с"
 
 #: web/src/portal/flows/setup-view.ts
 msgid "Get %s"
@@ -662,7 +740,7 @@ msgstr "Доступно в"
 msgid "Give the device a name."
 msgstr "Дайте устройству название."
 
-#: web/src/portal/flows/wait.ts
+#: web/src/portal/ui/wait-way.ts
 msgid "Handshake complete, but no data"
 msgstr "Рукопожатие есть, но данных нет"
 
@@ -679,19 +757,7 @@ msgstr "Домашняя сеть"
 msgid "Home network + Internet"
 msgstr "Домашняя сеть и интернет"
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
-msgid "Hours must look like 07:00-23:00."
-msgstr "Часы доступа указываются так: 07:00-23:00."
-
-#: web/src/portal/page/access.ts
-msgid "Hours, router time"
-msgstr "Часы доступа, время роутера"
-
-#: web/src/portal/page/access.ts
-msgid "Hours, your time"
-msgstr "Часы доступа, ваше время"
-
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+#: backend/i18n/portal-messages.js
 msgid "I1-I5 together must be at most 2000 characters, not %d."
 msgstr "I1–I5 вместе: не больше 2000 символов, сейчас %d."
 
@@ -750,7 +816,7 @@ msgstr "Вставить"
 msgid "Install from"
 msgstr "Установить с сайта"
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "Interface name: 1-12 lowercase letters, digits or _."
 msgstr "Имя интерфейса: 1–12 строчных латинских букв, цифр или _."
 
@@ -759,11 +825,11 @@ msgstr "Имя интерфейса: 1–12 строчных латинских 
 msgid "Internet"
 msgstr "Интернет"
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/portal.uc
+#: backend/i18n/portal-messages.js
 msgid "Invalid JSON."
 msgstr "Некорректный JSON."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+#: backend/i18n/portal-messages.js
 msgid "Invalid public key."
 msgstr "Недопустимый публичный ключ."
 
@@ -787,11 +853,15 @@ msgstr "Устройство получит новые ключи. Сейчас 
 msgid "It reaches the router, but the connection never completes. The network may be blocking it."
 msgstr "Устройство доходит до роутера, но подключение не завершается. Возможно, его блокирует сеть."
 
+#: web/src/shared/format.ts
+msgid "It shares addresses with a network here"
+msgstr "Пересекается с сетью здесь"
+
 #: web/src/portal/flows/device-actions.ts
 msgid "Its connection stops working at once. You can add it again later."
 msgstr "Подключение сразу перестанет работать. Устройство можно будет добавить снова."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+#: backend/i18n/portal-messages.js
 msgid "Jmin must not be larger than Jmax."
 msgstr "Jmin не может быть больше Jmax."
 
@@ -799,7 +869,7 @@ msgstr "Jmin не может быть больше Jmax."
 msgid "KB"
 msgstr "КБ"
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "Keep-alive must be 0-600 seconds."
 msgstr "Keep-alive: от 0 до 600 секунд."
 
@@ -808,16 +878,15 @@ msgstr "Keep-alive: от 0 до 600 секунд."
 msgid "Key copied"
 msgstr "Ключ скопирован"
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "Key generation failed (is amneziawg-tools installed?)."
 msgstr "Не удалось создать ключ (установлен ли amneziawg-tools?)."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+#: backend/i18n/portal-messages.js
 msgid "Key generation failed (no random data)."
 msgstr "Не удалось создать ключ (нет случайных данных)."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "Key generation failed."
 msgstr "Не удалось создать ключ."
 
@@ -861,15 +930,11 @@ msgstr "Компьютер с Linux"
 msgid "MB"
 msgstr "МБ"
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "MTU must be 1280-1500."
 msgstr "MTU: от 1280 до 1500."
 
-#: web/src/shared/format.ts
-msgid "Mbit/s"
-msgstr "Мбит/с"
-
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/portal.uc
+#: backend/i18n/portal-messages.js
 msgid "Method not allowed."
 msgstr "Метод не поддерживается."
 
@@ -877,7 +942,7 @@ msgstr "Метод не поддерживается."
 msgid "Mobile"
 msgstr "Мобильный"
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "Monthly data must be a positive number of GB."
 msgstr "Месячный лимит трафика должен быть положительным числом ГБ."
 
@@ -885,23 +950,68 @@ msgstr "Месячный лимит трафика должен быть пол�
 msgid "Name"
 msgstr "Имя"
 
-#: web/src/portal/flows/wait.ts
+#: web/src/portal/ui/net-chips.ts
+msgid "Network"
+msgstr "Сеть"
+
+#: backend/i18n/portal-messages.js
+msgid "Network %s is not private (10.x, 172.16-31.x, 192.168.x)."
+msgstr "Сеть %s не частная (10.x, 172.16-31.x, 192.168.x)."
+
+#: backend/i18n/portal-messages.js
+msgid "Network %s is not written like 192.168.2.0/24."
+msgstr "Сеть %s записана не так: нужен вид 192.168.2.0/24."
+
+#: backend/i18n/portal-messages.js
+msgid "Network %s is taken on this server. Ask the admin which addresses are free."
+msgstr "Сеть %s занята на этом сервере. Спросите администратора, какие адреса свободны."
+
+#: backend/i18n/portal-messages.js
+msgid "Network %s is taken: %s is behind your %s. Two sites need different addresses."
+msgstr "Сеть %s занята: сеть %s стоит за вашим роутером %s. Двум площадкам нужны разные адреса."
+
+#: backend/i18n/portal-messages.js
+msgid "Network %s is taken: %s is the tunnel network of %s. The two ends of a tunnel need different addresses."
+msgstr "Сеть %s занята: %s это сеть туннеля %s. Двум концам туннеля нужны разные адреса."
+
+#: backend/i18n/portal-messages.js
+msgid "Network %s is taken: the router has %s itself. The two ends of a tunnel need different addresses."
+msgstr "Сеть %s занята: сеть %s есть у самого роутера. Двум концам туннеля нужны разные адреса."
+
+#: backend/i18n/portal-messages.js
+msgid "Network %s is too wide: /%d at the most."
+msgstr "Сеть %s слишком широкая: не шире /%d."
+
+#: backend/i18n/portal-messages.js
+msgid "Networks %s and %s share addresses."
+msgstr "У сетей %s и %s общие адреса."
+
+#: web/src/portal/flows/behind.ts
+msgid "Networks behind %s"
+msgstr "Сети за %s"
+
+#: web/src/portal/flows/behind.ts
+#: web/src/portal/page/devices.ts
+msgid "Networks behind it"
+msgstr "Сети за ним"
+
+#: web/src/portal/ui/wait-way.ts
 msgid "No connection yet"
 msgstr "Подключения пока нет"
 
 #: web/src/portal/page/access.ts
-msgid "No data limit. The count starts again on the 1st."
-msgstr "Лимита трафика нет. Счёт начинается заново 1-го числа."
+msgid "No data limit."
+msgstr "Лимита данных нет."
 
 #: web/src/portal/page/access.ts
 msgid "No end date"
 msgstr "Бессрочно"
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "No free address left on %s."
 msgstr "На сервере %s не осталось свободных адресов."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "No free addresses left in the server subnet."
 msgstr "В подсети сервера не осталось свободных адресов."
 
@@ -909,15 +1019,15 @@ msgstr "В подсети сервера не осталось свободны�
 msgid "No limit"
 msgstr "Без лимита"
 
-#: web/src/shared/format.ts
-msgid "No server"
-msgstr "Нет сервера"
-
 #: web/src/portal/page/notices.ts
 msgid "No server yet"
 msgstr "Сервера пока нет"
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/portal.uc
+#: web/src/portal/flows/behind.ts
+msgid "None"
+msgstr "Нет"
+
+#: backend/i18n/portal-messages.js
 msgid "Not found."
 msgstr "Не найден."
 
@@ -934,16 +1044,24 @@ msgid "Not set up yet"
 msgstr "Ещё не настроено"
 
 #: web/src/portal/page/notices.ts
-msgid "Nothing gets through until it resets."
-msgstr "Ничего не проходит, пока лимит не обнулится."
+msgid "Nothing gets through until it resets in %s."
+msgstr "Ничего не проходит до сброса через %s."
+
+#: web/src/portal/page/notices.ts
+msgid "Nothing gets through until the limit is raised."
+msgstr "Ничего не проходит, пока лимит не поднимут."
 
 #: web/src/portal/flows/setup-parts.ts
 msgid "Nothing opened? %s and add it in the app."
 msgstr "Ничего не открылось? %s и добавьте его в приложении."
 
-#: web/src/portal/page/access.ts
-msgid "Now, %s"
-msgstr "Сейчас %s"
+#: backend/i18n/portal-messages.js
+msgid "Nothing to change for %s."
+msgstr "Для %s нечего менять."
+
+#: backend/i18n/portal-messages.js
+msgid "Nothing to change."
+msgstr "Нечего менять."
 
 #: web/src/portal/flows/add.ts
 msgid "OR"
@@ -973,15 +1091,19 @@ msgstr "На GitHub"
 msgid "On two devices at once"
 msgstr "На двух устройствах сразу"
 
+#: backend/i18n/portal-messages.js
+msgid "Only a router has networks behind it."
+msgstr "Сети могут быть только за роутером."
+
 #: web/src/shared/name-guard.ts
 msgid "Only letters, digits, - _ ."
 msgstr "Только буквы, цифры, - _ ."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/devices.uc
+#: backend/i18n/portal-messages.js
 msgid "Only the admin can change how a device connects."
 msgstr "Менять настройки подключения устройства может только администратор."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/devices.uc
+#: backend/i18n/portal-messages.js
 msgid "Only the admin can turn devices off."
 msgstr "Отключать устройства может только администратор."
 
@@ -990,10 +1112,6 @@ msgstr "Отключать устройства может только адми
 msgctxt "step"
 msgid "Open %s"
 msgstr "Откройте %s"
-
-#: web/src/portal/page/notices.ts
-msgid "Open %s."
-msgstr "Доступ открыт %s."
 
 #: web/src/portal/setup.ts
 msgid "Open a terminal in the folder with the file"
@@ -1024,7 +1142,7 @@ msgstr "Откройте защищённую ссылку"
 msgid "Open this link on the %s to set it up there."
 msgstr "Откройте эту ссылку на %s, чтобы настроить его там."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/portal.uc
+#: backend/i18n/portal-messages.js
 msgid "Open this link over HTTPS to get the connection settings."
 msgstr "Чтобы получить настройки подключения, откройте эту ссылку по HTTPS."
 
@@ -1052,43 +1170,31 @@ msgstr "Или через wireguard-tools:"
 msgid "Other"
 msgstr "Другое"
 
-#: web/src/portal/page/access.ts
-msgid "Other devices at home reach yours as %s"
-msgstr "Другие устройства дома обращаются к вашим по адресу %s"
-
 #: web/src/portal/page/notices.ts
 msgid "Out of data"
 msgstr "Трафик закончился"
 
 #: web/src/shared/format.ts
-msgid "Outside allowed hours"
-msgstr "Вне часов доступа"
-
-#: web/src/portal/page/notices.ts
-msgid "Outside your hours"
-msgstr "Вне часов доступа"
-
-#: web/src/shared/format.ts
 msgid "PC"
 msgstr "Компьютер"
 
-#: web/src/shared/format.ts
-msgid "Paused"
-msgstr "На паузе"
+#: backend/i18n/portal-messages.js
+msgid "Paused must be true or false."
+msgstr "Пауза: нужно true или false."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "Person %s: circle %s does not exist."
 msgstr "Человек %s: круга %s нет."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "Person %s: has the same personal link as %s."
 msgstr "Человек %s: личная ссылка совпадает со ссылкой человека %s."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "Person %s: home service %s does not exist."
 msgstr "Человек %s: домашнего сервиса %s нет."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "Person %s: server %s does not exist."
 msgstr "Человек %s: сервера %s нет."
 
@@ -1112,7 +1218,7 @@ msgstr "Наведите камеру устройства на код - ссы�
 msgid "Point its camera at the code: your page opens there with this device ready to add."
 msgstr "Наведите камеру устройства на код - там откроется ваша страница, и его можно будет сразу добавить."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "Port must be 1-65535."
 msgstr "Порт: от 1 до 65535."
 
@@ -1135,10 +1241,11 @@ msgstr "Переподключить"
 msgid "Reconnect %s"
 msgstr "Переподключить %s"
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+#: backend/i18n/portal-messages.js
 msgid "RejectAfterTime must be at most 180 seconds."
 msgstr "RejectAfterTime: не больше 180 секунд."
 
+#: web/src/portal/flows/behind.ts
 #: web/src/portal/flows/device-actions.ts
 #: web/src/portal/page/devices.ts
 msgid "Remove"
@@ -1160,13 +1267,13 @@ msgstr "Переименовать «%s»"
 msgid "Request failed (%s)"
 msgstr "Не удалось выполнить запрос (%s)"
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/portal.uc
+#: backend/i18n/portal-messages.js
 msgid "Request too large."
 msgstr "Слишком большой запрос."
 
 #: web/src/portal/page/access.ts
-msgid "Resets on the 1st."
-msgstr "Обнуляется 1-го числа."
+msgid "Resets on %s, in %s. Your month began with your first connection."
+msgstr "Сбросится %s, через %s. Ваш месяц начался с первого подключения."
 
 #: web/src/portal/flows/rename.ts
 msgid "Return to save, Esc to cancel"
@@ -1180,9 +1287,17 @@ msgstr "Роутер"
 msgid "Run"
 msgstr "Выполните"
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+#: backend/i18n/portal-messages.js
 msgid "S2 must not be S1 + 56: the handshake initiation and response would have the same size."
 msgstr "S2 не может равняться S1 + 56: начальный и ответный пакеты рукопожатия будут одного размера."
+
+#: web/src/portal/flows/behind.ts
+msgid "Save"
+msgstr "Сохранить"
+
+#: web/src/portal/flows/behind.ts
+msgid "Saved"
+msgstr "Сохранено"
 
 #: web/src/portal/setup.ts
 msgctxt "WireGuard app"
@@ -1213,16 +1328,12 @@ msgstr "Отправить в AmneziaVPN"
 msgid "Server is disabled"
 msgstr "Сервер выключен"
 
-#: web/src/shared/format.ts
-msgid "Server is turned off"
-msgstr "Сервер выключен"
-
 #: web/src/portal/flows/setup-view.ts
 #: web/src/portal/page/devices.ts
 msgid "Set up %s"
 msgstr "Настроить %s"
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "Set up a server first."
 msgstr "Сначала настройте сервер."
 
@@ -1255,6 +1366,10 @@ msgstr "Поделиться ссылкой"
 msgid "Show key"
 msgstr "Показать ключ"
 
+#: backend/i18n/portal-messages.js
+msgid "Something went wrong on the router. Try again; if it goes on, look at the Log."
+msgstr "На роутере что-то пошло не так. Попробуйте ещё раз; если повторится, загляните в Журнал."
+
 #: web/src/portal/flows/setup-parts.ts
 msgid "Straight into %s"
 msgstr "Сразу в %s"
@@ -1263,11 +1378,11 @@ msgstr "Сразу в %s"
 msgid "Straight into the app"
 msgstr "Сразу в приложение"
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "Subnet must look like 10.77.0.0/24."
 msgstr "Подсеть указывается так: 10.77.0.0/24."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "Subnet overlaps %s."
 msgstr "Подсеть пересекается с %s."
 
@@ -1284,6 +1399,11 @@ msgstr "ТБ"
 msgid "Tablet"
 msgstr "Планшет"
 
+#: web/src/portal/flows/behind.ts
+#: web/src/portal/page/devices.ts
+msgid "Take the request back"
+msgstr "Отозвать запрос"
+
 #: web/src/portal/setup.ts
 msgid "Tap “%s” and connect"
 msgstr "Нажмите «%s» и подключитесь"
@@ -1296,9 +1416,25 @@ msgstr "Это имя уже занято."
 msgid "The APK is for phones without Google Play, or where the store hides the app."
 msgstr "APK - для телефонов без Google Play или если магазин скрывает приложение."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/devices.uc
+#: backend/i18n/portal-messages.js
+msgid "The admin adds routers on this server. Ask them for one."
+msgstr "На этом сервере роутеры добавляет администратор. Попросите его."
+
+#: web/src/portal/page/devices.ts
+msgid "The admin confirms a router before it can connect."
+msgstr "Администратор подтверждает роутер, прежде чем он сможет подключиться."
+
+#: backend/i18n/portal-messages.js
 msgid "The admin has turned this device off."
 msgstr "Администратор отключил это устройство."
+
+#: web/src/portal/flows/behind.ts
+msgid "The admin turned %s down"
+msgstr "Администратор отклонил %s"
+
+#: web/src/portal/flows/behind.ts
+msgid "The admin turned this router down"
+msgstr "Администратор отклонил этот роутер"
 
 #: web/src/portal/flows/setup-view.ts
 msgid "The app goes on the %s."
@@ -1324,11 +1460,15 @@ msgstr "Подключение одним ключом"
 msgid "The connection as one link"
 msgstr "Подключение одной ссылкой"
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/awg.uc
+#: web/src/portal/flows/behind.ts
+msgid "The connection shows here once the admin confirms the router."
+msgstr "Подключение появится, когда администратор подтвердит роутер."
+
+#: backend/i18n/portal-messages.js
 msgid "The header protection key is not a key."
 msgstr "Ключ защиты заголовков некорректен."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "The id may use lowercase letters, digits and underscores."
 msgstr "В идентификаторе можно использовать строчные латинские буквы, цифры и подчёркивания."
 
@@ -1344,7 +1484,7 @@ msgstr "Пакеты и файл для OpenWrt"
 msgid "The page could not load"
 msgstr "Не удалось загрузить страницу"
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "The person has no server."
 msgstr "У человека нет сервера."
 
@@ -1352,8 +1492,8 @@ msgstr "У человека нет сервера."
 msgid "The router can’t use what it sends: reconnect it."
 msgstr "Роутер не принимает то, что отправляет устройство: переподключите его."
 
-#: web/src/portal/flows/wait.ts
 #: web/src/portal/page/devices.ts
+#: web/src/portal/ui/wait-way.ts
 msgid "The router drops its traffic: the address does not match."
 msgstr "Роутер отбрасывает его трафик: адрес не совпадает."
 
@@ -1373,7 +1513,7 @@ msgstr "Это подключение стоит на двух устройст�
 msgid "This device"
 msgstr "Это устройство"
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "This key is already in use."
 msgstr "Этот ключ уже используется."
 
@@ -1381,9 +1521,17 @@ msgstr "Этот ключ уже используется."
 msgid "This link no longer works"
 msgstr "Эта ссылка больше не работает"
 
+#: web/src/shared/format.ts
+msgid "This network is not needed here"
+msgstr "Эта сеть здесь не нужна"
+
 #: web/src/portal/flows/secure.ts
 msgid "This page is open without encryption. To add or set up a device, open the same link over HTTPS:"
 msgstr "Эта страница открыта без шифрования. Чтобы добавить или настроить устройство, откройте ту же ссылку по HTTPS:"
+
+#: backend/i18n/portal-messages.js
+msgid "This router waits for an answer to its request: it has no configuration yet."
+msgstr "Роутер ждёт ответа на запрос: конфигурации у него пока нет."
 
 #: web/src/portal/page/access.ts
 msgid "Through the router"
@@ -1394,7 +1542,7 @@ msgstr "Через роутер"
 msgid "Today"
 msgstr "Сегодня"
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/portal.uc
+#: backend/i18n/portal-messages.js
 msgid "Too many changes in a short time. Try again in a few minutes."
 msgstr "Слишком много изменений за короткое время. Попробуйте ещё раз через несколько минут."
 
@@ -1402,6 +1550,11 @@ msgstr "Слишком много изменений за короткое вр�
 msgctxt "V2RayTun app"
 msgid "Tunnel"
 msgstr "Туннель"
+
+#: web/src/portal/flows/behind.ts
+#: web/src/portal/page/devices.ts
+msgid "Turned down"
+msgstr "Отклонено"
 
 #: web/src/portal/flows/setup-view.ts
 msgid "Two steps, about a minute"
@@ -1411,44 +1564,39 @@ msgstr "Два шага, около минуты"
 msgid "Two steps, about a minute: get the app, then add the connection."
 msgstr "Два шага, около минуты: установите приложение, затем добавьте подключение."
 
-#: web/src/portal/flows/wait.ts
+#: web/src/portal/ui/wait-way.ts
 msgid "Unable to complete the handshake"
 msgstr "Не удаётся завершить рукопожатие"
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "Unknown DNS choice."
 msgstr "Неизвестный вариант DNS."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/portal.uc
+#: backend/i18n/portal-messages.js
 msgid "Unknown action."
 msgstr "Неизвестное действие."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "Unknown circle."
 msgstr "Неизвестный круг."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "Unknown device type."
 msgstr "Неизвестный тип устройства."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/devices.uc
+#: backend/i18n/portal-messages.js
 msgid "Unknown device."
 msgstr "Неизвестное устройство."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
-msgid "Unknown end action."
-msgstr "Неизвестное действие по окончании доступа."
-
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "Unknown person."
 msgstr "Неизвестный человек."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "Unknown server."
 msgstr "Неизвестный сервер."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
+#: backend/i18n/portal-messages.js
 msgid "Unknown service %s."
 msgstr "Неизвестный сервис %s."
 
@@ -1472,13 +1620,17 @@ msgstr "V2RayTun подключается к серверу по IP-адресу
 msgid "V2RayTun’s own channel: news and updates of the app."
 msgstr "Канал самого V2RayTun: новости и обновления приложения."
 
-#: web/src/portal/flows/wait.ts
+#: web/src/portal/page/devices.ts
+msgid "Waiting for approval"
+msgstr "Ждёт подтверждения"
+
+#: web/src/portal/flows/behind.ts
+msgid "Waiting for the admin"
+msgstr "Ждёт администратора"
+
+#: web/src/portal/ui/wait-way.ts
 msgid "Waiting for the connection"
 msgstr "Ждём подключения"
-
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/core.uc
-msgid "Warning must be 0-60 days."
-msgstr "Предупреждать можно за 0–60 дней."
 
 #: web/src/portal/flows/device-form.ts
 msgid "What is it?"
@@ -1518,17 +1670,17 @@ msgstr "Вас ещё не добавили ни на один сервер."
 msgid "Your access"
 msgstr "Ваш доступ"
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/portal.uc
+#: backend/i18n/portal-messages.js
 msgid "Your access has ended."
 msgstr "Ваш доступ закончился."
 
-#: package/luci-app-dawnline/root/usr/share/ucode/dawnline/portal.uc
+#: backend/i18n/portal-messages.js
 msgid "Your access is paused."
 msgstr "Ваш доступ на паузе."
 
 #: web/src/portal/page/access.ts
-msgid "Your data this month"
-msgstr "Ваш трафик за месяц"
+msgid "Your data in the last 30 days"
+msgstr "Ваши данные за последние 30 дней"
 
 #: web/src/portal/page/devices.ts
 msgid "Your devices"
@@ -1550,9 +1702,17 @@ msgstr "Ваши устройства не подключатся, пока до
 msgid "Your local network stays reachable while connected."
 msgstr "Ваша локальная сеть остаётся доступной при подключении."
 
-#: web/src/portal/flows/wait.ts
+#: web/src/portal/page/access.ts
+msgid "Your month begins when you next connect."
+msgstr "Ваш месяц начнётся со следующего подключения."
+
+#: web/src/portal/ui/wait-way.ts
 msgid "Your network may be blocking the connection."
 msgstr "Возможно, ваша сеть блокирует подключение."
+
+#: web/src/portal/flows/behind.ts
+msgid "a network at home"
+msgstr "сеть дома"
 
 #: web/src/shared/pace.ts
 msgid "about %s by the reset on %s"
@@ -1562,9 +1722,13 @@ msgstr "около %s к сбросу %s"
 msgid "about average"
 msgstr "около среднего"
 
-#: web/src/shared/format.ts
-msgid "bit/s"
-msgstr "бит/с"
+#: web/src/portal/ui/net-chips.ts
+msgid "already behind this router"
+msgstr "уже есть за этим роутером"
+
+#: web/src/portal/flows/behind.ts
+msgid "behind your %s"
+msgstr "за вашим роутером %s"
 
 #: web/src/portal/setup.ts
 msgid "computer"
@@ -1622,14 +1786,6 @@ msgid "just now"
 msgstr "только что"
 
 #: web/src/shared/format.ts
-msgid "kbit/s"
-msgstr "кбит/с"
-
-#: web/src/portal/page/access.ts
-msgid "name"
-msgstr "имя"
-
-#: web/src/shared/format.ts
 msgid "never"
 msgstr "никогда"
 
@@ -1640,10 +1796,6 @@ msgstr "без лимита"
 #: web/src/portal/page/devices.ts
 msgid "not used"
 msgstr "без трафика"
-
-#: web/src/portal/page/access.ts
-msgid "opens in %s"
-msgstr "откроется через %s"
 
 #: web/src/portal/setup.ts
 msgid "phone"
@@ -1679,3 +1831,15 @@ msgstr "планшете"
 #: web/src/portal/setup.ts
 msgid "this device"
 msgstr "это устройство"
+
+#: web/src/portal/flows/behind.ts
+msgid "turned down"
+msgstr "отклонена"
+
+#: web/src/portal/flows/behind.ts
+msgid "waits"
+msgstr "ждёт"
+
+#: web/src/shared/nets.ts
+msgid "“%s” is not a network like 192.168.2.0/24."
+msgstr "«%s» не сеть вида 192.168.2.0/24."

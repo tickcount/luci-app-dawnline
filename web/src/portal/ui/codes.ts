@@ -10,6 +10,7 @@ import { h, ic, markup } from '../dom';
 import { EASE_IN, EASE_OUT, SMOOTH, play } from '../motion';
 import { placeName } from '../state';
 import { copy } from './feedback';
+import { scopes } from './layer';
 
 const LIGHT = matchMedia('(prefers-color-scheme: light)');
 const look = () => (LIGHT.matches ? 'day' : 'night');
@@ -40,10 +41,12 @@ export function qrBox(text: string, big = false): HTMLElement {
 
 // Each code is redrawn in the other look where it stands: a cross-fade under way carries on.
 LIGHT.addEventListener('change', () =>
-  document.querySelectorAll<HTMLElement>('.qrbox[data-qr]').forEach((b) => {
-    b.querySelectorAll<SVGSVGElement>(':scope > svg[data-qr]').forEach((s) => s.replaceChildren(...drawn(s.dataset.qr!).childNodes));
-    b.classList.toggle('light', LIGHT.matches);
-  }),
+  scopes().forEach((at) =>
+    at.querySelectorAll<HTMLElement>('.qrbox[data-qr]').forEach((b) => {
+      b.querySelectorAll<SVGSVGElement>(':scope > svg[data-qr]').forEach((s) => s.replaceChildren(...drawn(s.dataset.qr!).childNodes));
+      b.classList.toggle('light', LIGHT.matches);
+    }),
+  ),
 );
 
 /** Where an element's fade stands now, mid-fade included. */

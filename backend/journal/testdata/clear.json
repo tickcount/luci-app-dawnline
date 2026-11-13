@@ -1,0 +1,620 @@
+{
+	"now": 1794460039,
+	"events": [
+		{
+			"ts": 1791004039,
+			"type": "connect",
+			"person": "anna",
+			"device": "phone"
+		},
+		{
+			"ts": 1792732039,
+			"type": "person_added",
+			"person": "boris"
+		},
+		{
+			"ts": 1793682439,
+			"type": "device_failing",
+			"person": "anna",
+			"device": "laptop"
+		},
+		{
+			"ts": 1794028039,
+			"type": "disconnect",
+			"person": "anna",
+			"device": "phone"
+		},
+		{
+			"ts": 1794287239,
+			"type": "unheard_of",
+			"person": "boris",
+			"device": "tv"
+		},
+		{
+			"ts": 1794459939,
+			"type": "roam",
+			"person": "boris",
+			"device": "tv"
+		},
+		{
+			"type": "connect",
+			"person": "clara",
+			"device": "pad"
+		}
+	],
+	"flash": [
+		{
+			"ts": 1791004039,
+			"type": "connect",
+			"person": "anna",
+			"device": "phone"
+		},
+		{
+			"ts": 1792732039,
+			"type": "person_added",
+			"person": "boris"
+		},
+		{
+			"ts": 1793682439,
+			"type": "device_failing",
+			"person": "anna",
+			"device": "laptop"
+		},
+		{
+			"ts": 1794028039,
+			"type": "disconnect",
+			"person": "anna",
+			"device": "phone"
+		},
+		{
+			"ts": 1794287239,
+			"type": "unheard_of",
+			"person": "boris",
+			"device": "tv"
+		}
+	],
+	"cases": [
+		{
+			"f": {
+			},
+			"removed": 7,
+			"live": [
+			],
+			"kept_flash": [
+			]
+		},
+		{
+			"f": {
+				"person": "anna"
+			},
+			"removed": 3,
+			"live": [
+				{
+					"ts": 1792732039,
+					"type": "person_added",
+					"person": "boris"
+				},
+				{
+					"ts": 1794287239,
+					"type": "unheard_of",
+					"person": "boris",
+					"device": "tv"
+				},
+				{
+					"ts": 1794459939,
+					"type": "roam",
+					"person": "boris",
+					"device": "tv"
+				},
+				{
+					"type": "connect",
+					"person": "clara",
+					"device": "pad"
+				}
+			],
+			"kept_flash": [
+				{
+					"ts": 1792732039,
+					"type": "person_added",
+					"person": "boris"
+				},
+				{
+					"ts": 1794287239,
+					"type": "unheard_of",
+					"person": "boris",
+					"device": "tv"
+				}
+			]
+		},
+		{
+			"f": {
+				"device": "tv"
+			},
+			"removed": 2,
+			"live": [
+				{
+					"ts": 1791004039,
+					"type": "connect",
+					"person": "anna",
+					"device": "phone"
+				},
+				{
+					"ts": 1792732039,
+					"type": "person_added",
+					"person": "boris"
+				},
+				{
+					"ts": 1793682439,
+					"type": "device_failing",
+					"person": "anna",
+					"device": "laptop"
+				},
+				{
+					"ts": 1794028039,
+					"type": "disconnect",
+					"person": "anna",
+					"device": "phone"
+				},
+				{
+					"type": "connect",
+					"person": "clara",
+					"device": "pad"
+				}
+			],
+			"kept_flash": [
+				{
+					"ts": 1791004039,
+					"type": "connect",
+					"person": "anna",
+					"device": "phone"
+				},
+				{
+					"ts": 1792732039,
+					"type": "person_added",
+					"person": "boris"
+				},
+				{
+					"ts": 1793682439,
+					"type": "device_failing",
+					"person": "anna",
+					"device": "laptop"
+				},
+				{
+					"ts": 1794028039,
+					"type": "disconnect",
+					"person": "anna",
+					"device": "phone"
+				}
+			]
+		},
+		{
+			"f": {
+				"category": "connections"
+			},
+			"removed": 4,
+			"live": [
+				{
+					"ts": 1792732039,
+					"type": "person_added",
+					"person": "boris"
+				},
+				{
+					"ts": 1793682439,
+					"type": "device_failing",
+					"person": "anna",
+					"device": "laptop"
+				},
+				{
+					"ts": 1794287239,
+					"type": "unheard_of",
+					"person": "boris",
+					"device": "tv"
+				}
+			],
+			"kept_flash": [
+				{
+					"ts": 1792732039,
+					"type": "person_added",
+					"person": "boris"
+				},
+				{
+					"ts": 1793682439,
+					"type": "device_failing",
+					"person": "anna",
+					"device": "laptop"
+				},
+				{
+					"ts": 1794287239,
+					"type": "unheard_of",
+					"person": "boris",
+					"device": "tv"
+				}
+			]
+		},
+		{
+			"f": {
+				"category": "problems"
+			},
+			"removed": 2,
+			"live": [
+				{
+					"ts": 1791004039,
+					"type": "connect",
+					"person": "anna",
+					"device": "phone"
+				},
+				{
+					"ts": 1792732039,
+					"type": "person_added",
+					"person": "boris"
+				},
+				{
+					"ts": 1794028039,
+					"type": "disconnect",
+					"person": "anna",
+					"device": "phone"
+				},
+				{
+					"ts": 1794459939,
+					"type": "roam",
+					"person": "boris",
+					"device": "tv"
+				},
+				{
+					"type": "connect",
+					"person": "clara",
+					"device": "pad"
+				}
+			],
+			"kept_flash": [
+				{
+					"ts": 1791004039,
+					"type": "connect",
+					"person": "anna",
+					"device": "phone"
+				},
+				{
+					"ts": 1792732039,
+					"type": "person_added",
+					"person": "boris"
+				},
+				{
+					"ts": 1794028039,
+					"type": "disconnect",
+					"person": "anna",
+					"device": "phone"
+				}
+			]
+		},
+		{
+			"f": {
+				"before": 1793855239
+			},
+			"removed": 4,
+			"live": [
+				{
+					"ts": 1794028039,
+					"type": "disconnect",
+					"person": "anna",
+					"device": "phone"
+				},
+				{
+					"ts": 1794287239,
+					"type": "unheard_of",
+					"person": "boris",
+					"device": "tv"
+				},
+				{
+					"ts": 1794459939,
+					"type": "roam",
+					"person": "boris",
+					"device": "tv"
+				}
+			],
+			"kept_flash": [
+				{
+					"ts": 1794028039,
+					"type": "disconnect",
+					"person": "anna",
+					"device": "phone"
+				},
+				{
+					"ts": 1794287239,
+					"type": "unheard_of",
+					"person": "boris",
+					"device": "tv"
+				}
+			]
+		},
+		{
+			"f": {
+				"person": "anna",
+				"category": "connections",
+				"before": 1793855239
+			},
+			"removed": 1,
+			"live": [
+				{
+					"ts": 1792732039,
+					"type": "person_added",
+					"person": "boris"
+				},
+				{
+					"ts": 1793682439,
+					"type": "device_failing",
+					"person": "anna",
+					"device": "laptop"
+				},
+				{
+					"ts": 1794028039,
+					"type": "disconnect",
+					"person": "anna",
+					"device": "phone"
+				},
+				{
+					"ts": 1794287239,
+					"type": "unheard_of",
+					"person": "boris",
+					"device": "tv"
+				},
+				{
+					"ts": 1794459939,
+					"type": "roam",
+					"person": "boris",
+					"device": "tv"
+				},
+				{
+					"type": "connect",
+					"person": "clara",
+					"device": "pad"
+				}
+			],
+			"kept_flash": [
+				{
+					"ts": 1792732039,
+					"type": "person_added",
+					"person": "boris"
+				},
+				{
+					"ts": 1793682439,
+					"type": "device_failing",
+					"person": "anna",
+					"device": "laptop"
+				},
+				{
+					"ts": 1794028039,
+					"type": "disconnect",
+					"person": "anna",
+					"device": "phone"
+				},
+				{
+					"ts": 1794287239,
+					"type": "unheard_of",
+					"person": "boris",
+					"device": "tv"
+				}
+			]
+		},
+		{
+			"f": {
+				"person": "nobody"
+			},
+			"removed": 0,
+			"live": [
+				{
+					"ts": 1791004039,
+					"type": "connect",
+					"person": "anna",
+					"device": "phone"
+				},
+				{
+					"ts": 1792732039,
+					"type": "person_added",
+					"person": "boris"
+				},
+				{
+					"ts": 1793682439,
+					"type": "device_failing",
+					"person": "anna",
+					"device": "laptop"
+				},
+				{
+					"ts": 1794028039,
+					"type": "disconnect",
+					"person": "anna",
+					"device": "phone"
+				},
+				{
+					"ts": 1794287239,
+					"type": "unheard_of",
+					"person": "boris",
+					"device": "tv"
+				},
+				{
+					"ts": 1794459939,
+					"type": "roam",
+					"person": "boris",
+					"device": "tv"
+				},
+				{
+					"type": "connect",
+					"person": "clara",
+					"device": "pad"
+				}
+			],
+			"kept_flash": [
+				{
+					"ts": 1791004039,
+					"type": "connect",
+					"person": "anna",
+					"device": "phone"
+				},
+				{
+					"ts": 1792732039,
+					"type": "person_added",
+					"person": "boris"
+				},
+				{
+					"ts": 1793682439,
+					"type": "device_failing",
+					"person": "anna",
+					"device": "laptop"
+				},
+				{
+					"ts": 1794028039,
+					"type": "disconnect",
+					"person": "anna",
+					"device": "phone"
+				},
+				{
+					"ts": 1794287239,
+					"type": "unheard_of",
+					"person": "boris",
+					"device": "tv"
+				}
+			]
+		},
+		{
+			"f": {
+				"person": "clara"
+			},
+			"no_flash": true,
+			"removed": 1,
+			"live": [
+				{
+					"ts": 1791004039,
+					"type": "connect",
+					"person": "anna",
+					"device": "phone"
+				},
+				{
+					"ts": 1792732039,
+					"type": "person_added",
+					"person": "boris"
+				},
+				{
+					"ts": 1793682439,
+					"type": "device_failing",
+					"person": "anna",
+					"device": "laptop"
+				},
+				{
+					"ts": 1794028039,
+					"type": "disconnect",
+					"person": "anna",
+					"device": "phone"
+				},
+				{
+					"ts": 1794287239,
+					"type": "unheard_of",
+					"person": "boris",
+					"device": "tv"
+				},
+				{
+					"ts": 1794459939,
+					"type": "roam",
+					"person": "boris",
+					"device": "tv"
+				}
+			],
+			"kept_flash": null
+		},
+		{
+			"f": {
+				"device": "tv"
+			},
+			"no_live": true,
+			"removed": 1,
+			"live": null,
+			"kept_flash": [
+				{
+					"ts": 1791004039,
+					"type": "connect",
+					"person": "anna",
+					"device": "phone"
+				},
+				{
+					"ts": 1792732039,
+					"type": "person_added",
+					"person": "boris"
+				},
+				{
+					"ts": 1793682439,
+					"type": "device_failing",
+					"person": "anna",
+					"device": "laptop"
+				},
+				{
+					"ts": 1794028039,
+					"type": "disconnect",
+					"person": "anna",
+					"device": "phone"
+				}
+			]
+		},
+		{
+			"f": {
+			},
+			"no_live": true,
+			"no_flash": true,
+			"removed": 0,
+			"live": null,
+			"kept_flash": null
+		}
+	],
+	"lines": [
+		"{ \"ts\": 1791004039, \"msg\": \"old\" }",
+		"not json",
+		"{ \"msg\": \"no time\" }",
+		"{ \"ts\": 1794200839, \"msg\": \"recent\" }",
+		"{ \"ts\": 1794460029, \"msg\": \"new\" }"
+	],
+	"log": [
+		{
+			"days": 0,
+			"removed": 5,
+			"live": "",
+			"kept": null
+		},
+		{
+			"days": 7,
+			"removed": 3,
+			"live": "{ \"ts\": 1794200839, \"msg\": \"recent\" }\n{ \"ts\": 1794460029, \"msg\": \"new\" }\n",
+			"kept": null
+		},
+		{
+			"days": 1,
+			"removed": 4,
+			"live": "{ \"ts\": 1794460029, \"msg\": \"new\" }\n",
+			"kept": null
+		},
+		{
+			"days": 400,
+			"removed": 2,
+			"live": "{ \"ts\": 1791004039, \"msg\": \"old\" }\n{ \"ts\": 1794200839, \"msg\": \"recent\" }\n{ \"ts\": 1794460029, \"msg\": \"new\" }\n",
+			"kept": null
+		},
+		{
+			"days": 7,
+			"saved": true,
+			"removed": 3,
+			"live": "{ \"ts\": 1794200839, \"msg\": \"recent\" }\n{ \"ts\": 1794460029, \"msg\": \"new\" }\n",
+			"kept": "{ \"ts\": 1794200839, \"msg\": \"recent\" }\n{ \"ts\": 1794460029, \"msg\": \"new\" }\n"
+		},
+		{
+			"days": 0,
+			"saved": true,
+			"removed": 5,
+			"live": "",
+			"kept": ""
+		},
+		{
+			"days": 7,
+			"saved": true,
+			"no_live": true,
+			"removed": 3,
+			"live": "",
+			"kept": ""
+		}
+	]
+}

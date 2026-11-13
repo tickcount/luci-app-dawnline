@@ -30,7 +30,7 @@ Dawnline runs an [AmneziaWG] server on your OpenWrt router and gives every
 person you invite **a personal link**. They open it, **add their own phones and
 computers** and connect with AmneziaVPN, AmneziaWG or WireGuard. You decide
 **what each of them may reach** (the home network, the internet, or both) and
-**for how long, how much and when**.
+**for how long and how much**.
 
 <p align="center">
   <a href="https://dawnline-demo.vercel.app"><img src="docs/screenshots/portal.png" alt="The personal portal: devices and access, and adding a phone in three steps" width="860"></a>
@@ -89,7 +89,7 @@ follows a modern design.
   <tr>
     <td valign="top">
       <h3>👥 People, not peers</h3>
-      <p>One card per person with their devices, who is online, traffic, end date and data limit. Filter by who needs attention or is paused.</p>
+      <p>A card for each person that says only what matters in their state: who waits for a decision and the one button that settles it, who is online since when and how fast, what each moved this week and this month. Filter, order, search by name, device or IP; a person or a device opens as a page of its own and Back returns you to the same place, and the same people stand on a map of where they connect from.</p>
     </td>
     <td valign="top">
       <h3>🧭 Who reaches what</h3>
@@ -99,7 +99,7 @@ follows a modern design.
   <tr>
     <td valign="top">
       <h3>⏳ Limits</h3>
-      <p>End dates, monthly or total data limits, allowed hours, a pause button. Changes apply at once, without dropping anyone else's connection.</p>
+      <p>End dates, monthly or total data limits, a pause button. Changes apply at once, without dropping anyone else's connection.</p>
     </td>
     <td valign="top">
       <h3>🕶️ Disguise</h3>
@@ -113,7 +113,7 @@ follows a modern design.
     </td>
     <td valign="top">
       <h3>🗺️ Overview and places</h3>
-      <p>Who is online with what, speed now, the last 30 days, and a map of where people connect from, at city level.</p>
+      <p>One page that says whether everything works: the health checks, who waits for a decision, who is online, speed now and who moves most, today by the hour, the last 30 days against the 30 before, and the servers with who still has to take a new configuration. Where people connect from, at city level, is a map in People.</p>
     </td>
   </tr>
   <tr>
@@ -160,20 +160,30 @@ flowchart LR
 ## 📸 A closer look
 
 <p align="center">
-  <img src="docs/screenshots/overview.png" alt="Overview: who is online, speed, the last 30 days and where people connect from" width="720">
+  <img src="docs/screenshots/people.png" alt="People: who needs a decision, who is online, everyone else, who is paused" width="720">
   <br>
-  <sub><b>Overview</b>: who is online, speed now, the last 30 days and a map of where people connect from.</sub>
+  <sub><b>People</b>: who needs a decision, who is online, everyone else, who is paused.</sub>
 </p>
 
 <table>
   <tr>
     <td width="50%" valign="top">
-      <img alt="People: everyone on the server, with their devices, data and state" src="docs/screenshots/people.png">
-      <p align="center"><sub><b>People</b>: online, ending soon, over the limit, outside their hours, paused.</sub></p>
+      <img alt="A person: their traffic, devices, places, term, usage and what they reach" src="docs/screenshots/person.png">
+      <p align="center"><sub><b>A person</b>: their traffic, devices and places; the term, the usage and what they reach.</sub></p>
     </td>
     <td width="50%" valign="top">
-      <img alt="A person: their devices, traffic, places and limits" src="docs/screenshots/person.png">
-      <p align="center"><sub><b>A person</b>: their devices, traffic, places and limits.</sub></p>
+      <img alt="Places: where devices connect from, on the map and in a list" src="docs/screenshots/places.png">
+      <p align="center"><sub><b>Places</b>: where devices connect from, now and over the last 30 days.</sub></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img alt="A device: when it was online, its traffic, places and set-up" src="docs/screenshots/device.png">
+      <p align="center"><sub><b>A device</b>: when it was online, its traffic, places and set-up.</sub></p>
+    </td>
+    <td width="50%" valign="top">
+      <img alt="A server's core: the disguise, MTU and keep-alive of its AmneziaWG tunnel" src="docs/screenshots/core.png">
+      <p align="center"><sub><b>A server's core</b>: the disguise, MTU and keep-alive of its AmneziaWG tunnel.</sub></p>
     </td>
   </tr>
 </table>
@@ -227,9 +237,9 @@ sh /tmp/dawnline-install.sh --lang ru             # with the admin's Russian tra
 | `-n`, `--dry-run` | Check the system, resolve, download and verify the release; change nothing |
 | `-v`, `--verbose` / `-q`, `--quiet` | More detail / only warnings and errors |
 | `--tag X.Y.Z` | A given release (`sh install.sh 0.3.1` works too) |
-| `--awg auto\|slava\|grey\|skip` | Where AmneziaWG comes from when it is missing: [Slava-Shchipunov], then [2Grey] (`auto`, the default), only one of them, or not at all (install it later from **Dawnline → Components**). `DAWNLINE_AWG` does the same |
+| `--awg auto\|slava\|grey\|skip` | Where AmneziaWG comes from when it is missing: [Slava-Shchipunov], then [2Grey] (`auto`, the default), only one of them, or not at all (install it later from **Dawnline → Settings → Updates**). `DAWNLINE_AWG` does the same |
 | `--no-awg` | Same as `--awg skip` |
-| `--lang auto\|ru\|none` | The admin's translation, `luci-i18n-dawnline-<lang>`: `auto` (the default) adds it when LuCI is set to that language or has its LuCI translation; `none` adds none. An installed one is always kept up to date. Later: **Dawnline → Components → Translation**. `DAWNLINE_LANG` does the same |
+| `--lang auto\|ru\|none` | The admin's translation, `luci-i18n-dawnline-<lang>`: `auto` (the default) adds it when LuCI is set to that language or has its LuCI translation; `none` adds none. An installed one is always kept up to date. Later: **Dawnline → Settings → Updates**, Dawnline's ⋯. `DAWNLINE_LANG` does the same |
 
 </details>
 
@@ -265,7 +275,7 @@ release, installed the same way after the app (then `/etc/init.d/uhttpd restart`
 
 </details>
 
-**Upgrade** from <kbd>Dawnline</kbd> › <kbd>Components</kbd>, or run the installer
+**Upgrade** from <kbd>Dawnline</kbd> › <kbd>Settings</kbd> › <kbd>Updates</kbd>, or run the installer
 again. Settings, keys and history are kept, and a backup is made first.
 
 ### Remove
@@ -275,7 +285,7 @@ sh -c "$(wget -qO- https://raw.githubusercontent.com/tickcount/luci-app-dawnline
 ```
 
 It backs up the configuration to `/etc/dawnline/backups`, runs Dawnline's own
-removal (the same as <kbd>Settings</kbd> › <kbd>Remove Dawnline from this router</kbd>),
+removal (the same as <kbd>Settings</kbd> › <kbd>Remove Dawnline</kbd>),
 removes the package and cleans up what is left. After installing Dawnline
 again, restore the backup in <kbd>Settings</kbd> › <kbd>Backups</kbd>.
 
@@ -302,7 +312,7 @@ sh /tmp/dawnline-uninstall.sh --dry-run
 | `--remove-awg` | Also remove AmneziaWG, unless another interface still uses it (`--keep-awg`, the default, keeps it) |
 | `-n`, `--dry-run` | Show what would be removed; change nothing |
 
-By hand: <kbd>Settings</kbd> › <kbd>Remove Dawnline from this router</kbd>
+By hand: <kbd>Settings</kbd> › <kbd>Remove Dawnline</kbd>
 (keeps a backup), then `opkg remove luci-app-dawnline` or
 `apk del luci-app-dawnline`.
 
@@ -334,6 +344,25 @@ keep working, unless you tick the ones to remove with it.
 </details>
 
 <details>
+<summary><b>Can another place's whole network join (site to site)?</b></summary>
+
+<br>
+
+Yes. Add that place's router to a person as a device of the kind «Router» and
+name the networks behind it (a server's Settings → Network → «Networks behind
+people's routers»). The tunnel then carries them both ways: home devices and
+people with home access reach hosts there, and hosts there reach what the
+router's owner reaches. A person can also ask for a router and its networks on
+their own page; you accept or decline each (or let them be added at once, per
+server). The two ends need different addresses: a network that overlaps your
+home network, a tunnel or another router's network is refused. The far router
+must route its network into the tunnel without NAT, or your home will not
+reach hosts behind it. Hosts at home reach it only where this router is their
+gateway (or they have a route to that network through it).
+
+</details>
+
+<details>
 <summary><b>Does it touch the rest of my router?</b></summary>
 
 <br>
@@ -359,7 +388,7 @@ one, install Dawnline on the new one and import the file there.
 <br>
 
 From the address a device connects from, looked up at city level and cached on
-the router. It can be turned off in <kbd>Settings</kbd>.
+the router. It can be turned off in <kbd>Settings</kbd> › <kbd>History and storage</kbd>.
 
 </details>
 
@@ -369,7 +398,8 @@ Only objects it created: network interfaces tagged `_dawnline`, firewall
 sections named `dawnline_*`, the `inet dawnline` nft table, `/tmp/hosts/dawnline`,
 the `dawnline` network namespace with its two veth links (`dlx0`, `dll0`, the
 latter a port of the LAN bridge, which needs `kmod-veth`), policy rules for the
-tunnel interfaces with one routing table, a second dnsmasq instance on port
+tunnel interfaces with one routing table, routes to the networks behind people's
+routers (routing protocol 205 in the main table), a second dnsmasq instance on port
 5354 (`/var/etc/dawnline-dns.conf`), a cron line for the agent's heartbeat
 check and, while the portal is on, a uhttpd instance for it.
 `dawnline teardown` removes all of them.
@@ -385,7 +415,7 @@ event with its syslog priority: `logread -e dawnline` shows
 `[info] [service] starting`, `[info] [apply] configuration applied in 310 ms · …`,
 tunnels and the portal going down and back, crashes with what syslog knew about
 them, every settings change (`admin changed settings · domain: lan → home`) and
-people's and devices' changes. Settings → Logs & history → System log picks the
+people's and devices' changes. Settings → History and storage → System log picks the
 level: errors, warnings, normal or verbose (each step of a start and an apply).
 
 ## 🧰 Development
@@ -398,7 +428,8 @@ package/luci-app-dawnline/
   root/usr/libexec/dawnline/       agent (usage, limits, presence) and updater
   root/usr/share/dawnline/portal/  portal CGI wrapper and its (minified) assets
   root/usr/bin/dawnline            command line (`dawnline help`)
-  htdocs/                          LuCI views and the generated module dawnline/app.js
+  htdocs/                          LuCI views and the generated modules dawnline/app.js (pages),
+                                   style.js (their stylesheet), map.js (the map, loaded on demand)
   po/                              the admin's string catalog (dawnline.pot, ru/dawnline.po)
 web/                               TypeScript sources of the admin UI and the portal
 web/i18n/                          catalog tools: collect strings, merge .po files, compile .lmo
@@ -417,8 +448,8 @@ scripts/lint-ucode.py                    # static ucode checks
 scripts/check-ucode.sh root@router       # compile every ucode file on a router
 scripts/deploy.sh root@router            # install the working tree (backs up configs first)
 scripts/build-packages.sh all            # .ipk and .apk with the OpenWrt SDK in Docker
-scripts/capture-screenshots.mjs --demo   # the admin's README screenshots from a router, a demo cast in place of its people
-scripts/capture-portal.mjs               # the portal's from its demo, in English and Russian
+scripts/capture-screenshots.mjs          # the admin's README screenshots from its demo (no router; needs a build of the Outline theme beside)
+scripts/capture-portal.mjs               # the portal's from its demo; both in English and Russian
 scripts/frame-screenshots.py             # frame them for this README
 ```
 

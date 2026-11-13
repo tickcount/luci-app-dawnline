@@ -1,0 +1,605 @@
+{
+	"routes": [
+		{
+			"dst": "default",
+			"gateway": "172.17.0.1",
+			"dev": "eth0",
+			"flags": [
+			]
+		},
+		{
+			"dst": "10.20.4.0/22",
+			"dev": "dlguest",
+			"protocol": "kernel",
+			"scope": "link",
+			"prefsrc": "10.20.4.1",
+			"flags": [
+			]
+		},
+		{
+			"dst": "10.66.0.0/24",
+			"dev": "wg9",
+			"protocol": "kernel",
+			"scope": "link",
+			"prefsrc": "10.66.0.2",
+			"flags": [
+			]
+		},
+		{
+			"dst": "172.17.0.0/16",
+			"dev": "eth0",
+			"protocol": "kernel",
+			"scope": "link",
+			"prefsrc": "172.17.0.2",
+			"flags": [
+			]
+		},
+		{
+			"dst": "192.168.50.0/24",
+			"dev": "dlhome",
+			"protocol": "kernel",
+			"scope": "link",
+			"prefsrc": "192.168.50.1",
+			"flags": [
+			]
+		},
+		{
+			"dst": "192.168.77.0/24",
+			"dev": "br-lan",
+			"protocol": "kernel",
+			"scope": "link",
+			"prefsrc": "192.168.77.1",
+			"flags": [
+			]
+		}
+	],
+	"addrs": [
+		{
+			"ifindex": 1,
+			"ifname": "lo",
+			"flags": [
+				"LOOPBACK",
+				"UP",
+				"LOWER_UP"
+			],
+			"mtu": 65536,
+			"qdisc": "noqueue",
+			"operstate": "UNKNOWN",
+			"group": "default",
+			"txqlen": 1000,
+			"addr_info": [
+				{
+					"family": "inet",
+					"local": "127.0.0.1",
+					"prefixlen": 8,
+					"scope": "host",
+					"label": "lo",
+					"valid_life_time": 4294967295,
+					"preferred_life_time": 4294967295
+				}
+			]
+		},
+		{
+			"ifindex": 11,
+			"link_index": 243,
+			"ifname": "eth0",
+			"flags": [
+				"BROADCAST",
+				"MULTICAST",
+				"UP",
+				"LOWER_UP"
+			],
+			"mtu": 65535,
+			"qdisc": "noqueue",
+			"operstate": "UP",
+			"group": "default",
+			"link_netnsid": 0,
+			"addr_info": [
+				{
+					"family": "inet",
+					"local": "172.17.0.2",
+					"prefixlen": 16,
+					"broadcast": "172.17.255.255",
+					"scope": "global",
+					"label": "eth0",
+					"valid_life_time": 4294967295,
+					"preferred_life_time": 4294967295
+				}
+			]
+		},
+		{
+			"ifindex": 12,
+			"ifname": "dlhome",
+			"flags": [
+				"BROADCAST",
+				"NOARP",
+				"UP",
+				"LOWER_UP"
+			],
+			"mtu": 1500,
+			"qdisc": "noqueue",
+			"operstate": "UNKNOWN",
+			"group": "default",
+			"txqlen": 1000,
+			"addr_info": [
+				{
+					"family": "inet",
+					"local": "192.168.50.1",
+					"prefixlen": 24,
+					"scope": "global",
+					"label": "dlhome",
+					"valid_life_time": 4294967295,
+					"preferred_life_time": 4294967295
+				}
+			]
+		},
+		{
+			"ifindex": 13,
+			"ifname": "dlguest",
+			"flags": [
+				"BROADCAST",
+				"NOARP",
+				"UP",
+				"LOWER_UP"
+			],
+			"mtu": 1500,
+			"qdisc": "noqueue",
+			"operstate": "UNKNOWN",
+			"group": "default",
+			"txqlen": 1000,
+			"addr_info": [
+				{
+					"family": "inet",
+					"local": "10.20.4.1",
+					"prefixlen": 22,
+					"scope": "global",
+					"label": "dlguest",
+					"valid_life_time": 4294967295,
+					"preferred_life_time": 4294967295
+				}
+			]
+		},
+		{
+			"ifindex": 14,
+			"ifname": "br-lan",
+			"flags": [
+				"BROADCAST",
+				"MULTICAST",
+				"UP",
+				"LOWER_UP"
+			],
+			"mtu": 1500,
+			"qdisc": "noqueue",
+			"operstate": "UP",
+			"group": "default",
+			"txqlen": 1000,
+			"addr_info": [
+				{
+					"family": "inet",
+					"local": "192.168.77.1",
+					"prefixlen": 24,
+					"scope": "global",
+					"label": "br-lan",
+					"valid_life_time": 4294967295,
+					"preferred_life_time": 4294967295
+				}
+			]
+		},
+		{
+			"ifindex": 17,
+			"ifname": "wg9",
+			"flags": [
+				"BROADCAST",
+				"NOARP",
+				"UP",
+				"LOWER_UP"
+			],
+			"mtu": 1500,
+			"qdisc": "noqueue",
+			"operstate": "UNKNOWN",
+			"group": "default",
+			"txqlen": 1000,
+			"addr_info": [
+				{
+					"family": "inet",
+					"local": "10.66.0.2",
+					"prefixlen": 24,
+					"scope": "global",
+					"label": "wg9",
+					"valid_life_time": 4294967295,
+					"preferred_life_time": 4294967295
+				}
+			]
+		}
+	],
+	"firewall": "config defaults\n\toption syn_flood\t1\n\toption input\t\tREJECT\n\toption output\t\tACCEPT\n\toption forward\t\tREJECT\n# Uncomment this line to disable ipv6 rules\n#\toption disable_ipv6\t1\n\nconfig zone\n\toption name\t\tlan\n\tlist   network\t\t'lan'\n\toption input\t\tACCEPT\n\toption output\t\tACCEPT\n\toption forward\t\tACCEPT\n\nconfig zone\n\toption name\t\twan\n\tlist   network\t\t'wan'\n\tlist   network\t\t'wan6'\n\toption input\t\tREJECT\n\toption output\t\tACCEPT\n\toption forward\t\tDROP\n\toption masq\t\t1\n\toption mtu_fix\t\t1\n\nconfig forwarding\n\toption src\t\tlan\n\toption dest\t\twan\n\n# We need to accept udp packets on port 68,\n# see https://dev.openwrt.org/ticket/4108\nconfig rule\n\toption name\t\tAllow-DHCP-Renew\n\toption src\t\twan\n\toption proto\t\tudp\n\toption dest_port\t68\n\toption target\t\tACCEPT\n\toption family\t\tipv4\n\n# Allow IPv4 ping\nconfig rule\n\toption name\t\tAllow-Ping\n\toption src\t\twan\n\toption proto\t\ticmp\n\toption icmp_type\techo-request\n\toption family\t\tipv4\n\toption target\t\tACCEPT\n\nconfig rule\n\toption name\t\tAllow-IGMP\n\toption src\t\twan\n\toption proto\t\tigmp\n\toption family\t\tipv4\n\toption target\t\tACCEPT\n\n# Allow DHCPv6 replies\n# see https://github.com/openwrt/openwrt/issues/5066\nconfig rule\n\toption name\t\tAllow-DHCPv6\n\toption src\t\twan\n\toption proto\t\tudp\n\toption dest_port\t546\n\toption family\t\tipv6\n\toption target\t\tACCEPT\n\nconfig rule\n\toption name\t\tAllow-MLD\n\toption src\t\twan\n\toption proto\t\ticmp\n\toption src_ip\t\tfe80::/10\n\tlist icmp_type\t\t'130/0'\n\tlist icmp_type\t\t'131/0'\n\tlist icmp_type\t\t'132/0'\n\tlist icmp_type\t\t'143/0'\n\toption family\t\tipv6\n\toption target\t\tACCEPT\n\n# Allow essential incoming IPv6 ICMP traffic\nconfig rule\n\toption name\t\tAllow-ICMPv6-Input\n\toption src\t\twan\n\toption proto\ticmp\n\tlist icmp_type\t\techo-request\n\tlist icmp_type\t\techo-reply\n\tlist icmp_type\t\tdestination-unreachable\n\tlist icmp_type\t\tpacket-too-big\n\tlist icmp_type\t\ttime-exceeded\n\tlist icmp_type\t\tbad-header\n\tlist icmp_type\t\tunknown-header-type\n\tlist icmp_type\t\trouter-solicitation\n\tlist icmp_type\t\tneighbour-solicitation\n\tlist icmp_type\t\trouter-advertisement\n\tlist icmp_type\t\tneighbour-advertisement\n\toption limit\t\t1000/sec\n\toption family\t\tipv6\n\toption target\t\tACCEPT\n\n# Allow essential forwarded IPv6 ICMP traffic\nconfig rule\n\toption name\t\tAllow-ICMPv6-Forward\n\toption src\t\twan\n\toption dest\t\t*\n\toption proto\t\ticmp\n\tlist icmp_type\t\techo-request\n\tlist icmp_type\t\techo-reply\n\tlist icmp_type\t\tdestination-unreachable\n\tlist icmp_type\t\tpacket-too-big\n\tlist icmp_type\t\ttime-exceeded\n\tlist icmp_type\t\tbad-header\n\tlist icmp_type\t\tunknown-header-type\n\toption limit\t\t1000/sec\n\toption family\t\tipv6\n\toption target\t\tACCEPT\n\nconfig rule\n\toption name\t\tAllow-IPSec-ESP\n\toption src\t\twan\n\toption dest\t\tlan\n\toption proto\t\tesp\n\toption target\t\tACCEPT\n\nconfig rule\n\toption name\t\tAllow-ISAKMP\n\toption src\t\twan\n\toption dest\t\tlan\n\toption dest_port\t500\n\toption proto\t\tudp\n\toption target\t\tACCEPT\n\n\n### EXAMPLE CONFIG SECTIONS\n# do not allow a specific ip to access wan\n#config rule\n#\toption src\t\tlan\n#\toption src_ip\t192.168.45.2\n#\toption dest\t\twan\n#\toption proto\ttcp\n#\toption target\tREJECT\n\n# block a specific mac on wan\n#config rule\n#\toption dest\t\twan\n#\toption src_mac\t00:11:22:33:44:66\n#\toption target\tREJECT\n\n# block incoming ICMP traffic on a zone\n#config rule\n#\toption src\t\tlan\n#\toption proto\tICMP\n#\toption target\tDROP\n\n# port redirect port coming in on wan to lan\n#config redirect\n#\toption src\t\t\twan\n#\toption src_dport\t80\n#\toption dest\t\t\tlan\n#\toption dest_ip\t\t192.168.16.235\n#\toption dest_port\t80\n#\toption proto\t\ttcp\n\n# port redirect of remapped ssh port (22001) on wan\n#config redirect\n#\toption src\t\twan\n#\toption src_dport\t22001\n#\toption dest\t\tlan\n#\toption dest_port\t22\n#\toption proto\t\ttcp\n\n### FULL CONFIG SECTIONS\n#config rule\n#\toption src\t\tlan\n#\toption src_ip\t192.168.45.2\n#\toption src_mac\t00:11:22:33:44:55\n#\toption src_port\t80\n#\toption dest\t\twan\n#\toption dest_ip\t194.25.2.129\n#\toption dest_port\t120\n#\toption proto\ttcp\n#\toption target\tREJECT\n\n#config redirect\n#\toption src\t\tlan\n#\toption src_ip\t192.168.45.2\n#\toption src_mac\t00:11:22:33:44:55\n#\toption src_port\t\t1024\n#\toption src_dport\t80\n#\toption dest_ip\t194.25.2.129\n#\toption dest_port\t120\n#\toption proto\ttcp\n\nconfig zone\n\toption name 'guest'\n\tlist device 'dlguest'\n\nconfig zone\n\toption name 'home'\n\toption device 'br-lan dlhome'\n",
+	"links": {
+		"bonding_masters": {
+			"flags": 0,
+			"type": 0,
+			"master": "",
+			"bridge": false,
+			"wifi": false
+		},
+		"br-lan": {
+			"flags": 4099,
+			"type": 1,
+			"master": "",
+			"bridge": true,
+			"wifi": false
+		},
+		"dlguest": {
+			"flags": 131,
+			"type": 1,
+			"master": "",
+			"bridge": false,
+			"wifi": false
+		},
+		"dlhome": {
+			"flags": 131,
+			"type": 1,
+			"master": "",
+			"bridge": false,
+			"wifi": false
+		},
+		"erspan0": {
+			"flags": 4098,
+			"type": 1,
+			"master": "",
+			"bridge": false,
+			"wifi": false
+		},
+		"eth0": {
+			"flags": 4099,
+			"type": 1,
+			"master": "",
+			"bridge": false,
+			"wifi": false
+		},
+		"gre0": {
+			"flags": 128,
+			"type": 778,
+			"master": "",
+			"bridge": false,
+			"wifi": false
+		},
+		"gretap0": {
+			"flags": 4098,
+			"type": 1,
+			"master": "",
+			"bridge": false,
+			"wifi": false
+		},
+		"ifb7": {
+			"flags": 130,
+			"type": 1,
+			"master": "",
+			"bridge": false,
+			"wifi": false
+		},
+		"ip6_vti0": {
+			"flags": 128,
+			"type": 769,
+			"master": "",
+			"bridge": false,
+			"wifi": false
+		},
+		"ip6gre0": {
+			"flags": 128,
+			"type": 823,
+			"master": "",
+			"bridge": false,
+			"wifi": false
+		},
+		"ip6tnl0": {
+			"flags": 128,
+			"type": 769,
+			"master": "",
+			"bridge": false,
+			"wifi": false
+		},
+		"ip_vti0": {
+			"flags": 128,
+			"type": 768,
+			"master": "",
+			"bridge": false,
+			"wifi": false
+		},
+		"lanp1": {
+			"flags": 899,
+			"type": 1,
+			"master": "br-lan",
+			"bridge": false,
+			"wifi": false
+		},
+		"lanp2": {
+			"flags": 899,
+			"type": 1,
+			"master": "br-lan",
+			"bridge": false,
+			"wifi": false
+		},
+		"lo": {
+			"flags": 9,
+			"type": 772,
+			"master": "",
+			"bridge": false,
+			"wifi": false
+		},
+		"sit0": {
+			"flags": 128,
+			"type": 776,
+			"master": "",
+			"bridge": false,
+			"wifi": false
+		},
+		"tunl0": {
+			"flags": 128,
+			"type": 768,
+			"master": "",
+			"bridge": false,
+			"wifi": false
+		},
+		"wg9": {
+			"flags": 131,
+			"type": 1,
+			"master": "",
+			"bridge": false,
+			"wifi": false
+		}
+	},
+	"devices": {
+		"bonding_masters": {
+			"name": "bonding_masters",
+			"category": "other",
+			"kind": "other",
+			"up": false,
+			"master": "",
+			"members": [
+			],
+			"nets": [
+			],
+			"addrs": [
+			],
+			"logical": "",
+			"proto": "",
+			"zone": ""
+		},
+		"br-lan": {
+			"name": "br-lan",
+			"category": "ethernet",
+			"kind": "bridge",
+			"up": true,
+			"master": "",
+			"members": [
+				"lanp1",
+				"lanp2"
+			],
+			"nets": [
+				"192.168.77.0/24"
+			],
+			"addrs": [
+				"192.168.77.1/24"
+			],
+			"logical": "",
+			"proto": "",
+			"zone": "home"
+		},
+		"dlguest": {
+			"name": "dlguest",
+			"category": "ethernet",
+			"kind": "ethernet",
+			"up": true,
+			"master": "",
+			"members": [
+			],
+			"nets": [
+				"10.20.4.0/22"
+			],
+			"addrs": [
+				"10.20.4.1/22"
+			],
+			"logical": "",
+			"proto": "",
+			"zone": "guest"
+		},
+		"dlhome": {
+			"name": "dlhome",
+			"category": "ethernet",
+			"kind": "ethernet",
+			"up": true,
+			"master": "",
+			"members": [
+			],
+			"nets": [
+				"192.168.50.0/24"
+			],
+			"addrs": [
+				"192.168.50.1/24"
+			],
+			"logical": "",
+			"proto": "",
+			"zone": "home"
+		},
+		"eth0": {
+			"name": "eth0",
+			"category": "wan",
+			"kind": "ethernet",
+			"up": true,
+			"master": "",
+			"members": [
+			],
+			"nets": [
+				"172.17.0.0/16"
+			],
+			"addrs": [
+				"172.17.0.2/16"
+			],
+			"logical": "",
+			"proto": "",
+			"zone": ""
+		},
+		"lanp1": {
+			"name": "lanp1",
+			"category": "ethernet",
+			"kind": "ethernet",
+			"up": true,
+			"master": "br-lan",
+			"members": [
+			],
+			"nets": [
+			],
+			"addrs": [
+			],
+			"logical": "",
+			"proto": "",
+			"zone": ""
+		},
+		"lanp2": {
+			"name": "lanp2",
+			"category": "ethernet",
+			"kind": "ethernet",
+			"up": true,
+			"master": "br-lan",
+			"members": [
+			],
+			"nets": [
+			],
+			"addrs": [
+			],
+			"logical": "",
+			"proto": "",
+			"zone": ""
+		},
+		"wg9": {
+			"name": "wg9",
+			"category": "vpn",
+			"kind": "vpn",
+			"up": true,
+			"master": "",
+			"members": [
+			],
+			"nets": [
+				"10.66.0.0/24"
+			],
+			"addrs": [
+				"10.66.0.2/24"
+			],
+			"logical": "",
+			"proto": "",
+			"zone": ""
+		}
+	},
+	"wan": "eth0",
+	"lan": "br-lan",
+	"zones": [
+		"lan",
+		"wan",
+		"guest",
+		"home"
+	],
+	"servers": {
+		"junk": {
+			"wan": {
+				"dev": "eth0",
+				"auto": true,
+				"zone": "wan",
+				"missing": false
+			},
+			"home": [
+				{
+					"dev": "dlhome",
+					"auto": false,
+					"nets": [
+						"192.168.50.0/24"
+					],
+					"zone": "home",
+					"missing": false
+				}
+			],
+			"nets": [
+				"192.168.50.0/24"
+			],
+			"zones": [
+				"home"
+			]
+		},
+		"max": {
+			"wan": {
+				"dev": "eth0",
+				"auto": true,
+				"zone": "wan",
+				"missing": false
+			},
+			"home": [
+			],
+			"nets": [
+			],
+			"zones": [
+			]
+		},
+		"plain": {
+			"wan": {
+				"dev": "eth0",
+				"auto": true,
+				"zone": "wan",
+				"missing": false
+			},
+			"home": [
+				{
+					"dev": "dlhome",
+					"auto": false,
+					"nets": [
+						"192.168.50.0/24"
+					],
+					"zone": "home",
+					"missing": false
+				},
+				{
+					"dev": "dlguest",
+					"auto": false,
+					"nets": [
+						"10.20.4.0/22"
+					],
+					"zone": "guest",
+					"missing": false
+				}
+			],
+			"nets": [
+				"10.20.4.0/22",
+				"192.168.50.0/24"
+			],
+			"zones": [
+				"home",
+				"guest"
+			]
+		}
+	},
+	"homes": {
+		"j_both": [
+			"192.168.50.0/24"
+		],
+		"j_lan": [
+			"192.168.50.0/24"
+		],
+		"lost": null,
+		"m_net": [
+		],
+		"p_both": [
+			"10.20.4.0/22",
+			"192.168.50.0/24"
+		],
+		"p_lan": [
+			"10.20.4.0/22",
+			"192.168.50.0/24"
+		],
+		"p_lanhome": [
+			"10.20.4.0/22",
+			"192.168.50.0/24"
+		],
+		"p_net": [
+			"10.20.4.0/22",
+			"192.168.50.0/24"
+		]
+	}
+}

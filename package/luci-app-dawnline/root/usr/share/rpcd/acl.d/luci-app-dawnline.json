@@ -3,32 +3,75 @@
 		"description": "Grant access to Dawnline",
 		"read": {
 			"ubus": {
-				"luci.dawnline": [
-					"rev",
-					"status",
-					"meter",
-					"setup_defaults",
-					"health",
+				"dawnline": [
+					"hello",
+					"sync",
+					"wait",
+					"watch",
+					"refresh",
+					"events",
+					"person_usage",
 					"service_log",
 					"backup_list",
+					"settings_get",
+					"server_ports",
+					"interfaces",
 					"updates_status",
+					"setup_defaults",
 					"updates_releases",
 					"updates_notes",
 					"updates_changes",
-					"person_usage",
-					"settings_get",
-					"portal_info",
-					"interfaces",
-					"server_ports",
 					"endpoint_probe",
-					"events"
+					"health",
+					"portal_info",
+					":subscribe"
 				]
 			}
 		},
 		"write": {
 			"ubus": {
-				"luci.dawnline": [
-					"*"
+				"dawnline": [
+					"person_links",
+					"device_config",
+					"backup_read",
+					"home_hosts",
+					"export",
+					"access_check",
+					"logs_clear",
+					"service_log_clear",
+					"usage_clear",
+					"geo_clear",
+					"backup_delete",
+					"service_set",
+					"service_delete",
+					"circle_set",
+					"circle_delete",
+					"person_pause",
+					"person_delete",
+					"person_update",
+					"people_update",
+					"person_create",
+					"person_regen",
+					"device_update",
+					"device_delete",
+					"device_create",
+					"device_rotate",
+					"device_networks",
+					"device_answer",
+					"settings_update",
+					"server_update",
+					"server_interfaces",
+					"server_delete",
+					"backup_create",
+					"server_obfuscation",
+					"server_create",
+					"health_fix",
+					"updates_run",
+					"apply",
+					"backup_restore",
+					"backup_upload",
+					"import",
+					"uninstall"
 				]
 			}
 		}

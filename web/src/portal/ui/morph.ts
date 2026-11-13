@@ -10,7 +10,7 @@
 
 import { fmt } from '../../shared/i18n';
 import { h, ic, markup, put, type Kid } from '../dom';
-import { EASE_IN, EASE_OUT, POP, SMOOTH, calm, play } from '../motion';
+import { EASE_IN, EASE_OUT, POP, SMOOTH, calm, frozen, play } from '../motion';
 
 /** Each character as its own inline box, so each can move. */
 const letters = (w: string): HTMLElement[] => [...w].map((ch) => h('i', {}, ch));
@@ -114,6 +114,29 @@ export function kept(a: string[], b: string[]): [number, number][] {
   return out;
 }
 
+/**
+ * A refill's pairs of old and new pieces (sorts as `sortOf` gives them): a keyed one (`data-key`, `data-id`) with its
+ * own key wherever it went, once each side has it once (a row that moved glides there instead of crossing); the rest
+ * in order (`kept`).
+ */
+export function paired(a: string[], b: string[]): [number, number][] {
+  const keyed = (s: string) => s !== '#text' && !s.endsWith('.');
+  const count = (l: string[]) => l.reduce((m, s) => m.set(s, (m.get(s) ?? 0) + 1), new Map<string, number>());
+  const na = count(a);
+  const nb = count(b);
+  const out: [number, number][] = [];
+  b.forEach((s, j) => keyed(s) && na.get(s) === 1 && nb.get(s) === 1 && out.push([a.indexOf(s), j]));
+  if (!out.length) return kept(a, b);
+  const ra = a.map((_, i) => i).filter((i) => !out.some(([x]) => x === i));
+  const rb = b.map((_, j) => j).filter((j) => !out.some(([, y]) => y === j));
+  for (const [i, j] of kept(
+    ra.map((i) => a[i]),
+    rb.map((j) => b[j]),
+  ))
+    out.push([ra[i], rb[j]]);
+  return out;
+}
+
 /** A morph under way on `el` ends where it was going: its words as plain text. */
 function finish(el: HTMLElement) {
   const r = runs.get(el);
@@ -212,7 +235,9 @@ export function morphText(el: HTMLElement, next: string, from = textOf(el), o: M
   const midway = run ? el.getBoundingClientRect() : null;
   const live = run && from === run.text && !calm() && el.getClientRects().length ? lift(el) : null;
   finish(el);
-  // Nothing to watch move: no motion asked for, or not on screen (a folded row, a closed sheet).
+  // Nothing to watch move: no motion asked for, or not on screen (a folded row, a closed sheet). A page that
+  // stands still (the admin) morphs its words too: a value that changed is one small thing changing where it
+  // stands, not a block rebuilt (the owner, 2026-11-12: «добавь анимацию морфа текста»).
   if (from === next || calm() || !el.getClientRects().length) {
     el.textContent = next;
     return;
@@ -395,6 +420,10 @@ interface Piece {
   node: Node;
   /** How it shows: part of the way while it still comes in. */
   shows: Look;
+  /** Its sort, its classes and its own style (a deep refill: `IntoOpts`). */
+  sort: string;
+  cls: string;
+  style: string;
 }
 /** What can fade out where it stood. */
 type Drawn = HTMLElement | SVGElement;
@@ -403,6 +432,15 @@ const isDrawn = (n: Node): n is Drawn => n instanceof HTMLElement || n instanceo
 const drawn = (n: Node): Drawn => (isDrawn(n) ? n : h('span', {}, n));
 /** Its tag and classes, less a morph's own (a piece still changing is the same piece). */
 const kindOf = (el: Element) => `${el.tagName}.${[...el.classList].filter((c) => c !== 'mt' && c !== 'mt-ib').join(' ')}`;
+/** Its tag, first class and key: what a deep refill pairs (bare words and a plain span of words are one sort). */
+const sortOf = (n: Node): string =>
+  !(n instanceof Element)
+    ? '#text'
+    : n.tagName === 'SPAN' && !n.attributes.length && !n.children.length
+      ? '#text'
+      : `${n.tagName}.${n.classList[0] ?? ''}.${(n as HTMLElement).dataset?.key ?? (n as HTMLElement).dataset?.id ?? ''}`;
+/** Its classes, less a morph's own. */
+const clsOf = (el: Element) => [...el.classList].filter((c) => !c.startsWith('mt')).join(' ');
 /** A drawing as markup, less the ids each build makes up (a glass icon's gradients): the same icon twice is the same. */
 const drawing = (el: Element) => el.outerHTML.replace(/\bgl\d+/g, 'gl');
 
@@ -439,6 +477,8 @@ function release(host: Element) {
  * been coming in), over what is left of its way.
  */
 export function fadeAway(e: Drawn, at: DOMRect, host: Element, from: DOMRect, shows: Look = SHOWN) {
+  // a page that stands still: what left is simply gone
+  if (frozen()) return void e.remove();
   const over = fading.get(e);
   if (over) release(over);
   hold(host);
@@ -484,7 +524,18 @@ function pieces(box: Element): Map<string, Piece> {
           const r = document.createRange();
           r.selectNodeContents(c);
           const at = r.getBoundingClientRect();
-          out.set(p, { kind: '#text', text: c.textContent, svg: '', at, words: at, node: c, shows: SHOWN });
+          out.set(p, {
+            kind: '#text',
+            text: c.textContent,
+            svg: '',
+            at,
+            words: at,
+            node: c,
+            shows: SHOWN,
+            sort: '#text',
+            cls: '',
+            style: '',
+          });
         }
         return;
       }
@@ -500,11 +551,36 @@ function pieces(box: Element): Map<string, Piece> {
         words,
         node: c,
         shows: look(c),
+        sort: sortOf(c),
+        cls: clsOf(c),
+        style: c.getAttribute('style') ?? '',
       });
-      if (!svg) walk(c, p);
+      if (!svg && !flat(c)) walk(c, p);
     });
   walk(box, '');
   return out;
+}
+
+/**
+ * A layer drawn as one (`data-flat`: a strip's runs, a hundred little pieces): a refill never goes into it, so it is
+ * one piece to read, to keep and to cross, never a hundred.
+ */
+const flat = (el: Element) => el instanceof HTMLElement && el.dataset.flat != null;
+/**
+ * Two such layers the same to the eye: the same classes, as many children of the same classes, each within a pixel
+ * of where the other has it (their inline `left` and `width` in % of the layer, `px` wide): a poll's later moment
+ * that moved them less than a pixel is put in still.
+ */
+function alike(a: Element, b: Element, px: number): boolean {
+  if (clsOf(a) !== clsOf(b) || a.children.length !== b.children.length) return false;
+  for (let i = 0; i < a.children.length; i++) {
+    const x = a.children[i] as HTMLElement;
+    const y = b.children[i] as HTMLElement;
+    if (x.className !== y.className) return false;
+    for (const k of ['left', 'width'] as const)
+      if ((Math.abs((parseFloat(x.style[k]) || 0) - (parseFloat(y.style[k]) || 0)) * px) / 100 >= 1) return false;
+  }
+  return true;
 }
 
 /**
@@ -536,6 +612,7 @@ function shift(el: Element, dx: number, dy: number) {
  * in already, and goes on from as far as it came.
  */
 export function appear(el: Element, shows?: Look) {
+  if (frozen()) return;
   const own = +getComputedStyle(el).opacity;
   const o0 = shows?.opacity ?? 0;
   play(
@@ -546,6 +623,40 @@ export function appear(el: Element, shows?: Look) {
     ],
     { duration: 280 * Math.min(1, Math.max(0, own - o0) / (own || 1)), delay: shows ? 0 : 60, easing: EASE_OUT, fill: 'backwards' },
   );
+}
+
+/** A height glide's id: the next one on the same element takes over from where it stands. */
+const FOLD = 'fold';
+
+/**
+ * `el` glides from `h0` px high to `h1` on SMOOTH, what it holds clipped on the way (a block that unfolds to new
+ * content or folds away from what left). One under way on it stops once the new one is in place.
+ */
+export function fold(el: Element, h0: number, h1: number) {
+  if (frozen()) return;
+  const old = el.getAnimations().filter((a) => a.id === FOLD);
+  if (Math.abs(h1 - h0) >= 1)
+    play(
+      el,
+      [
+        { height: `${h0}px`, overflow: 'clip' },
+        { height: `${h1}px`, overflow: 'clip' },
+      ],
+      { duration: SMOOTH.duration, easing: SMOOTH.easing },
+    ).id = FOLD;
+  old.forEach((a) => a.cancel());
+}
+
+export interface IntoOpts {
+  /**
+   * What holds pieces is never crossed whole (the admin's blocks, ui/reshape.ts): a container of the same sort
+   * (tag, first class, `data-key`) is gone into even when its height changed, its children paired by sort (what
+   * came in between, or left, does not shift the rest), and it glides to its new height itself (SMOOTH, clipped),
+   * the box too. Only a leaf crosses (other words past 40 characters, a fill of another size, another drawing), what
+   * left fades where it stood at any depth, and a piece whose classes changed takes the new ones from the old ones,
+   * so its own transitions run (a switch's knob slides) and its loops go on from where they were.
+   */
+  deep?: boolean;
 }
 
 /**
@@ -562,7 +673,8 @@ export function appear(el: Element, shows?: Look) {
  * half-way, what was fading goes on fading where it is, and what was still
  * coming in goes on from as far as it came. Returns what came in whole.
  */
-export function morphInto(box: HTMLElement, kids: Kid): Element[] {
+export function morphInto(box: HTMLElement, kids: Kid, o: IntoOpts = {}): Element[] {
+  const deep = !!o.deep;
   const was = pieces(box);
   const box0 = box.getBoundingClientRect();
   // What is on its way out already, with what it sat in: it goes on over that one's new self.
@@ -570,7 +682,93 @@ export function morphInto(box: HTMLElement, kids: Kid): Element[] {
     .filter((g): g is Drawn => box.contains(g) && !within(g, box) && isDrawn(g))
     .map((g) => ({ g, at: g.getBoundingClientRect(), over: g.parentElement, shows: fading.has(g) ? undefined : look(g) }));
   const pathOf = new Map([...was].map(([p, w]) => [w.node, p]));
-  put(box, kids);
+  // A deep refill: what the stylesheet runs (a switch's waiting ring, its fade still under way), by the element it
+  // runs on, with its time and frames (a node taken out of the page stops its own)
+  const loops = deep
+    ? box
+        .getAnimations({ subtree: true })
+        .filter(
+          (a): a is CSSAnimation | CSSTransition =>
+            (a instanceof CSSAnimation || a instanceof CSSTransition) && a.effect instanceof KeyframeEffect,
+        )
+        .map((a) => [a, a.currentTime, (a.effect as KeyframeEffect).getKeyframes(), a.effect!.getTiming()] as const)
+    : [];
+  if (deep) {
+    // in place: a node it keeps is never taken out (its focus, its caret and its scroll stay)
+    const list: Node[] = [];
+    const add = (k: Kid) =>
+      Array.isArray(k) ? k.forEach(add) : k != null && k !== false && list.push(typeof k === 'string' ? new Text(k) : k);
+    add(kids);
+    list.forEach((k, i) => box.childNodes[i] !== k && box.insertBefore(k, box.childNodes[i] ?? null));
+    while (box.childNodes.length > list.length) box.lastChild!.remove();
+  } else put(box, kids);
+  // a page that stands still: the new content is in its place, and that is all
+  if (frozen()) return [];
+  /** A deep refill: each new node's old piece, by its path; fills of another size the stylesheet does not glide. */
+  const match = new Map<Node, string>();
+  const still = new Set<Element>();
+  if (deep && was.size && !calm()) {
+    const under = new Map<string, string[]>();
+    for (const p of was.keys()) {
+      const up = p.slice(0, p.lastIndexOf('/'));
+      under.set(up, [...(under.get(up) ?? []), p]);
+    }
+    /** New nodes whose classes changed (with the new ones), and loops to go on (the new node, the old loop). */
+    const turned: [HTMLElement, string, string][] = [];
+    const resumed: [Element, (typeof loops)[number]][] = [];
+    const pair = (n: Node, path: string) => {
+      const olds = under.get(path) ?? [];
+      const news = [...n.childNodes].filter((k) => k instanceof Element || !!k.textContent?.trim());
+      for (const [i, j] of paired(
+        olds.map((p) => was.get(p)!.sort),
+        news.map((k) => sortOf(k)),
+      )) {
+        const k = news[j];
+        const w = was.get(olds[i])!;
+        match.set(k, olds[i]);
+        if (k === w.node || !(k instanceof Element) || !(w.node instanceof Element)) continue;
+        // (a fill of another size too: its width from the old one's, where the stylesheet glides it)
+        if (k instanceof HTMLElement && (w.cls !== clsOf(k) || (!w.text && !k.textContent && w.style !== (k.getAttribute('style') ?? ''))))
+          turned.push([k, k.className, k.getAttribute('style') ?? '']);
+        for (const l of loops) if ((l[0].effect as KeyframeEffect).target === w.node) resumed.push([k, l]);
+        pair(k, olds[i]);
+      }
+    };
+    pair(box, '');
+    // first styled as they were, then as they are: what their stylesheet moves on a change of state moves
+    for (const [k] of turned) {
+      const w = was.get(match.get(k)!)!;
+      k.className = w.cls;
+      k.setAttribute('style', w.style);
+    }
+    for (const [k, , st] of turned) {
+      // styled as it was (read: the browser takes it so); a fill its stylesheet does not glide crosses instead
+      const glides = getComputedStyle(k)
+        .transitionDuration.split(',')
+        .some((d) => parseFloat(d) > 0);
+      if (st !== was.get(match.get(k)!)!.style && !glides) still.add(k);
+    }
+    for (const [k, c, st] of turned) {
+      k.className = c;
+      k.setAttribute('style', st);
+    }
+    // a loop goes on from where it was; a transition under way runs out the rest of its way
+    for (const [k, [a, t, frames, timing]] of resumed) {
+      const pseudo = (a.effect as KeyframeEffect).pseudoElement;
+      if (a instanceof CSSTransition) {
+        k.animate(frames, { ...timing, pseudoElement: pseudo } as KeyframeAnimationOptions).currentTime = t;
+        continue;
+      }
+      for (const b of k.getAnimations({ subtree: true }))
+        if (
+          b instanceof CSSAnimation &&
+          b.animationName === a.animationName &&
+          (b.effect as KeyframeEffect).target === k &&
+          (b.effect as KeyframeEffect).pseudoElement === pseudo
+        )
+          b.currentTime = t;
+    }
+  }
   /** The new element at each place. */
   const placed = new Map<string, Element>();
   const carry = () =>
@@ -585,13 +783,22 @@ export function morphInto(box: HTMLElement, kids: Kid): Element[] {
     carry();
     return [];
   }
+  // its height as the new content has it, not as a glide still under way holds it (that one goes on from box0)
+  if (deep) box.getAnimations().forEach((a) => a.id === FOLD && a.cancel());
   const box1 = box.getBoundingClientRect();
+  if (deep) fold(box, box0.height, box1.height);
   /** Where something that stood at `r` in the box's old place stands now, the pieces having glided back there. */
-  const here = (r: DOMRect | null) => r && new DOMRect(r.left - box0.left + box1.left, r.top - box0.top + box1.top, r.width, r.height);
+  // (the box read again each time: its own glide to a new height can move it, as a sheet centred on the screen does)
+  const here = (r: DOMRect | null) => {
+    const b = r && box.getBoundingClientRect();
+    return r && b && new DOMRect(r.left - box0.left + b.left, r.top - box0.top + b.top, r.width, r.height);
+  };
   const morphs: (() => void)[] = [];
   /** An old piece, where it stood, the new parent it fades in, where that parent stood, and how the piece showed. */
   const ghosts: [Drawn, DOMRect, Element, DOMRect, Look][] = [];
   const seen = new Set<string>();
+  /** A deep refill: the old pieces gone into, whose children that left fade where they stood. */
+  const opened = new Set<string>(['']);
   /** What comes in whole. */
   const came: Element[] = [];
   const cross = (el: Element, w: Piece | undefined, path: string) => {
@@ -601,21 +808,28 @@ export function morphInto(box: HTMLElement, kids: Kid): Element[] {
     came.push(el);
     morphs.push(() => appear(el));
   };
-  /** Moves `el` from where it stood (`at`, in the box's old place) to where it is, less what its parent already carries. */
-  const glideFrom = (el: Element, at: DOMRect, carried: [number, number]): [number, number] => {
+  /**
+   * What a piece's place is taken against: the nearest container drawn as a box (not `display: contents`) and where
+   * it stood before; the box itself at the top.
+   */
+  type Frame = { el: Element; at: DOMRect };
+  /**
+   * Moves `el` from where it stood (`at`) to where it is, both against its frame: what the frame's own glide carries
+   * (already under way when this is read, or not yet: it moves both alike) is not added twice, and the box moving on
+   * the screen as it glides to its new height (a centred sheet) moves nothing inside it.
+   */
+  const glideFrom = (el: Element, at: DOMRect, f: Frame) => {
     const r = el.getBoundingClientRect();
-    const dx = at.left - box0.left - (r.left - box1.left);
-    const dy = at.top - box0.top - (r.top - box1.top);
-    const ox = dx - carried[0];
-    const oy = dy - carried[1];
+    const b = f.el.getBoundingClientRect();
+    const ox = at.left - f.at.left - (r.left - b.left);
+    const oy = at.top - f.at.top - (r.top - b.top);
     if (Math.abs(ox) > 0.5 || Math.abs(oy) > 0.5) shift(el, ox, oy);
-    return [dx, dy];
   };
-  const walk = (n: Node, path: string, carried: [number, number]) =>
+  const walk = (n: Node, path: string, frame: Frame) =>
     [...n.childNodes].forEach((c, i) => {
-      const p = `${path}/${i}`;
-      seen.add(p);
-      const w = was.get(p);
+      const p = deep ? match.get(c) : `${path}/${i}`;
+      if (p) seen.add(p);
+      const w = p ? was.get(p) : undefined;
       if (c.nodeType === Node.TEXT_NODE) {
         const t = c.textContent ?? '';
         if (!t.trim()) return;
@@ -627,44 +841,69 @@ export function morphInto(box: HTMLElement, kids: Kid): Element[] {
         const s = h('span', {}, t);
         c.replaceWith(s);
         if (said === null || Math.max(t.length, said.length) > 40) return cross(s, w, path);
-        if (w?.at) glideFrom(s, w.at, carried);
+        if (w?.at) glideFrom(s, w.at, frame);
         morphs.push(() =>
           said === t ? appear(s, coming!) : morphText(s, t, said, { whole: true, at: here(w!.words) ?? undefined, shows: w!.shows }),
         );
         return;
       }
       if (!(c instanceof Element)) return;
-      placed.set(p, c);
+      if (p) placed.set(p, c);
+      // The very node it was (a part kept as it is): it only glides if it moved.
+      if (w?.node === c) {
+        if (w.at) glideFrom(c, w.at, frame);
+        return;
+      }
+      // A layer drawn as one: the same to the eye stays (gliding if it moved); otherwise it crosses whole.
+      if (flat(c)) {
+        if (!w?.at || !(w.node instanceof Element) || !flat(w.node) || !alike(w.node, c, w.at.width)) return cross(c, w, path);
+        glideFrom(c, w.at, frame);
+        const coming = Math.abs(w.shows.opacity - +getComputedStyle(c).opacity) > 0.01 ? w.shows : null;
+        if (coming) morphs.push(() => appear(c, coming));
+        return;
+      }
       const r = c.getBoundingClientRect();
       const svg = c instanceof SVGElement;
-      if (!w || w.kind !== kindOf(c) || (svg ? w.svg !== drawing(c) : !!w.at && Math.abs(w.at.height - r.height) > 1))
-        return cross(c, w, path);
+      const leaf = !c.children.length && !(w?.node instanceof Element && w.node.children.length);
+      const changed = deep
+        ? !w || !w.at || w.at.width + w.at.height > 0 !== r.width + r.height > 0 || (svg ? w.svg !== drawing(c) : still.has(c))
+        : !w || w.kind !== kindOf(c) || (svg ? w.svg !== drawing(c) : !!w.at && Math.abs(w.at.height - r.height) > 1);
+      if (changed) return cross(c, w, path);
       // The same piece somewhere else in the box: it glides there (what it holds rides along, plus its own move).
-      const own = w.at ? glideFrom(c, w.at, carried) : carried;
+      if (w!.at) glideFrom(c, w!.at, frame);
       // Still coming in when the box was refilled: it goes on from as far as it came.
       const rest = +getComputedStyle(c).opacity;
-      const coming = Math.abs(w.shows.opacity - rest) > 0.01 ? w.shows : null;
+      const coming = Math.abs(w!.shows.opacity - rest) > 0.01 ? w!.shows : null;
       if (svg) {
         if (coming) morphs.push(() => appear(c, coming));
         return;
       }
-      if (!c.children.length && c instanceof HTMLElement) {
+      if ((deep ? leaf : !c.children.length) && c instanceof HTMLElement) {
         const t = c.textContent ?? '';
-        if (t === w.text || c.dataset.t) {
+        if (t === w!.text || c.dataset.t) {
           if (coming) morphs.push(() => appear(c, coming));
-        } else if (t.length <= 40 && w.text.length <= 40) {
+        } else if (t.length <= 40 && w!.text.length <= 40) {
           // The old words leave from how they showed, against the element that holds them now.
-          const shows = { opacity: Math.min(1, w.shows.opacity / (rest || 1)), filter: w.shows.filter };
-          morphs.push(() => morphText(c, t, w.text, { whole: true, at: here(w.words) ?? undefined, shows }));
+          const shows = { opacity: Math.min(1, w!.shows.opacity / (rest || 1)), filter: w!.shows.filter };
+          morphs.push(() => morphText(c, t, w!.text, { whole: true, at: here(w!.words) ?? undefined, shows }));
         } else cross(c, w, path);
         return;
       }
       if (coming) morphs.push(() => appear(c, coming));
-      walk(c, p, own);
+      // A deep refill: it glides to its new height itself, before what follows it is measured.
+      if (deep && w!.at && getComputedStyle(c).display !== 'inline') fold(c, w!.at.height, r.height);
+      opened.add(p!);
+      walk(c, p!, w!.at && c.getClientRects().length ? { el: c, at: w!.at } : frame);
     });
-  walk(box, '', [0, 0]);
-  // What the new box no longer has goes the same way.
-  for (const [p, w] of was) if (!seen.has(p) && p.lastIndexOf('/') === 0 && w.at) ghosts.push([drawn(w.node), w.at, box, box0, w.shows]);
+  walk(box, '', { el: box, at: box0 });
+  // What the new box no longer has goes the same way (a deep refill: from inside whatever it was in).
+  for (const [p, w] of was) {
+    const up = p.slice(0, p.lastIndexOf('/'));
+    if (seen.has(p) || !w.at || (deep ? !opened.has(up) : up !== '')) continue;
+    const host = up && placed.get(up);
+    const from = up && was.get(up)?.at;
+    ghosts.push(host && from ? [drawn(w.node), w.at, host, from, w.shows] : [drawn(w.node), w.at, box, box0, w.shows]);
+  }
   morphs.forEach((m) => m());
   // The old pieces that cross go from exactly where they stood in their parent (which glides from where it stood).
   for (const [g, at, host, from, shows] of ghosts) fadeAway(g, at, host, from, shows);

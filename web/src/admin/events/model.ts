@@ -1,8 +1,8 @@
 // The activity log's vocabulary: categories, who did what, problems, retention.
 // No DOM and no RPC here (see ./render for rows).
 
-import type { Kind, LogEvent } from '../../shared/types';
-import { kindLabel } from '../../shared/format';
+import type { Declined, Kind, LogEvent, Server } from '../../shared/types';
+import { declinedWords, kindLabel } from '../../shared/format';
 import type { LogCategory, LogsInfo, ServiceLogEntry } from '../api';
 import { fmt, known, plural } from '../../shared/i18n';
 import { LOG_TEMPLATES } from './log-templates';
@@ -14,7 +14,6 @@ const CATEGORY: Record<string, LogCategory> = {
   roam: 'connections',
   device_added: 'people',
   device_removed: 'people',
-  devices_removed: 'people',
   device_changed: 'people',
   device_keys: 'people',
   link_changed: 'people',
@@ -24,7 +23,8 @@ const CATEGORY: Record<string, LogCategory> = {
   paused: 'people',
   resumed: 'people',
   expiring: 'people',
-  expired_kept: 'people',
+  quota_reached: 'people',
+  quota_restored: 'people',
   portal_blocked: 'problems',
   device_failing: 'problems',
   device_recovered: 'problems',
@@ -95,7 +95,6 @@ export function reasonText(detail: string): string {
     'paused by admin': _('paused by admin'),
     'end date reached': _('end date reached'),
     'data limit reached': _('data limit reached'),
-    'outside allowed hours': _('outside allowed hours'),
     'no server': _('no server'),
     'server turned off': _('server turned off'),
   };
@@ -115,12 +114,9 @@ export function changedText(detail: string): string {
     access: _('access'),
     device_limit: _('device limit'),
     expires: _('end date'),
-    expire_action: _('what happens at the end'),
-    expire_warn: _('warning before the end'),
     quota_gb: _('data limit'),
     quota_period: _('data limit period'),
     bonus_gb: _('extra data'),
-    hours: _('allowed hours'),
     dns_mode: _('DNS'),
     paused: _('pause'),
     services: _('home services'),
@@ -150,6 +146,28 @@ export function deviceChangedText(detail: string): string {
     if (at < 0) return f[part] ?? part;
     const k = part.slice(0, at);
     const v = part.slice(at + 1);
+    // a router's networks, and what its owner asked for about them with the admin's answers (a list is written
+    // with spaces; "router": the router itself)
+    const nets = v.split(' ').join(', ');
+    const router = v === 'router';
+    switch (k) {
+      case 'networks':
+        return v === 'none' ? _('no networks behind it') : fmt(_('networks behind it: %s'), nets);
+      case 'asked':
+        return router ? _('the router is asked for') : fmt(_('asked for: %s'), nets);
+      case 'withdrew':
+        return fmt(_('no longer asked for: %s'), nets);
+      case 'accepted':
+        return router ? _('the router accepted') : fmt(_('accepted: %s'), nets);
+      case 'declined':
+        return router ? _('the router declined') : fmt(_('declined: %s'), nets);
+      case 'reopened':
+        return router ? _('the router is asked for again') : fmt(_('asked for again: %s'), nets);
+      case 'reason':
+        return (['overlap', 'unneeded', 'talk'] as const).some((x) => x === v)
+          ? fmt(_('reason: %s'), declinedWords(v as Declined))
+          : _('no reason given');
+    }
     if (k === 'lan_bypass') return v === 'on' ? _('LAN Bypass on') : _('LAN Bypass off');
     if (k === 'kind') return fmt(_('type: %s'), ['computer', 'phone', 'tablet', 'router', 'other'].includes(v) ? kindLabel(v as Kind) : v);
     if (v === 'auto') return fmt(_('%s: automatic'), f[k] ?? k);
@@ -224,6 +242,13 @@ export function adminSentence(msg: string, kind?: string | null, who?: string | 
   const forWho = msg === 'reset traffic history' && /^for (.+)$/.exec(who ?? '')?.[1];
   return forWho ? { text: _('You reset traffic history for %s'), named: true } : null;
 }
+
+/**
+ * The admin changed this server (its settings, turned it on or off): by its id where the line has one, else by
+ * the name it had (lines from before the id was written).
+ */
+export const changedServer = (e: ServiceLogEntry, srv: Pick<Server, 'id' | 'name'>): boolean =>
+  e.by === 'admin' && e.kind === 'server' && (e.sid ? e.sid === srv.id : e.who === srv.name);
 
 /** The name in a sentence adminSentence() made with %s (its "for …" taken off). */
 export const adminName = (msg: string, who: string) => (msg === 'reset traffic history' ? who.replace(/^for /, '') : who);

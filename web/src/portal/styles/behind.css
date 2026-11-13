@@ -1,0 +1,291 @@
+/* The networks behind people's routers (issue 4), the parts the admin's pages and the portal both draw (the admin's
+   own: admin/styles/shadow/behind.css). A router's networks as chips in its row: the name chips' shape (access.css .namechip) one step up
+   from the list's field, in two parts as a filter's chip (kit.css .kt-fchip): the address and its own × */
+.nb-nets {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin-top: 6px;
+}
+.nb-chip {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  max-width: 100%;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--knob);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 18px;
+  letter-spacing: 0;
+  transition:
+    background-color 150ms,
+    color 150ms,
+    transform 150ms var(--ease-out);
+}
+.nb-cb {
+  height: 32px;
+  padding: 0 4px 0 12px;
+  border-radius: 10px 4px 4px 10px;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+.nb-chip.nb-still > .nb-cb {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  cursor: default;
+}
+.nb-cx {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-right: 2px;
+  border-radius: 8px;
+  color: var(--text-2);
+  cursor: pointer;
+  transition:
+    background-color 150ms,
+    color 150ms;
+}
+.nb-chip .i {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+/* only a chip whose address is pressed (it is changed where it stands) answers the pointer: one that is read (asked
+   for, taken on the portal, read-only) stays as it is, in whatever tone it has */
+.nb-chip:has(button.nb-cb:active),
+button.nb-chip:active {
+  transform: scale(0.97);
+}
+@media (hover: hover) and (pointer: fine) {
+  .nb-chip:not(.nb-waits):has(button.nb-cb:hover) {
+    background: color-mix(in srgb, var(--knob), var(--text) 6%);
+  }
+  .nb-chip.nb-waits:has(button.nb-cb:hover) {
+    background: color-mix(in srgb, var(--warn) 22%, transparent);
+  }
+  .nb-cx:hover {
+    background: color-mix(in srgb, var(--bad) 16%, transparent);
+    color: var(--bad);
+  }
+  .nb-chip.nb-add:hover,
+  .nb-chip.nb-gone:hover {
+    background: var(--knob);
+    color: var(--text);
+  }
+}
+/* waits for «Apply»: the pending tone, as an address that waits (settings.css .addr-main.staged) */
+.nb-chip.nb-waits {
+  background: color-mix(in srgb, var(--warn) 16%, transparent);
+  color: var(--warn);
+}
+.nb-chip.nb-waits > .nb-cx {
+  color: inherit;
+}
+/* taken away, until «Apply»: struck; a press brings it back */
+.nb-chip.nb-gone {
+  gap: 8px;
+  padding: 0 10px 0 12px;
+  background: none;
+  box-shadow: inset 0 0 0 1.5px var(--line);
+  color: var(--text-3);
+  cursor: pointer;
+}
+/* another one: the outline of what is not there yet (choices.css .kt-vis-new) */
+.nb-chip.nb-add {
+  gap: 6px;
+  padding: 0 12px 0 10px;
+  background: none;
+  box-shadow: inset 0 0 0 1.5px var(--line);
+  color: var(--text-2);
+  font-weight: 500;
+  cursor: pointer;
+}
+/* typed where it stands (kit.css .kt-ie-f): the chip's own shape with the field's ring */
+form.kt-ie-f.nb-chip {
+  padding: 0 12px;
+  background: color-mix(in srgb, var(--field), var(--knob) 50%);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--text) 16%, transparent);
+  color: var(--text);
+  font-weight: 400;
+}
+.nb-none {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+.nb-say {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 16px;
+}
+:where(.nb-say) {
+  color: var(--text-2);
+}
+.nb-say.bad-t {
+  color: var(--bad);
+}
+.nb-inconf {
+  padding: 0 6px;
+}
+
+/* how to finish, beside the chips while a field is open: on their line, so it shifts nothing */
+.nb-hint {
+  margin-left: 6px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+/* ── the portal's own ── */
+/* in a sheet the chips stand on the sheet's own ground: the name chips' field, as in «Your access» */
+.pb {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.pb .nb-nets {
+  margin-top: 0;
+}
+.pb .nb-chip {
+  background: var(--field);
+}
+.pb .nb-chip.nb-add {
+  background: none;
+}
+.pb form.kt-ie-f.nb-chip {
+  background: var(--field);
+}
+/* what a chip is waiting for, in a word after its address; its icon before it */
+.nb-cb {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.nb-word {
+  font-family: var(--font);
+  font-size: 12px;
+  opacity: 0.8;
+}
+.pb .nb-chip.nb-waits {
+  background: color-mix(in srgb, var(--warn) 16%, transparent);
+}
+/* turned down by the owner */
+.pb .nb-chip.nb-bad {
+  background: color-mix(in srgb, var(--bad) 14%, transparent);
+  color: var(--bad);
+}
+.nb-chip.nb-bad > .nb-cx {
+  color: inherit;
+}
+.nb-state {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+}
+.nb-state .i {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-top: 2px;
+}
+.pb .nb-say {
+  margin: 0;
+}
+
+/* adding a router: its networks, a block of the form with the option row's own measures (controls.css .swrow):
+   the glass, the name and what it means, and the chips in the text's column */
+.pb-add {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 12px 14px 14px;
+  border-radius: 16px;
+  background: var(--field);
+}
+.pb-add[hidden] {
+  display: none;
+}
+.pb-add > .gi {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  margin-top: 6px;
+}
+.pb-add .pb {
+  margin: 10px 0 0;
+}
+.pb-add .pb .nb-chip {
+  background: var(--knob);
+}
+.pb-add .pb .nb-chip.nb-add {
+  background: none;
+}
+
+/* a router's request went: its glass, one line, the way out */
+.pb-sent-g {
+  display: grid;
+  place-items: center;
+  padding: 8px 0 14px;
+}
+.pb-sent-g .gi {
+  width: 44px;
+  height: 44px;
+}
+.pb-sent-t {
+  margin: 0 auto 22px;
+  max-width: 30ch;
+  text-align: center;
+  text-wrap: balance;
+  font-size: 15px;
+  line-height: 22px;
+}
+/* nothing to confirm yet: the button is there, at rest */
+.view > .btn.accent:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* something of the device waits for the server's owner: a clock beside its ⋯, in the pending tone */
+.knob.pb-clock {
+  background: color-mix(in srgb, var(--warn) 16%, transparent);
+  color: var(--warn);
+}
+.dev-top > .pb-clock + .more {
+  margin-left: -4px;
+}
+
+/* the router's block of the add form in its fold (flows/add.ts): the gap under it is the fold's, so it opens with it */
+.pb-fold {
+  margin-bottom: 12px;
+}
+.pb-fold[hidden] {
+  display: none;
+}
+
+/* a router that waits: Connect is there, at rest */
+.dev .setup-btn:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* a network the owner turned down: the same knob in the bad tone */
+.knob.pb-clock.pb-no {
+  background: color-mix(in srgb, var(--bad) 14%, transparent);
+  color: var(--bad);
+}

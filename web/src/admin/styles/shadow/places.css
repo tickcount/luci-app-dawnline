@@ -1,0 +1,165 @@
+/* Places in the portal's language (DESIGN.md): the rows of people at a place (the map view of People, a person's
+   panel: widgets/place-rows.ts) beside the admin's own map (admin/map.ts; its markers, arcs and zones keep their
+   look), the box a page's map stands in, and the helpers the map module's rows lean on. A device's places in the
+   close-up are closeup.css. */
+
+/* ── the admin's generic helpers the module's rows and popovers lean on (admin/styles/base.css) ── */
+.dl-stack {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.dl-muted {
+  color: var(--text-2);
+}
+.dl-faint {
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 18px;
+}
+.dl-mono {
+  font-family: var(--mono);
+  letter-spacing: 0;
+}
+.dl-nowrap {
+  white-space: nowrap;
+}
+/* "No locations in this period": a meta line (13/18 text-2) in an inset row's place */
+.dl-sub {
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 18px;
+  padding: 16px;
+  border-radius: var(--r-row);
+  background: var(--field);
+  text-align: center;
+}
+
+/* ── people at a place ── */
+/* Initials ringed as the map's person markers draw them (.dl-mk-av: grey ring, blue and tinted while live). */
+.pav {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex: none;
+  display: grid;
+  place-items: center;
+  /* P2-14 one avatar recipe with «ждут решения»'s faces: initials 12/16 600, a 1.5 px inset ring (DESIGN.md:
+     rings 1 / 1.5; Small label 12/16); 11 px in the dense 26 px strip of the «В сети» tile */
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  color: var(--text-2);
+  background: var(--knob);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--past) 70%, transparent);
+}
+.pav.on {
+  color: var(--text);
+  background: color-mix(in srgb, var(--live) 22%, var(--raised));
+  box-shadow: inset 0 0 0 1.5px var(--live);
+}
+.st-faces .pav {
+  font-size: 11px;
+}
+.pl-list {
+  margin-bottom: 28px;
+}
+/* Closed accordion rows: they touch and share round ends (Shapes → nesting; only the stack's first top and
+   last bottom are round). Row title 15/22 500, meta 13/18 text-2 (Typography → Scale). */
+.prow2 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  padding: 9px 16px 9px 12px;
+  background: var(--raised);
+  color: var(--text);
+  text-decoration: none;
+  /* Hover and press: an accordion row's fill, 150 ms */
+  transition: background-color 150ms;
+}
+.pl-list > :first-child {
+  border-radius: var(--r-row) var(--r-row) 0 0;
+}
+.pl-list > :last-child {
+  border-radius: 0 0 var(--r-row) var(--r-row);
+}
+.pl-list > :only-child {
+  border-radius: var(--r-row);
+}
+@media (hover: hover) and (pointer: fine) {
+  .prow2:hover {
+    background: color-mix(in srgb, var(--raised), var(--knob) 40%);
+  }
+}
+.prow2:active {
+  background: color-mix(in srgb, var(--raised), var(--knob) 40%);
+  transition: none;
+}
+.kbd .prow2:focus-visible {
+  outline-offset: -2px;
+}
+.prow2-t {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.prow2-t b {
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  /* a long name takes a second line instead of losing its end */
+  overflow-wrap: anywhere;
+}
+.prow2-t span {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* When: meta 13/18 at rest in text-2; «сейчас» in text 500, neutral wherever it is said (the city heads too):
+   the blue marks (ring, strip, pin) carry "live", one colour per meaning */
+.prow2-w {
+  flex: none;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.prow2-w.now {
+  color: var(--text);
+  font-weight: 500;
+}
+/* A page's map box (widgets/map-box.ts): its place on the page, held while the map's module loads */
+.map-card {
+  position: relative;
+  padding: 8px;
+}
+.map-box {
+  position: relative;
+  border-radius: var(--r-row);
+  overflow: hidden;
+  background: var(--field);
+}
+/* waiting for the map's module, or out of the way while a close-up holds the screen's one map (a phone): its
+   place stays */
+.map-park {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--field);
+  border-radius: var(--r-row);
+}
+.map-why {
+  max-width: 320px;
+  padding: 0 16px;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 18px;
+  text-align: center;
+}

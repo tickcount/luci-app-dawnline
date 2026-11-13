@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createRouter, type DemoDb, type Keep } from '../src/portal/demo/router';
-import { SCENARIOS, hoursAway, monthDays } from '../src/portal/demo/data';
+import { SCENARIOS, monthDays } from '../src/portal/demo/data';
 import { wayState } from '../src/portal/way';
 import type { State } from '../src/portal/state';
 import type { AwgConfig } from '../src/shared/types';
@@ -23,7 +23,8 @@ describe('demo router', () => {
       const { state } = demo(s.id);
       const st = state();
       expect(st.person.name).toBe('User');
-      expect(st.person.devices.length).toBe(s.id === 'first' ? 0 : 3);
+      expect(st.person.devices.length).toBe(s.id === 'first' ? 0 : s.id === 'site' ? 4 : 3);
+      expect(st.server).toMatchObject({ routers: 'ask', nets: 'ask' });
     }
     expect(demo('paused').state().person.state).toBe('paused');
     expect(demo('paused').state().locked).toBe(true);
@@ -89,6 +90,68 @@ describe('demo router', () => {
     expect(state().person.devices.map((d) => d.id)).not.toContain(id);
   });
 
+  it('asks the admin for a router, which waits with its networks and gets no settings', () => {
+    const { r, state, later } = demo();
+    expect(r.answer('POST', 'devices', { name: 'Tablet', kind: 'tablet', networks: ['192.168.9.0/24'] }).body).toMatchObject({
+      error: 'Only a router has networks behind it.',
+    });
+    expect(r.answer('POST', 'devices', { name: 'Dacha', kind: 'router', networks: ['192.168.1.0/24'] }).status).toBe(400);
+    const a = r.answer('POST', 'devices', { name: 'Dacha', kind: 'router', networks: ['192.168.88.7/24', '192.168.88.0/24'] });
+    const { id, waiting, config } = a.body as { id: string; waiting?: boolean; config?: AwgConfig };
+    expect(a.status).toBe(200);
+    expect(waiting).toBe(true);
+    expect(config).toBeUndefined();
+    later(60);
+    expect(state().person.devices.find((d) => d.id === id)).toMatchObject({
+      kind: 'router',
+      waiting: true,
+      ask: ['192.168.88.0/24'],
+      handshake: 0,
+      online: false,
+    });
+    expect(r.answer('GET', `devices/${id}/config`).status).toBe(409);
+    expect(r.answer('POST', `devices/${id}`, { action: 'reconnect' }).status).toBe(400);
+    // what is asked for with it changes while it waits; nothing is its own yet
+    r.answer('POST', `devices/${id}`, { action: 'networks', networks: ['192.168.89.0/24'] });
+    expect(state().person.devices.find((d) => d.id === id)).toMatchObject({ ask: ['192.168.89.0/24'] });
+    expect(state().person.devices.find((d) => d.id === id)?.behind).toBeUndefined();
+    // a phone is not made a router by setting it up again
+    const phone = state().person.devices.find((d) => d.kind === 'phone')!;
+    expect(r.answer('POST', `devices/${phone.id}`, { action: 'reconnect', kind: 'router' }).status).toBe(400);
+  });
+
+  it('takes a network away at once, asks for a new one and puts a turned-down one away', () => {
+    const { r, state } = demo('site');
+    const router = () => state().person.devices.find((d) => d.kind === 'router')!;
+    expect(router()).toMatchObject({
+      behind: ['192.168.2.0/24'],
+      ask: ['192.168.20.0/24'],
+      declined: 'overlap',
+      declined_nets: ['192.168.1.0/24'],
+    });
+    const id = router().id;
+    // one more asked for, the one that waited taken back, the turned-down one put away
+    expect(
+      r.answer('POST', `devices/${id}`, {
+        action: 'networks',
+        networks: ['192.168.2.0/24', '192.168.30.0/24'],
+        cleared: ['192.168.1.0/24'],
+      }).status,
+    ).toBe(200);
+    expect(router()).toMatchObject({ behind: ['192.168.2.0/24'], ask: ['192.168.30.0/24'] });
+    expect(router().declined).toBeUndefined();
+    // its own network taken away: gone at once
+    r.answer('POST', `devices/${id}`, { action: 'networks', networks: [] });
+    expect(router().behind).toBeUndefined();
+    expect(router().ask).toBeUndefined();
+    // what the page checks, the router checks too
+    expect(r.answer('POST', `devices/${id}`, { action: 'networks', networks: ['8.8.8.0/24'] }).status).toBe(400);
+    const phone = state().person.devices.find((d) => d.kind === 'phone')!;
+    expect(r.answer('POST', `devices/${phone.id}`, { action: 'networks', networks: ['192.168.9.0/24'] }).body).toMatchObject({
+      error: 'Only a router has networks behind it.',
+    });
+  });
+
   it('starts a scenario over', () => {
     const { r, state } = demo('normal');
     r.answer('POST', 'devices', { name: 'Pixel 9', kind: 'phone' });
@@ -99,11 +162,11 @@ describe('demo router', () => {
 });
 
 describe('demo data', () => {
-  it('spreads the month over its days', () => {
+  it('spreads the last 30 days over their days', () => {
     const t = new Date(2026, 9, 19, 12).getTime() / 1000;
     const days = monthDays(1000, t);
-    expect(days).toHaveLength(19);
-    expect(Math.abs(days.reduce((a, [rx, tx]) => a + rx + tx, 0) - 1000)).toBeLessThanOrEqual(19);
+    expect(days).toHaveLength(30);
+    expect(Math.abs(days.reduce((a, [rx, tx]) => a + rx + tx, 0) - 1000)).toBeLessThanOrEqual(30);
   });
 
   it('holds the device being set up in the state the visitor picks', () => {
@@ -133,10 +196,5 @@ describe('demo data', () => {
     // Removed: nothing is being set up.
     r.answer('POST', `devices/${id}`, { action: 'delete' });
     expect(r.settingUp()).toBe(null);
-  });
-
-  it('keeps the hours scenario outside its window', () => {
-    expect(hoursAway(new Date(2026, 9, 19, 22, 30).getTime() / 1000)).toBe('00:00-08:00');
-    expect(hoursAway(new Date(2026, 9, 19, 9).getTime() / 1000)).toBe('11:00-19:00');
   });
 });

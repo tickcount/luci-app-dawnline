@@ -1,0 +1,1356 @@
+{
+	"ru": {
+		"t": {
+			"Save": "Сохранить",
+			"Off": null,
+			"state\u0001Off": "Выкл.",
+			"Dawnline": null,
+			"Untranslated": null,
+			"Say \"hi\" \\ there": "Скажи «привет» \\ там",
+			"abc": "abcde",
+			"%s is kept down.": "%s не запускается.",
+			"Not in the catalog": null,
+			"": null,
+			"two  spaces inside": null,
+			"two spaces inside": null,
+			"two \t spaces\ninside": null,
+			" space around ": null,
+			"space around": null,
+			"a line\nbreak": null,
+			"a line break": null,
+			"  Save ": "Сохранить",
+			"Save\n": "Сохранить",
+			"No LAN detected.": "Локальная сеть не найдена.",
+			"%s device": null,
+			"%s devices": null,
+			"%d day": null
+		},
+		"n": [
+			[
+				0,
+				"%s device",
+				"%s devices",
+				"%s устройств"
+			],
+			[
+				0,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				0,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				0,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				1,
+				"%s device",
+				"%s devices",
+				"%s устройство"
+			],
+			[
+				1,
+				"%d day",
+				"%d days",
+				"%d день"
+			],
+			[
+				1,
+				"Save",
+				"Saves",
+				"Save"
+			],
+			[
+				1,
+				"%s cat",
+				"%s cats",
+				"%s cat"
+			],
+			[
+				2,
+				"%s device",
+				"%s devices",
+				"%s устройства"
+			],
+			[
+				2,
+				"%d day",
+				"%d days",
+				"%d дня"
+			],
+			[
+				2,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				2,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				3,
+				"%s device",
+				"%s devices",
+				"%s устройства"
+			],
+			[
+				3,
+				"%d day",
+				"%d days",
+				"%d дня"
+			],
+			[
+				3,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				3,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				4,
+				"%s device",
+				"%s devices",
+				"%s устройства"
+			],
+			[
+				4,
+				"%d day",
+				"%d days",
+				"%d дня"
+			],
+			[
+				4,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				4,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				5,
+				"%s device",
+				"%s devices",
+				"%s устройств"
+			],
+			[
+				5,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				5,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				5,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				9,
+				"%s device",
+				"%s devices",
+				"%s устройств"
+			],
+			[
+				9,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				9,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				9,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				10,
+				"%s device",
+				"%s devices",
+				"%s устройств"
+			],
+			[
+				10,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				10,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				10,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				11,
+				"%s device",
+				"%s devices",
+				"%s устройств"
+			],
+			[
+				11,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				11,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				11,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				12,
+				"%s device",
+				"%s devices",
+				"%s устройств"
+			],
+			[
+				12,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				12,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				12,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				14,
+				"%s device",
+				"%s devices",
+				"%s устройств"
+			],
+			[
+				14,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				14,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				14,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				15,
+				"%s device",
+				"%s devices",
+				"%s устройств"
+			],
+			[
+				15,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				15,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				15,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				20,
+				"%s device",
+				"%s devices",
+				"%s устройств"
+			],
+			[
+				20,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				20,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				20,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				21,
+				"%s device",
+				"%s devices",
+				"%s устройство"
+			],
+			[
+				21,
+				"%d day",
+				"%d days",
+				"%d день"
+			],
+			[
+				21,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				21,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				22,
+				"%s device",
+				"%s devices",
+				"%s устройства"
+			],
+			[
+				22,
+				"%d day",
+				"%d days",
+				"%d дня"
+			],
+			[
+				22,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				22,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				25,
+				"%s device",
+				"%s devices",
+				"%s устройств"
+			],
+			[
+				25,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				25,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				25,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				100,
+				"%s device",
+				"%s devices",
+				"%s устройств"
+			],
+			[
+				100,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				100,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				100,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				101,
+				"%s device",
+				"%s devices",
+				"%s устройство"
+			],
+			[
+				101,
+				"%d day",
+				"%d days",
+				"%d день"
+			],
+			[
+				101,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				101,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				102,
+				"%s device",
+				"%s devices",
+				"%s устройства"
+			],
+			[
+				102,
+				"%d day",
+				"%d days",
+				"%d дня"
+			],
+			[
+				102,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				102,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				111,
+				"%s device",
+				"%s devices",
+				"%s устройств"
+			],
+			[
+				111,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				111,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				111,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				112,
+				"%s device",
+				"%s devices",
+				"%s устройств"
+			],
+			[
+				112,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				112,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				112,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				121,
+				"%s device",
+				"%s devices",
+				"%s устройство"
+			],
+			[
+				121,
+				"%d day",
+				"%d days",
+				"%d день"
+			],
+			[
+				121,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				121,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				1000001,
+				"%s device",
+				"%s devices",
+				"%s устройство"
+			],
+			[
+				1000001,
+				"%d day",
+				"%d days",
+				"%d день"
+			],
+			[
+				1000001,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				1000001,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				-1,
+				"%s device",
+				"%s devices",
+				"%s устройств"
+			],
+			[
+				-1,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				-1,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				-1,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				-2,
+				"%s device",
+				"%s devices",
+				"%s устройств"
+			],
+			[
+				-2,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				-2,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				-2,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				1.5,
+				"%s device",
+				"%s devices",
+				"%s устройство"
+			],
+			[
+				1.5,
+				"%d day",
+				"%d days",
+				"%d день"
+			],
+			[
+				1.5,
+				"Save",
+				"Saves",
+				"Save"
+			],
+			[
+				1.5,
+				"%s cat",
+				"%s cats",
+				"%s cat"
+			],
+			[
+				2.9,
+				"%s device",
+				"%s devices",
+				"%s устройства"
+			],
+			[
+				2.9,
+				"%d day",
+				"%d days",
+				"%d дня"
+			],
+			[
+				2.9,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				2.9,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			]
+		]
+	},
+	"de": {
+		"t": {
+			"Save": "Speichern",
+			"Off": null,
+			"state\u0001Off": null,
+			"Dawnline": null,
+			"Untranslated": null,
+			"Say \"hi\" \\ there": null,
+			"abc": null,
+			"%s is kept down.": null,
+			"Not in the catalog": null,
+			"": null,
+			"two  spaces inside": null,
+			"two spaces inside": null,
+			"two \t spaces\ninside": null,
+			" space around ": null,
+			"space around": null,
+			"a line\nbreak": null,
+			"a line break": null,
+			"  Save ": "Speichern",
+			"Save\n": "Speichern",
+			"No LAN detected.": null,
+			"%s device": null,
+			"%s devices": null,
+			"%d day": null
+		},
+		"n": [
+			[
+				0,
+				"%s device",
+				"%s devices",
+				"%s Geräte"
+			],
+			[
+				0,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				0,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				0,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				1,
+				"%s device",
+				"%s devices",
+				"%s Gerät"
+			],
+			[
+				1,
+				"%d day",
+				"%d days",
+				"%d day"
+			],
+			[
+				1,
+				"Save",
+				"Saves",
+				"Save"
+			],
+			[
+				1,
+				"%s cat",
+				"%s cats",
+				"%s cat"
+			],
+			[
+				2,
+				"%s device",
+				"%s devices",
+				"%s Geräte"
+			],
+			[
+				2,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				2,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				2,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				3,
+				"%s device",
+				"%s devices",
+				"%s Geräte"
+			],
+			[
+				3,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				3,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				3,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				4,
+				"%s device",
+				"%s devices",
+				"%s Geräte"
+			],
+			[
+				4,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				4,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				4,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				5,
+				"%s device",
+				"%s devices",
+				"%s Geräte"
+			],
+			[
+				5,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				5,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				5,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				9,
+				"%s device",
+				"%s devices",
+				"%s Geräte"
+			],
+			[
+				9,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				9,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				9,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				10,
+				"%s device",
+				"%s devices",
+				"%s Geräte"
+			],
+			[
+				10,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				10,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				10,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				11,
+				"%s device",
+				"%s devices",
+				"%s Geräte"
+			],
+			[
+				11,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				11,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				11,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				12,
+				"%s device",
+				"%s devices",
+				"%s Geräte"
+			],
+			[
+				12,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				12,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				12,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				14,
+				"%s device",
+				"%s devices",
+				"%s Geräte"
+			],
+			[
+				14,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				14,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				14,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				15,
+				"%s device",
+				"%s devices",
+				"%s Geräte"
+			],
+			[
+				15,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				15,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				15,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				20,
+				"%s device",
+				"%s devices",
+				"%s Geräte"
+			],
+			[
+				20,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				20,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				20,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				21,
+				"%s device",
+				"%s devices",
+				"%s Geräte"
+			],
+			[
+				21,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				21,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				21,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				22,
+				"%s device",
+				"%s devices",
+				"%s Geräte"
+			],
+			[
+				22,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				22,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				22,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				25,
+				"%s device",
+				"%s devices",
+				"%s Geräte"
+			],
+			[
+				25,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				25,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				25,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				100,
+				"%s device",
+				"%s devices",
+				"%s Geräte"
+			],
+			[
+				100,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				100,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				100,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				101,
+				"%s device",
+				"%s devices",
+				"%s Geräte"
+			],
+			[
+				101,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				101,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				101,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				102,
+				"%s device",
+				"%s devices",
+				"%s Geräte"
+			],
+			[
+				102,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				102,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				102,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				111,
+				"%s device",
+				"%s devices",
+				"%s Geräte"
+			],
+			[
+				111,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				111,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				111,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				112,
+				"%s device",
+				"%s devices",
+				"%s Geräte"
+			],
+			[
+				112,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				112,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				112,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				121,
+				"%s device",
+				"%s devices",
+				"%s Geräte"
+			],
+			[
+				121,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				121,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				121,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				1000001,
+				"%s device",
+				"%s devices",
+				"%s Geräte"
+			],
+			[
+				1000001,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				1000001,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				1000001,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				-1,
+				"%s device",
+				"%s devices",
+				"%s Geräte"
+			],
+			[
+				-1,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				-1,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				-1,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				-2,
+				"%s device",
+				"%s devices",
+				"%s Geräte"
+			],
+			[
+				-2,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				-2,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				-2,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			],
+			[
+				1.5,
+				"%s device",
+				"%s devices",
+				"%s Gerät"
+			],
+			[
+				1.5,
+				"%d day",
+				"%d days",
+				"%d day"
+			],
+			[
+				1.5,
+				"Save",
+				"Saves",
+				"Save"
+			],
+			[
+				1.5,
+				"%s cat",
+				"%s cats",
+				"%s cat"
+			],
+			[
+				2.9,
+				"%s device",
+				"%s devices",
+				"%s Geräte"
+			],
+			[
+				2.9,
+				"%d day",
+				"%d days",
+				"%d days"
+			],
+			[
+				2.9,
+				"Save",
+				"Saves",
+				"Saves"
+			],
+			[
+				2.9,
+				"%s cat",
+				"%s cats",
+				"%s cats"
+			]
+		]
+	}
+}

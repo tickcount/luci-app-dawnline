@@ -9,6 +9,7 @@ import { h, ic } from '../dom';
 import { EASE_IN, play } from '../motion';
 import { appear, EDGE, GAP, opened, vanish } from './drop';
 import { glide } from './glide';
+import { layer } from './layer';
 import { letterIn, letterOut, morphText, setText } from './morph';
 
 interface PickOption<T> {
@@ -237,7 +238,7 @@ export function pickPill<T>(o: PickOpts<T>): PickPill<T> {
         ),
       ),
     );
-    document.body.append(pop);
+    layer().append(pop);
     // Centred on the pill, inside its sheet where it fits (else the screen), the tail on the pill's middle and its
     // tip the dropdowns' gap from it.
     const r = el.getBoundingClientRect();

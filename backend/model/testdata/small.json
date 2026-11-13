@@ -1,0 +1,155 @@
+{
+	"settings": {
+		"portal_enabled": true,
+		"portal_port": 8443,
+		"portal_host": "vpn.example.com",
+		"portal_alt": [
+		],
+		"portal_cert": "",
+		"portal_key": "",
+		"portal_redirect": "",
+		"default_device_limit": 3,
+		"geo_enabled": false,
+		"geo_provider": "ipwho.is",
+		"hostnames": true,
+		"domain": "lan",
+		"log_connections": false,
+		"log_level": "info",
+		"watchdog": true,
+		"home_dns_fallback": "1.1.1.1",
+		"updates": {
+			"check": true,
+			"interval": "7d",
+			"auto": true,
+			"mode": "scheduled",
+			"time": "04:00",
+			"targets": [
+				"app"
+			],
+			"keep": false,
+			"mirrors": true
+		},
+		"retention": {
+			"log_keep_days": null,
+			"log_max": null,
+			"log_category": null,
+			"log_connections": "0",
+			"log_persist": null,
+			"usage_keep_days": null,
+			"usage_keep_months": null
+		}
+	},
+	"servers": {
+		"main": {
+			"id": "main",
+			"name": "Main",
+			"ifname": "awgmain",
+			"port": 51820,
+			"subnet": "10.9.0.0/29",
+			"endpoint": "",
+			"mtu": 1380,
+			"dns": [
+			],
+			"keepalive": 25,
+			"private_key": "yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk=",
+			"public_key": "xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg=",
+			"preset": "standard",
+			"lan_zone": "lan",
+			"wan_zone": "wan",
+			"auto_wan": true,
+			"wan_device": "",
+			"auto_lan": true,
+			"lan_devices": [
+			],
+			"detected_wan": "",
+			"detected_lan": "",
+			"lan_like": true,
+			"mesh": "all",
+			"portal_routers": "ask",
+			"portal_nets": "ask",
+			"enabled": true,
+			"obf": {
+				"jc": "4",
+				"jmin": "64",
+				"jmax": "128",
+				"s4": "12"
+			},
+			"device_mesh": true
+		}
+	},
+	"people": {
+		"alice": {
+			"id": "alice",
+			"server": "main",
+			"name": "Alice",
+			"access": "both",
+			"device_limit": 3,
+			"code": "abcdef-ghijkl-mnopqr",
+			"code_set": 0,
+			"expires": "",
+			"quota_gb": 0,
+			"quota_period": "month",
+			"paused": false,
+			"dns_mode": "device",
+			"bonus_gb": 0,
+			"bonus_until": 0,
+			"services": [
+			],
+			"home_nets": [
+			],
+			"circle": "",
+			"note": "",
+			"created": 0,
+			"devices": [
+				"alice_phone"
+			]
+		},
+		"bob": {
+			"id": "bob",
+			"server": "main",
+			"name": "Bob",
+			"access": "internet",
+			"device_limit": 3,
+			"code": "XyZ12345",
+			"code_set": 0,
+			"expires": "",
+			"quota_gb": 2,
+			"quota_period": "month",
+			"paused": false,
+			"dns_mode": "device",
+			"bonus_gb": 0,
+			"bonus_until": 0,
+			"services": [
+			],
+			"home_nets": [
+			],
+			"circle": "",
+			"note": "",
+			"created": 0,
+			"devices": [
+			]
+		}
+	},
+	"devices": {
+		"alice_phone": {
+			"id": "alice_phone",
+			"person": "alice",
+			"name": "Phone",
+			"kind": "phone",
+			"address": "10.9.0.2",
+			"public_key": "AuTb2wZ8C1032Ksn76nFgXzOJgT86OgEVbEE7ClpNy8=",
+			"private_key": "",
+			"preshared_key": "",
+			"created": 0,
+			"created_by": "admin",
+			"disabled": false,
+			"mtu": 0,
+			"keepalive": null,
+			"lan_bypass": false
+		}
+	},
+	"services": {
+	},
+	"circles": {
+	}
+}

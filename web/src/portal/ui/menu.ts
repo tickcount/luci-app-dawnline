@@ -9,6 +9,7 @@
 import { h, ic } from '../dom';
 import { appear, closeDrop, EDGE, GAP, opened, vanish } from './drop';
 import { glide } from './glide';
+import { layer } from './layer';
 
 export interface MenuItem {
   label: string;
@@ -70,7 +71,7 @@ export function openMenu(anchor: HTMLElement, all: (MenuItem | null)[], title: s
     ...sections.flatMap((sec, i) => (i ? [h('div', { class: 'pop-sep', 'aria-hidden': 'true' }, h('span')), sec] : [sec])),
   );
   const pop = h('div', { class: 'pop drop', role: 'menu', 'aria-label': title }, body);
-  document.body.append(pop);
+  layer().append(pop);
 
   // Under the button where it fits, else over it; centred on it, inside the screen's edge, growing from its side.
   const k = anchor.getBoundingClientRect();

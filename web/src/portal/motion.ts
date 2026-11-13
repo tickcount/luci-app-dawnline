@@ -14,6 +14,20 @@ const REDUCE = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-m
 /** The visitor asked for less motion: fades only, nothing travels. */
 export const calm = (): boolean => !!REDUCE?.matches;
 
+/**
+ * A page that stands still: every change is drawn in place at once, and only what the person opens or presses moves
+ * (a sheet and its steps, a menu, a toast, a switch, a track's pill, the map), and a value that changed, whose
+ * words morph where they stand (ui/morph.ts morphText). The admin asks for it once
+ * (admin/main.ts): its pages are too many and too dense to move piece by piece on every answer from the router
+ * without something tearing. The portal never does.
+ */
+let stands = false;
+export const standStill = (): void => void (stands = true);
+/** The page stands still: a repaint does not animate at all (not even the fade reduced motion keeps). */
+export const frozen = (): boolean => stands;
+/** Nothing travels on a repaint: the page stands still, or the visitor asked for less motion. */
+export const still = (): boolean => stands || calm();
+
 /** Past this many px² a blur is a large layer's, drawn anew on every frame: it fades without. */
 const BIG_BLUR = 30_000;
 
@@ -92,6 +106,8 @@ export function publishSprings(root: HTMLElement) {
   root.style.setProperty('--spring-bouncy-dur', `${BOUNCY.duration}ms`);
   root.style.setProperty('--spring-smooth', SMOOTH.easing);
   root.style.setProperty('--spring-smooth-dur', `${SMOOTH.duration}ms`);
+  root.style.setProperty('--spring-pop', POP.easing);
+  root.style.setProperty('--spring-pop-dur', `${POP.duration}ms`);
   root.style.setProperty('--spring-soft', SOFT.easing);
   root.style.setProperty('--spring-soft-dur', `${SOFT.duration}ms`);
   root.style.setProperty('--spring-quick', QUICK.easing);

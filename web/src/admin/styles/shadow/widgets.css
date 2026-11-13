@@ -1,0 +1,662 @@
+/* The widgets of a person's and a device's panel (widgets/): the term, the traffic measure with its limit, the
+   access fork, the set-up card. Each a raised card with `field` blocks inside (nesting:
+   28 − 8 = 20), built from the portal's own blocks (.until, .reach-tile, .filecard, .namechip, .chipb) on
+   its tokens. */
+
+/* ── the term ── */
+.kt-term {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.kt-until {
+  border-radius: 20px;
+  min-height: 116px;
+}
+.kt-until.over .until-num b {
+  color: var(--bad);
+}
+/* a morph splits a number or a line into its letters: they keep the type of what they spell (the block's own
+   `.until-num span` is for its lines, and shrank a display number's digits to 13 px for the length of the morph) */
+.kt-until .until-num b span,
+.kt-until .until-num span span {
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+  margin: 0;
+}
+/* a far end: one cell a week under one word, where a day's letters stand */
+.kt-until .cal.weeks .cal-h span {
+  grid-column: 1 / -1;
+  text-align: right;
+}
+/* the moves: two rows that keep their places (the extensions; the date and «No end date»), a row's chips sharing
+   it evenly, one alone taking it whole. An extension says where it leads as its second line. */
+.kt-ext {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 2px;
+}
+.kt-ext-r {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+.kt-ext .chipb {
+  min-width: 0;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 14px;
+}
+.kt-ext .kt-mv.two {
+  flex-direction: column;
+  gap: 0;
+  height: 48px;
+}
+.kt-mv-l,
+.kt-mv-to {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kt-mv-to {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 400;
+  color: var(--text-2);
+}
+
+/* ── the measure with a limit ── */
+.kt-limit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.kt-lim-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 116px;
+  padding: 12px 14px 12px 16px;
+  border-radius: 20px;
+  background: var(--field);
+}
+.kt-lim-card .bars {
+  margin-bottom: -2px;
+}
+@container dlpage (min-width: 500px) {
+  /* the measure: the month on the left, the numbers and the limit on the right */
+  .kt-lim-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    gap: 10px 20px;
+    align-items: end;
+  }
+  .kt-lim-chart,
+  .kt-lim-nums {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+  }
+}
+.kt-lim-read {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+.kt-lim-line {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 2px 6px;
+}
+.kt-lim-used,
+.kt-lim-b b,
+.kt-lim-v {
+  font-size: 17px;
+  line-height: 24px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+.kt-lim-of {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+.kt-lim {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 2px 6px;
+  min-width: 0;
+}
+/* the limit is edited where it stands: the value with its pencil, a light fill under the pointer */
+.kt-lim-b {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: -3px -6px -3px -8px;
+  padding: 3px 6px 3px 8px;
+  border-radius: 8px;
+  color: var(--text);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color 150ms;
+}
+.kt-lim-b[hidden],
+.kt-lim-ed[hidden] {
+  display: none;
+}
+.kt-lim-b .i {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--text-3);
+  transition: color 150ms;
+}
+@media (hover: hover) and (pointer: fine) {
+  .kt-lim-b:hover {
+    background: color-mix(in srgb, var(--field), var(--text) 6%);
+  }
+  .kt-lim-b:hover .i {
+    color: var(--text-2);
+  }
+}
+.kt-lim-b:active {
+  background: color-mix(in srgb, var(--field), var(--text) 10%);
+}
+.kt-lim-ed {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.kt-lim-in {
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 8px;
+  background: var(--knob);
+  color: var(--text);
+  caret-color: var(--accent);
+  font: 500 17px/24px var(--font);
+  letter-spacing: -0.02em;
+  border: 0;
+  outline: none;
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--text) 16%, transparent);
+  -webkit-user-select: text;
+  user-select: text;
+}
+.kt-lim-in::placeholder {
+  color: var(--text-3);
+}
+/* as wide as what it says: the placeholder whole («без лимита»), a number as it is typed */
+.kt-lim-in {
+  width: 10ch;
+  field-sizing: content;
+  min-width: 4ch;
+  box-sizing: content-box;
+  margin: -3px 0 -3px -8px;
+}
+.kt-lim-u {
+  font-size: 15px;
+  color: var(--text-2);
+}
+.kt-lim.busy {
+  opacity: 0.6;
+}
+.kt-lim-bad,
+.kt-reach-bad {
+  flex: 1 1 100%;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--bad);
+}
+.kt-lim-bad:empty,
+.kt-reach-bad:empty {
+  display: none;
+}
+/* the bar is a line of its own under the numbers (a span: it needs to be a block to have its 6 px) */
+.kt-lim-card .meter {
+  display: block;
+  height: 6px;
+}
+.kt-lim-nums {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+/* under the bar, as a usage page says it: when the limit starts again at one end, how much is used at the other */
+.kt-lim-reset {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+.kt-lim-reset > span:last-child {
+  flex: none;
+  margin-left: auto;
+}
+.kt-lim-reset .warn-t {
+  color: var(--warn);
+}
+.kt-lim-reset .bad-t {
+  color: var(--bad);
+}
+/* the measure's actions, under it: more data until the reset, the usage started over */
+.kt-lim-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 2px;
+}
+.kt-bonus {
+  flex: none;
+}
+.kt-bonus .i {
+  width: 14px;
+  height: 14px;
+}
+/* what they used in all since they came: the measure's last line */
+.kt-lim-total {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+/* ── what they reach: two switch rows; home's details in its own field block after a hairline ── */
+.kt-reach {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.kt-reach .swrow,
+.kt-rhome {
+  border-radius: var(--r-row);
+}
+.kt-rhome {
+  background: var(--field);
+}
+/* inside its block the home row is the block's top: no fill of its own, the hover tint keeps the block's corners */
+.kt-rhome > .swrow {
+  background: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .kt-rhome > button.swrow:hover {
+    background: color-mix(in srgb, var(--field), var(--knob) 50%);
+  }
+}
+.kt-rhome.more > .swrow {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.kt-rhome > .kt-rrows {
+  margin: 0 14px;
+  padding: 10px 0 12px;
+  border-top: 1px solid var(--line);
+}
+.kt-reach-bad {
+  padding: 0 8px;
+  font-size: 13px;
+  line-height: 18px;
+}
+.kt-rrows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+/* the circle under home's block: a row as the switch rows are (glass, name), the circle's pill at its end */
+.kt-rcircle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 62px;
+  padding: 8px 10px 8px 14px;
+  border-radius: var(--r-row);
+  background: var(--field);
+}
+.kt-rcircle .gi {
+  width: 28px;
+  height: 28px;
+  flex: none;
+}
+.kt-rcircle > b {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+}
+.kt-rcircle .pill-link {
+  background: color-mix(in srgb, var(--knob) 65%, var(--field));
+}
+.kt-rc-v {
+  font-size: 15px;
+  line-height: 22px;
+  color: var(--text-2);
+}
+.kt-rrow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.kt-rlab {
+  flex: 0 0 72px;
+  font-size: 13px;
+  line-height: 32px;
+  color: var(--text-2);
+}
+.kt-rv {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.kt-rnote {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+/* a chip that is a switch (a home network, a service): the name chip's shape, a check when it is on */
+.kt-tchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  height: 32px;
+  padding: 0 12px 0 9px;
+  border-radius: 10px;
+  background: var(--field);
+  color: var(--text-2);
+  font: 500 13px/18px var(--font);
+  white-space: nowrap;
+  -webkit-user-select: none;
+  user-select: none;
+  transition:
+    background-color 150ms,
+    color 150ms,
+    transform 150ms var(--ease-out);
+}
+button.kt-tchip {
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.kt-tchip.mono {
+  font-family: var(--mono);
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.kt-tchip > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kt-tchip .i {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  stroke-width: 2.2;
+  color: var(--text-3);
+}
+.kt-tchip.on {
+  color: var(--text);
+}
+.kt-tchip.on .i {
+  color: var(--ok);
+}
+@media (hover: hover) and (pointer: fine) {
+  button.kt-tchip:hover {
+    background: var(--knob);
+  }
+}
+button.kt-tchip:active {
+  transform: scale(0.96);
+}
+.kt-circle {
+  cursor: pointer;
+  font: 500 14px/20px var(--font);
+}
+.kt-cdot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-3);
+}
+/* a row of what of home: its label over the chips only where the two do not fit side by side (a segmented track:
+   under 440) */
+@container dlpage (max-width: 439px) {
+  .kt-rrow.wide {
+    flex-direction: column;
+    gap: 2px;
+  }
+  .kt-rrow.wide .kt-rlab {
+    flex: none;
+    line-height: 18px;
+    padding-top: 4px;
+  }
+}
+@container dlpage (max-width: 299px) {
+  .kt-rrow {
+    flex-direction: column;
+    gap: 2px;
+  }
+  .kt-rlab {
+    flex: none;
+    line-height: 18px;
+    padding-top: 4px;
+  }
+}
+
+/* ── the set-up card ── */
+.kt-confcard {
+  padding: 8px;
+}
+.kt-conf {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.kt-params {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.kt-params .swrow {
+  background: var(--field);
+}
+.kt-names {
+  padding: 2px 2px 4px;
+}
+.kt-names .namechip {
+  max-width: 100%;
+  min-width: 0;
+  cursor: pointer;
+  touch-action: manipulation;
+  color: var(--text);
+}
+.kt-names .namechip > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button.kt-rt:active,
+  button.kt-tchip:active {
+    transform: none;
+  }
+}
+
+/* disguise presets: the portal's kind tiles, widened with their consequence */
+.presets {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.row-act[hidden] {
+  display: none;
+}
+.row-act.quiet {
+  gap: 6px;
+}
+
+/* the home networks as tiles: the interface's glass, its name and networks, a mark (check, plus, Auto) */
+.reach2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
+  gap: 8px;
+}
+/* ── lists of things with a state (Health checks on Overview, the Updates block's components, ui/comp-row.ts):
+   rows on the field, touching (a gap reads as a divider), the ends rounded by the list ── */
+.checks {
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--field);
+}
+.chk {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 8px 8px 8px 12px;
+  background: var(--field);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+}
+.chk > .gi {
+  flex: none;
+  width: 28px;
+  height: 28px;
+}
+.chk > .dg-m {
+  flex: none;
+  margin: 0 4px;
+}
+.chk.warn > .dg-m {
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+  color: var(--warn);
+}
+.chk.error > .dg-m {
+  background: var(--bad-soft);
+  color: var(--bad);
+}
+.chk.skip > .dg-m,
+.chk.run > .dg-m,
+.chk.add > .dg-m {
+  background: var(--knob);
+  color: var(--text-2);
+}
+.chk-t {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.chk-t b {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.chk-t > span {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+}
+/* what is copied by hand is text (an error, an address, a path) */
+div.chk .chk-t > span {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.chk-t .mono,
+.chk-t .mono-s {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0;
+}
+.chk-t b.mono {
+  font-size: 13px;
+}
+.chk.skip .chk-t {
+  opacity: 0.7;
+}
+.chk > .btn,
+.chk > .pill-link,
+.chk > .knob {
+  flex: none;
+}
+.chk > .knob {
+  width: 36px;
+  height: 36px;
+}
+button.chk {
+  cursor: pointer;
+  transition: background-color 150ms;
+}
+@media (hover: hover) and (pointer: fine) {
+  button.chk:hover {
+    background: color-mix(in srgb, var(--field), var(--knob) 50%);
+  }
+}
+button.chk:active {
+  background: color-mix(in srgb, var(--field), var(--knob) 50%);
+  transition: none;
+}
+.chk.add .chk-t b {
+  color: var(--accent);
+}
+.addr-main {
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+  font: 500 11px/16px var(--font);
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+/* on a phone a row's actions go under its words (a button beside them would squeeze them to a column) */
+@container dlpage (max-width: 559px) {
+  .chk:has(> .btn, > .pill-link) {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+  .chk:has(> .btn, > .pill-link) > .chk-t {
+    flex: 1 1 calc(100% - 92px);
+  }
+  .chk.comp > .btn,
+  .chk.comp > .pill-link,
+  .chk.warn > .btn,
+  .chk.error > .btn {
+    margin-left: 40px;
+  }
+}
+/* chips and segments on home's field block take the nested fill */
+.kt-rhome .kt-tchip,
+.kt-rhome .kt-rv .kt-segs.tabs {
+  background: color-mix(in srgb, var(--knob) 65%, var(--field));
+}
+@media (hover: hover) and (pointer: fine) {
+  .kt-rhome button.kt-tchip:hover {
+    background: var(--knob);
+  }
+}

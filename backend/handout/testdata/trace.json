@@ -1,0 +1,1077 @@
+{
+	"names": {
+		"Дом на море": "dom-na-more",
+		"con": "dawnline",
+		"A very long server name indeed": "A-very-long-ser",
+		"  --x--  ": "x",
+		"LPT1": "dawnline",
+		"Юля Ёж": "yulya-yozh",
+		"": "dawnline",
+		"Їжак-Ґанок": "yizhak-ganok",
+		"a_b.c": "a-b-c"
+	},
+	"devices": {
+		"d_j_both_0": {
+			"home": [
+				"192.168.50.0/24"
+			],
+			"config": {
+				"name": "Device 0",
+				"person": "Junk both",
+				"server": "con",
+				"filename": "dawnline.conf",
+				"conf": "[Interface]\nPrivateKey = <private key stays on your device>\nAddress = 10.10.0.16/32\nDNS = 10.10.0.1, fd00::53, 2606:4700::1111, 192.168.50.2\nMTU = 1280\nJc = 4\nJmin = 45\nJmax = 194\nS1 = 15\nS2 = 68\nH1 = 1407\nH2 = 2\nH3 = 3\nH4 = 4\n\n[Peer]\nPublicKey = AuTb2wZ8C1032Ksn76nFgXzOJgT86OgEVbEE7ClpNy8=\nAllowedIPs = 0.0.0.0/0, ::/0\nEndpoint = [2001:db8::7]:443\nPersistentKeepalive = 25\n",
+				"has_private_key": false,
+				"amnezia": {
+					"host": "2001:db8::7",
+					"port": 443,
+					"mtu": "1280",
+					"dns": [
+						"10.10.0.1",
+						"fd00::53",
+						"2606:4700::1111",
+						"192.168.50.2"
+					],
+					"allowed_ips": [
+						"0.0.0.0/0",
+						"::/0"
+					],
+					"client_ip": "10.10.0.16",
+					"client_priv_key": "",
+					"client_pub_key": "k40",
+					"psk_key": "",
+					"server_pub_key": "AuTb2wZ8C1032Ksn76nFgXzOJgT86OgEVbEE7ClpNy8=",
+					"persistent_keep_alive": "25",
+					"obfuscation": {
+						"jc": "4",
+						"jmin": "45",
+						"jmax": "194",
+						"s1": "15",
+						"s2": "68",
+						"h1": "1407",
+						"h2": "2",
+						"h3": "3",
+						"h4": "4"
+					}
+				}
+			},
+			"fp": "40f4d569"
+		},
+		"d_j_both_1": {
+			"home": [
+				"192.168.50.0/24"
+			],
+			"config": {
+				"name": "Device 1",
+				"person": "Junk both",
+				"server": "con",
+				"filename": "dawnline.conf",
+				"conf": "[Interface]\nPrivateKey = cHJpdmF0ZXByaXZhdGVwcml2YXRlcHJpdmF0ZXByaXY=\nAddress = 10.10.0.17/32\nDNS = 10.10.0.1, fd00::53, 2606:4700::1111, 192.168.50.2\nMTU = 1380\nJc = 4\nJmin = 55\nJmax = 200\nS1 = 15\nS2 = 68\nH1 = 1407\nH2 = 2\nH3 = 3\nH4 = 4\n\n[Peer]\nPublicKey = AuTb2wZ8C1032Ksn76nFgXzOJgT86OgEVbEE7ClpNy8=\nPresharedKey = cHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHM=\nAllowedIPs = 0.0.0.0/5, 8.0.0.0/7, 10.10.0.1/32, 11.0.0.0/8, 12.0.0.0/6, 16.0.0.0/4, 32.0.0.0/3, 64.0.0.0/3, 96.0.0.0/6, 100.0.0.0/10, 100.128.0.0/9, 101.0.0.0/8, 102.0.0.0/7, 104.0.0.0/5, 112.0.0.0/4, 128.0.0.0/3, 160.0.0.0/5, 168.0.0.0/8, 169.0.0.0/9, 169.128.0.0/10, 169.192.0.0/11, 169.224.0.0/12, 169.240.0.0/13, 169.248.0.0/14, 169.252.0.0/15, 169.255.0.0/16, 170.0.0.0/7, 172.0.0.0/12, 172.32.0.0/11, 172.64.0.0/10, 172.128.0.0/9, 173.0.0.0/8, 174.0.0.0/7, 176.0.0.0/4, 192.0.0.0/9, 192.128.0.0/11, 192.160.0.0/13, 192.168.50.0/24, 192.169.0.0/16, 192.170.0.0/15, 192.172.0.0/14, 192.176.0.0/12, 192.192.0.0/10, 193.0.0.0/8, 194.0.0.0/7, 196.0.0.0/6, 200.0.0.0/5, 208.0.0.0/4, ::/1, 8000::/2, c000::/3, e000::/4, f000::/5, f800::/6, fe00::/9, fec0::/10, fd00::53/128\nEndpoint = [2001:db8::7]:443\nPersistentKeepalive = 25\n",
+				"has_private_key": true,
+				"amnezia": {
+					"host": "2001:db8::7",
+					"port": 443,
+					"mtu": "1380",
+					"dns": [
+						"10.10.0.1",
+						"fd00::53",
+						"2606:4700::1111",
+						"192.168.50.2"
+					],
+					"allowed_ips": [
+						"0.0.0.0/5",
+						"8.0.0.0/7",
+						"10.10.0.1/32",
+						"11.0.0.0/8",
+						"12.0.0.0/6",
+						"16.0.0.0/4",
+						"32.0.0.0/3",
+						"64.0.0.0/3",
+						"96.0.0.0/6",
+						"100.0.0.0/10",
+						"100.128.0.0/9",
+						"101.0.0.0/8",
+						"102.0.0.0/7",
+						"104.0.0.0/5",
+						"112.0.0.0/4",
+						"128.0.0.0/3",
+						"160.0.0.0/5",
+						"168.0.0.0/8",
+						"169.0.0.0/9",
+						"169.128.0.0/10",
+						"169.192.0.0/11",
+						"169.224.0.0/12",
+						"169.240.0.0/13",
+						"169.248.0.0/14",
+						"169.252.0.0/15",
+						"169.255.0.0/16",
+						"170.0.0.0/7",
+						"172.0.0.0/12",
+						"172.32.0.0/11",
+						"172.64.0.0/10",
+						"172.128.0.0/9",
+						"173.0.0.0/8",
+						"174.0.0.0/7",
+						"176.0.0.0/4",
+						"192.0.0.0/9",
+						"192.128.0.0/11",
+						"192.160.0.0/13",
+						"192.168.50.0/24",
+						"192.169.0.0/16",
+						"192.170.0.0/15",
+						"192.172.0.0/14",
+						"192.176.0.0/12",
+						"192.192.0.0/10",
+						"193.0.0.0/8",
+						"194.0.0.0/7",
+						"196.0.0.0/6",
+						"200.0.0.0/5",
+						"208.0.0.0/4",
+						"::/1",
+						"8000::/2",
+						"c000::/3",
+						"e000::/4",
+						"f000::/5",
+						"f800::/6",
+						"fe00::/9",
+						"fec0::/10",
+						"fd00::53/128"
+					],
+					"client_ip": "10.10.0.17",
+					"client_priv_key": "cHJpdmF0ZXByaXZhdGVwcml2YXRlcHJpdmF0ZXByaXY=",
+					"client_pub_key": "k41",
+					"psk_key": "cHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHM=",
+					"server_pub_key": "AuTb2wZ8C1032Ksn76nFgXzOJgT86OgEVbEE7ClpNy8=",
+					"persistent_keep_alive": "25",
+					"obfuscation": {
+						"jc": "4",
+						"jmin": "55",
+						"jmax": "200",
+						"s1": "15",
+						"s2": "68",
+						"h1": "1407",
+						"h2": "2",
+						"h3": "3",
+						"h4": "4"
+					}
+				}
+			},
+			"fp": "41736131"
+		},
+		"d_j_both_2": {
+			"home": [
+				"192.168.50.0/24"
+			],
+			"config": {
+				"name": "Device 2",
+				"person": "Junk both",
+				"server": "con",
+				"filename": "dawnline.conf",
+				"conf": "[Interface]\nPrivateKey = <private key stays on your device>\nAddress = 10.10.0.18/32\nDNS = 10.10.0.1, fd00::53, 2606:4700::1111, 192.168.50.2\nMTU = 1300\nJc = 3\nJmin = 56\nJmax = 186\nS1 = 15\nS2 = 68\nH1 = 1407\nH2 = 2\nH3 = 3\nH4 = 4\n\n[Peer]\nPublicKey = AuTb2wZ8C1032Ksn76nFgXzOJgT86OgEVbEE7ClpNy8=\nAllowedIPs = 0.0.0.0/0, ::/0\nEndpoint = [2001:db8::7]:443\n",
+				"has_private_key": false,
+				"amnezia": {
+					"host": "2001:db8::7",
+					"port": 443,
+					"mtu": "1300",
+					"dns": [
+						"10.10.0.1",
+						"fd00::53",
+						"2606:4700::1111",
+						"192.168.50.2"
+					],
+					"allowed_ips": [
+						"0.0.0.0/0",
+						"::/0"
+					],
+					"client_ip": "10.10.0.18",
+					"client_priv_key": "",
+					"client_pub_key": "k42",
+					"psk_key": "",
+					"server_pub_key": "AuTb2wZ8C1032Ksn76nFgXzOJgT86OgEVbEE7ClpNy8=",
+					"persistent_keep_alive": "0",
+					"obfuscation": {
+						"jc": "3",
+						"jmin": "56",
+						"jmax": "186",
+						"s1": "15",
+						"s2": "68",
+						"h1": "1407",
+						"h2": "2",
+						"h3": "3",
+						"h4": "4"
+					}
+				}
+			},
+			"fp": "a48b8b85"
+		},
+		"d_j_lan_0": {
+			"home": [
+				"192.168.50.0/24"
+			],
+			"config": {
+				"name": "Device 0",
+				"person": "Junk home",
+				"server": "con",
+				"filename": "dawnline.conf",
+				"conf": "[Interface]\nPrivateKey = <private key stays on your device>\nAddress = 10.10.0.19/32\nDNS = 10.10.0.1, 9.9.9.9\nMTU = 1280\nJc = 5\nJmin = 48\nJmax = 188\nS1 = 15\nS2 = 68\nH1 = 1407\nH2 = 2\nH3 = 3\nH4 = 4\n\n[Peer]\nPublicKey = AuTb2wZ8C1032Ksn76nFgXzOJgT86OgEVbEE7ClpNy8=\nAllowedIPs = 10.10.0.1/32, 192.168.50.0/24\nEndpoint = [2001:db8::7]:443\nPersistentKeepalive = 25\n",
+				"has_private_key": false,
+				"amnezia": {
+					"host": "2001:db8::7",
+					"port": 443,
+					"mtu": "1280",
+					"dns": [
+						"10.10.0.1",
+						"9.9.9.9"
+					],
+					"allowed_ips": [
+						"10.10.0.1/32",
+						"192.168.50.0/24"
+					],
+					"client_ip": "10.10.0.19",
+					"client_priv_key": "",
+					"client_pub_key": "k50",
+					"psk_key": "",
+					"server_pub_key": "AuTb2wZ8C1032Ksn76nFgXzOJgT86OgEVbEE7ClpNy8=",
+					"persistent_keep_alive": "25",
+					"obfuscation": {
+						"jc": "5",
+						"jmin": "48",
+						"jmax": "188",
+						"s1": "15",
+						"s2": "68",
+						"h1": "1407",
+						"h2": "2",
+						"h3": "3",
+						"h4": "4"
+					}
+				}
+			},
+			"fp": "bf05e885"
+		},
+		"d_j_lan_1": {
+			"home": [
+				"192.168.50.0/24"
+			],
+			"config": {
+				"name": "Device 1",
+				"person": "Junk home",
+				"server": "con",
+				"filename": "dawnline.conf",
+				"conf": "[Interface]\nPrivateKey = cHJpdmF0ZXByaXZhdGVwcml2YXRlcHJpdmF0ZXByaXY=\nAddress = 10.10.0.20/32\nDNS = 10.10.0.1, 9.9.9.9\nMTU = 1380\nJc = 3\nJmin = 49\nJmax = 186\nS1 = 15\nS2 = 68\nH1 = 1407\nH2 = 2\nH3 = 3\nH4 = 4\n\n[Peer]\nPublicKey = AuTb2wZ8C1032Ksn76nFgXzOJgT86OgEVbEE7ClpNy8=\nPresharedKey = cHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHM=\nAllowedIPs = 10.10.0.1/32, 192.168.50.0/24\nEndpoint = [2001:db8::7]:443\nPersistentKeepalive = 25\n",
+				"has_private_key": true,
+				"amnezia": {
+					"host": "2001:db8::7",
+					"port": 443,
+					"mtu": "1380",
+					"dns": [
+						"10.10.0.1",
+						"9.9.9.9"
+					],
+					"allowed_ips": [
+						"10.10.0.1/32",
+						"192.168.50.0/24"
+					],
+					"client_ip": "10.10.0.20",
+					"client_priv_key": "cHJpdmF0ZXByaXZhdGVwcml2YXRlcHJpdmF0ZXByaXY=",
+					"client_pub_key": "k51",
+					"psk_key": "cHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHM=",
+					"server_pub_key": "AuTb2wZ8C1032Ksn76nFgXzOJgT86OgEVbEE7ClpNy8=",
+					"persistent_keep_alive": "25",
+					"obfuscation": {
+						"jc": "3",
+						"jmin": "49",
+						"jmax": "186",
+						"s1": "15",
+						"s2": "68",
+						"h1": "1407",
+						"h2": "2",
+						"h3": "3",
+						"h4": "4"
+					}
+				}
+			},
+			"fp": "8dc74d69"
+		},
+		"d_j_lan_2": {
+			"home": [
+				"192.168.50.0/24"
+			],
+			"config": {
+				"name": "Device 2",
+				"person": "Junk home",
+				"server": "con",
+				"filename": "dawnline.conf",
+				"conf": "[Interface]\nPrivateKey = <private key stays on your device>\nAddress = 10.10.0.21/32\nDNS = 10.10.0.1, 9.9.9.9\nMTU = 1300\nJc = 3\nJmin = 54\nJmax = 200\nS1 = 15\nS2 = 68\nH1 = 1407\nH2 = 2\nH3 = 3\nH4 = 4\n\n[Peer]\nPublicKey = AuTb2wZ8C1032Ksn76nFgXzOJgT86OgEVbEE7ClpNy8=\nAllowedIPs = 10.10.0.1/32, 192.168.50.0/24\nEndpoint = [2001:db8::7]:443\n",
+				"has_private_key": false,
+				"amnezia": {
+					"host": "2001:db8::7",
+					"port": 443,
+					"mtu": "1300",
+					"dns": [
+						"10.10.0.1",
+						"9.9.9.9"
+					],
+					"allowed_ips": [
+						"10.10.0.1/32",
+						"192.168.50.0/24"
+					],
+					"client_ip": "10.10.0.21",
+					"client_priv_key": "",
+					"client_pub_key": "k52",
+					"psk_key": "",
+					"server_pub_key": "AuTb2wZ8C1032Ksn76nFgXzOJgT86OgEVbEE7ClpNy8=",
+					"persistent_keep_alive": "0",
+					"obfuscation": {
+						"jc": "3",
+						"jmin": "54",
+						"jmax": "200",
+						"s1": "15",
+						"s2": "68",
+						"h1": "1407",
+						"h2": "2",
+						"h3": "3",
+						"h4": "4"
+					}
+				}
+			},
+			"fp": "77e90b48"
+		},
+		"d_lost_0": {
+			"home": [
+			],
+			"config": null,
+			"fp": null
+		},
+		"d_lost_1": {
+			"home": [
+			],
+			"config": null,
+			"fp": null
+		},
+		"d_lost_2": {
+			"home": [
+			],
+			"config": null,
+			"fp": null
+		},
+		"d_m_net_0": {
+			"home": [
+			],
+			"config": {
+				"name": "Device 0",
+				"person": "Max",
+				"server": "A very long server name indeed",
+				"filename": "A-very-long-ser.conf",
+				"conf": "[Interface]\nPrivateKey = <private key stays on your device>\nAddress = 172.20.0.22/32\nDNS = 172.20.0.1\nMTU = 1280\nJc = 10\nJmin = 64\nJmax = 90\nS4 = 24\nH1 = 100-200\nH2 = 300-400\nH3 = 500-600\nH4 = 700-800\nI1 = <b 0x0102><r 16>\nHeaderProtectionKey = yvVKA41To0000000000000000000IUdcl4Zi0000000=\nRekeyAfterTime = 100-140\n\n[Peer]\nPublicKey = yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk=\nAllowedIPs = 0.0.0.0/0, ::/0\nEndpoint = vpn.example.com:8443\nPersistentKeepalive = 30-40\n",
+				"has_private_key": false,
+				"amnezia": {
+					"host": "vpn.example.com",
+					"port": 8443,
+					"mtu": "1280",
+					"dns": [
+						"172.20.0.1"
+					],
+					"allowed_ips": [
+						"0.0.0.0/0",
+						"::/0"
+					],
+					"client_ip": "172.20.0.22",
+					"client_priv_key": "",
+					"client_pub_key": "k60",
+					"psk_key": "",
+					"server_pub_key": "yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk=",
+					"persistent_keep_alive": "30-40",
+					"obfuscation": {
+						"jc": "10",
+						"jmin": "64",
+						"jmax": "90",
+						"s4": "24",
+						"h1": "100-200",
+						"h2": "300-400",
+						"h3": "500-600",
+						"h4": "700-800",
+						"i1": "<b 0x0102><r 16>",
+						"header_protection_key": "yvVKA41To0000000000000000000IUdcl4Zi0000000=",
+						"rekey_after_time": "100-140"
+					}
+				}
+			},
+			"fp": "e79e68c0"
+		},
+		"d_m_net_1": {
+			"home": [
+			],
+			"config": {
+				"name": "Device 1",
+				"person": "Max",
+				"server": "A very long server name indeed",
+				"filename": "A-very-long-ser.conf",
+				"conf": "[Interface]\nPrivateKey = cHJpdmF0ZXByaXZhdGVwcml2YXRlcHJpdmF0ZXByaXY=\nAddress = 172.20.0.23/32\nDNS = 172.20.0.1\nMTU = 1420\nJc = 9\nJmin = 64\nJmax = 90\nS4 = 24\nH1 = 100-200\nH2 = 300-400\nH3 = 500-600\nH4 = 700-800\nI1 = <b 0x0102><r 16>\nHeaderProtectionKey = yvVKA41To0000000000000000000IUdcl4Zi0000000=\nRekeyAfterTime = 100-140\n\n[Peer]\nPublicKey = yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk=\nPresharedKey = cHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHM=\nAllowedIPs = 0.0.0.0/5, 8.0.0.0/7, 11.0.0.0/8, 12.0.0.0/6, 16.0.0.0/4, 32.0.0.0/3, 64.0.0.0/3, 96.0.0.0/6, 100.0.0.0/10, 100.128.0.0/9, 101.0.0.0/8, 102.0.0.0/7, 104.0.0.0/5, 112.0.0.0/4, 128.0.0.0/3, 160.0.0.0/5, 168.0.0.0/8, 169.0.0.0/9, 169.128.0.0/10, 169.192.0.0/11, 169.224.0.0/12, 169.240.0.0/13, 169.248.0.0/14, 169.252.0.0/15, 169.255.0.0/16, 170.0.0.0/7, 172.0.0.0/12, 172.20.0.1/32, 172.32.0.0/11, 172.64.0.0/10, 172.128.0.0/9, 173.0.0.0/8, 174.0.0.0/7, 176.0.0.0/4, 192.0.0.0/9, 192.128.0.0/11, 192.160.0.0/13, 192.169.0.0/16, 192.170.0.0/15, 192.172.0.0/14, 192.176.0.0/12, 192.192.0.0/10, 193.0.0.0/8, 194.0.0.0/7, 196.0.0.0/6, 200.0.0.0/5, 208.0.0.0/4, ::/1, 8000::/2, c000::/3, e000::/4, f000::/5, f800::/6, fe00::/9, fec0::/10\nEndpoint = vpn.example.com:8443\nPersistentKeepalive = 30-40\n",
+				"has_private_key": true,
+				"amnezia": {
+					"host": "vpn.example.com",
+					"port": 8443,
+					"mtu": "1420",
+					"dns": [
+						"172.20.0.1"
+					],
+					"allowed_ips": [
+						"0.0.0.0/5",
+						"8.0.0.0/7",
+						"11.0.0.0/8",
+						"12.0.0.0/6",
+						"16.0.0.0/4",
+						"32.0.0.0/3",
+						"64.0.0.0/3",
+						"96.0.0.0/6",
+						"100.0.0.0/10",
+						"100.128.0.0/9",
+						"101.0.0.0/8",
+						"102.0.0.0/7",
+						"104.0.0.0/5",
+						"112.0.0.0/4",
+						"128.0.0.0/3",
+						"160.0.0.0/5",
+						"168.0.0.0/8",
+						"169.0.0.0/9",
+						"169.128.0.0/10",
+						"169.192.0.0/11",
+						"169.224.0.0/12",
+						"169.240.0.0/13",
+						"169.248.0.0/14",
+						"169.252.0.0/15",
+						"169.255.0.0/16",
+						"170.0.0.0/7",
+						"172.0.0.0/12",
+						"172.20.0.1/32",
+						"172.32.0.0/11",
+						"172.64.0.0/10",
+						"172.128.0.0/9",
+						"173.0.0.0/8",
+						"174.0.0.0/7",
+						"176.0.0.0/4",
+						"192.0.0.0/9",
+						"192.128.0.0/11",
+						"192.160.0.0/13",
+						"192.169.0.0/16",
+						"192.170.0.0/15",
+						"192.172.0.0/14",
+						"192.176.0.0/12",
+						"192.192.0.0/10",
+						"193.0.0.0/8",
+						"194.0.0.0/7",
+						"196.0.0.0/6",
+						"200.0.0.0/5",
+						"208.0.0.0/4",
+						"::/1",
+						"8000::/2",
+						"c000::/3",
+						"e000::/4",
+						"f000::/5",
+						"f800::/6",
+						"fe00::/9",
+						"fec0::/10"
+					],
+					"client_ip": "172.20.0.23",
+					"client_priv_key": "cHJpdmF0ZXByaXZhdGVwcml2YXRlcHJpdmF0ZXByaXY=",
+					"client_pub_key": "k61",
+					"psk_key": "cHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHM=",
+					"server_pub_key": "yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk=",
+					"persistent_keep_alive": "30-40",
+					"obfuscation": {
+						"jc": "9",
+						"jmin": "64",
+						"jmax": "90",
+						"s4": "24",
+						"h1": "100-200",
+						"h2": "300-400",
+						"h3": "500-600",
+						"h4": "700-800",
+						"i1": "<b 0x0102><r 16>",
+						"header_protection_key": "yvVKA41To0000000000000000000IUdcl4Zi0000000=",
+						"rekey_after_time": "100-140"
+					}
+				}
+			},
+			"fp": "b6a6f114"
+		},
+		"d_m_net_2": {
+			"home": [
+			],
+			"config": {
+				"name": "Device 2",
+				"person": "Max",
+				"server": "A very long server name indeed",
+				"filename": "A-very-long-ser.conf",
+				"conf": "[Interface]\nPrivateKey = <private key stays on your device>\nAddress = 172.20.0.24/32\nDNS = 172.20.0.1\nMTU = 1300\nJc = 10\nJmin = 64\nJmax = 90\nS4 = 24\nH1 = 100-200\nH2 = 300-400\nH3 = 500-600\nH4 = 700-800\nI1 = <b 0x0102><r 16>\nHeaderProtectionKey = yvVKA41To0000000000000000000IUdcl4Zi0000000=\nRekeyAfterTime = 100-140\n\n[Peer]\nPublicKey = yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk=\nAllowedIPs = 0.0.0.0/0, ::/0\nEndpoint = vpn.example.com:8443\n",
+				"has_private_key": false,
+				"amnezia": {
+					"host": "vpn.example.com",
+					"port": 8443,
+					"mtu": "1300",
+					"dns": [
+						"172.20.0.1"
+					],
+					"allowed_ips": [
+						"0.0.0.0/0",
+						"::/0"
+					],
+					"client_ip": "172.20.0.24",
+					"client_priv_key": "",
+					"client_pub_key": "k62",
+					"psk_key": "",
+					"server_pub_key": "yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk=",
+					"persistent_keep_alive": "0",
+					"obfuscation": {
+						"jc": "10",
+						"jmin": "64",
+						"jmax": "90",
+						"s4": "24",
+						"h1": "100-200",
+						"h2": "300-400",
+						"h3": "500-600",
+						"h4": "700-800",
+						"i1": "<b 0x0102><r 16>",
+						"header_protection_key": "yvVKA41To0000000000000000000IUdcl4Zi0000000=",
+						"rekey_after_time": "100-140"
+					}
+				}
+			},
+			"fp": "593d12f1"
+		},
+		"d_p_both_0": {
+			"home": [
+				"10.20.4.0/22",
+				"192.168.50.0/24"
+			],
+			"config": {
+				"name": "Device 0",
+				"person": "Both",
+				"server": "Дом на море",
+				"filename": "dom-na-more.conf",
+				"conf": "[Interface]\nPrivateKey = <private key stays on your device>\nAddress = 10.9.0.7/32\nDNS = 10.9.0.1\nMTU = 1280\n\n[Peer]\nPublicKey = xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg=\nAllowedIPs = 0.0.0.0/0, ::/0\nEndpoint = vpn.example.com:51820\nPersistentKeepalive = 25\n",
+				"has_private_key": false,
+				"amnezia": {
+					"host": "vpn.example.com",
+					"port": 51820,
+					"mtu": "1280",
+					"dns": [
+						"10.9.0.1"
+					],
+					"allowed_ips": [
+						"0.0.0.0/0",
+						"::/0"
+					],
+					"client_ip": "10.9.0.7",
+					"client_priv_key": "",
+					"client_pub_key": "k10",
+					"psk_key": "",
+					"server_pub_key": "xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg=",
+					"persistent_keep_alive": "25",
+					"obfuscation": {
+					}
+				}
+			},
+			"fp": "f4f5790e"
+		},
+		"d_p_both_1": {
+			"home": [
+				"10.20.4.0/22",
+				"192.168.50.0/24"
+			],
+			"config": {
+				"name": "Device 1",
+				"person": "Both",
+				"server": "Дом на море",
+				"filename": "dom-na-more.conf",
+				"conf": "[Interface]\nPrivateKey = cHJpdmF0ZXByaXZhdGVwcml2YXRlcHJpdmF0ZXByaXY=\nAddress = 10.9.0.8/32\nDNS = 10.9.0.1\nMTU = 1380\n\n[Peer]\nPublicKey = xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg=\nPresharedKey = cHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHM=\nAllowedIPs = 0.0.0.0/5, 8.0.0.0/7, 10.9.0.0/24, 10.20.4.0/22, 11.0.0.0/8, 12.0.0.0/6, 16.0.0.0/4, 32.0.0.0/3, 64.0.0.0/3, 96.0.0.0/6, 100.0.0.0/10, 100.128.0.0/9, 101.0.0.0/8, 102.0.0.0/7, 104.0.0.0/5, 112.0.0.0/4, 128.0.0.0/3, 160.0.0.0/5, 168.0.0.0/8, 169.0.0.0/9, 169.128.0.0/10, 169.192.0.0/11, 169.224.0.0/12, 169.240.0.0/13, 169.248.0.0/14, 169.252.0.0/15, 169.255.0.0/16, 170.0.0.0/7, 172.0.0.0/12, 172.32.0.0/11, 172.64.0.0/10, 172.128.0.0/9, 173.0.0.0/8, 174.0.0.0/7, 176.0.0.0/4, 192.0.0.0/9, 192.128.0.0/11, 192.160.0.0/13, 192.168.50.0/24, 192.169.0.0/16, 192.170.0.0/15, 192.172.0.0/14, 192.176.0.0/12, 192.192.0.0/10, 193.0.0.0/8, 194.0.0.0/7, 196.0.0.0/6, 200.0.0.0/5, 208.0.0.0/4, ::/1, 8000::/2, c000::/3, e000::/4, f000::/5, f800::/6, fe00::/9, fec0::/10\nEndpoint = vpn.example.com:51820\nPersistentKeepalive = 25\n",
+				"has_private_key": true,
+				"amnezia": {
+					"host": "vpn.example.com",
+					"port": 51820,
+					"mtu": "1380",
+					"dns": [
+						"10.9.0.1"
+					],
+					"allowed_ips": [
+						"0.0.0.0/5",
+						"8.0.0.0/7",
+						"10.9.0.0/24",
+						"10.20.4.0/22",
+						"11.0.0.0/8",
+						"12.0.0.0/6",
+						"16.0.0.0/4",
+						"32.0.0.0/3",
+						"64.0.0.0/3",
+						"96.0.0.0/6",
+						"100.0.0.0/10",
+						"100.128.0.0/9",
+						"101.0.0.0/8",
+						"102.0.0.0/7",
+						"104.0.0.0/5",
+						"112.0.0.0/4",
+						"128.0.0.0/3",
+						"160.0.0.0/5",
+						"168.0.0.0/8",
+						"169.0.0.0/9",
+						"169.128.0.0/10",
+						"169.192.0.0/11",
+						"169.224.0.0/12",
+						"169.240.0.0/13",
+						"169.248.0.0/14",
+						"169.252.0.0/15",
+						"169.255.0.0/16",
+						"170.0.0.0/7",
+						"172.0.0.0/12",
+						"172.32.0.0/11",
+						"172.64.0.0/10",
+						"172.128.0.0/9",
+						"173.0.0.0/8",
+						"174.0.0.0/7",
+						"176.0.0.0/4",
+						"192.0.0.0/9",
+						"192.128.0.0/11",
+						"192.160.0.0/13",
+						"192.168.50.0/24",
+						"192.169.0.0/16",
+						"192.170.0.0/15",
+						"192.172.0.0/14",
+						"192.176.0.0/12",
+						"192.192.0.0/10",
+						"193.0.0.0/8",
+						"194.0.0.0/7",
+						"196.0.0.0/6",
+						"200.0.0.0/5",
+						"208.0.0.0/4",
+						"::/1",
+						"8000::/2",
+						"c000::/3",
+						"e000::/4",
+						"f000::/5",
+						"f800::/6",
+						"fe00::/9",
+						"fec0::/10"
+					],
+					"client_ip": "10.9.0.8",
+					"client_priv_key": "cHJpdmF0ZXByaXZhdGVwcml2YXRlcHJpdmF0ZXByaXY=",
+					"client_pub_key": "k11",
+					"psk_key": "cHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHM=",
+					"server_pub_key": "xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg=",
+					"persistent_keep_alive": "25",
+					"obfuscation": {
+					}
+				}
+			},
+			"fp": "fc08cab6"
+		},
+		"d_p_both_2": {
+			"home": [
+				"10.20.4.0/22",
+				"192.168.50.0/24"
+			],
+			"config": {
+				"name": "Device 2",
+				"person": "Both",
+				"server": "Дом на море",
+				"filename": "dom-na-more.conf",
+				"conf": "[Interface]\nPrivateKey = <private key stays on your device>\nAddress = 10.9.0.9/32\nDNS = 10.9.0.1\nMTU = 1300\n\n[Peer]\nPublicKey = xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg=\nAllowedIPs = 0.0.0.0/0, ::/0\nEndpoint = vpn.example.com:51820\n",
+				"has_private_key": false,
+				"amnezia": {
+					"host": "vpn.example.com",
+					"port": 51820,
+					"mtu": "1300",
+					"dns": [
+						"10.9.0.1"
+					],
+					"allowed_ips": [
+						"0.0.0.0/0",
+						"::/0"
+					],
+					"client_ip": "10.9.0.9",
+					"client_priv_key": "",
+					"client_pub_key": "k12",
+					"psk_key": "",
+					"server_pub_key": "xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg=",
+					"persistent_keep_alive": "0",
+					"obfuscation": {
+					}
+				}
+			},
+			"fp": "85bdb4c2"
+		},
+		"d_p_lan_0": {
+			"home": [
+				"10.20.4.0/22",
+				"192.168.50.0/24"
+			],
+			"config": {
+				"name": "Device 0",
+				"person": "Home",
+				"server": "Дом на море",
+				"filename": "dom-na-more.conf",
+				"conf": "[Interface]\nPrivateKey = <private key stays on your device>\nAddress = 10.9.0.10/32\nMTU = 1280\n\n[Peer]\nPublicKey = xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg=\nAllowedIPs = 10.9.0.0/24, 10.20.4.0/22, 192.168.50.0/24\nEndpoint = vpn.example.com:51820\nPersistentKeepalive = 25\n",
+				"has_private_key": false,
+				"amnezia": {
+					"host": "vpn.example.com",
+					"port": 51820,
+					"mtu": "1280",
+					"dns": [
+					],
+					"allowed_ips": [
+						"10.9.0.0/24",
+						"10.20.4.0/22",
+						"192.168.50.0/24"
+					],
+					"client_ip": "10.9.0.10",
+					"client_priv_key": "",
+					"client_pub_key": "k20",
+					"psk_key": "",
+					"server_pub_key": "xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg=",
+					"persistent_keep_alive": "25",
+					"obfuscation": {
+					}
+				}
+			},
+			"fp": "2d8f7b1b"
+		},
+		"d_p_lan_1": {
+			"home": [
+				"10.20.4.0/22",
+				"192.168.50.0/24"
+			],
+			"config": {
+				"name": "Device 1",
+				"person": "Home",
+				"server": "Дом на море",
+				"filename": "dom-na-more.conf",
+				"conf": "[Interface]\nPrivateKey = cHJpdmF0ZXByaXZhdGVwcml2YXRlcHJpdmF0ZXByaXY=\nAddress = 10.9.0.11/32\nMTU = 1380\n\n[Peer]\nPublicKey = xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg=\nPresharedKey = cHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHM=\nAllowedIPs = 10.9.0.0/24, 10.20.4.0/22, 192.168.50.0/24\nEndpoint = vpn.example.com:51820\nPersistentKeepalive = 25\n",
+				"has_private_key": true,
+				"amnezia": {
+					"host": "vpn.example.com",
+					"port": 51820,
+					"mtu": "1380",
+					"dns": [
+					],
+					"allowed_ips": [
+						"10.9.0.0/24",
+						"10.20.4.0/22",
+						"192.168.50.0/24"
+					],
+					"client_ip": "10.9.0.11",
+					"client_priv_key": "cHJpdmF0ZXByaXZhdGVwcml2YXRlcHJpdmF0ZXByaXY=",
+					"client_pub_key": "k21",
+					"psk_key": "cHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHM=",
+					"server_pub_key": "xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg=",
+					"persistent_keep_alive": "25",
+					"obfuscation": {
+					}
+				}
+			},
+			"fp": "95dd2ca2"
+		},
+		"d_p_lan_2": {
+			"home": [
+				"10.20.4.0/22",
+				"192.168.50.0/24"
+			],
+			"config": {
+				"name": "Device 2",
+				"person": "Home",
+				"server": "Дом на море",
+				"filename": "dom-na-more.conf",
+				"conf": "[Interface]\nPrivateKey = <private key stays on your device>\nAddress = 10.9.0.12/32\nMTU = 1300\n\n[Peer]\nPublicKey = xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg=\nAllowedIPs = 10.9.0.0/24, 10.20.4.0/22, 192.168.50.0/24\nEndpoint = vpn.example.com:51820\n",
+				"has_private_key": false,
+				"amnezia": {
+					"host": "vpn.example.com",
+					"port": 51820,
+					"mtu": "1300",
+					"dns": [
+					],
+					"allowed_ips": [
+						"10.9.0.0/24",
+						"10.20.4.0/22",
+						"192.168.50.0/24"
+					],
+					"client_ip": "10.9.0.12",
+					"client_priv_key": "",
+					"client_pub_key": "k22",
+					"psk_key": "",
+					"server_pub_key": "xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg=",
+					"persistent_keep_alive": "0",
+					"obfuscation": {
+					}
+				}
+			},
+			"fp": "5cb618bf"
+		},
+		"d_p_lanhome_0": {
+			"home": [
+				"10.20.4.0/22",
+				"192.168.50.0/24"
+			],
+			"config": {
+				"name": "Device 0",
+				"person": "Home names",
+				"server": "Дом на море",
+				"filename": "dom-na-more.conf",
+				"conf": "[Interface]\nPrivateKey = <private key stays on your device>\nAddress = 10.9.0.13/32\nDNS = 10.9.0.1, 9.9.9.9\nMTU = 1280\n\n[Peer]\nPublicKey = xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg=\nAllowedIPs = 10.9.0.0/24, 10.20.4.0/22, 192.168.50.0/24\nEndpoint = vpn.example.com:51820\nPersistentKeepalive = 25\n",
+				"has_private_key": false,
+				"amnezia": {
+					"host": "vpn.example.com",
+					"port": 51820,
+					"mtu": "1280",
+					"dns": [
+						"10.9.0.1",
+						"9.9.9.9"
+					],
+					"allowed_ips": [
+						"10.9.0.0/24",
+						"10.20.4.0/22",
+						"192.168.50.0/24"
+					],
+					"client_ip": "10.9.0.13",
+					"client_priv_key": "",
+					"client_pub_key": "k30",
+					"psk_key": "",
+					"server_pub_key": "xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg=",
+					"persistent_keep_alive": "25",
+					"obfuscation": {
+					}
+				}
+			},
+			"fp": "fd821941"
+		},
+		"d_p_lanhome_1": {
+			"home": [
+				"10.20.4.0/22",
+				"192.168.50.0/24"
+			],
+			"config": {
+				"name": "Device 1",
+				"person": "Home names",
+				"server": "Дом на море",
+				"filename": "dom-na-more.conf",
+				"conf": "[Interface]\nPrivateKey = cHJpdmF0ZXByaXZhdGVwcml2YXRlcHJpdmF0ZXByaXY=\nAddress = 10.9.0.14/32\nDNS = 10.9.0.1, 9.9.9.9\nMTU = 1380\n\n[Peer]\nPublicKey = xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg=\nPresharedKey = cHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHM=\nAllowedIPs = 10.9.0.0/24, 10.20.4.0/22, 192.168.50.0/24\nEndpoint = vpn.example.com:51820\nPersistentKeepalive = 25\n",
+				"has_private_key": true,
+				"amnezia": {
+					"host": "vpn.example.com",
+					"port": 51820,
+					"mtu": "1380",
+					"dns": [
+						"10.9.0.1",
+						"9.9.9.9"
+					],
+					"allowed_ips": [
+						"10.9.0.0/24",
+						"10.20.4.0/22",
+						"192.168.50.0/24"
+					],
+					"client_ip": "10.9.0.14",
+					"client_priv_key": "cHJpdmF0ZXByaXZhdGVwcml2YXRlcHJpdmF0ZXByaXY=",
+					"client_pub_key": "k31",
+					"psk_key": "cHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHM=",
+					"server_pub_key": "xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg=",
+					"persistent_keep_alive": "25",
+					"obfuscation": {
+					}
+				}
+			},
+			"fp": "0cd3309a"
+		},
+		"d_p_lanhome_2": {
+			"home": [
+				"10.20.4.0/22",
+				"192.168.50.0/24"
+			],
+			"config": {
+				"name": "Device 2",
+				"person": "Home names",
+				"server": "Дом на море",
+				"filename": "dom-na-more.conf",
+				"conf": "[Interface]\nPrivateKey = <private key stays on your device>\nAddress = 10.9.0.15/32\nDNS = 10.9.0.1, 9.9.9.9\nMTU = 1300\n\n[Peer]\nPublicKey = xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg=\nAllowedIPs = 10.9.0.0/24, 10.20.4.0/22, 192.168.50.0/24\nEndpoint = vpn.example.com:51820\n",
+				"has_private_key": false,
+				"amnezia": {
+					"host": "vpn.example.com",
+					"port": 51820,
+					"mtu": "1300",
+					"dns": [
+						"10.9.0.1",
+						"9.9.9.9"
+					],
+					"allowed_ips": [
+						"10.9.0.0/24",
+						"10.20.4.0/22",
+						"192.168.50.0/24"
+					],
+					"client_ip": "10.9.0.15",
+					"client_priv_key": "",
+					"client_pub_key": "k32",
+					"psk_key": "",
+					"server_pub_key": "xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg=",
+					"persistent_keep_alive": "0",
+					"obfuscation": {
+					}
+				}
+			},
+			"fp": "dd101345"
+		},
+		"d_p_net_0": {
+			"home": [
+				"10.20.4.0/22",
+				"192.168.50.0/24"
+			],
+			"config": {
+				"name": "Device 0",
+				"person": "Internet",
+				"server": "Дом на море",
+				"filename": "dom-na-more.conf",
+				"conf": "[Interface]\nPrivateKey = <private key stays on your device>\nAddress = 10.9.0.4/32\nDNS = 10.9.0.1\nMTU = 1280\n\n[Peer]\nPublicKey = xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg=\nAllowedIPs = 0.0.0.0/0, ::/0\nEndpoint = vpn.example.com:51820\nPersistentKeepalive = 25\n",
+				"has_private_key": false,
+				"amnezia": {
+					"host": "vpn.example.com",
+					"port": 51820,
+					"mtu": "1280",
+					"dns": [
+						"10.9.0.1"
+					],
+					"allowed_ips": [
+						"0.0.0.0/0",
+						"::/0"
+					],
+					"client_ip": "10.9.0.4",
+					"client_priv_key": "",
+					"client_pub_key": "k00",
+					"psk_key": "",
+					"server_pub_key": "xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg=",
+					"persistent_keep_alive": "25",
+					"obfuscation": {
+					}
+				}
+			},
+			"fp": "e56bee63"
+		},
+		"d_p_net_1": {
+			"home": [
+				"10.20.4.0/22",
+				"192.168.50.0/24"
+			],
+			"config": {
+				"name": "Device 1",
+				"person": "Internet",
+				"server": "Дом на море",
+				"filename": "dom-na-more.conf",
+				"conf": "[Interface]\nPrivateKey = cHJpdmF0ZXByaXZhdGVwcml2YXRlcHJpdmF0ZXByaXY=\nAddress = 10.9.0.5/32\nDNS = 10.9.0.1\nMTU = 1380\n\n[Peer]\nPublicKey = xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg=\nPresharedKey = cHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHM=\nAllowedIPs = 0.0.0.0/5, 8.0.0.0/7, 10.9.0.1/32, 11.0.0.0/8, 12.0.0.0/6, 16.0.0.0/4, 32.0.0.0/3, 64.0.0.0/3, 96.0.0.0/6, 100.0.0.0/10, 100.128.0.0/9, 101.0.0.0/8, 102.0.0.0/7, 104.0.0.0/5, 112.0.0.0/4, 128.0.0.0/3, 160.0.0.0/5, 168.0.0.0/8, 169.0.0.0/9, 169.128.0.0/10, 169.192.0.0/11, 169.224.0.0/12, 169.240.0.0/13, 169.248.0.0/14, 169.252.0.0/15, 169.255.0.0/16, 170.0.0.0/7, 172.0.0.0/12, 172.32.0.0/11, 172.64.0.0/10, 172.128.0.0/9, 173.0.0.0/8, 174.0.0.0/7, 176.0.0.0/4, 192.0.0.0/9, 192.128.0.0/11, 192.160.0.0/13, 192.169.0.0/16, 192.170.0.0/15, 192.172.0.0/14, 192.176.0.0/12, 192.192.0.0/10, 193.0.0.0/8, 194.0.0.0/7, 196.0.0.0/6, 200.0.0.0/5, 208.0.0.0/4, ::/1, 8000::/2, c000::/3, e000::/4, f000::/5, f800::/6, fe00::/9, fec0::/10\nEndpoint = vpn.example.com:51820\nPersistentKeepalive = 25\n",
+				"has_private_key": true,
+				"amnezia": {
+					"host": "vpn.example.com",
+					"port": 51820,
+					"mtu": "1380",
+					"dns": [
+						"10.9.0.1"
+					],
+					"allowed_ips": [
+						"0.0.0.0/5",
+						"8.0.0.0/7",
+						"10.9.0.1/32",
+						"11.0.0.0/8",
+						"12.0.0.0/6",
+						"16.0.0.0/4",
+						"32.0.0.0/3",
+						"64.0.0.0/3",
+						"96.0.0.0/6",
+						"100.0.0.0/10",
+						"100.128.0.0/9",
+						"101.0.0.0/8",
+						"102.0.0.0/7",
+						"104.0.0.0/5",
+						"112.0.0.0/4",
+						"128.0.0.0/3",
+						"160.0.0.0/5",
+						"168.0.0.0/8",
+						"169.0.0.0/9",
+						"169.128.0.0/10",
+						"169.192.0.0/11",
+						"169.224.0.0/12",
+						"169.240.0.0/13",
+						"169.248.0.0/14",
+						"169.252.0.0/15",
+						"169.255.0.0/16",
+						"170.0.0.0/7",
+						"172.0.0.0/12",
+						"172.32.0.0/11",
+						"172.64.0.0/10",
+						"172.128.0.0/9",
+						"173.0.0.0/8",
+						"174.0.0.0/7",
+						"176.0.0.0/4",
+						"192.0.0.0/9",
+						"192.128.0.0/11",
+						"192.160.0.0/13",
+						"192.169.0.0/16",
+						"192.170.0.0/15",
+						"192.172.0.0/14",
+						"192.176.0.0/12",
+						"192.192.0.0/10",
+						"193.0.0.0/8",
+						"194.0.0.0/7",
+						"196.0.0.0/6",
+						"200.0.0.0/5",
+						"208.0.0.0/4",
+						"::/1",
+						"8000::/2",
+						"c000::/3",
+						"e000::/4",
+						"f000::/5",
+						"f800::/6",
+						"fe00::/9",
+						"fec0::/10"
+					],
+					"client_ip": "10.9.0.5",
+					"client_priv_key": "cHJpdmF0ZXByaXZhdGVwcml2YXRlcHJpdmF0ZXByaXY=",
+					"client_pub_key": "k01",
+					"psk_key": "cHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHNrcHM=",
+					"server_pub_key": "xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg=",
+					"persistent_keep_alive": "25",
+					"obfuscation": {
+					}
+				}
+			},
+			"fp": "e45e89f4"
+		},
+		"d_p_net_2": {
+			"home": [
+				"10.20.4.0/22",
+				"192.168.50.0/24"
+			],
+			"config": {
+				"name": "Device 2",
+				"person": "Internet",
+				"server": "Дом на море",
+				"filename": "dom-na-more.conf",
+				"conf": "[Interface]\nPrivateKey = <private key stays on your device>\nAddress = 10.9.0.6/32\nDNS = 10.9.0.1\nMTU = 1300\n\n[Peer]\nPublicKey = xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg=\nAllowedIPs = 0.0.0.0/0, ::/0\nEndpoint = vpn.example.com:51820\n",
+				"has_private_key": false,
+				"amnezia": {
+					"host": "vpn.example.com",
+					"port": 51820,
+					"mtu": "1300",
+					"dns": [
+						"10.9.0.1"
+					],
+					"allowed_ips": [
+						"0.0.0.0/0",
+						"::/0"
+					],
+					"client_ip": "10.9.0.6",
+					"client_priv_key": "",
+					"client_pub_key": "k02",
+					"psk_key": "",
+					"server_pub_key": "xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg=",
+					"persistent_keep_alive": "0",
+					"obfuscation": {
+					}
+				}
+			},
+			"fp": "45052bb9"
+		}
+	}
+}

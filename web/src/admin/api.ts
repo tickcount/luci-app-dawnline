@@ -1,4 +1,4 @@
-// luci.dawnline RPC bindings. The backend reports failures as { error }, and
+// The backend's RPC bindings (ubus object `dawnline`, the Go backend). The backend reports failures as { error }, and
 // a change the router saved but could not fully put into effect (access rules
 // that did not load, a server that refused its devices) as { warning }.
 
@@ -18,6 +18,7 @@ import type {
 } from '../shared/types';
 import { notify } from './ui/toast';
 import { lang } from '../shared/i18n';
+import { markWritten, streamMeter, streamStatus } from './state/stream';
 
 /** Throw a backend failure; show a warning the answer carries. */
 function settle<T>(r: any): T {
@@ -29,13 +30,25 @@ function settle<T>(r: any): T {
 }
 
 /**
- * A method of luci.dawnline. The page's language goes last, after the
+ * A method of the backend (`dawnline`). The page's language goes last, after the
  * method's own arguments: the router writes its messages in it.
  */
 function call<T>(method: string, params: string[] = []) {
-  const fn = rpc.declare<any>({ object: 'luci.dawnline', method, params: [...params, 'lang'] });
-  return async (...args: unknown[]): Promise<T> => settle<T>(await fn(...params.map((_p, i) => args[i]), lang()));
+  const declare = (object: string) => rpc.declare<any>({ object, method, params: [...params, 'lang'] });
+  const here = declare('dawnline');
+  return async (...args: unknown[]): Promise<T> => {
+    try {
+      return settle<T>(await here(...params.map((_p, i) => args[i]), lang()));
+    } finally {
+      // anything but a question may have changed what the stream shows: the next status is read after it
+      if (!ASKS.test(method)) markWritten();
+    }
+  };
 }
+
+/** The methods that only ask. */
+const ASKS =
+  /^(status|meter|rev|events|health|service_log|settings_get|portal_info|(server_)?interfaces|access_check|home_hosts|setup_defaults|endpoint_probe|person_(links|usage)|device_config|backup_(list|read)|export|updates_(status|releases|notes|changes))$/;
 
 export interface SetupDefaults {
   id: string;
@@ -111,11 +124,12 @@ export interface Meter {
 
 /**
  * A device's own link values for device_update; left out = kept. Numbers go as text: '' = the server's, keep-alive
- * '0' = off. LAN Bypass stays as chosen when the device was added (the RPC takes it, the admin UI never changes it).
+ * '0' = off. LAN Bypass: its own local network outside the tunnel (the device fetches its configuration again).
  */
 export interface DeviceLinkPatch {
   mtu?: string;
   keepalive?: string;
+  lan_bypass?: boolean;
 }
 
 export interface Backup {
@@ -310,7 +324,7 @@ interface LikeHome {
   error?: string;
 }
 
-export type IfaceCategory = 'wan' | 'ethernet' | 'wifi' | 'vpn' | 'other';
+type IfaceCategory = 'wan' | 'ethernet' | 'wifi' | 'vpn' | 'other';
 
 export interface NetDevice {
   name: string;
@@ -390,26 +404,11 @@ const logsClear = (f: LogFilter = {}) => logsClearRaw(f.person ?? '', f.device ?
 
 /** Fields for person_update; send strings ('' clears an optional value). */
 export type PersonPatch = Partial<
-  Record<
-    | 'name'
-    | 'access'
-    | 'device_limit'
-    | 'expires'
-    | 'expire_action'
-    | 'expire_warn'
-    | 'quota_gb'
-    | 'quota_period'
-    | 'bonus_gb'
-    | 'hours'
-    | 'note'
-    | 'dns_mode'
-    | 'server',
-    string
-  >
+  Record<'name' | 'access' | 'device_limit' | 'expires' | 'quota_gb' | 'quota_period' | 'bonus_gb' | 'note' | 'dns_mode' | 'server', string>
 > & { paused?: boolean; services?: string[]; circle?: string; home_nets?: string[] };
 
 const personUpdateRaw = rpc.declare<any>({
-  object: 'luci.dawnline',
+  object: 'dawnline',
   method: 'person_update',
   params: [
     'id',
@@ -417,12 +416,9 @@ const personUpdateRaw = rpc.declare<any>({
     'access',
     'device_limit',
     'expires',
-    'expire_action',
-    'expire_warn',
     'quota_gb',
     'quota_period',
     'bonus_gb',
-    'hours',
     'note',
     'dns_mode',
     'paused',
@@ -434,30 +430,42 @@ const personUpdateRaw = rpc.declare<any>({
 });
 
 async function personUpdate(id: string, patch: PersonPatch): Promise<{ person: Person }> {
-  const keys = [
-    'name',
-    'access',
-    'device_limit',
-    'expires',
-    'expire_action',
-    'expire_warn',
-    'quota_gb',
-    'quota_period',
-    'bonus_gb',
-    'hours',
-    'note',
-    'dns_mode',
-  ] as const;
+  const keys = ['name', 'access', 'device_limit', 'expires', 'quota_gb', 'quota_period', 'bonus_gb', 'note', 'dns_mode'] as const;
   const args: unknown[] = [id, ...keys.map((k) => patch[k]), patch.paused, patch.services, patch.circle, patch.home_nets, patch.server];
-  return settle(await personUpdateRaw(...args));
+  try {
+    return settle(await personUpdateRaw(...args));
+  } finally {
+    markWritten();
+  }
 }
 
-const status = call<Status>('status', ['days']);
+/** One person's changes in a people_update list. */
+export interface PeopleChange {
+  id: string;
+  patch: Pick<PersonPatch, 'expires' | 'bonus_gb' | 'quota_gb' | 'device_limit'> & {
+    paused?: boolean;
+  };
+}
 
-const deviceUpdateRaw = call<unknown>('device_update', ['id', 'name', 'disabled', 'mtu', 'keepalive']);
+/**
+ * From the backend's stream (state/stream.ts: the backend reads the router once for every open tab, when
+ * something changed). The stream's status holds the longest history a page asks for; one that asked for
+ * fewer days gets more. A backend that does not answer yet (it is starting, or was just restarted) is waited
+ * for a quarter of a minute; then the page says so, and fills in when it does.
+ */
+const status = async (_days: number): Promise<Status> => {
+  for (let i = 0; i < 6; i++) {
+    const st = await streamStatus();
+    if (st) return st;
+    await new Promise((done) => setTimeout(done, 2500));
+  }
+  throw new Error(_('Dawnline is starting on the router: this page fills in when it answers.'));
+};
+
+const deviceUpdateRaw = call<unknown>('device_update', ['id', 'name', 'disabled', 'mtu', 'keepalive', 'lan_bypass']);
 /** Rename, turn off or on, or change how a device connects; what is undefined stays as it is. */
 const deviceUpdate = (id: string, name?: string, disabled?: boolean, link: DeviceLinkPatch = {}) =>
-  deviceUpdateRaw(id, name, disabled, link.mtu, link.keepalive);
+  deviceUpdateRaw(id, name, disabled, link.mtu, link.keepalive, link.lan_bypass);
 
 /** One line of the service log: tunnel and service starts, stops, watchdog repairs, errors. */
 export interface ServiceLogEntry {
@@ -472,6 +480,8 @@ export interface ServiceLogEntry {
   by?: 'admin';
   kind?: string;
   note?: string;
+  /** The server an admin's change was made on (older entries have only its name, in `who`). */
+  sid?: string;
 }
 
 export interface ServiceLog {
@@ -491,9 +501,9 @@ export interface ServiceLog {
 export type Health = { checks: HealthCheck[] } & ServiceLog;
 
 export const api = {
-  rev: call<{ rev: number; version?: string }>('rev'),
   /** The live meter's points newer than `since` (0: all); polled while the Overview shows it. */
-  meter: call<Meter>('meter', ['since']),
+  meter: async (since: number): Promise<Meter> =>
+    (await streamMeter(since)) ?? { now: Date.now() / 1000, want: 10, keep: 120, ts: since, points: [] },
   personUpdate,
   settingsGet: call<SettingsData>('settings_get'),
   portalInfo: call<PortalInfo>('portal_info'),
@@ -501,8 +511,8 @@ export const api = {
   serviceSet: call<{ id: string }>('service_set', ['id', 'name', 'address', 'ports']),
   serviceDelete: call<unknown>('service_delete', ['id']),
   geoClear: call<unknown>('geo_clear'),
-  /** The newest `limit` events; a person's only, or only those after `since` (a ts), when given. */
-  events: call<{ events: LogEvent[]; total: number; policy: LogsInfo['policy'] }>('events', ['limit', 'person', 'since']),
+  /** The newest `limit` events; a person's or a device's only, or only those after `since` (a ts), when given. */
+  events: call<{ events: LogEvent[]; total: number; policy: LogsInfo['policy'] }>('events', ['limit', 'person', 'since', 'device']),
   logsClear,
   interfaces: call<InterfacesData>('interfaces', ['id']),
   serverInterfaces: call<InterfacesData>('server_interfaces', [
@@ -558,17 +568,28 @@ export const api = {
     'quota_period',
   ]),
   personPause: call<unknown>('person_pause', ['id', 'paused']),
+  /** Several people at once, all or nothing (one transaction, one apply): People's picks and their undo. */
+  peopleUpdate: call<{ changed: number }>('people_update', ['list']) as (list: PeopleChange[]) => Promise<{ changed: number }>,
   /** A new link; `remove` lists devices (ids) to take away with the old one. */
   personRegen: call<{ link: string | null; removed: number }>('person_regen', ['id', 'remove']),
   personDelete: call<unknown>('person_delete', ['id']),
   personUsage: call<{ person: DayUsage[]; devices: Record<string, DayUsage[]> }>('person_usage', ['id', 'days']),
   /** A new device; `lan_bypass` (true) keeps its own local network outside the tunnel. */
-  deviceCreate: call<{ id: string; config: ClientConfig }>('device_create', ['person', 'name', 'kind', 'lan_bypass']),
-  /** A device's configuration; `issue` (true) when it goes to the device as a code, a file or a key: only that clears "Update config". */
-  deviceConfig: call<ClientConfig>('device_config', ['id', 'issue']),
+  /** `networks`: what stands behind a new router, its own from the start. */
+  deviceCreate: call<{ id: string; config: ClientConfig }>('device_create', ['person', 'name', 'kind', 'lan_bypass', 'networks']),
+  /** The networks behind a router, all of them at once; the router applies everything (its routes move). */
+  deviceNetworks: call<{ networks: string[] }>('device_networks', ['id', 'networks']),
+  /**
+   * The answer to what a router's owner asked for on their own page: `accept` or `decline` (with a reason they
+   * read), for the networks named or for all that is asked; `reopen` puts the question back (the undo of either).
+   */
+  deviceAnswer: call<unknown>('device_answer', ['id', 'answer', 'reason', 'router', 'networks']),
+  /** A device's configuration, to show it; showing marks nothing as given out (that is the portal's fetch, a new device, new keys). */
+  deviceConfig: call<ClientConfig>('device_config', ['id']),
   deviceUpdate,
   deviceDelete: call<unknown>('device_delete', ['id']),
-  deviceRotate: call<ClientConfig>('device_rotate', ['id']),
+  /** New keys: the device is set up again; `kind` and `lan_bypass` (asked again) change with them when given. */
+  deviceRotate: call<ClientConfig>('device_rotate', ['id', 'kind', 'lan_bypass']),
   apply: call<unknown>('apply'),
   health: call<Health>('health'),
   healthFix: call<Health>('health_fix', ['id']),

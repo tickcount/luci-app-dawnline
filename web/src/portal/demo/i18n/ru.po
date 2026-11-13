@@ -13,12 +13,12 @@ msgid "A fresh link with no devices yet."
 msgstr "Новая ссылка, устройств пока нет."
 
 #: web/src/portal/demo/data.ts
-msgid "Access ended"
-msgstr "Доступ закончился"
+msgid "A router of your own"
+msgstr "Свой роутер"
 
 #: web/src/portal/demo/data.ts
-msgid "Access only at certain hours of the day."
-msgstr "Доступ только в определённые часы."
+msgid "Access ended"
+msgstr "Доступ закончился"
 
 #: web/src/portal/demo/way-pick.ts
 msgid "Auto"
@@ -56,6 +56,10 @@ msgstr "Первый визит"
 msgid "How the page looks in each case. Nothing here connects."
 msgstr "Как выглядит страница в каждом случае. Ничего не подключается по-настоящему."
 
+#: web/src/portal/demo/data.ts
+msgid "Its network works; one more waits for the admin."
+msgstr "Его сеть работает; ещё одна ждёт администратора."
+
 #: web/src/portal/demo/way-pick.ts
 msgid "No data"
 msgstr "Нет данных"
@@ -79,10 +83,6 @@ msgstr "Другие случаи"
 #: web/src/portal/demo/data.ts
 msgid "Out of data"
 msgstr "Трафик закончился"
-
-#: web/src/portal/demo/data.ts
-msgid "Outside allowed hours"
-msgstr "Вне часов доступа"
 
 #: web/src/portal/demo/data.ts
 msgid "Paused by the admin"

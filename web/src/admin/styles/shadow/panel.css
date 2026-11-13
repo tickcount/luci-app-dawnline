@@ -1,0 +1,277 @@
+/* A person's and a device's page on People (pages/people/person, pages/people/device): what is theirs alone over
+   the kit's page frame (kit.css) and the widgets (widgets.css). A person's page: the head across, then their
+   devices, places and latest in the main column and the access stack (term, traffic, reach) beside it,
+   sticky; under 760 one column, the access stack first. */
+
+/* a person's devices: the count and the limit in the head («3 of − 4 +») */
+.b-devices .kt-bh {
+  align-items: center;
+  padding-bottom: 10px;
+}
+.b-devices .kt-bh .stepper {
+  margin: 0 -2px;
+}
+/* two columns, as the portal's: the main one fluid (the devices two across, the places, the latest), the access
+   stack beside it (320–384), in sight while the page scrolls (under the scroller's top padding, --md-top:
+   ui/subpage.ts) and scrolling on its own when it is taller than the window. Each column is a container of its own,
+   so what is in it takes the layout of the room it really has. Narrower: one column, the access stack first (the
+   portal's «Your access» first on a phone). */
+.pp-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 28px;
+  min-width: 0;
+}
+.pp-main,
+.pp-side {
+  container: dlpage / inline-size;
+  min-width: 0;
+}
+.pp-side {
+  order: -1;
+}
+.pp-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+/* a block with nothing to show (no places when they are not kept) takes no gap; the blocks' own gap is the one
+   between them */
+.pp-main > .kt-b:empty {
+  display: none;
+}
+.pp-main .kt-plist {
+  margin-bottom: 0;
+}
+@container dlpage (min-width: 760px) {
+  .pp-cols {
+    grid-template-columns: minmax(0, 1fr) clamp(320px, 38%, 384px);
+    align-items: start;
+  }
+  .pp-side {
+    order: 0;
+    position: sticky;
+    top: calc(var(--md-top, 0px) + 16px);
+    max-height: calc(100dvh - 92px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--text) 18%, transparent) transparent;
+    border-radius: var(--r-card);
+  }
+}
+/* a part of the access stack: its head inside its card, a size down from a block's head, its controls at the end.
+   The card's corners decide the insets: the title 20 from the edge; a control at the end as far from the side as
+   from the top (a 34 px pill or knob 10, the switch's 26 px track 14), so a one-line card (54 high) is balanced */
+.pp-part > .kt-bh {
+  align-items: center;
+  min-height: 38px;
+  padding: 0 2px 0 12px;
+}
+.pp-part > .kt-bh .kt-sw {
+  margin-right: 4px;
+}
+/* ⟳N at the head's end is no control: a small pill, it stands 20 from the card's edge as the title does on the other
+   side (10 from it, the head's inset, it read as pushed into the corner; the owner, 2026-11-12: «отступ от правого
+   края не такой же как от левого в заголовке») */
+.pp-part > .kt-bh > .sh-end > .reimp:last-child {
+  margin-right: 10px;
+}
+/* the term's moves: pills kept off the card's round corners as far as their own radius asks (28 − 16) */
+.pp-part > .kt-ext:last-child {
+  padding: 0 4px 4px;
+}
+.pp-part > .kt-bh h2 {
+  font-size: 16px;
+  line-height: 22px;
+  letter-spacing: -0.02em;
+}
+.pp-part > .kt-bh .aside {
+  min-width: 0;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 400;
+  color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pp-part > .kt-bh .sh-end {
+  flex: none;
+}
+/* the stack's head stands as high as the devices' head beside it (its stepper), so the first cards line up */
+.pp-side > .kt-bh {
+  align-items: center;
+  min-height: 42px;
+  padding-bottom: 10px;
+}
+
+/* their devices: two across in the main column, one under it; the card that adds one, alone in its row, is a row,
+   not a card's height of nothing */
+@container dlpage (min-width: 480px) {
+  .pp-person .dgrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .pp-person .dgrid > .dev.add:nth-child(2n + 1) {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    min-height: 60px;
+    padding: 8px 16px;
+  }
+  .pp-person .dgrid > .dev.add:nth-child(2n + 1) .gi {
+    width: 28px;
+    height: 28px;
+  }
+  /* one device and no card to add (a read-only login): it takes the row, not half of it beside nothing */
+  .pp-person .dgrid > .dev:only-child {
+    grid-column: 1 / -1;
+  }
+}
+@container dlpage (max-width: 479px) {
+  .pp-person .dgrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .pp-person .dev.add {
+    flex-direction: row;
+    min-height: 60px;
+    padding: 8px 16px;
+  }
+  .pp-person .dev.add .gi {
+    width: 28px;
+    height: 28px;
+  }
+}
+.pp-feed .evs {
+  min-width: 0;
+}
+.kt-panel .card.link,
+.kt-panel .card.traffic {
+  margin: 0;
+}
+/* a device's places: the close-up's rows on the card; the whole stack is the way to the close-up */
+.pp-plcard {
+  padding: 8px;
+}
+.pp-dplaces {
+  cursor: pointer;
+}
+.pp-dplaces .dl-dplaces.can-replay .dl-dplace-strip {
+  cursor: pointer;
+}
+/* their place held while the rows' module loads */
+.pp-pl-wait {
+  min-height: 96px;
+}
+.pp-pl-foot {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 0 0;
+}
+.pp-pl-go {
+  cursor: pointer;
+  font: 500 14px/20px var(--font);
+}
+/* a panel's object that is not there: the two ways out side by side */
+.pp-gone-acts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+/* a phone: their devices one under another, a little closer; each keeps its week of traffic (the owner,
+   2026-11-11: «на телефоне не видно last 7 days») */
+@container dlpage (max-width: 419px) {
+  .pp-person .dgrid {
+    gap: 8px;
+  }
+}
+
+/* the head's note: a quiet line of its own under the facts, no frame, a press edits it (the pencil shows under the
+   pointer) */
+/* the note: a line of its own under the name and its state, inside their column (it stays with them wherever
+   the head's actions wrap to); the icon stands beside the name and the state alone, at the head's top */
+.kt-phead .ph:has(.ph-noterow) {
+  align-items: flex-start;
+}
+.kt-phead .ph-noterow {
+  display: flex;
+  min-width: 0;
+}
+.ph-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  margin: 4px 0 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--text-2);
+  text-align: left;
+}
+.ph-note > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+button.ph-note {
+  cursor: pointer;
+  border-radius: 6px;
+}
+.ph-note-ed {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  opacity: 0;
+  transition: opacity 150ms var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  button.ph-note:hover {
+    color: var(--text);
+  }
+  button.ph-note:hover .ph-note-ed {
+    opacity: 1;
+  }
+}
+.kbd button.ph-note:focus-visible {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+@media (pointer: coarse) {
+  .ph-note-ed {
+    opacity: 0.6;
+  }
+}
+
+/* the person's Traffic card: month, all time and now in one row while the column has room for three */
+@container dlpage (min-width: 440px) {
+  .b-use .stats {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  }
+}
+
+/* «not applied» beside a part's name while a change of it waits for «Apply» (people/draft.ts). In the Limit's
+   head, whose end is a track as wide as the column leaves, it takes a line of its own under the name, so the
+   track never drops to a second line. */
+.kt-bh > .kt-wait {
+  display: inline-flex;
+  margin-left: 8px;
+}
+.kt-bh > .kt-wait > .reimp {
+  font-size: 12px;
+}
+.b-traffic .kt-bh {
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+.b-traffic .kt-bh > .kt-wait {
+  order: 9;
+  flex-basis: 100%;
+  margin-left: 0;
+}
+
+/* the dock of a person's waiting changes stands over the page's foot: the last block stays in reach above it */
+.kt-panel.pp-person {
+  padding-bottom: 88px;
+}

@@ -1,7 +1,7 @@
 // Formatting helpers shared by the admin UI and the portal, in the page's
 // language (shared/i18n.ts): units, relative times, dates, labels.
 
-import type { Access, Kind, Person, PersonState, Server } from './types';
+import type { Access, Declined, Kind, Person, Server } from './types';
 import { fmt, locale, num, plural } from './i18n';
 
 /** A size with its unit: one decimal from 1 KB up to 100 of a unit ("1.5 GB", "120 MB"). */
@@ -18,14 +18,13 @@ export function bytes(n: number): string {
   return sized(!n || n < 0 ? 0 : n, [_('B'), _('KB'), _('MB'), _('GB'), _('TB')], 1024);
 }
 
-/** Bytes per second as a bit rate. */
-export function bits(bps: number): string {
-  const b = bps * 8;
-  const units = [_('bit/s'), _('kbit/s'), _('Mbit/s'), _('Gbit/s')];
-  if (b < 1000) return `${num(Math.round(b))} ${units[0]}`;
-  const i = b < 1e6 ? 1 : b < 1e9 ? 2 : 3;
-  const v = b / 1000 ** i;
-  return `${num(v, i === 3 || v < 10 ? 1 : 0)} ${units[i]}`;
+/**
+ * A speed, in bytes a second: «7.7 MB/s», the same units the traffic beside it is counted in (the owner,
+ * 2026-11-12: «Mbs это показывается на мбпс а не мегабайты в секунду»), so a speed and what it adds up to read
+ * as one measure. Not bits: a line's rate is the provider's word, a download's is this.
+ */
+export function rateOf(bps: number): string {
+  return fmt(_('%s/s'), bytes(bps));
 }
 
 export function ago(ts: number, now = Date.now() / 1000): string {
@@ -38,6 +37,13 @@ export function ago(ts: number, now = Date.now() / 1000): string {
   return new Date(ts * 1000).toLocaleDateString(locale(), { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+/** How long until something, in one unit, short: «12 d», «5 h», «20 min» (at least a minute). */
+export function until(sec: number): string {
+  if (sec >= 86400) return fmt(_('%sd'), Math.floor(sec / 86400));
+  if (sec >= 3600) return fmt(_('%sh'), Math.floor(sec / 3600));
+  return fmt(_('%sm'), Math.max(1, Math.floor(sec / 60)));
+}
+
 export function duration(sec: number): string {
   if (!sec || sec < 0) return '—';
   const d = Math.floor(sec / 86400);
@@ -46,14 +52,6 @@ export function duration(sec: number): string {
   if (d) return fmt(_('%sd %sh'), d, h);
   if (h) return fmt(_('%sh %sm'), h, m);
   return fmt(_('%sm'), m);
-}
-
-export function clock(ts: number): string {
-  const d = new Date(ts * 1000);
-  const today = new Date();
-  const sameDay = d.toDateString() === today.toDateString();
-  const t = d.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
-  return sameDay ? t : `${d.toLocaleDateString(locale(), { day: 'numeric', month: 'short' })} ${t}`;
 }
 
 /* ---------- days (YYYY-MM-DD, the router's calendar) ---------- */
@@ -132,12 +130,12 @@ export function daysLeft(s: string, today: string | number = Date.now()): number
   return diff >= 0 ? diff + 1 : diff;
 }
 
-/**
- * Whether an end date is close enough to warn about, by the person's own
- * setting (`expire_warn` days; 0 = never). `left` is daysLeft().
- */
-export function endsSoon(p: { expire_warn: number }, left: number | null): boolean {
-  return left != null && left > 0 && p.expire_warn > 0 && left <= p.expire_warn;
+/** How many days before an end date its person is flagged: one number for everyone (the router's core.EXPIRE_WARN). */
+const WARN_DAYS = 3;
+
+/** Whether an end date is close enough to say so: its last WARN_DAYS days. `left` is daysLeft(). */
+export function endsSoon(left: number | null): boolean {
+  return left != null && left > 0 && left <= WARN_DAYS;
 }
 
 /** "ends today", "ends tomorrow", "ends in 7 days" for daysLeft() > 0. */
@@ -239,24 +237,29 @@ export const PICKS: KindPick[] = ['computer', 'mobile', 'router', 'other'];
 export const pickLabel = (p: KindPick): string => (p === 'mobile' ? _('Mobile') : kindLabel(p));
 export const pickOf = (k: Kind): KindPick => (k === 'phone' || k === 'tablet' ? 'mobile' : k);
 
-export function stateLabel(s: PersonState): string {
-  return {
-    active: _('Active'),
-    paused: _('Paused'),
-    expired: _('Expired'),
-    quota: _('Data limit reached'),
-    hours: _('Outside allowed hours'),
-    no_server: _('No server'),
-    server_off: _('Server is turned off'),
-  }[s];
+/** A string's signs as a reader counts them: an emoji (two code units, or several joined) is one, never half of one. */
+function signs(s: string): string[] {
+  const Seg = (
+    Intl as unknown as {
+      Segmenter?: new (l?: string, o?: { granularity: 'grapheme' }) => { segment(s: string): Iterable<{ segment: string }> };
+    }
+  ).Segmenter;
+  return Seg ? Array.from(new Seg(undefined, { granularity: 'grapheme' }).segment(s), (x) => x.segment) : Array.from(s);
 }
 
+/**
+ * A name as one or two signs for a face: the first letters of its first and last words that begin with a letter or
+ * a digit (one such word gives its first two letters); a name without any gives its first sign whole («🦊»).
+ */
 export function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return '?';
-  const a = parts[0][0] ?? '';
-  const b = parts.length > 1 ? (parts[parts.length - 1][0] ?? '') : (parts[0][1] ?? '');
-  return (a + b).toUpperCase();
+  const worded = parts.filter((w) => /^[\p{L}\p{N}]/u.test(w));
+  if (!worded.length) return signs(parts[0])[0] ?? '?';
+  const first = signs(worded[0]);
+  const letters = first.filter((x) => /^[\p{L}\p{N}]/u.test(x));
+  const two = worded.length > 1 ? first[0] + (signs(worded[worded.length - 1])[0] ?? '') : letters.slice(0, 2).join('');
+  return two.toUpperCase();
 }
 
 /** "1.2 GB of 50 GB" style quota text, or just usage when unlimited. */
@@ -298,4 +301,18 @@ export function homeOf(p: Person, srv: Server | undefined): string[] {
   if (p.access !== 'both' || !srv) return [];
   const pick = p.home_nets ?? [];
   return srv.home.filter((h) => !pick.length || pick.includes(h.dev)).flatMap((h) => h.nets);
+}
+
+/** Why the admin turned a request down, in the words its owner reads (and the admin picks). */
+export function declinedWords(why: Declined): string {
+  switch (why) {
+    case 'overlap':
+      return _('It shares addresses with a network here');
+    case 'unneeded':
+      return _('This network is not needed here');
+    case 'talk':
+      return _('Ask me first');
+    case 'plain':
+      return _('Declined');
+  }
 }

@@ -4,13 +4,13 @@
 // scenario picker is picker.ts).
 
 import type { State } from '../state';
-import type { Device, Kind, Pair, Person } from '../../shared/types';
+import type { Declined, Device, Kind, Pair, Person } from '../../shared/types';
 
 const GB = 2 ** 30;
 const HOUR = 3600;
 const DAY = 86400;
 
-export type ScenarioId = 'normal' | 'first' | 'stale' | 'quota' | 'hours' | 'paused' | 'expired' | 'http' | 'plain' | 'full';
+export type ScenarioId = 'normal' | 'first' | 'stale' | 'quota' | 'paused' | 'expired' | 'http' | 'plain' | 'full' | 'site';
 
 export interface Scenario {
   id: ScenarioId;
@@ -22,8 +22,8 @@ export interface Scenario {
 /** What can be tried, in the picker's groups (their words are groups()). */
 const GROUPS: ScenarioId[][] = [
   ['normal', 'first', 'stale'],
-  ['quota', 'hours', 'paused', 'expired'],
-  ['http', 'plain', 'full'],
+  ['quota', 'paused', 'expired'],
+  ['http', 'plain', 'full', 'site'],
 ];
 export const SCENARIOS: { id: ScenarioId }[] = GROUPS.flat().map((id) => ({ id }));
 
@@ -35,12 +35,12 @@ export function groups(): { title: string; items: Scenario[] }[] {
     first: [_('First visit'), _('A fresh link with no devices yet.')],
     stale: [_('Settings changed'), _('The admin changed something: a device needs an update.')],
     quota: [_('Out of data'), _('The month’s limit is used up.')],
-    hours: [_('Outside allowed hours'), _('Access only at certain hours of the day.')],
     paused: [_('Paused by the admin'), _('The page turns into one card.')],
     expired: [_('Access ended'), _('The end date has passed.')],
     http: [_('Opened over plain HTTP'), _('Settings only travel over HTTPS.')],
     plain: [_('Plain WireGuard'), _('Disguise off: any WireGuard app connects.')],
     full: [_('No free slots'), _('Every device slot is taken.')],
+    site: [_('A router of your own'), _('Its network works; one more waits for the admin.')],
   };
   return GROUPS.map((ids, i) => ({ title: titles[i], items: ids.map((id) => ({ id, label: words[id][0], about: words[id][1] })) }));
 }
@@ -68,6 +68,14 @@ export interface DemoDevice {
   way?: DemoWay;
   /** When it was picked: the knocks' or the handshake's time. */
   wayAt?: number;
+  // A router's own: the networks behind it, what was asked of the admin (the demo's never answers), what the admin
+  // turned down and why.
+  behind?: string[];
+  ask?: string[];
+  /** Asked for here: it cannot connect before the admin takes it. */
+  waiting?: boolean;
+  declined?: Declined;
+  declinedNets?: string[];
 }
 
 /** The set-up states the visitor can hold a device in (connected is a real handshake: router.ts). */
@@ -92,15 +100,29 @@ export function seedDevices(s: ScenarioId, t: number, id: () => string): DemoDev
     dev('iPhone 16', 'phone', 2, 14.2, t - 40),
     { ...dev('MacBook Pro', 'computer', 3, 21.9, t - 3 * HOUR), stale: s === 'stale' },
     { ...dev('iPad Air', 'tablet', 4, 0, 0), created: t - 2 * DAY, by: 'portal' },
+    // a router of their own: one network taken by the admin, one asked for since, one turned down
+    ...(s === 'site'
+      ? [
+          {
+            ...dev('Keenetic', 'router', 5, 46.5, t - 25),
+            created: t - 12 * DAY,
+            by: 'portal' as const,
+            behind: ['192.168.2.0/24'],
+            ask: ['192.168.20.0/24'],
+            declined: 'overlap' as const,
+            declinedNets: ['192.168.1.0/24'],
+          },
+        ]
+      : []),
   ];
 }
 
-/** The person's state in the scenario: the four the admin's limits stop them in, else active. */
+/** The person's state in the scenario: the three the admin's limits stop them in, else active. */
 function personState(s: ScenarioId): Person['state'] {
-  return s === 'quota' || s === 'hours' || s === 'paused' || s === 'expired' ? s : 'active';
+  return s === 'quota' || s === 'paused' || s === 'expired' ? s : 'active';
 }
 const locked = (s: ScenarioId) => s === 'paused' || s === 'expired';
-export const deviceLimit = (s: ScenarioId) => (s === 'full' ? 3 : 4);
+export const deviceLimit = (s: ScenarioId) => (s === 'full' ? 3 : s === 'site' ? 5 : 4);
 
 /** The local day (YYYY-MM-DD) of a time: in the demo, the visitor's clock is the router's. */
 function isoDay(t: number): string {
@@ -121,23 +143,16 @@ const WEEK = [0.9, 1.15, 0.8, 1.05, 1.3, 0.75, 1.1];
 /** A day split into what the devices sent and received: about a tenth sent, more on a day something backed up. */
 const split = (v: number, sent: number): Pair => [Math.round(v * sent), v - Math.round(v * sent)];
 
-/** The month so far, day by day as [rx, tx], adding up to `total` bytes (today only partly gone). */
+/** The last 30 days, day by day as [rx, tx], today last, adding up to `total` bytes (today only partly gone). */
 export function monthDays(total: number, t: number): Pair[] {
   const d = new Date(t * 1000);
-  const days = d.getDate();
+  const days = 30;
   const w = Array.from({ length: days }, (_, i) => {
-    const wd = (new Date(d.getFullYear(), d.getMonth(), i + 1).getDay() + 6) % 7;
+    const wd = (new Date(d.getFullYear(), d.getMonth(), d.getDate() - (days - 1 - i)).getDay() + 6) % 7;
     return WEEK[wd] * (i === days - 1 ? 0.45 : 1) * (0.85 + ((i * 37) % 11) / 30);
   });
   const sum = w.reduce((a, b) => a + b, 0);
   return w.map((x, i) => split(Math.round((x / sum) * total), i % 11 === 4 ? 0.4 : 0.08 + ((i * 17) % 9) / 100));
-}
-
-/** A window of the day that leaves `t` out (the visitor's hours): the hours scenario is outside it. */
-export function hoursAway(t: number): string {
-  const at = new Date(t * 1000).getHours();
-  const p = (h: number) => `${String(h % 24).padStart(2, '0')}:00`;
-  return `${p(at + 2)}-${p(at + 10)}`;
 }
 
 /** The handshake the page sees: a device being set up has "connected" once its time came. */
@@ -146,7 +161,8 @@ export const handshakeOf = (d: DemoDevice, t: number) => (d.connectAt && t >= d.
 function device(d: DemoDevice, t: number, st: Person['state']): Device {
   // Held waiting or knocking: no handshake; no data: one handshake when it was picked, nothing after it.
   const at = d.wayAt ?? t;
-  const hs = d.way === 'nodata' ? at : d.way ? 0 : handshakeOf(d, t);
+  // a router asked for has no tunnel at all until the admin takes it
+  const hs = d.waiting ? 0 : d.way === 'nodata' ? at : d.way ? 0 : handshakeOf(d, t);
   const month = d.gb * GB;
   // A stopped person's tunnels are down; the rest count as online for three minutes after a handshake.
   const online = !!hs && t - hs < 180 && st !== 'paused' && st !== 'expired';
@@ -170,6 +186,8 @@ function device(d: DemoDevice, t: number, st: Person['state']): Device {
     hostname: `${label(d.name)}.user.lan`,
     browser_key: false,
     config_stale: d.stale,
+    // Handed out when it was set up: its first handshake, or never for one that never connected.
+    config_issued: hs ? d.created : 0,
     lan_bypass: !!d.bypass,
     mtu: 0,
     keepalive: null,
@@ -186,6 +204,10 @@ function device(d: DemoDevice, t: number, st: Person['state']): Device {
           : online
             ? { state: 'flowing', since: hs }
             : null,
+    ...(d.behind?.length ? { behind: d.behind } : {}),
+    ...(d.ask?.length ? { ask: d.ask } : {}),
+    ...(d.waiting ? { waiting: true } : {}),
+    ...(d.declined ? { declined: d.declined, ...(d.declinedNets?.length ? { declined_nets: d.declinedNets } : {}) } : {}),
   };
 }
 
@@ -209,12 +231,13 @@ export function pageState(s: ScenarioId, devs: DemoDevice[], t: number, secureUr
     quota_period: 'month',
     quota_used: used,
     quota_limit: quota * GB,
+    // their limit month began with their first connection, 18 days ago: it ends in 12
+    quota_month: [Math.round(used / 8), Math.round((used * 7) / 8)],
+    quota_resets: s === 'first' ? 0 : t + 12 * DAY,
+    quota_reset_day: s === 'first' ? '' : isoDay(t + 12 * DAY),
     bonus_gb: 0,
-    expire_action: 'pause',
-    expire_warn: 7,
     dns_mode: 'home',
     paused: s === 'paused',
-    hours: s === 'hours' ? hoursAway(t) : '',
     state: st,
     month: [Math.round(used / 8), Math.round((used * 7) / 8)],
     total: [Math.round(used / 3), Math.round((used * 7) / 3)],
@@ -234,6 +257,9 @@ export function pageState(s: ScenarioId, devs: DemoDevice[], t: number, secureUr
       preset: s === 'plain' ? 'off' : 'max',
       // A home network as most routers come with it: LAN Bypass then says those addresses still lead home.
       home: ['192.168.1.0/24'],
+      // a router and its networks are asked of the admin, as on a router that was told nothing else
+      routers: 'ask',
+      nets: 'ask',
     },
     can_add: devs.length < limit,
     locked: locked(s),
@@ -242,7 +268,6 @@ export function pageState(s: ScenarioId, devs: DemoDevice[], t: number, secureUr
     version: 'demo',
     today: isoDay(t),
     now: t,
-    tz_offset: -new Date(t * 1000).getTimezoneOffset(),
   };
 }
 

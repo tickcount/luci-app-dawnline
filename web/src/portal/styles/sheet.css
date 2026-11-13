@@ -95,6 +95,11 @@
   cursor: grab;
   touch-action: none;
 }
+/* A view with no head (a job's stage, whose top is a picture and a title): its top is the handle instead. */
+.vgrab {
+  cursor: grab;
+  touch-action: none;
+}
 .vhead h2 {
   flex: 1;
   margin: 0;

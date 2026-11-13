@@ -2,7 +2,7 @@
 
 export type Access = 'lan' | 'internet' | 'both';
 export type Kind = 'computer' | 'phone' | 'tablet' | 'router' | 'other';
-export type PersonState = 'active' | 'paused' | 'expired' | 'quota' | 'hours' | 'no_server' | 'server_off';
+type PersonState = 'active' | 'paused' | 'expired' | 'quota' | 'no_server' | 'server_off';
 export type Pair = [number, number]; // [rx, tx] from the router's point of view
 
 /**
@@ -13,7 +13,7 @@ export type Pair = [number, number]; // [rx, tx] from the router's point of view
  */
 export type LinkState = 'trying' | 'shared' | 'dropped' | 'unstable';
 
-export interface DeviceLink {
+interface DeviceLink {
   state: LinkState;
   /** When it began (router clock). */
   since: number;
@@ -46,6 +46,7 @@ export interface Device {
   handshake: number;
   endpoint: string;
   active: boolean;
+  /** [rx, tx] of the last 30 days, today included (not the calendar month). */
   month: Pair;
   total: Pair;
   /** Each day's [rx, tx] for the last 7 days, oldest first. */
@@ -54,6 +55,11 @@ export interface Device {
   browser_key: boolean;
   /** Its configuration changed (networks, DNS, keys...) since it was last shown or downloaded. */
   config_stale: boolean;
+  /**
+   * When its configuration was last shown or downloaded (router clock); 0: never, or only before the router kept the
+   * time (its "stale" mark still works then).
+   */
+  config_issued: number;
   // How it connects (set by the admin, LAN Bypass also by the person when adding it).
   /** LAN Bypass: its own local network stays outside the tunnel (chosen when it was added). */
   lan_bypass: boolean;
@@ -71,7 +77,28 @@ export interface Device {
    * that lives counts as flowing (nobody tells data from a bare handshake then).
    */
   setup: DeviceSetup | null;
+  // A router's networks (site to site) and what its owner asked for about them on their own page.
+  /** The networks behind a router, which the tunnel carries both ways; absent: none. */
+  behind?: string[];
+  /** A router its owner added on their own page that the admin has not taken: it cannot connect yet. */
+  waiting?: boolean;
+  /** Networks its owner asked for besides the ones it has, not answered yet. */
+  ask?: string[];
+  /** When that, or the router itself, was asked for (router clock). */
+  asked?: number;
+  /** Why the admin turned the last of it down; absent: nothing is turned down. */
+  declined?: Declined;
+  /** The networks that was about; none: the router itself. */
+  declined_nets?: string[];
 }
+
+/** Why a request was turned down: it shares addresses with a network here, is not needed here, «ask me first», or no reason. */
+export type Declined = 'overlap' | 'unneeded' | 'talk' | 'plain';
+
+/** What people may do about a router on their own pages: nothing, ask for one, add one at once. */
+export type PortalRouters = 'off' | 'ask' | 'free';
+/** And about the networks behind it: ask, or add at once. */
+export type PortalNets = 'ask' | 'free';
 
 export interface Person {
   id: string;
@@ -82,23 +109,32 @@ export interface Person {
   expires: string;
   quota_gb: number;
   quota_period: 'month' | 'total';
+  /** Bytes used in the limit's period: their limit month (quota_month summed), or all time. */
   quota_used: number;
-  /** Effective limit in bytes for the current period (incl. this month's extra), 0 = unlimited. */
+  /** Effective limit in bytes for the current period (incl. the extra data while it lasts), 0 = unlimited. */
   quota_limit: number;
+  /**
+   * Their limit month: not the calendar's. It begins with their first traffic and ends a month later, to the
+   * minute; the next one begins only when they connect again. [rx, tx] counted in the one that runs ([0, 0]: none).
+   */
+  quota_month: Pair;
+  /** When the limit month that runs ends (epoch seconds); 0: none runs (it begins when they next connect). */
+  quota_resets: number;
+  /** The router's day of that moment ("YYYY-MM-DD"), '' when none runs. */
+  quota_reset_day: string;
+  /** Extra data on top of the limit until the limit month ends (0: none). */
   bonus_gb: number;
-  expire_action: 'pause' | 'notify' | 'remove';
-  expire_warn: number;
   /** Home-only access: the device keeps its own DNS, or uses home names through the tunnel. */
   dns_mode: 'device' | 'home';
   paused: boolean;
-  hours: string;
   state: PersonState;
+  /** [rx, tx] of the last 30 days, today included (not the calendar month). */
   month: Pair;
   total: Pair;
   online: number;
   last_seen: number;
   devices: Device[];
-  /** Each day's [rx, tx] from the 1st of this month to today, oldest first; portal only. */
+  /** Each of the last 30 days' [rx, tx], today last; portal only. */
   month_days?: Pair[];
   /** Throughput, one point a minute (last 15): [ts, rx, tx] in bytes/s (rx = from devices); admin only. */
   rate?: [number, number, number][];
@@ -147,6 +183,9 @@ export interface Server {
   device_mesh: boolean;
   /** Devices of different people: never, everyone with home access, or within a circle. */
   mesh: MeshMode;
+  /** What people may do about routers and the networks behind them on their own pages. */
+  portal_routers: PortalRouters;
+  portal_nets: PortalNets;
   /** Home networks by interface, for the per-person picker. */
   home: { dev: string; nets: string[] }[];
   preset: string;
@@ -250,6 +289,8 @@ export interface Status {
   geo: Geo;
   version: string;
   now: number;
+  /** The router's offset from UTC in minutes: days and times are drawn in its time. Absent from older backends. */
+  tz?: number;
   hostname: string;
   settings: {
     portal_enabled: boolean;
@@ -267,8 +308,11 @@ export interface Status {
   people: Person[];
   services: { id: string; name: string; address: string; ports: string[] }[];
   circles: Circle[];
+  /** `month`: the last 30 days, today included. */
   totals: { people: number; devices: number; online: number; active: number; today: Pair; month: Pair };
   series: DayUsage[];
+  /** Today's traffic of every device by the router's hour, midnight to now ([rx, tx]); absent from older backends. */
+  hours?: Pair[];
   events: LogEvent[];
   /** What the installed AmneziaWG supports: v2 (1.5/2.0 parameters), v3 (3.1). */
   awg: AwgCaps;

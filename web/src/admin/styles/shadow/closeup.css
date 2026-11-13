@@ -1,0 +1,527 @@
+/* A device's places (places/render.ts PlacesView) and its close-up sheet (flows/places-closeup.ts): part of the
+   map's module sheet (maps.css), adopted once the map's module is in. */
+
+/* ── a device's timelapse: the card, the range track, the map with its controls, the rows ── */
+.dplaces {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  container-type: inline-size;
+}
+.dplaces > .tabs.range {
+  justify-self: start;
+  align-self: flex-start;
+  width: auto;
+  max-width: 100%;
+  grid-auto-flow: column;
+  grid-template-columns: none;
+  grid-auto-columns: minmax(max-content, 1fr);
+  min-width: min(100%, 300px);
+}
+/* a phone: the period's track as wide as the map under it */
+@container (max-width: 520px) {
+  .dplaces > .tabs.range {
+    justify-self: stretch;
+    width: 100%;
+  }
+}
+.dplaces > .tabs.range .tab {
+  height: 32px;
+  padding: 0 16px;
+  font-size: 14px;
+}
+.dplaces .map-box.dl-dmap {
+  border: 0;
+  border-radius: var(--r-row);
+  position: relative;
+}
+.dplaces .dl-dmap .dl-geomap {
+  border-radius: var(--r-row);
+}
+
+/* Replay controls: one floating plate on the map, in the dropdowns' glass (Components → Dropdowns: --glass-bg,
+   blur 28 saturate 1.8, a soft 1 px inner edge, a shadow on light only). It keeps the admin's top corner, clear
+   of the attribution, so the moment has the map's width to read in. Plate radius = 18 + 4 (nesting). */
+.dplaces .dl-map-replay {
+  left: 10px;
+  top: 10px;
+  max-width: calc(100% - 20px);
+  padding: 4px;
+  gap: 2px;
+  border-radius: 22px;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(28px) saturate(1.8);
+  backdrop-filter: blur(28px) saturate(1.8);
+  box-shadow:
+    inset 0 0 0 1px var(--glass-edge),
+    var(--glass-shadow);
+  color: var(--glass-text);
+}
+.dplaces .dl-map-replay:empty {
+  display: none;
+}
+/* Play / Pause and «Назад к сейчас»: knobs (Components → Knob: a circle, a 16 px icon, hover +6 %, press .8),
+   on the glass as the code card's Copy: glass-text 6 % at rest, 11 % on hover. 36 as the glass's own controls. */
+.dplaces .dl-map-btn {
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 999px;
+  gap: 6px;
+  background: color-mix(in srgb, var(--glass-text) 6%, transparent);
+  color: var(--glass-text);
+  transition:
+    transform 150ms var(--ease-out),
+    background-color 150ms;
+}
+@media (hover: hover) and (pointer: fine) {
+  .dplaces .dl-map-btn:hover {
+    background: color-mix(in srgb, var(--glass-text) 11%, transparent);
+  }
+}
+.dplaces .dl-map-btn:active {
+  transform: scale(0.8);
+}
+.dplaces .dl-map-btn:focus-visible {
+  outline: none;
+}
+.kbd .dplaces .dl-map-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 65%, transparent);
+  outline-offset: 2px;
+}
+.dplaces .dl-map-btn .dl-icon {
+  width: 16px;
+  height: 16px;
+}
+.dplaces .dl-map-btn .dl-icon-wrap {
+  display: grid;
+}
+/* At rest the play knob says what it does (a pill with its words, Button 14/20 500; press .95 as a .btn) */
+.dplaces .dl-map-replay:not(:has(.dl-map-chip)) > .dl-map-btn {
+  width: auto;
+  padding: 0 14px 0 11px;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  white-space: nowrap;
+}
+.dplaces .dl-map-replay:not(:has(.dl-map-chip)) > .dl-map-btn::after {
+  content: attr(title);
+}
+.dplaces .dl-map-replay:not(:has(.dl-map-chip)) > .dl-map-btn:active {
+  transform: scale(0.95);
+}
+/* the moment: a pill label (13 px 500, tabular, as a number that changes), one line, ending in an ellipsis */
+.dplaces .dl-map-chip {
+  height: 36px;
+  min-width: 0;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--glass-text);
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  line-height: 36px;
+}
+@container (max-width: 380px) {
+  .dplaces .dl-map-replay:not(:has(.dl-map-chip)) > .dl-map-btn {
+    width: 36px;
+    padding: 0;
+  }
+  .dplaces .dl-map-replay:not(:has(.dl-map-chip)) > .dl-map-btn::after {
+    content: none;
+  }
+  .dplaces .dl-map-chip {
+    font-size: 12px;
+    padding: 0 6px;
+  }
+}
+
+/* The rows: inset rows on --field inside the raised card (Elevation → Inset context), touching, sharing the
+   card's inner radius at the stack's ends (Shapes → nesting: 28 − 8 = 20); no hairlines between them. */
+.pl-stack {
+  display: flex;
+  flex-direction: column;
+}
+.dplaces .dl-dplaces {
+  margin-top: 0;
+}
+.dplaces .dl-dplaces .dl-dplace-row {
+  --row-bg: var(--field);
+  position: relative;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  column-gap: 12px;
+  row-gap: 0;
+  align-items: center;
+  margin: 0;
+  padding: 12px 16px 12px 12px;
+  border: 0;
+  border-radius: 0;
+  background: var(--row-bg);
+  font-size: 13px;
+  /* an inset row's hover, 150 ms (Motion → Hover and press) */
+  transition: background-color 150ms;
+}
+.dplaces .dl-dplaces.strips .dl-dplace-row {
+  padding-bottom: 8px;
+}
+.dplaces .dl-dplaces .dl-dplace-row::before {
+  display: none;
+}
+.pl-stack > .dl-dplace-row:first-child {
+  border-radius: var(--r-row) var(--r-row) 0 0;
+}
+.pl-stack > .dl-dplace-row:last-child {
+  border-radius: 0 0 var(--r-row) var(--r-row);
+}
+.pl-stack > .dl-dplace-row:only-child {
+  border-radius: var(--r-row);
+}
+/* hover and the replay's place: an inset row's hover (field + knob 50 %) */
+.dplaces .dl-dplaces .dl-dplace-row:is(:active, .cur) {
+  --row-bg: color-mix(in srgb, var(--field), var(--knob) 50%);
+}
+@media (hover: hover) and (pointer: fine) {
+  .dplaces .dl-dplaces .dl-dplace-row:hover {
+    --row-bg: color-mix(in srgb, var(--field), var(--knob) 50%);
+  }
+}
+/* inside an accordion row's body (the device page) the row is already raised: the inset rows stay on field */
+
+/* The place's mark: a round step number (Components → step numbers: 24 px circle, knob, 600), the number
+   tabular in text-2. The live place takes the map tile's data blue as a tint with a ring (as the person
+   marker's live avatar), the device's glyph in text. During the replay the place it is at lights the same way
+   and the live one lets go, as on the map. */
+.dplaces .dl-dplace-n {
+  grid-row: 1;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--knob);
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  transition:
+    background-color 200ms var(--ease-out),
+    color 200ms var(--ease-out),
+    box-shadow 200ms var(--ease-out);
+}
+.dplaces .dl-dplace-n.live,
+.dplaces .dl-dplaces.replay .dl-dplace-row.cur .dl-dplace-n {
+  background: color-mix(in srgb, var(--live) 22%, var(--row-bg));
+  box-shadow: inset 0 0 0 1.5px var(--live);
+  color: var(--text);
+}
+.dplaces .dl-dplaces.replay .dl-dplace-row:not(.cur) .dl-dplace-n.live {
+  background: var(--knob);
+  box-shadow: none;
+  color: var(--text-2);
+}
+.dplaces .dl-dplace-n .dl-icon-wrap {
+  display: grid;
+}
+.dplaces .dl-dplace-n .dl-icon {
+  width: 13px;
+  height: 13px;
+}
+
+/* Title and meta: row title 15/22 500, meta 13/18 text-2; the IP alone in mono (Typography → Rules). */
+.pr-main {
+  grid-row: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.pr-t {
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pr-m {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pr-m .num {
+  font-variant-numeric: tabular-nums;
+}
+.pr-end {
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+}
+.pr-when {
+  font-size: 13px;
+  line-height: 22px;
+  color: var(--text-2);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+/* "сейчас": the blue marks (ring, strip, pin) carry it; the word stays neutral, one colour per meaning */
+.pr-when.now {
+  color: var(--text);
+  font-weight: 500;
+}
+.pr-ip {
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 18px;
+  letter-spacing: 0;
+  color: var(--text-2);
+  white-space: nowrap;
+  user-select: text;
+  cursor: text;
+}
+
+/* A narrow card (the device page, a phone): the row's parts take lines of their own: the title beside its
+   time, then the meta line and the IP (mono) across the row's width, so the share is never cut. */
+@container (max-width: 440px) {
+  .dplaces .pr-main,
+  .dplaces .pr-end {
+    display: contents;
+  }
+  .dplaces .dl-dplaces .dl-dplace-n {
+    grid-row: 1 / 3;
+  }
+  .dplaces .pr-t {
+    grid-row: 1;
+    grid-column: 2;
+  }
+  .dplaces .pr-when {
+    grid-row: 1;
+    grid-column: 3;
+  }
+  .dplaces .pr-m {
+    grid-row: 2;
+    grid-column: 2 / 4;
+  }
+  .dplaces .pr-ip {
+    grid-row: 3;
+    grid-column: 2 / 4;
+    justify-self: start;
+    text-align: left;
+  }
+  .dplaces .dl-dplaces .dl-dplace-strip {
+    grid-row: 4;
+  }
+  /* all of a person's devices: the devices' line first under the city */
+  .dplaces .dl-dplaces.all .pr-m:not(.pr-devs) {
+    grid-row: 3;
+  }
+  .dplaces .dl-dplaces.all .pr-ip {
+    grid-row: 4;
+  }
+  .dplaces .dl-dplaces.all .dl-dplace-strip {
+    grid-row: 5;
+  }
+}
+
+/* The time strip (the link timeline's language: a calm track at text 8 %, rounded ends; a stretch as a
+   segment; a 2 × 16 "now" marker in text ringed 2 px in its ground). The visits are
+   data: the live place's in --live, the others' in --past. The strip keeps a 20 px hit area (transparent
+   borders above and below) so a click or a drag seeks easily; the seek's ghost marker follows the pointer. */
+.dplaces .dl-dplace-strip {
+  grid-row: 2;
+  grid-column: 2 / 4;
+  position: relative;
+  box-sizing: content-box;
+  height: 6px;
+  margin-top: 6px;
+  border-block: 7px solid transparent;
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+  background-clip: padding-box;
+  border-radius: 3px / 10px;
+  outline: none;
+}
+.dplaces .dl-dplace-strip i {
+  min-width: 3px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--past) 75%, transparent);
+}
+.dplaces .dl-runs.live i {
+  background: var(--live);
+}
+.dplaces .dl-dplaces.can-replay .dl-dplace-strip {
+  cursor: ew-resize;
+}
+.dplaces .dl-dplaces.can-replay .dl-dplace-strip::before {
+  content: '';
+  position: absolute;
+  left: var(--hx, 0);
+  top: -5px;
+  bottom: -5px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--text) 45%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms var(--ease-out);
+}
+.dplaces .dl-dplaces.can-replay .dl-dplace-strip.aim::before {
+  opacity: 1;
+}
+/* the replay's moment: the "now" marker on every strip */
+.dplaces .dl-dplaces.replay .dl-dplace-strip::after {
+  top: -5px;
+  bottom: -5px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--text);
+  box-shadow: 0 0 0 2px var(--row-bg);
+}
+.kbd .dplaces .dl-dplace-strip:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 65%, transparent);
+  outline-offset: 2px;
+}
+
+/* The axis under the strips: 11 px 500, tabular (Typography → Axis), in text-2 because the dates are read,
+   lined up with the strips (the row's padding 12 + mark 24 + gap 12 on the left, 16 on the right). */
+.dplaces .dl-dplace-axis {
+  height: 18px;
+  margin: 6px 16px 0 48px;
+  font-size: 11px;
+  line-height: 18px;
+  font-weight: 500;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+/* the last label keeps inside the card */
+.dplaces .dl-dplace-axis span.last {
+  transform: translateX(-100%);
+}
+
+/* The range track's pill glides to the picked tab (script, SMOOTH); a tab's focus ring has the pill's corners. */
+.tabs.range .tab {
+  border-radius: 12px;
+}
+.dplaces > .tabs.range .tabs-pill {
+  will-change: left, width;
+}
+
+/* All of a person's devices: the devices that were at a place, on a line of their own under the city */
+.pr-devs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 10px;
+  min-width: 0;
+}
+.pr-dev {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  white-space: nowrap;
+}
+.pr-dev .dl-icon-wrap {
+  display: grid;
+  flex: 0 0 auto;
+}
+.pr-dev .dl-icon {
+  width: 13px;
+  height: 13px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dplaces .dl-dplace-n,
+  .dplaces .dl-dplace-strip::before {
+    transition: none;
+  }
+}
+
+/* ── the close-up: a device's places in a wide sheet (720 px on a computer, the whole height on a phone): the
+   period on top, the map pinned under it with the replay's plate, the places scrolling under the map ── */
+@media (min-width: 760px) {
+  .sheet:has(.view.look-places) {
+    max-width: 720px;
+  }
+}
+.view.look-places {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  min-height: 0;
+}
+@media (max-width: 759px) {
+  .sheet:has(.view.look-places) {
+    height: calc(100% - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  }
+  .sheet:has(.view.look-places) .sheet-scroll,
+  .sheet:has(.view.look-places) .vp {
+    height: 100%;
+  }
+  .view.look-places {
+    height: 100%;
+    max-height: none;
+    padding: 0 16px 16px;
+  }
+}
+.view.look-places > .lp {
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 8px;
+}
+.view.look-places .lp > .tabs.range {
+  background: var(--field);
+  flex: 0 0 auto;
+}
+.view.look-places .lp > .map-box {
+  flex: 0 0 auto;
+  background: var(--field);
+}
+.lp-rows {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lp-rows::-webkit-scrollbar {
+  display: none;
+}
+.lp-rows > .dl-dplaces {
+  flex: 0 0 auto;
+}
+.lp-rows.more-down {
+  mask-image: linear-gradient(#000 calc(100% - 28px), transparent);
+}
+/* the way to the device's page: a slot that unfolds and folds as it comes and goes (ui/reshape.ts refill), the
+   column's gap inside it, so an empty one takes no room */
+.lp-foot {
+  display: flex;
+  flex: 0 0 auto;
+  margin-top: -8px;
+}
+.lp-open {
+  align-self: flex-start;
+  flex: 0 0 auto;
+  margin-top: 8px;
+}
+.sheet .dplaces .dl-dplaces .dl-dplace-row {
+  --row-bg: var(--field);
+}
+.dl-dplace-row.pre .pr-t {
+  color: var(--text-2);
+}

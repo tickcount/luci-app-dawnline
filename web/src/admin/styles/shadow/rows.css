@@ -1,0 +1,669 @@
+/* Rows edited in place (ui/edit-rows.ts), the portal's option rows inside a card: `field` on the raised card,
+   radius 16, one line 46 high; the name is the row's title (15/22 500), the value what an accordion
+   head shows at its end (14/20 text-2, a typed value mono 13); the pencil a 16 px line icon. Edited, the value is
+   its own input in the value's place and font (the portal's rename, flows/rename.ts), the row tinted as on hover;
+   the line under it (Meta 13/18) says how to finish, or in red what the row does not take. A value that does not
+   fit beside its name goes under it (.stack). Then what rows share: the ⟳N mark, a
+   choice of a few with its chips, the stepper, a row's own action. */
+.ed {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.editrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 46px;
+  padding: 12px 12px 12px 14px;
+  border-radius: 16px;
+  background: var(--field);
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  transition: background-color 150ms;
+}
+button.editrow {
+  cursor: pointer;
+}
+@media (hover: hover) and (pointer: fine) {
+  button.editrow:hover {
+    background: color-mix(in srgb, var(--field), var(--knob) 50%);
+  }
+}
+button.editrow:active {
+  background: color-mix(in srgb, var(--field), var(--knob) 50%);
+  transition: none;
+}
+.editrow > span:first-child {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  color: var(--text);
+}
+.editrow > b {
+  flex: 0 1 auto;
+  min-width: min-content;
+  max-width: 60%;
+  margin-left: auto;
+  text-align: right;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 400;
+  color: var(--text-2);
+  text-wrap: balance;
+}
+.editrow > b:not(.mono) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.editrow > b.mono {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: none;
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ed-ic {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  color: var(--text-2);
+}
+.ed-hint {
+  margin: 0;
+  padding: 0 14px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+  transition: color 300ms var(--ease-out);
+}
+.ed-hint.bad-t {
+  color: var(--bad);
+}
+.ed-hint.ed-tmp {
+  overflow: hidden;
+}
+.editrow.ed-live {
+  background: color-mix(in srgb, var(--field), var(--knob) 50%);
+  cursor: text;
+}
+.editrow.ed-live > b {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: none;
+  display: flex;
+  justify-content: flex-end;
+}
+.editrow.ed-live > .ed-ic {
+  display: none;
+}
+.editrow.ed-live .ed-f.field.inline,
+.editrow.ed-live .ed-f.field.inline:focus-within {
+  position: relative;
+  width: auto;
+  max-width: 100%;
+  height: 26px;
+  margin: -2px 0;
+  padding: 0;
+  background: none;
+  box-shadow: none;
+}
+.editrow.ed-live .ed-f input {
+  max-width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  outline: none;
+  color: var(--text);
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: left;
+}
+.editrow.ed-live > b.mono .ed-f input,
+.editrow.ed-live > b.mono .ed-ruler {
+  font-family: var(--mono);
+}
+.editrow.ed-live .ed-f input::placeholder {
+  color: var(--text-2);
+  opacity: 1;
+}
+.ed-ruler {
+  position: absolute;
+  visibility: hidden;
+  white-space: pre;
+  font: inherit;
+}
+@media (pointer: coarse) {
+  .editrow.ed-live .ed-f input,
+  .editrow.ed-live .ed-ruler {
+    font-size: 16px;
+  }
+  .editrow.ed-live .ed-f input {
+    transform: scale(0.875);
+    transform-origin: right center;
+  }
+  .editrow.ed-live > b.mono .ed-f input {
+    transform: scale(0.8125);
+  }
+  .editrow.ed-live.stack .ed-f input {
+    transform-origin: left center;
+  }
+}
+.editrow.stack {
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+.editrow.stack > .ed-ic {
+  order: 2;
+  margin-left: auto;
+}
+.editrow.stack > b {
+  order: 3;
+  flex: 1 1 100%;
+  max-width: none;
+  margin-left: 0;
+  justify-content: flex-start;
+  text-align: left;
+}
+.editrow.ed-live.stack .ed-f.field.inline,
+.editrow.ed-live.stack .ed-f.field.inline:focus-within {
+  height: 20px;
+  margin: 0;
+}
+/* a value that is not edited here (a name the router makes): no pencil, no press */
+.editrow.static > b {
+  margin-left: auto;
+}
+
+/* ── ⟳N beside a row's name, a switch row's long words (ui/edit-rows.ts) ── */
+.sw-sub {
+  overflow-wrap: anywhere;
+}
+.reimp {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+  color: var(--warn);
+  font-size: 13px;
+  font-weight: 600;
+  vertical-align: middle;
+  flex: none;
+}
+.reimp .i {
+  width: 13px;
+  height: 13px;
+}
+.sw-h {
+  display: block;
+  min-width: 0;
+}
+.sw-h > b {
+  display: inline;
+  letter-spacing: -0.015em;
+}
+/* ⟳N stands at the right end of what it belongs to: before a row's value or its switch */
+.swrow > .reimp {
+  flex: none;
+}
+.editrow > .reimp {
+  margin-left: auto;
+}
+.editrow > .reimp + b {
+  margin-left: 0;
+}
+
+/* ── a choice of a few, chips, the − n + stepper, a row's own action (ui/choice-row.ts, ui/stepper.ts) ── */
+/* a choice of a few: the row, and its chips unfolding under it (the value steps aside while open) */
+.crow {
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  background: var(--field);
+  padding: 0 12px 0 14px;
+}
+.crow-h {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 46px;
+  padding: 6px 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.crow-t {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  color: var(--text);
+}
+.crow-h > b {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 60%;
+  margin-left: auto;
+  text-align: right;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 400;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition:
+    opacity 200ms var(--ease-out),
+    filter 200ms var(--ease-out),
+    transform 260ms var(--ease-out);
+}
+.crow-h > b.long {
+  white-space: normal;
+  text-wrap: balance;
+}
+.crow.open .crow-h > b {
+  opacity: 0;
+  filter: blur(4px);
+  transform: translateX(8px);
+}
+.crow-h > .reimp {
+  flex: none;
+  margin-left: auto;
+}
+.crow-h > .reimp + b {
+  margin-left: 0;
+}
+.crow-chev {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-left: auto;
+  color: var(--text-2);
+  transform: rotate(90deg);
+  transition: transform var(--spring-soft-dur, 476ms) var(--spring-soft, ease);
+}
+.crow-h > b ~ .crow-chev {
+  margin-left: 0;
+}
+.crow.open .crow-chev {
+  transform: rotate(-90deg);
+}
+.crow-body {
+  overflow: hidden;
+}
+.crow-body > .chips {
+  padding: 2px 0 12px;
+}
+.crow-note {
+  margin: -4px 0 12px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+@media (prefers-reduced-motion: reduce) {
+  .crow-h > b,
+  .crow-chev {
+    transition: none;
+  }
+}
+.chips,
+.ext {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chipb {
+  flex: 1 1 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--knob);
+  color: var(--text);
+  font: 500 14px/20px var(--font);
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  transition:
+    background-color 150ms,
+    transform 150ms var(--ease-out),
+    box-shadow 220ms;
+}
+@media (hover: hover) and (pointer: fine) {
+  .chipb:hover {
+    background: color-mix(in srgb, var(--knob), var(--text) 6%);
+  }
+}
+.chipb:active {
+  transform: scale(0.94);
+}
+/* a chip that toggles (aria-pressed): on is a fill one step up with a check in the accent before its words, off is
+   quiet. The same language as the option tiles (a brighter fill and an accent mark). No ring (a ring on a pill
+   reads as a focus outline) and no accent fill (a row of them read as buttons, not as what is on). */
+.chipb[aria-pressed='false'] {
+  color: var(--text-2);
+}
+.chipb.on {
+  background: color-mix(in srgb, var(--knob), var(--text) 10%);
+  color: var(--text);
+}
+/* the check is there in both states and takes its place as the chip turns on: its width opens (the words move over
+   on SMOOTH) while it comes in as the copy check does, smaller and through a blur; off, it gives the place back */
+.chipb[aria-pressed] {
+  transition:
+    transform 150ms var(--ease-out),
+    background-color 200ms var(--ease-out),
+    color 200ms var(--ease-out);
+}
+.chipb[aria-pressed]::before {
+  content: '';
+  flex: none;
+  width: 0;
+  height: 14px;
+  /* the chip's gap stands after it even while it is shut: taken back */
+  margin: 0 -4px 0 0;
+  opacity: 0;
+  transform: scale(0.6);
+  filter: blur(3px);
+  transition:
+    width var(--spring-smooth-dur) var(--spring-smooth),
+    margin var(--spring-smooth-dur) var(--spring-smooth),
+    opacity 200ms var(--ease-out),
+    transform var(--spring-pop-dur) var(--spring-pop),
+    filter 200ms var(--ease-out);
+  background: var(--accent);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+}
+.chipb.on[aria-pressed]::before {
+  width: 14px;
+  margin: 0 0 0 -4px;
+  opacity: 1;
+  transform: none;
+  filter: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .chipb[aria-pressed]::before {
+    transition: opacity 160ms ease-out;
+  }
+}
+@media (hover: hover) and (pointer: fine) {
+  .chipb.on:hover {
+    background: color-mix(in srgb, var(--knob), var(--text) 14%);
+  }
+}
+.chipb.busy {
+  opacity: 0.6;
+}
+
+.datechip {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+}
+.datechip > .chipb {
+  width: 100%;
+}
+.date-hidden {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* the device limit: − n + */
+.editrow.static {
+  cursor: default;
+}
+.editrow.static > span:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: normal;
+}
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+.stepper > b {
+  min-width: 22px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 500;
+}
+.stepper .knob {
+  width: 32px;
+  height: 32px;
+  background: var(--knob);
+}
+.stepper .knob:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.stepper .knob:disabled:active {
+  transform: none;
+}
+.st-ro {
+  font-size: 15px;
+  font-weight: 500;
+}
+.ed-hint {
+  margin: 0;
+  padding: 0 14px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+
+/* a row's own action beside its words */
+.row-act {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.row-act .desc {
+  flex: 1 1 200px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+
+.tabs.in-row .tab {
+  padding: 0 6px;
+}
+
+/* ── a stack of rows (Overview's waiting people and servers, place rows): rows touch and share their round ends; a
+   row is a link, its one action a button beside it, never inside; on a phone the action takes a line of its own ── */
+:root {
+  /* the portal's EASE_IN (motion.ts), for exits written in CSS */
+  --ease-in: cubic-bezier(0.55, 0, 1, 0.45);
+}
+
+.olist {
+  display: flex;
+  flex-direction: column;
+}
+.orow {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 64px;
+  padding: 0 8px 0 0;
+  background: var(--raised);
+  transition: background-color 150ms;
+}
+.olist > .orow:first-child {
+  border-top-left-radius: var(--r-row);
+  border-top-right-radius: var(--r-row);
+}
+.olist > .orow:last-child {
+  border-bottom-left-radius: var(--r-row);
+  border-bottom-right-radius: var(--r-row);
+}
+@media (hover: hover) and (pointer: fine) {
+  .orow:hover {
+    background: color-mix(in srgb, var(--raised), var(--knob) 40%);
+  }
+}
+.orow:has(> .orow-a:active) {
+  background: color-mix(in srgb, var(--raised), var(--knob) 40%);
+  transition: none;
+}
+.orow-a {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 4px 10px 14px;
+  align-self: stretch;
+  color: inherit;
+  text-decoration: none;
+  border-radius: inherit;
+}
+.orow-a > .gi {
+  flex: none;
+  width: 28px;
+  height: 28px;
+}
+.orow-t {
+  flex: 1 1 0;
+  min-width: 120px;
+  display: flex;
+  flex-direction: column;
+}
+.orow-t b {
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.orow-l {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.orow-l.ok-t {
+  color: var(--ok);
+}
+.orow-l.warn-t {
+  color: var(--warn);
+}
+.orow-l.bad-t {
+  color: var(--bad);
+}
+.pc-meter i {
+  transition:
+    width var(--spring-smooth-dur, 524ms) var(--spring-smooth, ease-out),
+    background-color 300ms var(--ease-out);
+}
+.act-slot {
+  flex: 0 1 auto;
+  width: 236px;
+  min-width: 0;
+  display: flex;
+  justify-content: flex-end;
+}
+.act-slot .btn {
+  min-width: 0;
+  max-width: 100%;
+  white-space: nowrap;
+}
+.act-slot .btn > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.orow-go {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  color: var(--text-3);
+}
+.orow-go .i {
+  width: 16px;
+  height: 16px;
+}
+.orow.dim .orow-a {
+  opacity: 0.55;
+}
+
+.sec-head .sh-end {
+  margin-left: auto;
+  align-self: center;
+}
+
+@container dlpage (max-width: 899px) {
+  /* wide, an empty slot keeps the columns lined up; narrower, the row takes its room */
+  .act-slot:empty {
+    width: 0;
+  }
+}
+@container dlpage (max-width: 559px) {
+  .orow {
+    flex-wrap: wrap;
+  }
+  .orow-a {
+    flex: 1 1 calc(100% - 44px);
+  }
+
+  .orow-l {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  .act-slot {
+    order: 3;
+    width: auto;
+    flex: 1 1 100%;
+    margin: -2px 12px 12px 54px;
+    justify-content: stretch;
+  }
+  .act-slot:empty {
+    display: none;
+  }
+  .act-slot .btn {
+    flex: 1 1 0;
+  }
+}

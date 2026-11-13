@@ -1,14 +1,13 @@
 #!/bin/sh /etc/rc.common
 # shellcheck shell=dash disable=SC2034  # START/STOP/USE_PROCD are read by /etc/rc.common
-# Dawnline: AmneziaWG access server — agent and personal portal.
+# Dawnline: AmneziaWG access server — its backend (which also serves the personal portal) and the
+# resolver for Home-only devices.
 
 START=95
 STOP=10
 USE_PROCD=1
 
-PORTAL_ROOT=/usr/share/dawnline/portal/www
-
-# A line in syslog as dawnline.util syslog() writes them: "dawnline: [info] [service] …" at the
+# A line in syslog as the backend writes them: "dawnline: [info] [service] …" at the
 # matching priority, when the admin's level (settings.log_level: error|warn|info|debug) takes it.
 log() {
 	local lvl="$1" want rank prio
@@ -20,39 +19,34 @@ log() {
 	logger -t dawnline -p "daemon.$prio" "[$lvl] [service] $*"
 }
 
-start_portal() {
-	local enabled port certs cert key hport http
+# What the portal runs with, worked out once for whoever serves it: P_PORT (empty: no portal, said in the
+# log), P_CERT, P_KEY, P_HPORT (plain HTTP for links with an IP address, or empty), P_PROCS.
+portal_plan() {
+	local enabled certs mem
+	P_PORT='' P_CERT='' P_KEY='' P_HPORT=''
 	config_get_bool enabled settings portal_enabled 0
 	if [ "$enabled" != 1 ]; then
 		log info "personal portal is off"
 		return 0
 	fi
-	config_get port settings portal_port 8443
 	certs="$(/usr/bin/dawnline portal-cert 2>/dev/null)"
-	cert="${certs% *}"
-	key="${certs#* }"
-	if ! [ -f "$cert" ] || ! [ -f "$key" ]; then
-		log warn "personal portal not started: no certificate (${cert:-none}): choose one in Settings, or save the portal settings again"
+	P_CERT="${certs% *}"
+	P_KEY="${certs#* }"
+	if ! [ -f "$P_CERT" ] || ! [ -f "$P_KEY" ]; then
+		log warn "personal portal not started: no certificate (${P_CERT:-none}): choose one in Settings, or save the portal settings again"
 		return 0
 	fi
+	config_get P_PORT settings portal_port 8443
 	# IP addresses in links get plain HTTP on the next port (names stay HTTPS-only).
-	hport="$(/usr/bin/dawnline portal-http-port 2>/dev/null)"
-	[ -n "$hport" ] && http="-p 0.0.0.0:$hport -p [::]:$hport"
+	P_HPORT="$(/usr/bin/dawnline portal-http-port 2>/dev/null)"
+	return 0
+}
 
-	# Portal processes at once: each loads the whole model (a burst of 16 could
-	# empty a 128 MB router), so four, and two on a router with little memory;
-	# the rest of 64 connections wait their turn.
-	local procs=4 mem
-	mem="$(awk '/^MemTotal:/ { print int($2 / 1024) }' /proc/meminfo 2>/dev/null)"
-	[ -n "$mem" ] && [ "$mem" -le 160 ] && procs=2
-	procd_open_instance portal
-	procd_set_param command /usr/sbin/uhttpd -f -h "$PORTAL_ROOT" -x /cgi-bin -E /cgi-bin/portal \
-		-D -n "$procs" -N 64 -t 20 -T 30 -k 10 -A 1 \
-		-s "0.0.0.0:$port" -s "[::]:$port" -C "$cert" -K "$key" $http
-	procd_set_param file "$cert"
-	procd_set_param respawn 3600 5 0
-	procd_close_instance
-	log info "personal portal on port $port (HTTPS${hport:+, plain HTTP on $hport for links with an IP address}) · certificate $cert$(openssl x509 -enddate -noout -in "$cert" 2>/dev/null | sed 's/^notAfter=/ until /') · $procs processes"
+start_portal() {
+	[ -n "$P_PORT" ] || return 0
+	local until
+	until="$(openssl x509 -enddate -noout -in "$P_CERT" 2>/dev/null | sed 's/^notAfter=/ until /')"
+	log info "personal portal on port $P_PORT (HTTPS${P_HPORT:+, plain HTTP on $P_HPORT for links with an IP address}) · certificate $P_CERT$until · served by the backend"
 }
 
 # Plain DNS for Home-only tunnel devices (config written by `dawnline apply`).
@@ -64,10 +58,40 @@ start_resolver() {
 	procd_open_instance dns
 	procd_set_param command /usr/libexec/dawnline/resolver
 	procd_set_param file /var/etc/dawnline-dns.conf
-	# A new config kills it (dawnline.resolver): back within a second, not five.
+	# A new config kills it (the backend's apply): back within a second, not five.
 	procd_set_param respawn 3600 1 0
 	procd_close_instance
 	log info "DNS for Home-only devices started (/var/etc/dawnline-dns.conf)"
+}
+
+# The backend (dawnlined, docs/backend.md): it looks at the tunnels, keeps the router to the settings,
+# answers the pages and their stream, and serves the personal portal.
+start_backend() {
+	local bin=/usr/libexec/dawnline/dawnlined stream=poll built portal=''
+	# No binary here (a fresh install with no network, a download that failed): fetched in the background,
+	# once a boot, and the service started again with it.
+	if [ ! -x "$bin" ] && [ ! -e /var/run/dawnline/backend.asked ]; then
+		: > /var/run/dawnline/backend.asked
+		( /usr/libexec/dawnline/fetch-backend && [ -x "$bin" ] && /etc/init.d/dawnline restart ) </dev/null >/dev/null 2>&1 &
+	fi
+	if ! [ -x "$bin" ] || ! "$bin" -version >/dev/null 2>&1; then
+		log error "the backend is not on this router ($bin): Dawnline does not run until it is · /usr/libexec/dawnline/fetch-backend puts it in place"
+		return 0
+	fi
+	# uhttpd holds an event stream without losing its connection only since 2026-08-03 (an older one stops
+	# serving after a hundred of them): before that the pages follow by a held call.
+	built="$({ apk list -I uhttpd-mod-ubus 2>/dev/null || opkg list-installed uhttpd-mod-ubus 2>/dev/null; } |
+		sed -n 's/.*uhttpd-mod-ubus[- ]*\([0-9]\{4\}\)[.-]\([0-9]\{2\}\)[.-]\([0-9]\{2\}\).*/\1\2\3/p' | head -n 1)"
+	[ -n "$built" ] && [ "$built" -ge 20260803 ] && stream=sse
+	# The portal: its certificate is read again when it is renewed, so no restart follows a renewal.
+	[ -n "$P_PORT" ] && portal="-portal-port $P_PORT -portal-cert $P_CERT -portal-key $P_KEY${P_HPORT:+ -portal-http $P_HPORT}"
+	procd_open_instance backend
+	# shellcheck disable=SC2086  # the portal's options are words on purpose
+	procd_set_param command "$bin" -stream "$stream" $portal
+	procd_set_param respawn 3600 5 0
+	procd_set_param stderr 1
+	procd_close_instance
+	log info "backend started · the pages follow by $stream"
 }
 
 start_service() {
@@ -77,23 +101,19 @@ start_service() {
 	# The apply writes its own lines: what it came to and how long it took (each step at debug).
 	/usr/bin/dawnline apply >/dev/null 2>&1 || log error "applying the configuration failed: run \"dawnline apply\" to see why"
 
-	procd_open_instance agent
-	procd_set_param command /usr/libexec/dawnline/agent
-	procd_set_param respawn 3600 5 0
-	procd_set_param stderr 1
-	procd_close_instance
-
+	portal_plan
+	start_backend
 	start_portal
 	start_resolver
 	log info "started"
 }
 
-# Noted for the service log: the next agent start is a restart, not a crash or a boot.
+# Noted for the service log: the backend's next start is a restart, not a crash or a boot.
 stop_service() {
 	log info "stopping"
 	mkdir -p /var/run/dawnline
 	date +%s > /var/run/dawnline/agent.stopped
-	# Copies procd doesn't know about (started by hand, or left by an older version) go too.
+	# An agent left by a version from before the backend did its work goes too.
 	pgrep -f '^/usr/bin/ucode /usr/libexec/dawnline/agent' | xargs -r kill 2>/dev/null
 }
 
@@ -105,8 +125,8 @@ reload_service() {
 
 service_triggers() {
 	procd_add_reload_trigger dawnline
-	# The portal's uhttpd reads its certificate once: an issued or renewed one needs a
-	# reload (procd restarts the portal alone, its cert file having changed).
+	# A certificate issued for the first time changes what the portal is served with: the service is
+	# planned again (a renewed one the backend reads by itself).
 	procd_add_raw_trigger acme.issue 5000 /etc/init.d/dawnline reload
 	procd_add_raw_trigger acme.renew 5000 /etc/init.d/dawnline reload
 }

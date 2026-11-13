@@ -1,6 +1,8 @@
-// Where a device went: its stretches on each client address from the activity log
-// (connect, roam, disconnect), as visits to the places the map shows, folded into
-// stays for the replay, and the replay's timeline and shimmer. No DOM here (see ./render).
+// Where devices connect from: the Places page's cities (everyone's devices by
+// place, in a period). Where one device went: its stretches on each client
+// address from the activity log (connect, roam, disconnect), as visits to the
+// places the map shows, folded into stays for the replay, and the replay's
+// timeline and shimmer. No DOM here (see ./render and pages/places).
 
 import type { GeoPoint, LogEvent } from '../../shared/types';
 import { locale } from '../../shared/i18n';
@@ -48,6 +50,64 @@ export function placeKey(p: Pick<GeoPoint, 'city' | 'lat' | 'lon' | 'cc'>): stri
   return `${p.city || `${p.lat.toFixed(1)},${p.lon.toFixed(1)}`}|${p.cc}`;
 }
 
+/* ---------- everyone's places: the cities ---------- */
+
+/** How far back a period of the Places page reaches (s); `online`: only where devices are now. */
+const PERIOD = { online: 0, '24h': 86400, '7d': 7 * 86400, '30d': 30 * 86400 } as const;
+export type Period = keyof typeof PERIOD;
+
+/** The points a period shows: live ones, or those seen within it. */
+export const inPeriod = (p: GeoPoint, period: Period, now: number): boolean =>
+  period === 'online' ? p.online : now - p.ts <= PERIOD[period];
+
+/** A place on the Places page: one row per device seen there, the live and the newest first. */
+export interface City {
+  key: string;
+  /** Its name (the country's code where the service knows no city). */
+  name: string;
+  lat: number;
+  lon: number;
+  /** Each device once: its point there that is live, else its newest. */
+  points: GeoPoint[];
+  /** Devices there now. */
+  live: number;
+  /** The newest moment anyone was there. */
+  last: number;
+}
+
+/**
+ * Points grouped by place (placeKey: the same city name in two countries is
+ * two places): places with someone there now first, then those with more
+ * devices, then the most recent; inside, live devices first, then the newest.
+ */
+export function cities(points: GeoPoint[]): City[] {
+  const by = new Map<string, Map<string, GeoPoint>>();
+  for (const p of points) {
+    const key = placeKey(p);
+    const devs = by.get(key) ?? new Map<string, GeoPoint>();
+    by.set(key, devs);
+    const cur = devs.get(p.device);
+    if (!cur || (p.online && !cur.online) || (p.online === cur.online && p.ts > cur.ts)) devs.set(p.device, p);
+  }
+  const out: City[] = [];
+  for (const [key, devs] of by) {
+    const pts = [...devs.values()].sort((a, b) => Number(b.online) - Number(a.online) || b.ts - a.ts);
+    const top = pts[0];
+    out.push({
+      key,
+      name: top.city || top.cc || '?',
+      lat: top.lat,
+      lon: top.lon,
+      points: pts,
+      live: pts.filter((x) => x.online).length,
+      last: Math.max(...pts.map((x) => x.ts)),
+    });
+  }
+  return out.sort((a, b) => Number(b.live > 0) - Number(a.live > 0) || b.points.length - a.points.length || b.last - a.last);
+}
+
+/* ---------- one device: where it was ---------- */
+
 /** A stretch at a located address: the place it was at. */
 export interface Visit {
   key: string;
@@ -73,15 +133,59 @@ export function visits(list: Stretch[], points: GeoPoint[], device: string, from
   return out;
 }
 
-/** Each place's share of the time the visits cover (0–1), by place key. */
-export function shares(v: Visit[]): Map<string, number> {
-  const time = new Map<string, number>();
-  let total = 0;
-  for (const x of v) {
-    time.set(x.key, (time.get(x.key) ?? 0) + (x.to - x.from));
-    total += x.to - x.from;
+/**
+ * When the device was at one place (`key`) in the last `span` seconds, as [left, width] shares of a strip that
+ * spans them (0–1, oldest on the left): what a place row draws under its words.
+ */
+export function stripRuns(v: Visit[], key: string, now: number, span: number): [number, number][] {
+  const from = now - span;
+  return v
+    .filter((x) => x.key === key && x.to > from)
+    .map((x) => {
+      const a = Math.max(x.from, from);
+      return [(a - from) / span, (Math.min(x.to, now) - a) / span] as [number, number];
+    });
+}
+
+/** Spans of time [from, to] as the fewest that cover the same moments: overlapping or touching ones joined, in time order. */
+export function union(spans: [number, number][]): [number, number][] {
+  const out: [number, number][] = [];
+  for (const [a, b] of [...spans].sort((x, y) => x[0] - y[0])) {
+    const last = out[out.length - 1];
+    if (last && a <= last[1]) last[1] = Math.max(last[1], b);
+    else if (b > a) out.push([a, b]);
   }
-  return new Map([...time].map(([k, t]) => [k, total ? t / total : 0]));
+  return out;
+}
+
+const length = (spans: [number, number][]) => spans.reduce((n, [a, b]) => n + b - a, 0);
+
+/**
+ * Each place's share of the time the visits cover (0–1), by place key. Several devices' visits (a person's) may
+ * overlap: a place's time is when any of them was there, the whole when any of them was anywhere, so two devices at
+ * two places at once give both their time and the shares add up to more than 1.
+ */
+export function shares(v: Visit[]): Map<string, number> {
+  const by = new Map<string, [number, number][]>();
+  for (const x of v) by.set(x.key, [...(by.get(x.key) ?? []), [x.from, x.to]]);
+  const total = length(union(v.map((x) => [x.from, x.to])));
+  return new Map([...by].map(([k, s]) => [k, total ? length(union(s)) / total : 0]));
+}
+
+/**
+ * Several devices' visits (a person's), in time order: each device's stretches from the log at the places they
+ * have a location for, since `from`.
+ */
+export function visitsOf(
+  events: LogEvent[],
+  devices: { id: string; online: boolean; handshake?: number }[],
+  points: GeoPoint[],
+  now: number,
+  from: number,
+): Visit[] {
+  return devices
+    .flatMap((d) => visits(stretches(events, d.id, now, d.online, d.handshake), points, d.id, from))
+    .sort((a, b) => a.from - b.from);
 }
 
 /** Visits in a row at one place, with `short` visits elsewhere folded in. */

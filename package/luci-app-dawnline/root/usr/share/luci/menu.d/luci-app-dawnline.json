@@ -4,7 +4,7 @@
 		"order": 65,
 		"action": {
 			"type": "alias",
-			"path": "admin/services/dawnline/server"
+			"path": "admin/services/dawnline/overview"
 		},
 		"depends": {
 			"acl": [
@@ -18,7 +18,7 @@
 	"admin/services/dawnline/overview": {
 		"action": {
 			"type": "view",
-			"path": "dawnline/server"
+			"path": "dawnline/overview"
 		}
 	},
 	"admin/services/dawnline/people": {
@@ -27,10 +27,22 @@
 			"path": "dawnline/people"
 		}
 	},
+	"admin/services/dawnline/places": {
+		"action": {
+			"type": "view",
+			"path": "dawnline/places"
+		}
+	},
 	"admin/services/dawnline/activity": {
 		"action": {
 			"type": "view",
 			"path": "dawnline/activity"
+		}
+	},
+	"admin/services/dawnline/log": {
+		"action": {
+			"type": "view",
+			"path": "dawnline/log"
 		}
 	},
 	"admin/services/dawnline/person": {
@@ -39,17 +51,25 @@
 			"path": "dawnline/person"
 		}
 	},
+	"admin/services/dawnline/device": {
+		"action": {
+			"type": "view",
+			"path": "dawnline/device"
+		}
+	},
 	"admin/services/dawnline/server": {
-		"title": "Servers",
-		"order": 10,
 		"action": {
 			"type": "view",
 			"path": "dawnline/server"
 		}
 	},
+	"admin/services/dawnline/system": {
+		"action": {
+			"type": "view",
+			"path": "dawnline/system"
+		}
+	},
 	"admin/services/dawnline/diagnostics": {
-		"title": "Diagnostics",
-		"order": 40,
 		"action": {
 			"type": "view",
 			"path": "dawnline/diagnostics"
@@ -62,16 +82,12 @@
 		}
 	},
 	"admin/services/dawnline/settings": {
-		"title": "Settings",
-		"order": 60,
 		"action": {
 			"type": "view",
 			"path": "dawnline/settings"
 		}
 	},
 	"admin/services/dawnline/updates": {
-		"title": "Components",
-		"order": 70,
 		"action": {
 			"type": "view",
 			"path": "dawnline/updates"

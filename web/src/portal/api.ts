@@ -19,7 +19,7 @@ export class ApiError extends Error {
 }
 
 export async function call<T>(path: string, body?: unknown): Promise<T> {
-  const res = await fetch(`${base}/api/${path}`, {
+  const res = await fetch(`${base()}/api/${path}`, {
     method: body === undefined ? 'GET' : 'POST',
     credentials: 'omit',
     // The page's language: the router writes its messages in it when it has the translation.

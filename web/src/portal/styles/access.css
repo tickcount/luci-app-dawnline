@@ -1,6 +1,5 @@
 /* "Your access": what it reaches as two tiles and the names at home; the data as a ring in the head
-   and the month day by day inside; until when as the days left over a calendar of the weeks, and
-   the hours as a bar of the day. */
+   and the month day by day inside; until when as the days left over a calendar of the weeks. */
 
 .reach2 {
   display: grid;
@@ -133,13 +132,9 @@
   color: var(--text-3);
   font-weight: 500;
 }
+/* «Today» under the last bar, in its colour */
 .month-axis .td {
-  position: absolute;
-  transform: translateX(-50%);
   color: var(--accent);
-}
-.month-axis .hide {
-  visibility: hidden;
 }
 .month-read {
   display: flex;
@@ -270,70 +265,6 @@
     transform: scale(0.4);
   }
 }
-.hours {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 14px 16px;
-  border-radius: 16px;
-  background: var(--field);
-}
-.hours-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  font-size: 13px;
-  color: var(--text-2);
-}
-.hours-top b {
-  color: var(--text);
-  font-weight: 500;
-  font-size: 15px;
-  letter-spacing: -0.02em;
-}
-.hours-bar {
-  position: relative;
-  height: 8px;
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--text) 8%, transparent);
-}
-.hours-bar i {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--ok) 70%, transparent);
-}
-.hours-now {
-  position: absolute;
-  top: -4px;
-  width: 2px;
-  height: 16px;
-  margin-left: -1px;
-  border-radius: 1px;
-  background: var(--text);
-  box-shadow: 0 0 0 2px var(--field);
-}
-.hours-now.out {
-  background: var(--warn);
-}
-.hours-left {
-  font-size: 12px;
-  line-height: 16px;
-  color: var(--text-2);
-}
-.month-pace.warn-t,
-.hours-left.warn-t {
-  color: var(--warn);
-}
-.hours-axis {
-  display: flex;
-  justify-content: space-between;
-  font-size: 10px;
-  color: var(--text-3);
-  font-weight: 500;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .acc-row.opened .cal-g i {
     animation: none;

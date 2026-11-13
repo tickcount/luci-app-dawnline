@@ -19,20 +19,24 @@ describe('pace', () => {
   });
 
   it('says when a limit fills at this pace', () => {
-    expect(forecast(46 * GB, 50 * GB, 2 * GB, false, '2026-11-02')).toEqual({ kind: 'fills', days: 2, on: '2026-11-04' });
-    // A monthly limit filling before the 1st is the same.
-    expect(forecast(40 * GB, 50 * GB, 1 * GB, true, '2026-11-15')).toEqual({ kind: 'fills', days: 10, on: '2026-11-25' });
+    // a limit for all time, or no limit month running: no reset to hold until
+    expect(forecast(46 * GB, 50 * GB, 2 * GB, null, '2026-11-02')).toEqual({ kind: 'fills', days: 2, on: '2026-11-04' });
+    // A limit month that fills before it ends is the same.
+    expect(forecast(40 * GB, 50 * GB, 1 * GB, '2026-12-14', '2026-11-15')).toEqual({ kind: 'fills', days: 10, on: '2026-11-25' });
   });
 
-  it('says what a monthly limit reaches by the reset when that comes first', () => {
-    const f = forecast(12 * GB, 100 * GB, 1 * GB, true, '2026-11-02');
-    expect(f).toEqual({ kind: 'holds', on: '2026-12-01', reach: 41 * GB });
+  it('says what a limit month reaches by its reset when that comes first', () => {
+    // the month is the person's own: it ends the day it began a month before, not on the 1st
+    const f = forecast(12 * GB, 100 * GB, 1 * GB, '2026-11-14', '2026-11-02');
+    expect(f).toEqual({ kind: 'holds', on: '2026-11-14', reach: 24 * GB });
+    // the reset is today: what is used is what it reaches
+    expect(forecast(12 * GB, 100 * GB, 1 * GB, '2026-11-02', '2026-11-02')).toEqual({ kind: 'holds', on: '2026-11-02', reach: 12 * GB });
   });
 
   it('has nothing to say without a limit, when full or idle', () => {
-    expect(forecast(5, 0, 1, true, '2026-11-02').kind).toBe('none');
-    expect(forecast(10, 10, 1, true, '2026-11-02').kind).toBe('none');
-    expect(forecast(1, 10, 0, true, '2026-11-02').kind).toBe('none');
+    expect(forecast(5, 0, 1, '2026-12-01', '2026-11-02').kind).toBe('none');
+    expect(forecast(10, 10, 1, '2026-12-01', '2026-11-02').kind).toBe('none');
+    expect(forecast(1, 10, 0, '2026-12-01', '2026-11-02').kind).toBe('none');
   });
 
   it('takes a week ahead, capped at the limit', () => {

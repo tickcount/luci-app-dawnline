@@ -1,0 +1,211 @@
+{
+	"canon": {
+		"small": "\nconfig settings 'settings'\n\toption portal_enabled '1'\n\toption portal_port '8443'\n\toption portal_host 'vpn.example.com'\n\toption portal_title 'My VPN'\n\toption log_connections '0'\n\toption update_interval '7d'\n\tlist update_targets 'app'\n\nconfig server 'main'\n\toption name 'Main'\n\toption ifname 'awgmain'\n\toption port '51820'\n\toption subnet '10.9.0.0/29'\n\toption private_key 'yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk='\n\toption public_key 'xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg='\n\toption mtu '1380'\n\toption jc '4'\n\toption jmin '64'\n\toption jmax '128'\n\toption s4 '12'\n\nconfig person 'alice'\n\toption server 'main'\n\toption name 'Alice'\n\toption code 'abcdef-ghijkl-mnopqr'\n\toption access 'both'\n\nconfig person 'bob'\n\toption server 'main'\n\toption name 'Bob'\n\toption code 'XyZ12345'\n\toption quota_gb '2'\n\nconfig device 'alice_phone'\n\toption person 'alice'\n\toption name 'Phone'\n\toption kind 'phone'\n\toption address '10.9.0.2'\n\toption public_key 'AuTb2wZ8C1032Ksn76nFgXzOJgT86OgEVbEE7ClpNy8='\n\n",
+		"rich": "\nconfig settings 'settings'\n\toption portal_enabled 'yes'\n\toption portal_port '99999'\n\toption portal_host 'vpn.example.com'\n\tlist portal_alt 'alt.example.com'\n\tlist portal_alt ''\n\tlist portal_alt '203.0.113.7'\n\toption portal_redirect 'https://example.com/'\n\toption default_device_limit '5'\n\toption hostnames 'off'\n\toption domain 'home.arpa'\n\toption geo_enabled 'TRUE'\n\toption geo_provider 'nowhere'\n\toption log_level 'debug'\n\toption watchdog '0'\n\toption log_keep_days '14'\n\toption log_max '50'\n\toption log_persist '10min'\n\tlist log_category 'connections'\n\tlist log_category 'problems'\n\toption usage_keep_days ' 90 '\n\toption usage_keep_months 'many'\n\toption home_dns_fallback 'none'\n\toption update_check '0'\n\toption update_interval '12h'\n\toption update_auto 'on'\n\toption update_mode 'immediate'\n\toption update_time '25:00'\n\tlist update_targets 'app'\n\tlist update_targets 'firmware'\n\tlist update_targets 'amneziawg'\n\toption update_keep '1'\n\nconfig server 'home'\n\toption name 'Home'\n\toption ifname 'dawn0'\n\toption port '4500'\n\toption subnet '10.77.0.0/24'\n\toption endpoint 'vpn.example.com'\n\toption private_key 'yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk='\n\toption public_key 'xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg='\n\toption mtu 'auto'\n\tlist dns '10.77.0.1'\n\tlist dns '1.1.1.1'\n\toption keepalive '0'\n\toption preset 'quiet'\n\toption auto_wan '0'\n\toption wan_device 'pppoe-wan'\n\tlist lan_device 'br-lan'\n\tlist lan_device 'br-guest'\n\toption lan_like '0'\n\toption mesh 'circles'\n\toption jc '5'\n\toption jmin '11'\n\toption jmax '42'\n\toption s1 '12'\n\toption h1 '1'\n\toption i1 '<r 2><b 0x01000001000000000000>'\n\toption header_protection_key 'yvVKA41To0000000000000000000IUdcl4ZiyFE='\n\toption rekey_after_time '100-120'\n\toption random_trailers 'on'\n\nconfig server 'cabin'\n\toption port 'x'\n\toption dns '9.9.9.9, 149.112.112.112'\n\toption device_mesh '0'\n\toption enabled '0'\n\toption mesh 'everyone'\n\nconfig person 'anna'\n\toption server 'home'\n\toption name 'Anna'\n\toption access 'both'\n\toption device_limit '2'\n\toption code 'abcdef-ghijkl-mnopqr'\n\toption code_set '1790000000'\n\toption expires '2026-12-31'\n\toption quota_gb '1.5'\n\toption quota_period 'total'\n\toption dns_mode 'home'\n\toption bonus_gb '20'\n\toption bonus_until '1795000000'\n\tlist service 'nas'\n\tlist home_net 'br-lan'\n\toption circle 'family'\n\toption note 'A note, with a comma'\n\toption created '1780000000'\n\nconfig person 'boris'\n\toption server 'cabin'\n\toption access 'everything'\n\toption paused '1'\n\toption quota_gb 'lots'\n\toption bonus_month '2026-12'\n\toption service 'nas printer'\n\nconfig person 'nobody'\n\nconfig device 'd_1'\n\toption person 'anna'\n\toption name 'Phone'\n\toption kind 'phone'\n\toption address '10.77.0.2'\n\toption public_key 'u4pL0000000000000000000000000000DyRrogDM='\n\toption preshared_key 'Yc0000000000000000000000000000bRABGUovbrNy4='\n\toption created '1780000100'\n\toption created_by 'portal'\n\toption mtu '1280'\n\toption keepalive '0'\n\toption lan_bypass '1'\n\nconfig device 'd_2'\n\toption person 'anna'\n\toption kind 'toaster'\n\toption disabled 'yes'\n\toption keepalive 'often'\n\nconfig device 'd_3'\n\toption person 'gone'\n\toption name 'Orphan'\n\toption kind 'router'\n\toption keepalive '60'\n\nconfig circle 'family'\n\toption server 'home'\n\toption name 'Family'\n\toption color '11'\n\nconfig service 'nas'\n\toption name 'NAS'\n\toption address '192.168.1.10'\n\tlist port '445'\n\tlist port '8080-8090'\n\nconfig service 'printer'\n\toption address '192.168.1.20'\n\n"
+	},
+	"steps": [
+		{
+			"op": [
+				"set",
+				"settings",
+				"portal_port",
+				"9443"
+			],
+			"ok": true,
+			"file": "\nconfig settings 'settings'\n\toption portal_enabled '1'\n\toption portal_port '9443'\n\toption portal_host 'vpn.example.com'\n\toption portal_title 'My VPN'\n\toption log_connections '0'\n\toption update_interval '7d'\n\tlist update_targets 'app'\n\nconfig server 'main'\n\toption name 'Main'\n\toption ifname 'awgmain'\n\toption port '51820'\n\toption subnet '10.9.0.0/29'\n\toption private_key 'yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk='\n\toption public_key 'xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg='\n\toption mtu '1380'\n\toption jc '4'\n\toption jmin '64'\n\toption jmax '128'\n\toption s4 '12'\n\nconfig person 'alice'\n\toption server 'main'\n\toption name 'Alice'\n\toption code 'abcdef-ghijkl-mnopqr'\n\toption access 'both'\n\nconfig person 'bob'\n\toption server 'main'\n\toption name 'Bob'\n\toption code 'XyZ12345'\n\toption quota_gb '2'\n\nconfig device 'alice_phone'\n\toption person 'alice'\n\toption name 'Phone'\n\toption kind 'phone'\n\toption address '10.9.0.2'\n\toption public_key 'AuTb2wZ8C1032Ksn76nFgXzOJgT86OgEVbEE7ClpNy8='\n\n"
+		},
+		{
+			"op": [
+				"set",
+				"settings",
+				"brand_new",
+				"it's a 'quoted' value"
+			],
+			"ok": true,
+			"file": "\nconfig settings 'settings'\n\toption portal_enabled '1'\n\toption portal_port '9443'\n\toption portal_host 'vpn.example.com'\n\toption portal_title 'My VPN'\n\toption log_connections '0'\n\toption update_interval '7d'\n\tlist update_targets 'app'\n\toption brand_new 'it'\\''s a '\\''quoted'\\'' value'\n\nconfig server 'main'\n\toption name 'Main'\n\toption ifname 'awgmain'\n\toption port '51820'\n\toption subnet '10.9.0.0/29'\n\toption private_key 'yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk='\n\toption public_key 'xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg='\n\toption mtu '1380'\n\toption jc '4'\n\toption jmin '64'\n\toption jmax '128'\n\toption s4 '12'\n\nconfig person 'alice'\n\toption server 'main'\n\toption name 'Alice'\n\toption code 'abcdef-ghijkl-mnopqr'\n\toption access 'both'\n\nconfig person 'bob'\n\toption server 'main'\n\toption name 'Bob'\n\toption code 'XyZ12345'\n\toption quota_gb '2'\n\nconfig device 'alice_phone'\n\toption person 'alice'\n\toption name 'Phone'\n\toption kind 'phone'\n\toption address '10.9.0.2'\n\toption public_key 'AuTb2wZ8C1032Ksn76nFgXzOJgT86OgEVbEE7ClpNy8='\n\n"
+		},
+		{
+			"op": [
+				"set",
+				"settings",
+				"a_list",
+				[
+					"one",
+					"two words",
+					""
+				]
+			],
+			"ok": true,
+			"file": "\nconfig settings 'settings'\n\toption portal_enabled '1'\n\toption portal_port '9443'\n\toption portal_host 'vpn.example.com'\n\toption portal_title 'My VPN'\n\toption log_connections '0'\n\toption update_interval '7d'\n\tlist update_targets 'app'\n\toption brand_new 'it'\\''s a '\\''quoted'\\'' value'\n\tlist a_list 'one'\n\tlist a_list 'two words'\n\tlist a_list ''\n\nconfig server 'main'\n\toption name 'Main'\n\toption ifname 'awgmain'\n\toption port '51820'\n\toption subnet '10.9.0.0/29'\n\toption private_key 'yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk='\n\toption public_key 'xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg='\n\toption mtu '1380'\n\toption jc '4'\n\toption jmin '64'\n\toption jmax '128'\n\toption s4 '12'\n\nconfig person 'alice'\n\toption server 'main'\n\toption name 'Alice'\n\toption code 'abcdef-ghijkl-mnopqr'\n\toption access 'both'\n\nconfig person 'bob'\n\toption server 'main'\n\toption name 'Bob'\n\toption code 'XyZ12345'\n\toption quota_gb '2'\n\nconfig device 'alice_phone'\n\toption person 'alice'\n\toption name 'Phone'\n\toption kind 'phone'\n\toption address '10.9.0.2'\n\toption public_key 'AuTb2wZ8C1032Ksn76nFgXzOJgT86OgEVbEE7ClpNy8='\n\n"
+		},
+		{
+			"op": [
+				"set",
+				"settings",
+				"brand_new",
+				"changed in place"
+			],
+			"ok": true,
+			"file": "\nconfig settings 'settings'\n\toption portal_enabled '1'\n\toption portal_port '9443'\n\toption portal_host 'vpn.example.com'\n\toption portal_title 'My VPN'\n\toption log_connections '0'\n\toption update_interval '7d'\n\tlist update_targets 'app'\n\toption brand_new 'changed in place'\n\tlist a_list 'one'\n\tlist a_list 'two words'\n\tlist a_list ''\n\nconfig server 'main'\n\toption name 'Main'\n\toption ifname 'awgmain'\n\toption port '51820'\n\toption subnet '10.9.0.0/29'\n\toption private_key 'yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk='\n\toption public_key 'xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg='\n\toption mtu '1380'\n\toption jc '4'\n\toption jmin '64'\n\toption jmax '128'\n\toption s4 '12'\n\nconfig person 'alice'\n\toption server 'main'\n\toption name 'Alice'\n\toption code 'abcdef-ghijkl-mnopqr'\n\toption access 'both'\n\nconfig person 'bob'\n\toption server 'main'\n\toption name 'Bob'\n\toption code 'XyZ12345'\n\toption quota_gb '2'\n\nconfig device 'alice_phone'\n\toption person 'alice'\n\toption name 'Phone'\n\toption kind 'phone'\n\toption address '10.9.0.2'\n\toption public_key 'AuTb2wZ8C1032Ksn76nFgXzOJgT86OgEVbEE7ClpNy8='\n\n"
+		},
+		{
+			"op": [
+				"set",
+				"settings",
+				"a_list",
+				[
+					"only"
+				]
+			],
+			"ok": true,
+			"file": "\nconfig settings 'settings'\n\toption portal_enabled '1'\n\toption portal_port '9443'\n\toption portal_host 'vpn.example.com'\n\toption portal_title 'My VPN'\n\toption log_connections '0'\n\toption update_interval '7d'\n\tlist update_targets 'app'\n\toption brand_new 'changed in place'\n\tlist a_list 'only'\n\nconfig server 'main'\n\toption name 'Main'\n\toption ifname 'awgmain'\n\toption port '51820'\n\toption subnet '10.9.0.0/29'\n\toption private_key 'yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk='\n\toption public_key 'xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg='\n\toption mtu '1380'\n\toption jc '4'\n\toption jmin '64'\n\toption jmax '128'\n\toption s4 '12'\n\nconfig person 'alice'\n\toption server 'main'\n\toption name 'Alice'\n\toption code 'abcdef-ghijkl-mnopqr'\n\toption access 'both'\n\nconfig person 'bob'\n\toption server 'main'\n\toption name 'Bob'\n\toption code 'XyZ12345'\n\toption quota_gb '2'\n\nconfig device 'alice_phone'\n\toption person 'alice'\n\toption name 'Phone'\n\toption kind 'phone'\n\toption address '10.9.0.2'\n\toption public_key 'AuTb2wZ8C1032Ksn76nFgXzOJgT86OgEVbEE7ClpNy8='\n\n"
+		},
+		{
+			"op": [
+				"set",
+				"settings",
+				"a_list",
+				"now an option"
+			],
+			"ok": true,
+			"file": "\nconfig settings 'settings'\n\toption portal_enabled '1'\n\toption portal_port '9443'\n\toption portal_host 'vpn.example.com'\n\toption portal_title 'My VPN'\n\toption log_connections '0'\n\toption update_interval '7d'\n\tlist update_targets 'app'\n\toption brand_new 'changed in place'\n\toption a_list 'now an option'\n\nconfig server 'main'\n\toption name 'Main'\n\toption ifname 'awgmain'\n\toption port '51820'\n\toption subnet '10.9.0.0/29'\n\toption private_key 'yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk='\n\toption public_key 'xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg='\n\toption mtu '1380'\n\toption jc '4'\n\toption jmin '64'\n\toption jmax '128'\n\toption s4 '12'\n\nconfig person 'alice'\n\toption server 'main'\n\toption name 'Alice'\n\toption code 'abcdef-ghijkl-mnopqr'\n\toption access 'both'\n\nconfig person 'bob'\n\toption server 'main'\n\toption name 'Bob'\n\toption code 'XyZ12345'\n\toption quota_gb '2'\n\nconfig device 'alice_phone'\n\toption person 'alice'\n\toption name 'Phone'\n\toption kind 'phone'\n\toption address '10.9.0.2'\n\toption public_key 'AuTb2wZ8C1032Ksn76nFgXzOJgT86OgEVbEE7ClpNy8='\n\n"
+		},
+		{
+			"op": [
+				"set",
+				"settings",
+				"portal_port",
+				[
+					"now",
+					"a list"
+				]
+			],
+			"ok": true,
+			"file": "\nconfig settings 'settings'\n\toption portal_enabled '1'\n\tlist portal_port 'now'\n\tlist portal_port 'a list'\n\toption portal_host 'vpn.example.com'\n\toption portal_title 'My VPN'\n\toption log_connections '0'\n\toption update_interval '7d'\n\tlist update_targets 'app'\n\toption brand_new 'changed in place'\n\toption a_list 'now an option'\n\nconfig server 'main'\n\toption name 'Main'\n\toption ifname 'awgmain'\n\toption port '51820'\n\toption subnet '10.9.0.0/29'\n\toption private_key 'yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk='\n\toption public_key 'xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg='\n\toption mtu '1380'\n\toption jc '4'\n\toption jmin '64'\n\toption jmax '128'\n\toption s4 '12'\n\nconfig person 'alice'\n\toption server 'main'\n\toption name 'Alice'\n\toption code 'abcdef-ghijkl-mnopqr'\n\toption access 'both'\n\nconfig person 'bob'\n\toption server 'main'\n\toption name 'Bob'\n\toption code 'XyZ12345'\n\toption quota_gb '2'\n\nconfig device 'alice_phone'\n\toption person 'alice'\n\toption name 'Phone'\n\toption kind 'phone'\n\toption address '10.9.0.2'\n\toption public_key 'AuTb2wZ8C1032Ksn76nFgXzOJgT86OgEVbEE7ClpNy8='\n\n"
+		},
+		{
+			"op": [
+				"delete",
+				"settings",
+				"brand_new"
+			],
+			"ok": true,
+			"file": "\nconfig settings 'settings'\n\toption portal_enabled '1'\n\tlist portal_port 'now'\n\tlist portal_port 'a list'\n\toption portal_host 'vpn.example.com'\n\toption portal_title 'My VPN'\n\toption log_connections '0'\n\toption update_interval '7d'\n\tlist update_targets 'app'\n\toption a_list 'now an option'\n\nconfig server 'main'\n\toption name 'Main'\n\toption ifname 'awgmain'\n\toption port '51820'\n\toption subnet '10.9.0.0/29'\n\toption private_key 'yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk='\n\toption public_key 'xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg='\n\toption mtu '1380'\n\toption jc '4'\n\toption jmin '64'\n\toption jmax '128'\n\toption s4 '12'\n\nconfig person 'alice'\n\toption server 'main'\n\toption name 'Alice'\n\toption code 'abcdef-ghijkl-mnopqr'\n\toption access 'both'\n\nconfig person 'bob'\n\toption server 'main'\n\toption name 'Bob'\n\toption code 'XyZ12345'\n\toption quota_gb '2'\n\nconfig device 'alice_phone'\n\toption person 'alice'\n\toption name 'Phone'\n\toption kind 'phone'\n\toption address '10.9.0.2'\n\toption public_key 'AuTb2wZ8C1032Ksn76nFgXzOJgT86OgEVbEE7ClpNy8='\n\n"
+		},
+		{
+			"op": [
+				"set",
+				"settings",
+				"brand_new",
+				"back, at the end"
+			],
+			"ok": true,
+			"file": "\nconfig settings 'settings'\n\toption portal_enabled '1'\n\tlist portal_port 'now'\n\tlist portal_port 'a list'\n\toption portal_host 'vpn.example.com'\n\toption portal_title 'My VPN'\n\toption log_connections '0'\n\toption update_interval '7d'\n\tlist update_targets 'app'\n\toption a_list 'now an option'\n\toption brand_new 'back, at the end'\n\nconfig server 'main'\n\toption name 'Main'\n\toption ifname 'awgmain'\n\toption port '51820'\n\toption subnet '10.9.0.0/29'\n\toption private_key 'yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk='\n\toption public_key 'xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg='\n\toption mtu '1380'\n\toption jc '4'\n\toption jmin '64'\n\toption jmax '128'\n\toption s4 '12'\n\nconfig person 'alice'\n\toption server 'main'\n\toption name 'Alice'\n\toption code 'abcdef-ghijkl-mnopqr'\n\toption access 'both'\n\nconfig person 'bob'\n\toption server 'main'\n\toption name 'Bob'\n\toption code 'XyZ12345'\n\toption quota_gb '2'\n\nconfig device 'alice_phone'\n\toption person 'alice'\n\toption name 'Phone'\n\toption kind 'phone'\n\toption address '10.9.0.2'\n\toption public_key 'AuTb2wZ8C1032Ksn76nFgXzOJgT86OgEVbEE7ClpNy8='\n\n"
+		},
+		{
+			"op": [
+				"add",
+				"person",
+				"zed"
+			],
+			"ok": true,
+			"file": "\nconfig settings 'settings'\n\toption portal_enabled '1'\n\tlist portal_port 'now'\n\tlist portal_port 'a list'\n\toption portal_host 'vpn.example.com'\n\toption portal_title 'My VPN'\n\toption log_connections '0'\n\toption update_interval '7d'\n\tlist update_targets 'app'\n\toption a_list 'now an option'\n\toption brand_new 'back, at the end'\n\nconfig server 'main'\n\toption name 'Main'\n\toption ifname 'awgmain'\n\toption port '51820'\n\toption subnet '10.9.0.0/29'\n\toption private_key 'yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk='\n\toption public_key 'xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg='\n\toption mtu '1380'\n\toption jc '4'\n\toption jmin '64'\n\toption jmax '128'\n\toption s4 '12'\n\nconfig person 'alice'\n\toption server 'main'\n\toption name 'Alice'\n\toption code 'abcdef-ghijkl-mnopqr'\n\toption access 'both'\n\nconfig person 'bob'\n\toption server 'main'\n\toption name 'Bob'\n\toption code 'XyZ12345'\n\toption quota_gb '2'\n\nconfig device 'alice_phone'\n\toption person 'alice'\n\toption name 'Phone'\n\toption kind 'phone'\n\toption address '10.9.0.2'\n\toption public_key 'AuTb2wZ8C1032Ksn76nFgXzOJgT86OgEVbEE7ClpNy8='\n\nconfig person 'zed'\n\n"
+		},
+		{
+			"op": [
+				"set",
+				"zed",
+				"name",
+				"Zed"
+			],
+			"ok": true,
+			"file": "\nconfig settings 'settings'\n\toption portal_enabled '1'\n\tlist portal_port 'now'\n\tlist portal_port 'a list'\n\toption portal_host 'vpn.example.com'\n\toption portal_title 'My VPN'\n\toption log_connections '0'\n\toption update_interval '7d'\n\tlist update_targets 'app'\n\toption a_list 'now an option'\n\toption brand_new 'back, at the end'\n\nconfig server 'main'\n\toption name 'Main'\n\toption ifname 'awgmain'\n\toption port '51820'\n\toption subnet '10.9.0.0/29'\n\toption private_key 'yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk='\n\toption public_key 'xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg='\n\toption mtu '1380'\n\toption jc '4'\n\toption jmin '64'\n\toption jmax '128'\n\toption s4 '12'\n\nconfig person 'alice'\n\toption server 'main'\n\toption name 'Alice'\n\toption code 'abcdef-ghijkl-mnopqr'\n\toption access 'both'\n\nconfig person 'bob'\n\toption server 'main'\n\toption name 'Bob'\n\toption code 'XyZ12345'\n\toption quota_gb '2'\n\nconfig device 'alice_phone'\n\toption person 'alice'\n\toption name 'Phone'\n\toption kind 'phone'\n\toption address '10.9.0.2'\n\toption public_key 'AuTb2wZ8C1032Ksn76nFgXzOJgT86OgEVbEE7ClpNy8='\n\nconfig person 'zed'\n\toption name 'Zed'\n\n"
+		},
+		{
+			"op": [
+				"set",
+				"zed",
+				"multi",
+				"line one\nline two"
+			],
+			"ok": true,
+			"file": "\nconfig settings 'settings'\n\toption portal_enabled '1'\n\tlist portal_port 'now'\n\tlist portal_port 'a list'\n\toption portal_host 'vpn.example.com'\n\toption portal_title 'My VPN'\n\toption log_connections '0'\n\toption update_interval '7d'\n\tlist update_targets 'app'\n\toption a_list 'now an option'\n\toption brand_new 'back, at the end'\n\nconfig server 'main'\n\toption name 'Main'\n\toption ifname 'awgmain'\n\toption port '51820'\n\toption subnet '10.9.0.0/29'\n\toption private_key 'yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk='\n\toption public_key 'xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg='\n\toption mtu '1380'\n\toption jc '4'\n\toption jmin '64'\n\toption jmax '128'\n\toption s4 '12'\n\nconfig person 'alice'\n\toption server 'main'\n\toption name 'Alice'\n\toption code 'abcdef-ghijkl-mnopqr'\n\toption access 'both'\n\nconfig person 'bob'\n\toption server 'main'\n\toption name 'Bob'\n\toption code 'XyZ12345'\n\toption quota_gb '2'\n\nconfig device 'alice_phone'\n\toption person 'alice'\n\toption name 'Phone'\n\toption kind 'phone'\n\toption address '10.9.0.2'\n\toption public_key 'AuTb2wZ8C1032Ksn76nFgXzOJgT86OgEVbEE7ClpNy8='\n\nconfig person 'zed'\n\toption name 'Zed'\n\toption multi 'line one\nline two'\n\n"
+		},
+		{
+			"op": [
+				"add",
+				"device",
+				"zphone"
+			],
+			"ok": true,
+			"file": "\nconfig settings 'settings'\n\toption portal_enabled '1'\n\tlist portal_port 'now'\n\tlist portal_port 'a list'\n\toption portal_host 'vpn.example.com'\n\toption portal_title 'My VPN'\n\toption log_connections '0'\n\toption update_interval '7d'\n\tlist update_targets 'app'\n\toption a_list 'now an option'\n\toption brand_new 'back, at the end'\n\nconfig server 'main'\n\toption name 'Main'\n\toption ifname 'awgmain'\n\toption port '51820'\n\toption subnet '10.9.0.0/29'\n\toption private_key 'yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk='\n\toption public_key 'xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg='\n\toption mtu '1380'\n\toption jc '4'\n\toption jmin '64'\n\toption jmax '128'\n\toption s4 '12'\n\nconfig person 'alice'\n\toption server 'main'\n\toption name 'Alice'\n\toption code 'abcdef-ghijkl-mnopqr'\n\toption access 'both'\n\nconfig person 'bob'\n\toption server 'main'\n\toption name 'Bob'\n\toption code 'XyZ12345'\n\toption quota_gb '2'\n\nconfig device 'alice_phone'\n\toption person 'alice'\n\toption name 'Phone'\n\toption kind 'phone'\n\toption address '10.9.0.2'\n\toption public_key 'AuTb2wZ8C1032Ksn76nFgXzOJgT86OgEVbEE7ClpNy8='\n\nconfig person 'zed'\n\toption name 'Zed'\n\toption multi 'line one\nline two'\n\nconfig device 'zphone'\n\n"
+		},
+		{
+			"op": [
+				"set",
+				"zphone",
+				"person",
+				"zed"
+			],
+			"ok": true,
+			"file": "\nconfig settings 'settings'\n\toption portal_enabled '1'\n\tlist portal_port 'now'\n\tlist portal_port 'a list'\n\toption portal_host 'vpn.example.com'\n\toption portal_title 'My VPN'\n\toption log_connections '0'\n\toption update_interval '7d'\n\tlist update_targets 'app'\n\toption a_list 'now an option'\n\toption brand_new 'back, at the end'\n\nconfig server 'main'\n\toption name 'Main'\n\toption ifname 'awgmain'\n\toption port '51820'\n\toption subnet '10.9.0.0/29'\n\toption private_key 'yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk='\n\toption public_key 'xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg='\n\toption mtu '1380'\n\toption jc '4'\n\toption jmin '64'\n\toption jmax '128'\n\toption s4 '12'\n\nconfig person 'alice'\n\toption server 'main'\n\toption name 'Alice'\n\toption code 'abcdef-ghijkl-mnopqr'\n\toption access 'both'\n\nconfig person 'bob'\n\toption server 'main'\n\toption name 'Bob'\n\toption code 'XyZ12345'\n\toption quota_gb '2'\n\nconfig device 'alice_phone'\n\toption person 'alice'\n\toption name 'Phone'\n\toption kind 'phone'\n\toption address '10.9.0.2'\n\toption public_key 'AuTb2wZ8C1032Ksn76nFgXzOJgT86OgEVbEE7ClpNy8='\n\nconfig person 'zed'\n\toption name 'Zed'\n\toption multi 'line one\nline two'\n\nconfig device 'zphone'\n\toption person 'zed'\n\n"
+		},
+		{
+			"op": [
+				"set",
+				"zed",
+				"server",
+				"home"
+			],
+			"ok": true,
+			"file": "\nconfig settings 'settings'\n\toption portal_enabled '1'\n\tlist portal_port 'now'\n\tlist portal_port 'a list'\n\toption portal_host 'vpn.example.com'\n\toption portal_title 'My VPN'\n\toption log_connections '0'\n\toption update_interval '7d'\n\tlist update_targets 'app'\n\toption a_list 'now an option'\n\toption brand_new 'back, at the end'\n\nconfig server 'main'\n\toption name 'Main'\n\toption ifname 'awgmain'\n\toption port '51820'\n\toption subnet '10.9.0.0/29'\n\toption private_key 'yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk='\n\toption public_key 'xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg='\n\toption mtu '1380'\n\toption jc '4'\n\toption jmin '64'\n\toption jmax '128'\n\toption s4 '12'\n\nconfig person 'alice'\n\toption server 'main'\n\toption name 'Alice'\n\toption code 'abcdef-ghijkl-mnopqr'\n\toption access 'both'\n\nconfig person 'bob'\n\toption server 'main'\n\toption name 'Bob'\n\toption code 'XyZ12345'\n\toption quota_gb '2'\n\nconfig device 'alice_phone'\n\toption person 'alice'\n\toption name 'Phone'\n\toption kind 'phone'\n\toption address '10.9.0.2'\n\toption public_key 'AuTb2wZ8C1032Ksn76nFgXzOJgT86OgEVbEE7ClpNy8='\n\nconfig person 'zed'\n\toption name 'Zed'\n\toption multi 'line one\nline two'\n\toption server 'home'\n\nconfig device 'zphone'\n\toption person 'zed'\n\n"
+		},
+		{
+			"op": [
+				"add",
+				"circle",
+				"zed"
+			],
+			"ok": true,
+			"file": "\nconfig settings 'settings'\n\toption portal_enabled '1'\n\tlist portal_port 'now'\n\tlist portal_port 'a list'\n\toption portal_host 'vpn.example.com'\n\toption portal_title 'My VPN'\n\toption log_connections '0'\n\toption update_interval '7d'\n\tlist update_targets 'app'\n\toption a_list 'now an option'\n\toption brand_new 'back, at the end'\n\nconfig server 'main'\n\toption name 'Main'\n\toption ifname 'awgmain'\n\toption port '51820'\n\toption subnet '10.9.0.0/29'\n\toption private_key 'yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk='\n\toption public_key 'xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg='\n\toption mtu '1380'\n\toption jc '4'\n\toption jmin '64'\n\toption jmax '128'\n\toption s4 '12'\n\nconfig person 'alice'\n\toption server 'main'\n\toption name 'Alice'\n\toption code 'abcdef-ghijkl-mnopqr'\n\toption access 'both'\n\nconfig person 'bob'\n\toption server 'main'\n\toption name 'Bob'\n\toption code 'XyZ12345'\n\toption quota_gb '2'\n\nconfig device 'alice_phone'\n\toption person 'alice'\n\toption name 'Phone'\n\toption kind 'phone'\n\toption address '10.9.0.2'\n\toption public_key 'AuTb2wZ8C1032Ksn76nFgXzOJgT86OgEVbEE7ClpNy8='\n\nconfig circle 'zed'\n\toption name 'Zed'\n\toption multi 'line one\nline two'\n\toption server 'home'\n\nconfig device 'zphone'\n\toption person 'zed'\n\n"
+		},
+		{
+			"op": [
+				"delete",
+				"zphone"
+			],
+			"ok": true,
+			"file": "\nconfig settings 'settings'\n\toption portal_enabled '1'\n\tlist portal_port 'now'\n\tlist portal_port 'a list'\n\toption portal_host 'vpn.example.com'\n\toption portal_title 'My VPN'\n\toption log_connections '0'\n\toption update_interval '7d'\n\tlist update_targets 'app'\n\toption a_list 'now an option'\n\toption brand_new 'back, at the end'\n\nconfig server 'main'\n\toption name 'Main'\n\toption ifname 'awgmain'\n\toption port '51820'\n\toption subnet '10.9.0.0/29'\n\toption private_key 'yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk='\n\toption public_key 'xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg='\n\toption mtu '1380'\n\toption jc '4'\n\toption jmin '64'\n\toption jmax '128'\n\toption s4 '12'\n\nconfig person 'alice'\n\toption server 'main'\n\toption name 'Alice'\n\toption code 'abcdef-ghijkl-mnopqr'\n\toption access 'both'\n\nconfig person 'bob'\n\toption server 'main'\n\toption name 'Bob'\n\toption code 'XyZ12345'\n\toption quota_gb '2'\n\nconfig device 'alice_phone'\n\toption person 'alice'\n\toption name 'Phone'\n\toption kind 'phone'\n\toption address '10.9.0.2'\n\toption public_key 'AuTb2wZ8C1032Ksn76nFgXzOJgT86OgEVbEE7ClpNy8='\n\nconfig circle 'zed'\n\toption name 'Zed'\n\toption multi 'line one\nline two'\n\toption server 'home'\n\n"
+		},
+		{
+			"op": [
+				"delete",
+				"settings",
+				"no_such_option"
+			],
+			"ok": false,
+			"file": "\nconfig settings 'settings'\n\toption portal_enabled '1'\n\tlist portal_port 'now'\n\tlist portal_port 'a list'\n\toption portal_host 'vpn.example.com'\n\toption portal_title 'My VPN'\n\toption log_connections '0'\n\toption update_interval '7d'\n\tlist update_targets 'app'\n\toption a_list 'now an option'\n\toption brand_new 'back, at the end'\n\nconfig server 'main'\n\toption name 'Main'\n\toption ifname 'awgmain'\n\toption port '51820'\n\toption subnet '10.9.0.0/29'\n\toption private_key 'yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk='\n\toption public_key 'xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg='\n\toption mtu '1380'\n\toption jc '4'\n\toption jmin '64'\n\toption jmax '128'\n\toption s4 '12'\n\nconfig person 'alice'\n\toption server 'main'\n\toption name 'Alice'\n\toption code 'abcdef-ghijkl-mnopqr'\n\toption access 'both'\n\nconfig person 'bob'\n\toption server 'main'\n\toption name 'Bob'\n\toption code 'XyZ12345'\n\toption quota_gb '2'\n\nconfig device 'alice_phone'\n\toption person 'alice'\n\toption name 'Phone'\n\toption kind 'phone'\n\toption address '10.9.0.2'\n\toption public_key 'AuTb2wZ8C1032Ksn76nFgXzOJgT86OgEVbEE7ClpNy8='\n\nconfig circle 'zed'\n\toption name 'Zed'\n\toption multi 'line one\nline two'\n\toption server 'home'\n\n"
+		},
+		{
+			"op": [
+				"set",
+				"settings",
+				"empty",
+				""
+			],
+			"ok": true,
+			"file": "\nconfig settings 'settings'\n\toption portal_enabled '1'\n\tlist portal_port 'now'\n\tlist portal_port 'a list'\n\toption portal_host 'vpn.example.com'\n\toption portal_title 'My VPN'\n\toption log_connections '0'\n\toption update_interval '7d'\n\tlist update_targets 'app'\n\toption a_list 'now an option'\n\toption brand_new 'back, at the end'\n\nconfig server 'main'\n\toption name 'Main'\n\toption ifname 'awgmain'\n\toption port '51820'\n\toption subnet '10.9.0.0/29'\n\toption private_key 'yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk='\n\toption public_key 'xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg='\n\toption mtu '1380'\n\toption jc '4'\n\toption jmin '64'\n\toption jmax '128'\n\toption s4 '12'\n\nconfig person 'alice'\n\toption server 'main'\n\toption name 'Alice'\n\toption code 'abcdef-ghijkl-mnopqr'\n\toption access 'both'\n\nconfig person 'bob'\n\toption server 'main'\n\toption name 'Bob'\n\toption code 'XyZ12345'\n\toption quota_gb '2'\n\nconfig device 'alice_phone'\n\toption person 'alice'\n\toption name 'Phone'\n\toption kind 'phone'\n\toption address '10.9.0.2'\n\toption public_key 'AuTb2wZ8C1032Ksn76nFgXzOJgT86OgEVbEE7ClpNy8='\n\nconfig circle 'zed'\n\toption name 'Zed'\n\toption multi 'line one\nline two'\n\toption server 'home'\n\n"
+		},
+		{
+			"op": [
+				"set",
+				"settings",
+				"empty_list",
+				[
+				]
+			],
+			"ok": false,
+			"file": "\nconfig settings 'settings'\n\toption portal_enabled '1'\n\tlist portal_port 'now'\n\tlist portal_port 'a list'\n\toption portal_host 'vpn.example.com'\n\toption portal_title 'My VPN'\n\toption log_connections '0'\n\toption update_interval '7d'\n\tlist update_targets 'app'\n\toption a_list 'now an option'\n\toption brand_new 'back, at the end'\n\nconfig server 'main'\n\toption name 'Main'\n\toption ifname 'awgmain'\n\toption port '51820'\n\toption subnet '10.9.0.0/29'\n\toption private_key 'yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk='\n\toption public_key 'xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg='\n\toption mtu '1380'\n\toption jc '4'\n\toption jmin '64'\n\toption jmax '128'\n\toption s4 '12'\n\nconfig person 'alice'\n\toption server 'main'\n\toption name 'Alice'\n\toption code 'abcdef-ghijkl-mnopqr'\n\toption access 'both'\n\nconfig person 'bob'\n\toption server 'main'\n\toption name 'Bob'\n\toption code 'XyZ12345'\n\toption quota_gb '2'\n\nconfig device 'alice_phone'\n\toption person 'alice'\n\toption name 'Phone'\n\toption kind 'phone'\n\toption address '10.9.0.2'\n\toption public_key 'AuTb2wZ8C1032Ksn76nFgXzOJgT86OgEVbEE7ClpNy8='\n\nconfig circle 'zed'\n\toption name 'Zed'\n\toption multi 'line one\nline two'\n\toption server 'home'\n\n"
+		}
+	]
+}

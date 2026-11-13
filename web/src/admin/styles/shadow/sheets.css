@@ -1,0 +1,956 @@
+/* The admin's flows in the portal's sheet (flows/*): a device's set-up (the app, its code or its file, Copy and
+   Download, the wait for its first connection), adding one and new keys (the portal's kind tiles and LAN Bypass
+   switch), the questions (the portal's .ask). Only what the portal's sheet.css and setup.css lack. */
+.setup-b {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.setup-v .tabs.apps {
+  width: 100%;
+  grid-auto-columns: minmax(0, 1fr);
+}
+.tabs.apps .tab {
+  flex-direction: row;
+  gap: 8px;
+}
+.inv-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+.su-qr .qrbox {
+  flex: none;
+}
+.inv-code {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+.inv-code b {
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 500;
+  color: var(--text);
+}
+.setup-b .btnrow {
+  margin-top: 0;
+}
+/* the form's track (a code, the file, the text) under the app's, the same width; the text of a configuration
+   scrolls inside its block, a key (one long line) wraps */
+.setup-forms > .tabs {
+  width: 100%;
+  grid-auto-columns: minmax(0, 1fr);
+}
+.tabs.forms .tab {
+  flex-direction: row;
+  gap: 6px;
+}
+.su-text {
+  max-height: 15rem;
+  -webkit-user-select: text;
+  user-select: text;
+  cursor: text;
+  outline: none;
+}
+.su-text.wrap {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--text);
+}
+.setup-b .btnrow > [hidden] {
+  display: none;
+}
+.nk-go {
+  margin-top: 12px;
+}
+.view > .kinds + .swrow {
+  margin: 16px 0 12px;
+}
+.view > .swrow + .field {
+  margin-top: 12px;
+}
+.setup-b .btnrow .btn {
+  white-space: nowrap;
+  padding-inline: 12px;
+}
+
+/* the invite (flows/invite.ts): the code under the big QR with the server's name, then its buttons 16 under it;
+   the other addresses folded in one row, each a row of its own that copies it (a long one ends in an ellipsis) */
+.inv-v .inv-card {
+  margin-bottom: 16px;
+}
+.inv-v .btnrow {
+  margin-top: 10px;
+}
+.inv-more {
+  margin-top: 10px;
+}
+.inv-more .chips {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.inv-more .chipb {
+  display: block;
+  flex: none;
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 12px;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 36px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* a new person (flows/add-person.ts): the networks on a track, the rest as choice rows */
+.view .choice {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 20px;
+}
+/* a control's name: the text's own colour and a weight, so it is never taken for the note of the control over it
+   (both used to be the same grey, a size apart) */
+.choice-h {
+  padding: 0 4px;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+  color: var(--text);
+}
+.choice .tabs.in-row {
+  width: 100%;
+  grid-auto-columns: minmax(0, 1fr);
+  background: var(--field);
+}
+.add-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 14px 0 6px;
+}
+.view > .field + .hint.bad-t {
+  margin-top: 8px;
+}
+/* a longer text (a note): the field's own shape, one line that grows with what is written (up to 6), the go
+   button at its foot where a field has it; no grip */
+.field.long {
+  height: auto;
+  min-height: 48px;
+  align-items: flex-end;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+.field.long textarea {
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
+  max-height: 160px;
+  field-sizing: content;
+  padding: 8px 0;
+  resize: none;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: var(--text);
+  font: 500 16px/24px var(--font);
+  letter-spacing: -0.012em;
+}
+.field.long textarea::placeholder {
+  color: var(--text-3);
+}
+
+/* options with consequences (another server): the portal's option rows, a step apart */
+.opts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.opt {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--field);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 200ms,
+    transform 150ms var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .opt:hover {
+    background: color-mix(in srgb, var(--field), var(--knob) 50%);
+  }
+}
+.opt:active {
+  transform: scale(0.98);
+}
+.opt .gi {
+  width: 28px;
+  height: 28px;
+  flex: none;
+}
+.opt-t {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.opt-t b {
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 500;
+}
+.opt-t span {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+.opt-t .mono {
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.opt-t .warn-t {
+  color: var(--warn);
+}
+.opt-chev {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  color: var(--text-2);
+}
+.ask .crow {
+  margin: 14px 0 0;
+  text-align: left;
+}
+
+/* a sheet that sets a few values (flows/form.ts: a home service, a circle, a new server): each field under its
+   name with its line; the actions at the end */
+.view .choice.fl {
+  gap: 6px;
+}
+.view .fl-f {
+  margin: 0;
+}
+.fl-f input.mono {
+  font-family: var(--mono);
+}
+.fl-suffix {
+  flex: none;
+  padding-right: 14px;
+  color: var(--text-2);
+}
+.view .fl-h {
+  margin: 0;
+  padding: 0 4px;
+}
+.view .fl-h[hidden] {
+  display: none;
+}
+.fl-acts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 18px;
+}
+.btn.bad-t {
+  color: var(--bad);
+}
+/* a circle's colour */
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.swatch {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--sw);
+  transition:
+    transform 150ms var(--ease-out),
+    box-shadow 200ms;
+}
+.swatch:active {
+  transform: scale(0.9);
+}
+.swatch.on {
+  box-shadow:
+    0 0 0 2px var(--raised),
+    0 0 0 4px var(--sw);
+}
+/* the devices at home, each with its ports as chips */
+.hosts {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 12px;
+}
+.host {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--field);
+}
+.host:first-child {
+  border-radius: 16px 16px 6px 6px;
+}
+.host:last-child {
+  border-radius: 6px 6px 16px 16px;
+}
+.host:only-child {
+  border-radius: 16px;
+}
+.host-t {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.host-t b {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.host-t .mono {
+  color: var(--text-2);
+  font-size: 13px;
+}
+.host .chips {
+  justify-content: flex-start;
+}
+.host .chipb {
+  flex: 0 1 auto;
+  height: 30px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+/* the disguise's parameters by what they do */
+.prm {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 4px 0 16px;
+}
+.prm-g {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  background: var(--field);
+}
+.prm-g:first-child {
+  border-radius: 16px 16px 6px 6px;
+}
+.prm-g:last-child {
+  border-radius: 6px 6px 16px 16px;
+}
+.prm-g b {
+  font-size: 14px;
+  font-weight: 500;
+}
+.prm-g p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+.prm-v {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 4px;
+  font-size: 12.5px;
+  min-width: 0;
+}
+.prm-v span {
+  overflow-wrap: anywhere;
+}
+.prm-v i {
+  font-style: normal;
+  color: var(--text-3);
+}
+/* installing: the job's time under its phase */
+
+/* a new server: where in its steps, its notices */
+.ns-steps {
+  display: flex;
+  gap: 6px;
+  margin: -2px 0 14px;
+}
+.ns-steps i {
+  width: 18px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--knob);
+  transition: background-color 200ms;
+}
+.ns-steps i.done {
+  background: color-mix(in srgb, var(--accent) 45%, var(--knob));
+}
+.ns-steps i.on {
+  background: var(--accent);
+}
+.view .notice.ns-note {
+  align-items: flex-start;
+  margin: 8px 0 4px;
+}
+.ns-note .t > .btn {
+  align-self: flex-start;
+  margin-top: 10px;
+}
+.ns-v .swrow {
+  margin-top: 20px;
+}
+.ns-v .swrow + .swrow {
+  margin-top: 8px;
+}
+.ns-v > .btn.block {
+  margin-top: 24px;
+}
+/* a step's lead under its progress */
+.ns-lead {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--text-2);
+  text-wrap: pretty;
+}
+.ns-lead + .choice {
+  margin-top: 18px;
+}
+.ns-steps + .choice {
+  margin-top: 4px;
+}
+
+/* ── A job's stage (flows/job-stage.ts): the question's anatomy from the job's start to its end. The picture, the
+   title and one line; the steps on one field block, the one under way last with its time; the log in the portal's
+   inset row; the actions at the foot once there is something to decide. Its three parts (the top, the steps or what
+   stands in their place, the foot) each go to their new height where they stand, so their gaps are inside them:
+   a part with nothing in it takes no room ── */
+.jb > .ask {
+  width: 100%;
+  padding-bottom: 18px;
+}
+.jb > .ask h3 {
+  overflow-wrap: anywhere;
+}
+.jb > .ask p {
+  margin-bottom: 0;
+  overflow-wrap: anywhere;
+}
+.jb > .ask p[hidden] {
+  display: none;
+}
+.jb-pic {
+  display: flex;
+}
+.jb-mid,
+.jb-foot {
+  display: flex;
+  flex-direction: column;
+}
+.jb-mid > * {
+  margin-bottom: 8px;
+}
+.jb-foot > .btnrow {
+  margin-top: 20px;
+}
+/* a job that keeps no log (a restore): the steps' gap is over them, so the foot stands 24 under the last of them */
+.jb.nolog > .ask {
+  padding-bottom: 0;
+}
+.jb.nolog .jb-mid > * {
+  margin: 18px 0 0;
+}
+.jb-steps {
+  list-style: none;
+  margin-top: 0;
+  padding: 14px 14px 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-radius: 16px;
+  background: var(--field);
+}
+.jb-steps[hidden],
+.jb-body[hidden] {
+  display: none;
+}
+.jb-s {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--text-2);
+}
+.jb-s.run {
+  color: var(--text);
+  font-weight: 500;
+}
+/* not reached yet (a job whose steps are known ahead): a faint dot */
+.jb-s.wait > .jb-m {
+  background: var(--knob);
+}
+.jb-s.wait > .jb-m > i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-3);
+}
+.jb-s.bad {
+  color: var(--bad);
+  font-weight: 500;
+}
+.jb-m,
+.jb-fm {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+:is(.jb-m, .jb-fm) .i {
+  width: 14px;
+  height: 14px;
+}
+/* under way: a dot that breathes, in the accent (it is where the job is, not a warning) */
+.jb-s.run > .jb-m {
+  background: var(--accent-soft);
+}
+.jb-s.run > .jb-m > i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: jb-breathe 1.8s ease-in-out infinite both;
+}
+@keyframes jb-breathe {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+.jb-s.bad > .jb-m,
+.jb-fm.bad {
+  background: var(--bad-soft);
+  color: var(--bad);
+}
+.jb-t {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.jb-time {
+  flex: none;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-2);
+}
+/* what a check found: the components' rows, each with a mark of where it stands at its end */
+.jb-fm {
+  margin-right: 6px;
+}
+.jb-fm.new {
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+  color: var(--warn);
+}
+/* a newer one is out: the arrow points up */
+.jb-fm.new .i {
+  transform: rotate(-90deg);
+}
+.jb-fm.quiet {
+  background: var(--knob);
+  color: var(--text-2);
+}
+/* the log: a block of text to copy, a step up from the row it opens in (as the set-up's .conf) */
+.jb-log {
+  margin: 0;
+  max-height: 240px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--knob) 65%, var(--field));
+  color: var(--text-2);
+  font: 12px/17px var(--mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  -webkit-user-select: text;
+  user-select: text;
+}
+@media (prefers-reduced-motion: reduce) {
+  .jb-s.run > .jb-m > i {
+    animation: none;
+  }
+}
+
+/* ── the sheets Settings' router sections open (flows/operation.ts, restore.ts, versions.ts, whats-new.ts,
+   packages.ts) ── */
+/* what a restore replaces, said over its buttons */
+.op-warn {
+  margin: 14px 0 18px;
+  color: var(--text-2);
+}
+.dg-s.wait > .dg-m:empty::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-3);
+}
+
+/* a restore's file: the picker over a hidden input, then what was picked */
+.vh {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.fpick {
+  position: relative;
+  cursor: pointer;
+}
+.fpick[hidden],
+.fsum[hidden] {
+  display: none;
+}
+.fsum {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* a release's notes */
+/* one row under the head: the date (a pre-release said in warn), then two quiet keys at its end */
+.notes-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px 8px;
+  min-height: 36px;
+  margin: -12px 0 14px;
+}
+.notes-meta:empty {
+  display: none;
+}
+.notes-meta .sp {
+  flex: 1;
+}
+.notes-date,
+.notes-pre {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+.notes-pre {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+  color: var(--warn);
+  font-weight: 500;
+}
+.notes-k {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  background: var(--field);
+  color: var(--text-2);
+}
+.notes-k:last-child {
+  margin-right: -2px;
+}
+.notes-k .i {
+  width: 16px;
+  height: 16px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .notes-k:hover {
+    background: var(--knob);
+    color: var(--text);
+  }
+}
+.notes {
+  font-size: 14px;
+  line-height: 21px;
+  overflow-wrap: anywhere;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.notes h5 {
+  margin: 14px 0 6px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.notes h5:first-child {
+  margin-top: 0;
+}
+.notes p,
+.notes ul {
+  margin: 0 0 10px;
+}
+/* a point a row: its own dot in the faint tone, the words hanging from it, 8 between points */
+.notes ul {
+  padding: 0;
+  list-style: none;
+}
+.notes li {
+  position: relative;
+  padding-left: 16px;
+}
+.notes li::before {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 9px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--text-3);
+}
+.notes li + li {
+  margin-top: 8px;
+}
+.notes code,
+.notes pre {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--field);
+  border-radius: 6px;
+}
+.notes code {
+  padding: 1px 5px;
+}
+.notes pre {
+  padding: 10px 12px;
+  white-space: pre-wrap;
+}
+.notes a {
+  color: var(--accent);
+}
+
+.view > .notes + .btnrow {
+  margin-top: 20px;
+}
+
+/* Dawnline's versions (flows/versions.ts): rows of one list, each a way into the version's own page; what the
+   list has more of under it; then a tag typed by hand, under its name */
+.vers {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.chk.ver {
+  padding-right: 12px;
+}
+.chk.ver .chk-t b {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+}
+.chk.ver .mono {
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: 0;
+}
+.ver-tag {
+  padding: 1px 7px;
+  border-radius: 999px;
+  font: 500 11px/16px var(--font);
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+.ver-tag.now {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.ver-tag.pre {
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+  color: var(--warn);
+}
+.ver-chev {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--text-2);
+}
+.ver-more {
+  align-self: center;
+}
+.vers > .hint {
+  margin: 0;
+  padding: 0 4px;
+}
+/* a field's name over it (DESIGN.md › A name, a value, a note) */
+.view > .hint.ver-name {
+  margin: 20px 0 6px;
+  padding: 0 4px;
+  font-weight: 500;
+  color: var(--text);
+}
+.view > .hint.ver-name + .field {
+  margin-top: 0;
+}
+/* a list that could not be read (versions, a release's notes): why, and the way to ask again */
+.rd-none {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 12px 12px 14px;
+  border-radius: 16px;
+  background: var(--field);
+}
+.rd-none > span {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+}
+.rd-none > .btn {
+  flex: none;
+}
+
+/* the packages close-up (flows/packages.ts): a block a feature, its packages as rows of name and version */
+.pks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pk {
+  border-radius: 16px;
+  background: var(--field);
+}
+.pk > .chk {
+  background: none;
+  padding: 12px 8px 4px 12px;
+}
+.pk-l {
+  list-style: none;
+  margin: 0;
+  padding: 4px 14px 14px 52px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 18px;
+}
+.pk-l > li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0 16px;
+}
+.pk-l .mono {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0;
+}
+.pk-l span {
+  overflow-wrap: anywhere;
+}
+.pk-v {
+  margin-left: auto;
+  color: var(--text-2);
+}
+.pk-v.new {
+  color: var(--warn);
+}
+.opt[disabled] {
+  cursor: default;
+}
+.opt.on {
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+.opt[disabled]:not(.on) {
+  opacity: 0.55;
+}
+.opt .now {
+  color: var(--text-2);
+  font-weight: 400;
+}
+.opt-chev.on {
+  color: var(--accent);
+}
+.pa-or {
+  margin: 14px 0 8px;
+}
+.ask .field.rm-f {
+  display: flex;
+  width: 100%;
+  margin: 16px 0 18px;
+  text-align: left;
+}
+.rm-f input {
+  width: 100%;
+  font-family: var(--mono);
+}
+
+/* ── The sheet's rhythm ──
+   One set of gaps for every view, whatever flow builds it (each used to set its own, so a help line stuck to the
+   field over it in one sheet and the buttons to the last field in another). Nearness says what belongs to what:
+     a name 6 over its control, a note 6 under it: one group;
+     groups 20 apart (a note is always nearer to its own control than the next name is to it);
+     the lead, tucked under the head, then 18 to the first group (a group's own top gap is dropped after a lead);
+     a footnote 12 under the actions; 20 over the actions, 8 between them; 24 at the foot.
+   A block is named here once it is used at a view's top level. Measured by the concept's tools/ia3-sheets.mjs. */
+.view > .vsub + :is(.choice, .field, .opts, .kinds, .swrow) {
+  margin-top: 0;
+}
+.view > :is(.choice, .field, .opts, .kinds, .swrow, .hosts, .seg, .tabs, .ed, .editrow) + .hint {
+  margin-top: 6px;
+  padding: 0 4px;
+}
+/* «Or another one:» names the field under it: it is that field's name, not a note of what is over it */
+.view > .hint.pa-or {
+  padding: 0 4px;
+  font-weight: 500;
+  color: var(--text);
+}
+.view > .hint.pa-or + .field {
+  margin-top: 0;
+}
+/* a group after a note of the group before it: the same 20 */
+.view > .hint + :is(.choice, .field, .swrow, .opts, .kinds) {
+  margin-top: 20px;
+}
+.view > :is(.fl-acts, .btnrow, .btnrow2) + .hint {
+  margin-top: 12px;
+}
+/* a line of help after the line that says why a value is refused (hidden until it has something to say) */
+.view > .hint + .hint {
+  margin-top: 8px;
+}
+.view
+  > :is(.choice, .field, .opts, .kinds, .swrow, .hosts, .seg, .tabs, .ed, .editrow, .checks, .hint:not(.op-warn))
+  + :is(.btnrow, .btnrow2) {
+  margin-top: 20px;
+}

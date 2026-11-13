@@ -46,17 +46,20 @@ fi
 rm -f /tmp/luci-indexcache* /tmp/luci-modulecache/* 2>/dev/null
 touch /usr/lib/opkg/status 2>/dev/null
 
-# Cron restarts the agent when it stops ticking (Health → Watchdog).
-mkdir -p /etc/crontabs
-grep -qs /usr/libexec/dawnline/heartbeat /etc/crontabs/root || {
-	echo '*/5 * * * * /usr/libexec/dawnline/heartbeat' >> /etc/crontabs/root
+# The agent's heartbeat check went with the agent: procd restarts the backend.
+grep -qs /usr/libexec/dawnline/heartbeat /etc/crontabs/root && {
+	sed -i '\#/usr/libexec/dawnline/heartbeat#d' /etc/crontabs/root
 	/etc/init.d/cron restart 2>/dev/null
 }
+# What the ucode backend was made of, left by a version that had it (the package manager removes what a
+# package no longer ships; a tarball laid over it does not).
+rm -rf /usr/share/ucode/dawnline /usr/share/rpcd/ucode/luci.dawnline /usr/libexec/dawnline/agent /usr/libexec/dawnline/cli \
+	/usr/libexec/dawnline/updater.uc /usr/libexec/dawnline/heartbeat /usr/share/dawnline/portal/cgi.uc /usr/share/dawnline/portal/www
+rm -f /etc/dawnline/backend-off /etc/dawnline/backend-watch /etc/dawnline/backend-portal /etc/dawnline/backend-sync /etc/dawnline/backend-apply /etc/dawnline/backend-shadow
 
+# rpcd reads the access lists once (the backend's object is in them), and forgets the plugin that is gone.
 /etc/init.d/rpcd reload
-# A reload keeps LuCI logins but sometimes misses the plugin; restart only then.
-sleep 2
-ubus list luci.dawnline >/dev/null 2>&1 || { /etc/init.d/rpcd restart; sleep 2; }
+sleep 1
 # A fresh install starts the service; an upgrade restarts it only where the
 # admin had it on (a disabled Dawnline stays that way).
 if [ "$PKG_UPGRADE" = 1 ]; then

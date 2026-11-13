@@ -1,0 +1,231 @@
+/* The networks behind people's routers (issue 4), the admin's own parts: what is asked for and its answers, the row
+   that leads to its router, the add form's block. The chips themselves are the portal's (portal/styles/behind.css). */
+/* asked for on the portal: the accent's own tint (a decision is the admin's), its two answers in sight */
+.nb-chip.nb-asked {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.nb-chip.nb-asked > .nb-cb {
+  padding-right: 6px;
+  cursor: default;
+}
+.nb-cy {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  color: inherit;
+  cursor: pointer;
+  transition:
+    background-color 150ms,
+    color 150ms;
+}
+.nb-chip.nb-asked > .nb-cx {
+  color: inherit;
+}
+@media (hover: hover) and (pointer: fine) {
+  .nb-cy:hover {
+    background: color-mix(in srgb, var(--ok) 20%, transparent);
+    color: var(--ok);
+  }
+}
+.nb-say.here-t {
+  color: var(--accent);
+}
+
+/* a router asked for on the portal: its answers at the row's end, level with its name */
+.nb-row.nb-asks > .btn {
+  align-self: center;
+}
+.nb-chip.nb-asked.nb-still > .nb-cb {
+  padding: 0 12px;
+}
+
+/* what a device asks for on the portal, with its answers: on its card (where its week would stand) and in its dialog */
+.nb-ask {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: auto;
+  padding: 12px 12px 12px 14px;
+  border-radius: var(--r-row, 20px);
+  background: var(--field);
+}
+.nb-ask-t {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--accent);
+}
+.nb-ask .nb-nets {
+  margin-top: 0;
+}
+.nb-ask-b {
+  display: flex;
+  gap: 8px;
+}
+.nb-ask-b > .btn {
+  flex: 1 1 0;
+  min-width: 0;
+  justify-content: center;
+}
+.kt-conf > .nb-ask {
+  margin: 0 0 8px;
+}
+
+/* what taking it means for others: the ⟳ mark and its words, quiet */
+.nb-ask-n {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-2);
+}
+
+/* the portal's parts the admin's add form uses for a router's networks (the product: one widget in shared/) */
+.pb {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pb .nb-nets {
+  margin-top: 0;
+}
+.nb-cb {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.pb-add {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 12px 14px 14px;
+  border-radius: 16px;
+  background: var(--field);
+}
+.pb-add > .gi {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  margin-top: 6px;
+}
+.pb-add .pb {
+  margin: 10px 0 0;
+}
+.pb-fold {
+  margin-bottom: 12px;
+}
+.pb-fold[hidden],
+.pb-means[hidden] {
+  display: none;
+}
+.pb-means {
+  margin: 10px 0 0;
+}
+/* the devices' grid holds the copy of a card that leaves, where it stood */
+.dgrid {
+  position: relative;
+}
+
+/* a row's router leads to its dialog: the name hugged by a faint wash under the pointer (kit.css .kt-vpk), a quiet
+   chevron after the words */
+.nb-open {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  margin: -2px -6px;
+  padding: 2px 4px 2px 6px;
+  border-radius: 8px;
+  color: inherit;
+  text-decoration: none;
+  transition:
+    background-color 150ms,
+    transform 150ms var(--ease-out);
+}
+.nb-open > .i {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-left: 2px;
+  color: var(--text-3);
+}
+.nb-open:active {
+  transform: scale(0.97);
+}
+@media (hover: hover) and (pointer: fine) {
+  .nb-open:hover {
+    background: color-mix(in srgb, var(--field), var(--text) 7%);
+  }
+  .nb-open:hover > .i {
+    color: var(--text-2);
+  }
+}
+
+/* a router asked for: its two answers together, at the row's end on a wide page, under its words on a narrow one */
+.nb-asks-b {
+  display: flex;
+  gap: 8px;
+  align-self: center;
+  margin-left: auto;
+}
+@container dlpage (max-width: 559px) {
+  .nb-row.nb-asks {
+    flex-wrap: wrap;
+  }
+  /* the words keep their place beside the glass: only the answers go to a line of their own */
+  .nb-row.nb-asks > .chk-t {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .nb-row.nb-asks > .nb-asks-b {
+    flex-basis: 100%;
+    margin-left: 0;
+    /* in the words' column: the glass and the row's gap */
+    padding-left: 40px;
+  }
+  .nb-row.nb-asks > .nb-asks-b > .btn {
+    flex: 1 1 0;
+    justify-content: center;
+  }
+}
+/* what the admin should know before taking it, where the choice is made */
+.nb-ask-w {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--warn);
+}
+.nb-ask-w > .i {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-top: 1px;
+}
+/* under a finger a chip and its answers are as high as a finger needs, the two answers a gap apart */
+@media (pointer: coarse) {
+  .nb-chip,
+  .nb-cb {
+    height: 40px;
+  }
+  .nb-cx,
+  .nb-cy {
+    width: 40px;
+    height: 40px;
+  }
+  .nb-chip.nb-asked > .nb-cy {
+    margin-right: 6px;
+  }
+}
+
+.chk-t > .nb-ask-w,
+.nb-ask > .nb-ask-w {
+  color: var(--warn);
+}

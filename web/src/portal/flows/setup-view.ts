@@ -21,7 +21,7 @@ import { pageUrl, platform, preset, repaint } from '../state';
 import { accordion, regrow } from '../ui/accordion';
 import { codeRow, linkRow, type CodeRow } from '../ui/codes';
 import { once, toast } from '../ui/feedback';
-import { glass } from '../ui/glass';
+import { glass, glassOf, markShape } from '../ui/glass';
 import { morphInto, morphText } from '../ui/morph';
 import { iconSeg, type IconSeg } from '../ui/seg';
 import { glide, go, head, onClosed, onLeave, openSheet, sub, type View } from '../ui/sheet';
@@ -40,7 +40,8 @@ import {
   storeBlock,
   type SetupCtx,
 } from './setup-parts';
-import { follow, waitWay, watchFirstConnection } from './wait';
+import { follow, waitWay } from '../ui/wait-way';
+import { watchFirstConnection } from './wait';
 
 async function getConfig(d: Device): Promise<ClientConfig | null> {
   try {
@@ -201,6 +202,9 @@ function setupView(d: Device, cfg: ClientConfig, key: string, here = false): Vie
         }))
       : null;
 
+  /** The picked app's own mark, as the glass of the row that adds the connection (a device set up from here). */
+  let appGlass = glassOf(markShape(APP_ICON[app]));
+
   /** Everything a pick changes, refilled in place. */
   function fill() {
     morphText(title1, router ? fmt(_('Get %s on the router'), APP_NAME[app]) : fmt(_('Get %s'), APP_NAME[app]), undefined, { whole: true });
@@ -227,6 +231,11 @@ function setupView(d: Device, cfg: ClientConfig, key: string, here = false): Vie
     }
     morphInto(sendBox, sendKids(c));
     pill?.sync();
+    if (appGlass.isConnected) {
+      const next = glassOf(markShape(APP_ICON[app]));
+      appGlass.replaceWith(next);
+      appGlass = next;
+    }
   }
   fill();
 
@@ -246,7 +255,7 @@ function setupView(d: Device, cfg: ClientConfig, key: string, here = false): Vie
   const body = h('div', { class: 'setup' });
   if (inWebview(navigator.userAgent))
     body.appendChild(
-      notice('warn', 'shield', null, _('Open this page in Safari or Chrome: the store opens from here, but the app handoff does not.')),
+      notice('warn', 'browser', null, _('Open this page in Safari or Chrome: the store opens from here, but the app handoff does not.')),
     );
   const steps = () =>
     h(
@@ -257,11 +266,11 @@ function setupView(d: Device, cfg: ClientConfig, key: string, here = false): Vie
       step('2', router ? _('Import the configuration') : _('Add the connection'), [conn]),
     );
   /** The link to the device and the connection beside it, as rows (`open`: the one open as it starts). */
-  const rows = (icon: string, title: string, open: number, aside: Node | null = null) =>
+  const rows = (icon: Element, title: string, open: number, aside: Node | null = null) =>
     accordion(
       [
         { icon: glass('link'), title: fmt(_('Open your link on the %s'), thereOn), body: linkBody() },
-        { icon: glass(icon), title, body: [conn], aside },
+        { icon, title, body: [conn], aside },
       ],
       { inset: true, open },
     ).el;
@@ -276,10 +285,10 @@ function setupView(d: Device, cfg: ClientConfig, key: string, here = false): Vie
   } else if (layout === 'router') body.append(steps());
   // A phone or a tablet set up from here: its link as a code, or the connection as a code for an app it has.
   // The connection's download and copy sit on its own row, while it is open.
-  else if (layout === 'away') body.append(rows('app', _('Add the connection'), 1, pill?.el ?? null));
+  else if (layout === 'away') body.append(rows(appGlass, _('Add the connection'), 1, pill?.el ?? null));
   // A computer set up from somewhere else, or something else (a TV, a box, a NAS) set up from a phone: its system is
   // not known here, so the link goes there and the page there does both steps.
-  else body.append(rows('key', _('Copy or save the connection'), 0));
+  else body.append(rows(glass('key'), _('Copy or save the connection'), 0));
 
   const subline = sub(
     layout === 'same'
@@ -289,7 +298,7 @@ function setupView(d: Device, cfg: ClientConfig, key: string, here = false): Vie
         : fmt(_('The app goes on the %s.'), there),
   );
   const way = waitWay(d);
-  const wait = follow(d, way, { sub: subline, rest: body });
+  const wait = follow(d, way, { sub: subline, rest: body, closed: () => repaint({ flash: d.id }) });
   onLeave(watchFirstConnection(d, wait.seen, wait.gaveUp));
   // Closed before the device connected: the page shows what the polls brought.
   onClosed(() => repaint());

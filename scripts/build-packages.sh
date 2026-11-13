@@ -14,11 +14,11 @@ IPK_SDK="${IPK_SDK:-itdoginfo/openwrt-sdk-ipk:24.10.6}"
 APK_SDK="${APK_SDK:-itdoginfo/openwrt-sdk-apk:25.12.3}"
 
 # One version everywhere: the Makefile, the ucode library and the web package.
-grep -q "^export const VERSION = '$VERSION';" "$APP/root/usr/share/ucode/dawnline/util.uc" || { echo "util.uc VERSION != $VERSION" >&2; exit 1; }
+[ "$(cat "$APP/root/usr/share/dawnline/version")" = "$VERSION" ] || { echo "usr/share/dawnline/version != $VERSION" >&2; exit 1; }
 grep -q "\"version\": \"$VERSION\"" "$ROOT/web/package.json" || { echo "web/package.json version != $VERSION" >&2; exit 1; }
 
 # The web bundles are not committed: web/ builds them (npm run build).
-for f in htdocs/luci-static/resources/dawnline/app.js root/usr/share/dawnline/portal/assets/portal.js root/usr/share/dawnline/portal/assets/portal.css; do
+for f in htdocs/luci-static/resources/dawnline/app.js htdocs/luci-static/resources/dawnline/style.js htdocs/luci-static/resources/dawnline/map.js htdocs/luci-static/resources/dawnline/qr.js root/usr/share/dawnline/portal/assets/portal.js root/usr/share/dawnline/portal/assets/portal.css; do
 	[ -f "$APP/$f" ] || { echo "$APP/$f is missing: run 'npm run build' in web/" >&2; exit 1; }
 done
 

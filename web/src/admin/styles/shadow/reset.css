@@ -1,0 +1,7 @@
+/* Nothing of LuCI's page reaches in: the host starts from nothing (inherited font, colour, spacing,
+   alignment), then the portal's root rule (body → :host) and ground.css give it ours. Custom properties are
+   not reset by `all`: the portal's tokens define every name we use, so none of the theme's leak in. */
+:host {
+  all: initial;
+  display: block;
+}

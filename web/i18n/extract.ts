@@ -61,16 +61,47 @@ const walk = (dir: string, keep: (f: string) => boolean): string[] =>
 const tsFiles = (dir: string, skip?: string) =>
   walk(path.join(WEB, dir), (f) => f.endsWith('.ts') && !f.endsWith('.d.ts') && !(skip && f.startsWith(path.join(WEB, skip) + path.sep)));
 
-/** The backend: ucode modules and the ucode programs (by their shebang) in the package. */
-const ucodeFiles = () =>
-  walk(path.join(PKG, 'root'), (f) => f.endsWith('.uc') || (!path.extname(f) && fs.readFileSync(f, 'utf8').startsWith('#!/usr/bin/ucode')));
+/**
+ * The portal's modules the admin bundles (its UI on the pages: the sheet,
+ * menus, toasts…), followed through their relative imports from src/admin:
+ * their strings are drawn by the admin page, in LuCI's language, so they are
+ * in the admin's catalog too.
+ */
+function portalFilesOfAdmin(): string[] {
+  const portal = path.join(WEB, 'src/portal') + path.sep;
+  const seen = new Set<string>();
+  const todo = tsFiles('src/admin');
+  const resolve = (from: string, spec: string): string | null => {
+    const base = path.resolve(path.dirname(from), spec);
+    for (const f of [base, `${base}.ts`, path.join(base, 'index.ts')]) if (f.endsWith('.ts') && fs.existsSync(f)) return f;
+    return null;
+  };
+  while (todo.length) {
+    const f = todo.pop()!;
+    for (const m of fs.readFileSync(f, 'utf8').matchAll(/(?:^|\n)\s*(?:import|export)\b[^'"]*?from\s*['"](\.[^'"]+)['"]/g)) {
+      const dep = resolve(f, m[1]);
+      if (dep && dep.startsWith(portal) && !seen.has(dep)) {
+        seen.add(dep);
+        todo.push(dep);
+      }
+    }
+  }
+  return [...seen].sort();
+}
+
+/**
+ * The backend's messages. The backend is Go (backend/), which this extractor does not read: what it says to
+ * people is listed in backend/i18n/messages.js, as the calls the ucode backend made (_(), N_(), L_()).
+ */
+const BACKEND = path.join(REPO, 'backend/i18n');
+const ucodeFiles = () => [path.join(BACKEND, 'messages.js')];
 
 /**
  * The backend modules whose messages reach the portal's visitors (its own
  * refusals, what refuses a device change, the keys): the page translates them when
  * the router sends them in English (no translation package installed).
  */
-const PORTAL_UCODE = ['portal.uc', 'devices.uc', 'core.uc', 'awg.uc'].map((f) => path.join(PKG, 'root/usr/share/ucode/dawnline', f));
+const PORTAL_UCODE = [path.join(BACKEND, 'portal-messages.js')];
 
 const menuFiles = () => walk(path.join(PKG, 'root/usr/share/luci/menu.d'), (f) => f.endsWith('.json'));
 
@@ -91,11 +122,12 @@ const CATALOGS: CatalogSpec[] = [
     name: 'dawnline',
     pot: path.join(PKG, 'po/templates/dawnline.pot'),
     po: (l) => path.join(PKG, `po/${l}/dawnline.po`),
-    sources: () => [...tsFiles('src/admin'), ...tsFiles('src/shared'), ...ucodeFiles()],
+    sources: () => [...tsFiles('src/admin'), ...tsFiles('src/shared'), ...portalFilesOfAdmin(), ...ucodeFiles()],
     menus: menuFiles,
     logs: true,
-    // rpcd keeps the backend's modules loaded while the language changes per call.
-    lazy: (f) => f.startsWith(path.join(WEB, 'src/shared')) || f.startsWith(path.join(PKG, 'root')),
+    // rpcd keeps the backend's modules loaded while the language changes per call; the portal's own modules
+    // make their text when they draw it.
+    lazy: (f) => [path.join(WEB, 'src/shared'), path.join(WEB, 'src/portal'), BACKEND].some((d) => f.startsWith(d)),
   },
   {
     name: 'portal',

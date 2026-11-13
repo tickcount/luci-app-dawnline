@@ -13,15 +13,19 @@ import { shake } from '../../shared/shake';
 import { fmt, num, plural } from '../../shared/i18n';
 import { ApiError, call } from '../api';
 import { h, ic } from '../dom';
+import { EASE_IN, play } from '../motion';
 import { addLink } from '../setup';
 import { pageUrl, repaint, setState, state, type State } from '../state';
 import { smoothCaret } from '../ui/caret';
 import { linkRow, qrBox } from '../ui/codes';
 import { once, toast } from '../ui/feedback';
 import { badLine } from '../ui/bad-line';
-import { go, head, openSheet, sub, type View } from '../ui/sheet';
+import { fold } from '../ui/fold';
+import { morphText } from '../ui/morph';
+import { glide, go, head, openSheet, sub, type View } from '../ui/sheet';
 import { secureFirst, showSecure } from './secure';
 import { IPAD, UA, guessKind, kindOf, kindTiles, lanSwitch } from './device-form';
+import { netsMatter, routerNets, sentParts } from './behind';
 import { continueSetup } from './setup-view';
 
 /** Samsung model codes → names people know (S and A series; the code stays in brackets). */
@@ -75,6 +79,8 @@ interface Draft {
   pick?: KindPick;
   bypass: boolean;
   name?: string;
+  /** The networks behind it, when it is a router. */
+  nets?: string[];
 }
 
 export function startAdd() {
@@ -106,6 +112,15 @@ function vAdd(draft: Draft): View {
     return fitName(n);
   };
 
+  // A router: by the server's rule it is asked of the admin (the form then sends a request, and says so) or added as
+  // any device; the networks behind it are typed with it either way.
+  const asks = st.server.routers !== 'free';
+  const nets = (draft.nets ??= []);
+  // The block opens and folds away as a line of this form does: height, opacity and blur on SMOOTH from where it is
+  // on screen, the fields under it travelling with its edge. Not the sheet's glide: that holds what is under it
+  // where it stood and lets it go later, so the block would come up from under the field.
+  const behindFold = h('div', { class: 'pb-fold', hidden: true }, routerNets(nets));
+  let shown = false;
   const kinds = kindTiles(picks, (k) => choose(k));
   const lan = lanSwitch(draft.bypass, st.server.home ?? [], (on) => (draft.bypass = on));
   const input = h('input', {
@@ -136,9 +151,27 @@ function vAdd(draft: Draft): View {
   void modelReady.then(() => {
     if (draft.name === undefined && pick === pickOf(guessKind())) input.value = suggest(pick);
   });
+  // The line under the title says how many slots are free or, for a router that is asked for, who takes it: the
+  // words change where they stand (ui/morph.ts), no line of its own in the form.
+  const freeWords = fmt(
+    N_(p.device_limit, '%s of %s slot free', '%s of %s slots free'),
+    num(p.device_limit - p.devices.length),
+    num(p.device_limit),
+  );
+  const said = sub(freeWords);
   function choose(k: KindPick) {
     pick = draft.pick = k;
     kinds.set(k);
+    const router = k === 'router';
+    // with the internet alone nothing at home reaches their devices, so their router's networks are not asked about
+    const withNets = router && netsMatter(st);
+    if (shown !== withNets) fold(behindFold, (shown = withNets));
+    goBtn.setAttribute('aria-label', router && asks ? _('Ask the admin') : _('Create connection'));
+    const next = router && asks ? _('A router is confirmed by the admin') : freeWords;
+    if (said.textContent !== next) {
+      if (said.isConnected) morphText(said, next, undefined, { whole: true });
+      else said.textContent = next;
+    }
     if (draft.name === undefined) {
       input.value = suggest(k);
       goBtn.classList.add('ready');
@@ -159,13 +192,44 @@ function vAdd(draft: Draft): View {
     }
     void once(goBtn, async () => {
       try {
-        const r = await call<{ id: string; config: ClientConfig; state: State }>('devices', {
+        const r = await call<{ id: string; config?: ClientConfig; waiting?: boolean; state: State }>('devices', {
           name,
           kind: kindOf(pick),
           lan_bypass: draft.bypass,
+          ...(pick === 'router' && netsMatter(st) && nets.length ? { networks: nets } : {}),
         });
         setState(r.state);
         repaint({ pop: r.id });
+        // A router that waits for the admin has no set-up to open: the request is said instead, and the form turns
+        // into that state where it stands. What it held goes out (160 ms), then the sheet glides to its new height
+        // with the new parts coming into focus and the title's words morphing. Not another view (ui/sheet.ts go):
+        // that swap is made for views of a like height, and from a form this tall to three lines it falls shut.
+        if (r.waiting || !r.config) {
+          const view = form.closest<HTMLElement>('.view')!;
+          const gone = ([...view.children] as HTMLElement[]).filter((x) => !x.classList.contains('vhead'));
+          await Promise.all(
+            gone.map(
+              (x) =>
+                play(
+                  x,
+                  [
+                    { opacity: 1, filter: 'blur(0px)' },
+                    { opacity: 0, filter: 'blur(4px)' },
+                  ],
+                  { duration: 160, easing: EASE_IN, fill: 'forwards' },
+                ).finished,
+            ),
+          );
+          const parts = sentParts();
+          glide(() => {
+            gone.forEach((x) => x.remove());
+            view.classList.add('pb-sent');
+            view.append(...parts);
+          }, parts);
+          const title = view.querySelector<HTMLElement>('.vhead h2');
+          if (title) morphText(title, _('Asked the admin'), undefined, { whole: true });
+          return;
+        }
         const dev = r.state.person.devices.find((d) => d.id === r.id)!;
         await continueSetup(dev, r.config);
       } catch (er) {
@@ -181,14 +245,14 @@ function vAdd(draft: Draft): View {
     ic('qr'),
     h('span', {}, _('Add it from the device')),
   );
-  const free = p.device_limit - p.devices.length;
   const el = h(
     'div',
     { class: 'view' },
     head(_('Add a device')),
-    sub(fmt(N_(p.device_limit, '%s of %s slot free', '%s of %s slots free'), num(free), num(p.device_limit))),
+    said,
     kinds.el,
     lan,
+    behindFold,
     form,
     err,
     h('div', { class: 'or' }, _('OR')),

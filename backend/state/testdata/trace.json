@@ -1,0 +1,704 @@
+{
+	"usage": {
+		"devices": {
+		},
+		"people": {
+			"month": {
+				"total": [
+					3221225472,
+					3221225472
+				],
+				"period": {
+					"start": 1800000000,
+					"rx": 429496729.6,
+					"tx": 751619276.8
+				}
+			},
+			"bonus": {
+				"total": [
+					9663676416,
+					0
+				],
+				"period": {
+					"start": 1800000000,
+					"rx": 1073741824,
+					"tx": 1610612736.0
+				}
+			},
+			"total": {
+				"total": [
+					214748364.8,
+					332859965.44
+				]
+			},
+			"legacy": {
+				"total": [
+					2147483648,
+					0
+				],
+				"months": {
+					"2027-01": [
+						644245094.4,
+						644245094.4
+					],
+					"2027-02": [
+						107374182.4,
+						0
+					]
+				}
+			}
+		}
+	},
+	"moments": [
+		{
+			"ts": 1800000000,
+			"people": {
+				"badend": {
+					"state": "active",
+					"own": "active",
+					"used": 0,
+					"quota": 0
+				},
+				"bonus": {
+					"state": "active",
+					"own": "active",
+					"used": 2684354560.0,
+					"quota": 3221225472
+				},
+				"ends": {
+					"state": "active",
+					"own": "active",
+					"used": 0,
+					"quota": 0
+				},
+				"legacy": {
+					"state": "quota",
+					"own": "quota",
+					"used": 1288490188.8,
+					"quota": 1073741824
+				},
+				"month": {
+					"state": "quota",
+					"own": "quota",
+					"used": 1181116006.4,
+					"quota": 1073741824
+				},
+				"nowhere": {
+					"state": "no_server",
+					"own": "active",
+					"used": 0,
+					"quota": 0
+				},
+				"paused": {
+					"state": "paused",
+					"own": "paused",
+					"used": 0,
+					"quota": 0
+				},
+				"plain": {
+					"state": "active",
+					"own": "active",
+					"used": 0,
+					"quota": 0
+				},
+				"serveroff": {
+					"state": "server_off",
+					"own": "paused",
+					"used": 0,
+					"quota": 0
+				},
+				"total": {
+					"state": "quota",
+					"own": "quota",
+					"used": 547608330.24,
+					"quota": 536870912.0
+				}
+			}
+		},
+		{
+			"ts": 1800021600,
+			"people": {
+				"badend": {
+					"state": "active",
+					"own": "active",
+					"used": 0,
+					"quota": 0
+				},
+				"bonus": {
+					"state": "active",
+					"own": "active",
+					"used": 2684354560.0,
+					"quota": 3221225472
+				},
+				"ends": {
+					"state": "active",
+					"own": "active",
+					"used": 0,
+					"quota": 0
+				},
+				"legacy": {
+					"state": "quota",
+					"own": "quota",
+					"used": 1288490188.8,
+					"quota": 1073741824
+				},
+				"month": {
+					"state": "quota",
+					"own": "quota",
+					"used": 1181116006.4,
+					"quota": 1073741824
+				},
+				"nowhere": {
+					"state": "no_server",
+					"own": "active",
+					"used": 0,
+					"quota": 0
+				},
+				"paused": {
+					"state": "paused",
+					"own": "paused",
+					"used": 0,
+					"quota": 0
+				},
+				"plain": {
+					"state": "active",
+					"own": "active",
+					"used": 0,
+					"quota": 0
+				},
+				"serveroff": {
+					"state": "server_off",
+					"own": "paused",
+					"used": 0,
+					"quota": 0
+				},
+				"total": {
+					"state": "quota",
+					"own": "quota",
+					"used": 547608330.24,
+					"quota": 536870912.0
+				}
+			}
+		},
+		{
+			"ts": 1800055800,
+			"people": {
+				"badend": {
+					"state": "active",
+					"own": "active",
+					"used": 0,
+					"quota": 0
+				},
+				"bonus": {
+					"state": "active",
+					"own": "active",
+					"used": 2684354560.0,
+					"quota": 3221225472
+				},
+				"ends": {
+					"state": "active",
+					"own": "active",
+					"used": 0,
+					"quota": 0
+				},
+				"legacy": {
+					"state": "quota",
+					"own": "quota",
+					"used": 1288490188.8,
+					"quota": 1073741824
+				},
+				"month": {
+					"state": "quota",
+					"own": "quota",
+					"used": 1181116006.4,
+					"quota": 1073741824
+				},
+				"nowhere": {
+					"state": "no_server",
+					"own": "active",
+					"used": 0,
+					"quota": 0
+				},
+				"paused": {
+					"state": "paused",
+					"own": "paused",
+					"used": 0,
+					"quota": 0
+				},
+				"plain": {
+					"state": "active",
+					"own": "active",
+					"used": 0,
+					"quota": 0
+				},
+				"serveroff": {
+					"state": "server_off",
+					"own": "paused",
+					"used": 0,
+					"quota": 0
+				},
+				"total": {
+					"state": "quota",
+					"own": "quota",
+					"used": 547608330.24,
+					"quota": 536870912.0
+				}
+			}
+		},
+		{
+			"ts": 1800057600,
+			"people": {
+				"badend": {
+					"state": "active",
+					"own": "active",
+					"used": 0,
+					"quota": 0
+				},
+				"bonus": {
+					"state": "active",
+					"own": "active",
+					"used": 2684354560.0,
+					"quota": 3221225472
+				},
+				"ends": {
+					"state": "expired",
+					"own": "expired",
+					"used": 0,
+					"quota": 0
+				},
+				"legacy": {
+					"state": "quota",
+					"own": "quota",
+					"used": 1288490188.8,
+					"quota": 1073741824
+				},
+				"month": {
+					"state": "quota",
+					"own": "quota",
+					"used": 1181116006.4,
+					"quota": 1073741824
+				},
+				"nowhere": {
+					"state": "no_server",
+					"own": "active",
+					"used": 0,
+					"quota": 0
+				},
+				"paused": {
+					"state": "paused",
+					"own": "paused",
+					"used": 0,
+					"quota": 0
+				},
+				"plain": {
+					"state": "active",
+					"own": "active",
+					"used": 0,
+					"quota": 0
+				},
+				"serveroff": {
+					"state": "server_off",
+					"own": "paused",
+					"used": 0,
+					"quota": 0
+				},
+				"total": {
+					"state": "quota",
+					"own": "quota",
+					"used": 547608330.24,
+					"quota": 536870912.0
+				}
+			}
+		},
+		{
+			"ts": 1800080400,
+			"people": {
+				"badend": {
+					"state": "active",
+					"own": "active",
+					"used": 0,
+					"quota": 0
+				},
+				"bonus": {
+					"state": "active",
+					"own": "active",
+					"used": 2684354560.0,
+					"quota": 3221225472
+				},
+				"ends": {
+					"state": "expired",
+					"own": "expired",
+					"used": 0,
+					"quota": 0
+				},
+				"legacy": {
+					"state": "quota",
+					"own": "quota",
+					"used": 1288490188.8,
+					"quota": 1073741824
+				},
+				"month": {
+					"state": "quota",
+					"own": "quota",
+					"used": 1181116006.4,
+					"quota": 1073741824
+				},
+				"nowhere": {
+					"state": "no_server",
+					"own": "active",
+					"used": 0,
+					"quota": 0
+				},
+				"paused": {
+					"state": "paused",
+					"own": "paused",
+					"used": 0,
+					"quota": 0
+				},
+				"plain": {
+					"state": "active",
+					"own": "active",
+					"used": 0,
+					"quota": 0
+				},
+				"serveroff": {
+					"state": "server_off",
+					"own": "paused",
+					"used": 0,
+					"quota": 0
+				},
+				"total": {
+					"state": "quota",
+					"own": "quota",
+					"used": 547608330.24,
+					"quota": 536870912.0
+				}
+			}
+		},
+		{
+			"ts": 1800400000,
+			"people": {
+				"badend": {
+					"state": "active",
+					"own": "active",
+					"used": 0,
+					"quota": 0
+				},
+				"bonus": {
+					"state": "active",
+					"own": "active",
+					"used": 2684354560.0,
+					"quota": 3221225472
+				},
+				"ends": {
+					"state": "expired",
+					"own": "expired",
+					"used": 0,
+					"quota": 0
+				},
+				"legacy": {
+					"state": "quota",
+					"own": "quota",
+					"used": 1288490188.8,
+					"quota": 1073741824
+				},
+				"month": {
+					"state": "quota",
+					"own": "quota",
+					"used": 1181116006.4,
+					"quota": 1073741824
+				},
+				"nowhere": {
+					"state": "no_server",
+					"own": "active",
+					"used": 0,
+					"quota": 0
+				},
+				"paused": {
+					"state": "paused",
+					"own": "paused",
+					"used": 0,
+					"quota": 0
+				},
+				"plain": {
+					"state": "active",
+					"own": "active",
+					"used": 0,
+					"quota": 0
+				},
+				"serveroff": {
+					"state": "server_off",
+					"own": "paused",
+					"used": 0,
+					"quota": 0
+				},
+				"total": {
+					"state": "quota",
+					"own": "quota",
+					"used": 547608330.24,
+					"quota": 536870912.0
+				}
+			}
+		},
+		{
+			"ts": 1800600000,
+			"people": {
+				"badend": {
+					"state": "active",
+					"own": "active",
+					"used": 0,
+					"quota": 0
+				},
+				"bonus": {
+					"state": "quota",
+					"own": "quota",
+					"used": 2684354560.0,
+					"quota": 1073741824
+				},
+				"ends": {
+					"state": "expired",
+					"own": "expired",
+					"used": 0,
+					"quota": 0
+				},
+				"legacy": {
+					"state": "quota",
+					"own": "quota",
+					"used": 1288490188.8,
+					"quota": 1073741824
+				},
+				"month": {
+					"state": "quota",
+					"own": "quota",
+					"used": 1181116006.4,
+					"quota": 1073741824
+				},
+				"nowhere": {
+					"state": "no_server",
+					"own": "active",
+					"used": 0,
+					"quota": 0
+				},
+				"paused": {
+					"state": "paused",
+					"own": "paused",
+					"used": 0,
+					"quota": 0
+				},
+				"plain": {
+					"state": "active",
+					"own": "active",
+					"used": 0,
+					"quota": 0
+				},
+				"serveroff": {
+					"state": "server_off",
+					"own": "paused",
+					"used": 0,
+					"quota": 0
+				},
+				"total": {
+					"state": "quota",
+					"own": "quota",
+					"used": 547608330.24,
+					"quota": 536870912.0
+				}
+			}
+		},
+		{
+			"ts": 1801728000,
+			"people": {
+				"badend": {
+					"state": "active",
+					"own": "active",
+					"used": 0,
+					"quota": 0
+				},
+				"bonus": {
+					"state": "quota",
+					"own": "quota",
+					"used": 2684354560.0,
+					"quota": 1073741824
+				},
+				"ends": {
+					"state": "expired",
+					"own": "expired",
+					"used": 0,
+					"quota": 0
+				},
+				"legacy": {
+					"state": "active",
+					"own": "active",
+					"used": 107374182.4,
+					"quota": 1073741824
+				},
+				"month": {
+					"state": "quota",
+					"own": "quota",
+					"used": 1181116006.4,
+					"quota": 1073741824
+				},
+				"nowhere": {
+					"state": "no_server",
+					"own": "active",
+					"used": 0,
+					"quota": 0
+				},
+				"paused": {
+					"state": "paused",
+					"own": "paused",
+					"used": 0,
+					"quota": 0
+				},
+				"plain": {
+					"state": "active",
+					"own": "active",
+					"used": 0,
+					"quota": 0
+				},
+				"serveroff": {
+					"state": "server_off",
+					"own": "paused",
+					"used": 0,
+					"quota": 0
+				},
+				"total": {
+					"state": "quota",
+					"own": "quota",
+					"used": 547608330.24,
+					"quota": 536870912.0
+				}
+			}
+		},
+		{
+			"ts": 1802764800,
+			"people": {
+				"badend": {
+					"state": "active",
+					"own": "active",
+					"used": 0,
+					"quota": 0
+				},
+				"bonus": {
+					"state": "active",
+					"own": "active",
+					"used": 0,
+					"quota": 1073741824
+				},
+				"ends": {
+					"state": "expired",
+					"own": "expired",
+					"used": 0,
+					"quota": 0
+				},
+				"legacy": {
+					"state": "active",
+					"own": "active",
+					"used": 107374182.4,
+					"quota": 1073741824
+				},
+				"month": {
+					"state": "active",
+					"own": "active",
+					"used": 0,
+					"quota": 1073741824
+				},
+				"nowhere": {
+					"state": "no_server",
+					"own": "active",
+					"used": 0,
+					"quota": 0
+				},
+				"paused": {
+					"state": "paused",
+					"own": "paused",
+					"used": 0,
+					"quota": 0
+				},
+				"plain": {
+					"state": "active",
+					"own": "active",
+					"used": 0,
+					"quota": 0
+				},
+				"serveroff": {
+					"state": "server_off",
+					"own": "paused",
+					"used": 0,
+					"quota": 0
+				},
+				"total": {
+					"state": "quota",
+					"own": "quota",
+					"used": 547608330.24,
+					"quota": 536870912.0
+				}
+			}
+		},
+		{
+			"ts": 1804320000,
+			"people": {
+				"badend": {
+					"state": "active",
+					"own": "active",
+					"used": 0,
+					"quota": 0
+				},
+				"bonus": {
+					"state": "active",
+					"own": "active",
+					"used": 0,
+					"quota": 1073741824
+				},
+				"ends": {
+					"state": "expired",
+					"own": "expired",
+					"used": 0,
+					"quota": 0
+				},
+				"legacy": {
+					"state": "active",
+					"own": "active",
+					"used": 0,
+					"quota": 1073741824
+				},
+				"month": {
+					"state": "active",
+					"own": "active",
+					"used": 0,
+					"quota": 1073741824
+				},
+				"nowhere": {
+					"state": "no_server",
+					"own": "active",
+					"used": 0,
+					"quota": 0
+				},
+				"paused": {
+					"state": "paused",
+					"own": "paused",
+					"used": 0,
+					"quota": 0
+				},
+				"plain": {
+					"state": "active",
+					"own": "active",
+					"used": 0,
+					"quota": 0
+				},
+				"serveroff": {
+					"state": "server_off",
+					"own": "paused",
+					"used": 0,
+					"quota": 0
+				},
+				"total": {
+					"state": "quota",
+					"own": "quota",
+					"used": 547608330.24,
+					"quota": 536870912.0
+				}
+			}
+		}
+	]
+}

@@ -1,66 +1,96 @@
-// LuCI module `dawnline.app`: one factory per admin view. The thin files in
-// view/dawnline/*.js do `return view.extend(app.<page>())`.
+// LuCI module `dawnline.app`: the admin's pages on the portal's design system
+// inside LuCI, one factory per view; the thin files in view/dawnline/*.js do
+// `return view.extend(app.<page>())` with `'require dawnline.app as app'`. A
+// page renders into a Shadow DOM host (shell/host.ts) with its own section row;
+// what floats above it goes in the layer on <body> (shell/layer.ts). Two
+// modules of its own come with it: the stylesheet (`dawnline.style`, loaded
+// with each view's data: shell/style.ts) and the map (`dawnline.map`, loaded
+// when a page draws one: shell/maps.ts). The old addresses (menu.d nodes kept
+// for bookmarks, links in notes and the history) are views here too, each
+// sending the browser on at once (shell/redirects.ts).
 
-import { PeoplePage } from './pages/people';
-import { ServerPage } from './pages/server';
-import { SettingsPage } from './pages/settings';
-import { ComponentsPage } from './pages/components';
-import { PersonPage } from './pages/person';
-import { DiagnosticsPage } from './pages/diagnostics';
-import { styleNode } from './styles';
+import { standStill } from '../portal/motion';
+import { tipsLeaveWith } from '../portal/ui/tip';
+import { onNavigate } from './ui/nav';
+import { shadowHost } from './shell/host';
+import { useLayer } from './shell/layer';
+import { redirected } from './shell/moved';
+import { loadStyle } from './shell/style';
+import { pageView, type Page } from './shell/view';
+import { setPages, stagePage, type Kind } from './shell/pages';
+import { OverviewPage, type OverviewData } from './pages/overview';
+import { LogPage, type LogData } from './pages/log';
+import { ServerPage, type ServerData } from './pages/server';
+import { SettingsPage, type SettingsPageData } from './pages/settings';
 
-interface Page {
-  load(): Promise<any>;
-  render(data: any): Node | Promise<Node>;
-  /** No footer at all (otherwise LuCI's, without its form buttons). */
-  noFooter?: boolean;
-}
+// The admin's pages stand still: a change is drawn in place at once; only a page or a view coming in (its blocks
+// rise, ui/entrance.ts) and what is opened or pressed move (a sheet, a menu, a toast, a switch, a track's pill, the
+// map). DESIGN.md › Motion › 16.
+standStill();
+// a tooltip goes with the page it stood on
+tipsLeaveWith(onNavigate);
 
-function factory<P extends Page>(Cls: new () => P) {
-  return () => {
-    const page = new Cls();
-    const v: Record<string, unknown> = {
-      load: () => page.load(),
-      render: async (data: unknown) => {
-        const node = await page.render(data);
-        const root = document.createElement('div');
-        root.className = 'dl-root';
-        root.append(styleNode(), node);
-        return root;
-      },
-      addFooter(this: any) {
-        return page.noFooter ? document.createElement('div') : this.super('addFooter', []);
-      },
-    };
-    // No page is a LuCI form (changes go through RPC): nothing to Save & Apply.
-    return Object.assign(v, { handleSave: null, handleSaveApply: null, handleReset: null });
-  };
-}
+/** No LuCI form (changes go through RPC): no footer, nothing to Save & Apply. */
+const noForm = {
+  addFooter: () => document.createElement('div'),
+  handleSave: null,
+  handleSaveApply: null,
+  handleReset: null,
+};
 
-// The old Overview address opens the Servers page (it holds each server's overview now).
-const overview = factory(ServerPage);
-const people = factory(PeoplePage);
-const server = factory(ServerPage);
-const settings = factory(SettingsPage);
-const person = factory(PersonPage);
-const diagnostics = factory(DiagnosticsPage);
-const updates = factory(ComponentsPage);
-
-/** Health and Activity became Diagnostics tabs: old addresses and bookmarks go there. */
-function moved(tab: '' | 'log') {
+function factory<D>(Cls: new () => Page<D>, kind: Kind) {
   return () => ({
-    load: () => {
-      ui.menu?.flushCache();
-      location.replace(`${L.url('admin/services/dawnline/diagnostics')}${tab ? `?tab=${tab}` : ''}`);
-      return new Promise(() => {});
-    },
-    render: () => document.createElement('div'),
-    handleSave: null,
-    handleSaveApply: null,
-    handleReset: null,
+    ...pageView(
+      () => new Cls(),
+      redirected,
+      (page, got, css) => {
+        useLayer(css);
+        const { host, root } = shadowHost(css, 'dl-host');
+        // the page on screen from here on: a move to another page of Dawnline's changes it in place (shell/pages.ts)
+        stagePage(root, page, got, kind);
+        return host;
+      },
+      loadStyle,
+    ),
+    ...noForm,
   });
 }
-const health = moved('');
-const activity = moved('log');
 
-export { overview, people, person, activity, server, settings, health, diagnostics, updates };
+/** A node that only leads elsewhere now: its view sends the browser on. */
+function moved() {
+  return () => ({
+    load: () => redirected() ?? Promise.resolve(null),
+    render: () => document.createElement('div'),
+    ...noForm,
+  });
+}
+
+const overview = factory<OverviewData>(OverviewPage, 'overview');
+const log = factory<LogData>(LogPage, 'log');
+// A server's page is two views: `server` (its Overview and its settings) and `people` (its people and their places,
+// the People page inside the server's frame, so every address of a person or a device stays what it was).
+const server = factory<ServerData>(ServerPage, 'server');
+const people = factory<ServerData>(ServerPage, 'server');
+// Settings sends its own old queries on (?section=, ?tab=) before it loads anything.
+const settings = factory<SettingsPageData>(SettingsPage, 'settings');
+
+// every page by its kind, for a move from one to another inside the view
+setPages({
+  overview: () => new OverviewPage(),
+  log: () => new LogPage(),
+  server: () => new ServerPage(),
+  settings: () => new SettingsPage(),
+});
+
+// A person and a device are panels of a server's People, Places its map view, the router's own settings sections of
+// Settings, Health a part of Overview: their nodes send the browser there.
+const person = moved();
+const device = moved();
+const places = moved();
+const system = moved();
+const activity = moved();
+const health = moved();
+const diagnostics = moved();
+const updates = moved();
+
+export { overview, log, places, device, people, person, server, system, activity, health, diagnostics, settings, updates };

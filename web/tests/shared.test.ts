@@ -36,6 +36,13 @@ describe('format', () => {
   it('makes initials and slugs', () => {
     expect(initials('myata')).toBe('MY');
     expect(initials('Anna Maria Lee')).toBe('AL');
+    // an emoji is one sign, never half of one; a word that begins with a letter wins over it
+    expect(initials('🦊 Лис')).toBe('ЛИ');
+    expect(initials('🦊')).toBe('🦊');
+    expect(initials('👨‍👩‍👧 Family Chat')).toBe('FC');
+    expect(initials('Ю')).toBe('Ю');
+    expect(initials('a.b@example.com')).toBe('AB');
+    expect(initials('  ')).toBe('?');
     expect(slugify('Ünïcode  Name!')).toBe('unicode-name');
   });
   it('describes quotas', () => {

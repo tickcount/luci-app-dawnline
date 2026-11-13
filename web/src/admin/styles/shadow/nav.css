@@ -1,0 +1,104 @@
+/* The section row (shell/nav.ts): a track with words, the current link on its pill. The track is a card's surface
+   (`raised`, as the panels under it: the owner, 2026-11-12, «сделай у нава фон как на втором скрине»), the pill a
+   step up from it in either theme. The row stays while the page under it changes, and the pill stretches to the
+   next section. Four sections stand in a phone's row without scrolling: the track takes the row and the links
+   share it; a longer row would scroll sideways, its edges fading where more is hidden. */
+.dl-nav {
+  display: flex;
+  margin: 0 0 28px;
+}
+.navtabs {
+  display: flex;
+  max-width: 100%;
+  padding: 4px;
+  gap: 2px;
+  border-radius: var(--r-field);
+  background: var(--raised);
+  overflow-x: auto;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+.navtabs::-webkit-scrollbar {
+  display: none;
+}
+.nav-a {
+  flex: none;
+  display: flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 12px;
+  color: var(--text-2);
+  font: 500 15px/20px var(--font);
+  letter-spacing: -0.011em;
+  text-decoration: none;
+  white-space: nowrap;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+  transition: color 150ms var(--ease-out);
+}
+.nav-a.on {
+  color: var(--text);
+  background: var(--page-pill);
+}
+/* The pill is a part of its own once it is placed (shell/nav.ts): it stays while the page under the row changes and
+   stretches to the next section; until then the current link wears it itself, so the row never stands without one. */
+.navtabs {
+  position: relative;
+}
+.nav-a {
+  position: relative;
+  z-index: 1;
+  transition: color 200ms var(--ease-out);
+}
+.nav-pill {
+  position: absolute;
+  top: 4px;
+  left: 0;
+  width: 0;
+  height: 32px;
+  border-radius: 12px;
+  background: var(--page-pill);
+  opacity: 0;
+  pointer-events: none;
+}
+.navtabs.pilled > .nav-pill {
+  opacity: 1;
+}
+.navtabs.pilled > .nav-a.on {
+  background: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .nav-a:not(.on):hover {
+    color: var(--text);
+  }
+}
+.nav-a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.navtabs.more-end {
+  -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent);
+  mask-image: linear-gradient(90deg, #000 85%, transparent);
+}
+.navtabs.more-start.more-end {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 15%, #000 85%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 15%, #000 85%, transparent);
+}
+.navtabs.more-start:not(.more-end) {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 15%);
+  mask-image: linear-gradient(90deg, transparent, #000 15%);
+}
+/* a phone: the track takes the row, the links share it */
+@container dlpage (max-width: 559px) {
+  .navtabs {
+    width: 100%;
+  }
+  .navtabs .nav-a {
+    flex: 1 1 auto;
+    justify-content: center;
+    min-width: 0;
+    padding: 0 8px;
+  }
+}

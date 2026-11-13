@@ -1,0 +1,450 @@
+/* A server's page (pages/server): everything of one server behind one door. Only lays the admin's own parts out
+   anew, on the same tokens: no new colour, radius or curve. Then a device as a dialog over its person's page. */
+
+/* ── the frame: the way back, the server's head, then its parts on one track across the page. Overview, People and
+   Places have the page's whole width; inside Settings the admin's rail names its three parts (settings.css). ── */
+.sv > .sv-back {
+  margin: 0 0 10px;
+}
+.sv-head .ph {
+  margin-bottom: 18px;
+}
+.sv-track {
+  margin-bottom: 20px;
+}
+.sv-track .sv-tabs {
+  width: 100%;
+  /* a card's surface, as the section row over it and the panels under it (the owner, 2026-11-12: «и это») */
+  background: var(--raised);
+}
+.sv-track .sv-tabs > .tabs-pill {
+  background: var(--page-pill);
+  box-shadow: none;
+}
+.sv-setcols .kt-rl-jump {
+  margin-bottom: 14px;
+}
+/* a part that is not fine: a 14 px alert after its word */
+.sv-al {
+  display: inline-flex;
+  margin-left: 2px;
+}
+.sv-al .i {
+  width: 14px;
+  height: 14px;
+}
+.sv-view {
+  min-width: 0;
+}
+.sv-set > .kt-sx:first-child,
+.sv-set > .sv-core + .kt-sx {
+  margin-top: 0;
+  padding-top: 0;
+}
+
+/* People inside the server: the page's own frame is the server's; Cards · Map is the track's People · Places; the
+   part is named by the track, so its head keeps only its counts and its one action, in a row */
+.sv-view > .page {
+  padding: 0;
+}
+.sv-people .pp-viewbox {
+  display: none;
+}
+.sv-people > .ph {
+  align-items: center;
+  margin-bottom: 14px;
+  min-height: 40px;
+}
+.sv-people > .ph .ph-ic,
+.sv-people > .ph .ph-title {
+  display: none;
+}
+.sv[data-part='places'] .sv-people > .ph .ph-acts {
+  display: none;
+}
+/* the server's own Overview */
+.sv-ov {
+  display: flex;
+  flex-direction: column;
+}
+/* blocks a section's distance apart («now» brings its own under its card) */
+.sv-ov .ov-wait,
+.sv-ov .sv-roll,
+.sv-ov .sv-health {
+  margin: 0 0 28px;
+}
+.sv-ov .sv-roll:empty {
+  display: none;
+}
+.sv-ov .sv-roll > * {
+  margin: 0;
+}
+.sv-ov .kt-sx {
+  margin-top: 0;
+  padding-top: 0;
+}
+.sv-core {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 28px;
+  padding: 8px 8px 14px;
+}
+/* the row is the card's one tile: its corners are the card's 28 less the 8 between them, and the line under it
+   starts where the row's icon does, a row's gap away */
+.sv-core > .checks {
+  border-radius: 20px;
+}
+.sv-core > .checks > .chk {
+  min-height: 60px;
+  padding: 10px 12px 10px 14px;
+}
+.sv-core > .kt-sx-note {
+  padding: 0 14px;
+}
+
+/* ── a device as a dialog ──
+   The sheet's surface is `raised`; every block on it is ONE tone, `field` (radius 20 for a tile, 16 for a row):
+   the way, the timeline, the traffic tiles, the file card and its rows, each place's row, the feed. No card around
+   tiles, and nothing a step lighter than its neighbours. Block heads are Card titles (16/22), the dialog's own
+   title the Sheet title (20/28). */
+.view.dv {
+  padding: 24px 24px 0;
+  container: dlpage / inline-size;
+  /* the head stays, the blocks scroll under it: × never lands on what scrolls */
+  max-height: calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  min-height: 0;
+}
+.dv .pp-device {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.dv .kt-phead {
+  flex: none;
+}
+.dv .kt-blocks.dv-grid {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  padding: 12px 0 24px;
+  /* what goes on under the head and the dialog's foot fades into them */
+  mask-image: linear-gradient(transparent, #000 12px, #000 calc(100% - 20px), transparent);
+}
+.dv .kt-blocks.dv-grid::-webkit-scrollbar {
+  display: none;
+}
+/* the title row: the glass, the name and its facts, then its actions and × as one row of keys: the size of ×
+   (32, the portal's knob), on the title's own line (its centre, 38 from the top), 8 apart */
+.sheet:has(.view.dv) .x {
+  top: 22px;
+  right: 24px;
+}
+.dv .kt-phead .ph {
+  align-items: flex-start;
+  margin-bottom: 4px;
+  padding-right: 40px;
+  min-height: 44px;
+}
+.dv .kt-phead .ph-ic .gi {
+  width: 36px;
+  height: 36px;
+  margin-top: 4px;
+}
+.dv .kt-phead .ph-title {
+  font-size: 20px;
+  line-height: 28px;
+  letter-spacing: -0.5px;
+}
+.dv .kt-phead .ph-sub {
+  font-size: 13px;
+  line-height: 18px;
+}
+.dv .kt-phead .ph-acts {
+  gap: 8px;
+  margin-top: -2px;
+}
+.dv .kt-phead .ph-acts > .btn {
+  flex: none;
+  height: 32px;
+  padding: 0 12px;
+  gap: 6px;
+  font-size: 14px;
+  line-height: 20px;
+}
+.dv .kt-phead .ph-acts > .btn .i {
+  width: 16px;
+  height: 16px;
+}
+.dv .kt-phead .ph-acts > .knob {
+  width: 32px;
+  height: 32px;
+}
+/* block heads: a Card title with its control at the end, 34 high (the height of its tallest control) */
+/* a head belongs to the tile under it: its words stand 12 px over that tile, whatever control it ends in, and
+   more than twice that under the tile above (the block's 20 and the head's own 6), never halfway between the two */
+.dv .sec-head {
+  align-items: center;
+  min-height: 34px;
+  margin: 0 0 6px;
+  padding: 0 4px;
+}
+.dv .sec-head h2 {
+  font-size: 16px;
+  line-height: 22px;
+  letter-spacing: -0.02em;
+}
+/* tiles stand on the sheet: the cards that only held them are gone (a place's row is a tile itself) */
+.dv .card.link,
+.dv .card.traffic,
+.dv .kt-confcard,
+.dv .pp-plcard {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+/* the feed is its own content: the card is the tile, in the tiles' tone */
+.dv .pp-feed {
+  background: var(--field);
+  border-radius: 20px;
+}
+.dv .kt-blocks.dv-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.dv .b-link,
+.dv .card.link,
+.dv .dv-side {
+  display: contents;
+}
+/* one fact, one place: «Connection» opens the dialog across both columns and says it all: online or not and since
+   when, what broke when something did (its own line under that, device-dialog.ts), the period's strip. So the
+   head's facts carry no state, the timeline's label would repeat its head, and the connection's way (the picture
+   of the link with its line of words) is not drawn here: the owner put «Connection» in its place (2026-11-11) */
+.dv .kt-phead .ph-f:has(.ph-state),
+/* nor its kind (the glass beside the name is the kind) nor its client address (Places says it, per place) */
+.dv .kt-phead .ph-f:has(.ph-state) + .ph-f,
+.dv .kt-phead .ph-f:has(.mono),
+.dv .lt-lbl,
+.dv .way {
+  display: none;
+}
+/* the block opens the dialog and its state names it: no «Connection» over it (the owner: «убери текст связь»);
+   the heading stays for a screen reader, and the period's track stands in the card, at its state's end */
+.dv .b-link > .sec-head {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+/* what broke: a line of its own between the state and the period's sums */
+.dv-cause {
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+  color: var(--warn);
+}
+.dv-cause.bad-t {
+  color: var(--bad);
+}
+/* the diagnosis' steps are not shown in the dialog */
+.dv .dg {
+  display: none;
+}
+.dv .b-conf {
+  order: 1;
+}
+.dv .b-places {
+  order: 2;
+}
+.dv .b-log {
+  order: 3;
+}
+@media (min-width: 760px) {
+  /* a view on its way out does not hold the sheet's width (ui/sheet-width.ts glides it) */
+  .sheet:has(.view.dv:not(.leaving)),
+  .sheet:has(.view.dvm:not(.leaving)) {
+    max-width: 1000px;
+  }
+  /* a narrow view leaving a sheet that has grown keeps the width it had, in the middle */
+  .sheet:has(.view.dv:not(.leaving)) .view.leaving:not(.dv):not(.dvm),
+  .sheet:has(.view.dvm:not(.leaving)) .view.leaving:not(.dv):not(.dvm) {
+    left: calc(50% - 200px) !important;
+    right: auto !important;
+    width: 400px;
+  }
+  .dv .kt-blocks.dv-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr);
+    grid-template-rows: auto auto auto minmax(0, 1fr);
+    gap: 0 24px;
+  }
+  /* «Connection» across the dialog, then both columns begin with a block head on one line */
+  .dv .lt {
+    grid-area: 1 / 1 / 2 / -1;
+  }
+  .dv .b-traffic {
+    grid-area: 2 / 1;
+    margin-top: 20px;
+  }
+  .dv .b-places {
+    grid-area: 3 / 1;
+    margin-top: 20px;
+  }
+  .dv .dv-side {
+    grid-area: 2 / 2 / 5 / 3;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    min-width: 0;
+    margin-top: 20px;
+  }
+  /* the map with the replay beside its places, as high as the map */
+  .dplaces.dvm-cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+    gap: 12px;
+    align-items: stretch;
+    container-type: normal;
+  }
+  .dvm-cols > .map-box {
+    height: 468px;
+  }
+  .dvm-side {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+    height: 468px;
+    container-type: inline-size;
+  }
+}
+@media (max-width: 759px) {
+  .sheet:has(.view.dv),
+  .sheet:has(.view.dvm) {
+    max-width: none;
+  }
+  /* a phone: the drawer at the window's height, as the close-up */
+  .sheet:has(.view.dv) {
+    height: calc(100% - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  }
+  .sheet:has(.view.dv) .sheet-scroll,
+  .sheet:has(.view.dv) .vp {
+    height: 100%;
+  }
+  .view.dv {
+    height: 100%;
+    max-height: none;
+    padding: 20px 16px 0;
+  }
+  .dv .kt-blocks.dv-grid {
+    padding-bottom: 16px;
+  }
+  .sheet:has(.view.dv) .x {
+    top: 18px;
+    right: 16px;
+  }
+  /* the title row keeps its actions beside ×: «Show set-up» is its icon alone there */
+  .dv .kt-phead .ph {
+    flex-wrap: nowrap;
+  }
+  .dv .kt-phead .ph-acts {
+    flex: none;
+    width: auto;
+    margin: -2px 0 0;
+  }
+  .dv .kt-phead .ph-acts > .btn {
+    width: 32px;
+    padding: 0;
+    justify-content: center;
+  }
+  .dv .kt-phead .ph-acts > .btn span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .dplaces.dvm-cols,
+  .dvm-side {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+.dvm-cols > .map-box,
+.dvm-side > .tabs.range {
+  background: var(--field);
+}
+.dvm-side > .tabs.range {
+  flex: none;
+  align-self: stretch;
+}
+
+/* Traffic in a narrow column (a person's, a device's in its dialog): the third tile takes the row instead of
+   standing alone */
+@container dlpage (max-width: 439px) {
+  .dv .b-traffic .stats > :nth-child(3):last-child,
+  .sv-people .b-use .stats > :nth-child(3):last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+/* a head's name is changed where it stands (a device's in its dialog, a person's on their page), as the portal's
+   device card (ui/rename-title.ts) */
+.kt-phead .ph-title.can-edit {
+  align-self: flex-start;
+  width: fit-content;
+  max-width: calc(100% + 12px);
+  margin: 0 -6px;
+  padding: 0 6px;
+  border-radius: 8px;
+  cursor: text;
+  outline: none;
+  transition: background-color 150ms var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .kt-phead .ph-title.can-edit:hover {
+    background: color-mix(in srgb, var(--raised), var(--text) 6%);
+  }
+}
+.kbd .kt-phead .ph-title.can-edit:focus-visible {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+.dv .ph-t {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+/* the field in the title's own type and place */
+.kt-phead .field.inline.kt-rn,
+.kt-phead .field.inline.kt-rn:focus-within {
+  height: 30px;
+  margin: 0 -6px;
+  align-self: stretch;
+}
+.kt-phead .field.inline.kt-rn input {
+  font: 500 24px/30px var(--font);
+  letter-spacing: -0.035em;
+}
+.dv .field.inline.kt-rn,
+.dv .field.inline.kt-rn:focus-within {
+  height: 28px;
+}
+.dv .field.inline.kt-rn input {
+  font: 500 20px/28px var(--font);
+  letter-spacing: -0.5px;
+}
+.kt-phead .kt-rn-hint.bad-t {
+  color: var(--bad);
+}
+/* the hint's line keeps the facts' height (a touch screen says no hint): nothing under the head moves */
+.kt-phead .ph-sub.kt-rn-hint,
+.kt-phead .ph-sub.kt-rn-hint:empty {
+  display: block;
+  min-height: 18px;
+}

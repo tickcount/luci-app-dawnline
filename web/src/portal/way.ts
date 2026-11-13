@@ -5,7 +5,7 @@
 // (a handshake since the sheet opened, and data coming through), no data (a
 // handshake since then, but nothing in except handshakes and keep-alives: it
 // sends from an address the router does not expect, so the router drops it).
-// Pure: flows/wait.ts polls for it and draws it.
+// Pure: flows/wait.ts polls for it, ui/wait-way.ts draws it.
 
 import type { Device } from '../shared/types';
 

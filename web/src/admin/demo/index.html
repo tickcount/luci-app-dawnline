@@ -1,0 +1,51 @@
+<!doctype html>
+<!-- The admin's demo page (src/admin/demo/main.ts): the skeleton the Outline theme's header template gives a LuCI
+     page (luci-theme-outline, ucode/template/themes/outline/header.ut and footer.ut), with LuCI's own #view in it.
+     The theme's files are not part of this build: whoever serves the page serves a build of the theme at
+     /luci-static/outline and this folder at /dawnline-demo, the page itself at any LuCI address of Dawnline's
+     (/cgi-bin/luci/admin/services/dawnline/<view>), with <html lang> set to the language, as LuCI's server does. -->
+<html lang="en" data-outline-media="/luci-static/outline" data-default-theme="device" data-nav="navbar" data-sidebar-collapsed="false">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Outline | Dawnline</title>
+    <script>
+      // As the theme's header does before the first paint: dark or light by the system's choice.
+      document.documentElement.setAttribute('data-darkmode', String(window.matchMedia('(prefers-color-scheme: dark)').matches));
+    </script>
+    <link rel="stylesheet" href="/luci-static/outline/main.css" data-luci-shell />
+  </head>
+  <body class="lang_en" data-page="admin-services-dawnline">
+    <div id="sidebar" data-media="/luci-static/outline" data-hostname="Outline"></div>
+    <div id="sidebar-overlay"></div>
+    <div id="main-wrapper">
+      <div class="content-card">
+        <header class="card-header">
+          <div class="card-header-left">
+            <button id="sidebar-hamburger" class="topbar-hamburger" type="button">
+              <img src="/luci-static/outline/icons/menu.svg" width="18" height="18" alt="" />
+            </button>
+            <nav class="topbar-breadcrumb" id="topbar-breadcrumb"></nav>
+            <a class="topbar-brand" href="/">
+              <img src="/luci-static/outline/images/logo.png" width="20" height="20" alt="" />
+              <span>Outline</span>
+            </a>
+          </div>
+          <div class="card-header-right">
+            <div id="indicators" class="topbar-indicators"></div>
+            <button id="theme-toggle-btn" class="topbar-icon-btn" type="button">
+              <img class="theme-icon-light" src="/luci-static/outline/icons/sun.svg" width="16" height="16" alt="" />
+              <img class="theme-icon-dark" src="/luci-static/outline/icons/moon.svg" width="16" height="16" alt="" />
+            </button>
+          </div>
+        </header>
+        <div id="maincontent" tabindex="-1">
+          <div id="tabmenu" style="display: none"></div>
+          <div id="view"></div>
+        </div>
+      </div>
+    </div>
+    <script src="/dawnline-demo/admin.js"></script>
+  </body>
+</html>

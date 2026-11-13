@@ -1,0 +1,2855 @@
+{
+	"ts": 1794460039,
+	"usage": {
+		"devices": {
+			"a1": {
+				"total": [
+					5000000000.0,
+					6000000000.0
+				],
+				"days": {
+					"2026-11-12": [
+						1000000.0,
+						6000000.0
+					],
+					"2026-11-10": [
+						2000000.0,
+						9000000.0
+					],
+					"2026-11-08": [
+						3000000.0,
+						12000000.0
+					],
+					"2026-11-06": [
+						4000000.0,
+						15000000.0
+					],
+					"2026-11-04": [
+						5000000.0,
+						18000000.0
+					],
+					"2026-11-02": [
+						6000000.0,
+						21000000.0
+					],
+					"2026-10-31": [
+						7000000.0,
+						24000000.0
+					],
+					"2026-10-29": [
+						8000000.0,
+						27000000.0
+					],
+					"2026-10-27": [
+						9000000.0,
+						30000000.0
+					],
+					"2026-10-25": [
+						10000000.0,
+						33000000.0
+					],
+					"2026-10-23": [
+						11000000.0,
+						36000000.0
+					],
+					"2026-10-21": [
+						12000000.0,
+						39000000.0
+					],
+					"2026-10-19": [
+						13000000.0,
+						42000000.0
+					],
+					"2026-10-17": [
+						14000000.0,
+						45000000.0
+					],
+					"2026-10-15": [
+						15000000.0,
+						48000000.0
+					],
+					"2026-10-13": [
+						16000000.0,
+						51000000.0
+					],
+					"2026-10-11": [
+						17000000.0,
+						54000000.0
+					],
+					"2026-10-09": [
+						18000000.0,
+						57000000.0
+					],
+					"2026-10-07": [
+						19000000.0,
+						60000000.0
+					],
+					"2026-10-05": [
+						20000000.0,
+						63000000.0
+					]
+				},
+				"handshake": 1794456039,
+				"endpoint": "198.51.100.7"
+			},
+			"a2": {
+				"total": [
+					1,
+					2
+				],
+				"days": {
+					"2026-11-12": [
+						10,
+						40
+					],
+					"2026-11-10": [
+						20,
+						60
+					],
+					"2026-11-08": [
+						30,
+						80
+					]
+				},
+				"handshake": 1794459989
+			},
+			"a4": {
+				"days": {
+				}
+			},
+			"b1": {
+				"total": [
+					7,
+					8
+				],
+				"days": {
+					"2026-11-12": [
+						5,
+						12
+					],
+					"2026-11-10": [
+						10,
+						18
+					],
+					"2026-11-08": [
+						15,
+						24
+					],
+					"2026-11-06": [
+						20,
+						30
+					],
+					"2026-11-04": [
+						25,
+						36
+					],
+					"2026-11-02": [
+						30,
+						42
+					],
+					"2026-10-31": [
+						35,
+						48
+					],
+					"2026-10-29": [
+						40,
+						54
+					],
+					"2026-10-27": [
+						45,
+						60
+					],
+					"2026-10-25": [
+						50,
+						66
+					],
+					"2026-10-23": [
+						55,
+						72
+					],
+					"2026-10-21": [
+						60,
+						78
+					],
+					"2026-10-19": [
+						65,
+						84
+					],
+					"2026-10-17": [
+						70,
+						90
+					],
+					"2026-10-15": [
+						75,
+						96
+					],
+					"2026-10-13": [
+						80,
+						102
+					],
+					"2026-10-11": [
+						85,
+						108
+					],
+					"2026-10-09": [
+						90,
+						114
+					],
+					"2026-10-07": [
+						95,
+						120
+					],
+					"2026-10-05": [
+						100,
+						126
+					],
+					"2026-10-03": [
+						105,
+						132
+					],
+					"2026-10-01": [
+						110,
+						138
+					],
+					"2026-09-29": [
+						115,
+						144
+					],
+					"2026-09-27": [
+						120,
+						150
+					],
+					"2026-09-25": [
+						125,
+						156
+					],
+					"2026-09-23": [
+						130,
+						162
+					],
+					"2026-09-21": [
+						135,
+						168
+					],
+					"2026-09-19": [
+						140,
+						174
+					],
+					"2026-09-17": [
+						145,
+						180
+					],
+					"2026-09-15": [
+						150,
+						186
+					],
+					"2026-09-13": [
+						155,
+						192
+					],
+					"2026-09-11": [
+						160,
+						198
+					],
+					"2026-09-09": [
+						165,
+						204
+					],
+					"2026-09-07": [
+						170,
+						210
+					],
+					"2026-09-05": [
+						175,
+						216
+					],
+					"2026-09-03": [
+						180,
+						222
+					],
+					"2026-09-01": [
+						185,
+						228
+					],
+					"2026-08-30": [
+						190,
+						234
+					],
+					"2026-08-28": [
+						195,
+						240
+					],
+					"2026-08-26": [
+						200,
+						246
+					]
+				},
+				"handshake": 1794360039,
+				"endpoint": "192.168.1.9"
+			}
+		},
+		"people": {
+			"anna": {
+				"total": [
+					9000000000.0,
+					9000000000.0
+				],
+				"days": {
+					"2026-11-12": [
+						2000000.0,
+						8000000.0
+					],
+					"2026-11-10": [
+						4000000.0,
+						12000000.0
+					],
+					"2026-11-08": [
+						6000000.0,
+						16000000.0
+					],
+					"2026-11-06": [
+						8000000.0,
+						20000000.0
+					],
+					"2026-11-04": [
+						10000000.0,
+						24000000.0
+					],
+					"2026-11-02": [
+						12000000.0,
+						28000000.0
+					],
+					"2026-10-31": [
+						14000000.0,
+						32000000.0
+					],
+					"2026-10-29": [
+						16000000.0,
+						36000000.0
+					],
+					"2026-10-27": [
+						18000000.0,
+						40000000.0
+					],
+					"2026-10-25": [
+						20000000.0,
+						44000000.0
+					],
+					"2026-10-23": [
+						22000000.0,
+						48000000.0
+					],
+					"2026-10-21": [
+						24000000.0,
+						52000000.0
+					],
+					"2026-10-19": [
+						26000000.0,
+						56000000.0
+					],
+					"2026-10-17": [
+						28000000.0,
+						60000000.0
+					],
+					"2026-10-15": [
+						30000000.0,
+						64000000.0
+					],
+					"2026-10-13": [
+						32000000.0,
+						68000000.0
+					],
+					"2026-10-11": [
+						34000000.0,
+						72000000.0
+					],
+					"2026-10-09": [
+						36000000.0,
+						76000000.0
+					],
+					"2026-10-07": [
+						38000000.0,
+						80000000.0
+					],
+					"2026-10-05": [
+						40000000.0,
+						84000000.0
+					],
+					"2026-10-03": [
+						42000000.0,
+						88000000.0
+					],
+					"2026-10-01": [
+						44000000.0,
+						92000000.0
+					],
+					"2026-09-29": [
+						46000000.0,
+						96000000.0
+					],
+					"2026-09-27": [
+						48000000.0,
+						100000000.0
+					],
+					"2026-09-25": [
+						50000000.0,
+						104000000.0
+					]
+				},
+				"period": {
+					"start": 1794373639,
+					"rx": 1000000000.0,
+					"tx": 2000000000.0
+				}
+			},
+			"boris": {
+				"total": [
+					7,
+					8
+				],
+				"days": {
+					"2026-11-12": [
+						1,
+						2
+					],
+					"2026-11-10": [
+						2,
+						3
+					]
+				}
+			}
+		}
+	},
+	"peers": {
+		"KEYA1": {
+			"handshake": 1794460009,
+			"endpoint": "203.0.113.7:41821",
+			"rx": 1,
+			"tx": 2
+		},
+		"KEYA2": {
+			"handshake": 1794459639,
+			"endpoint": "[2001:db8::1]:500",
+			"rx": 1,
+			"tx": 2
+		},
+		"KEYA4": {
+			"handshake": 0,
+			"endpoint": "",
+			"rx": 0,
+			"tx": 0
+		},
+		"KEYB1": {
+			"handshake": 1794460019,
+			"endpoint": "192.168.1.9:7",
+			"rx": 3,
+			"tx": 4
+		}
+	},
+	"issued": {
+		"a1": {
+			"fp": "933a64b9",
+			"ts": 1794459539
+		},
+		"a2": {
+			"fp": "deadbeef",
+			"ts": 1794459139
+		},
+		"a3": {
+			"fp": "a38bbaca",
+			"ts": 0
+		}
+	},
+	"reconnect": {
+		"b1": 1794460029,
+		"a1": 1794459039
+	},
+	"watched": {
+		"admin": {
+			"anna": {
+				"id": "anna",
+				"name": "Anna",
+				"server": "main",
+				"access": "both",
+				"device_limit": 5,
+				"expires": "",
+				"quota_gb": 10,
+				"quota_period": "month",
+				"quota_used": 3000000000.0,
+				"quota_limit": 16106127360,
+				"quota_month": [
+					1000000000.0,
+					2000000000.0
+				],
+				"quota_resets": 1796965639,
+				"quota_reset_day": "2026-12-11",
+				"bonus_gb": 5,
+				"dns_mode": "device",
+				"paused": false,
+				"state": "active",
+				"month": [
+					240000000.0,
+					540000000.0
+				],
+				"total": [
+					9000000000.0,
+					9000000000.0
+				],
+				"online": 1,
+				"last_seen": 1794460009,
+				"devices": [
+					{
+						"id": "a2",
+						"name": "iPhone!",
+						"kind": "phone",
+						"address": "10.9.0.3",
+						"disabled": false,
+						"created": 1700000200,
+						"created_by": "portal",
+						"online": false,
+						"handshake": 1794459639,
+						"endpoint": "2001:db8::1",
+						"active": true,
+						"month": [
+							60,
+							180
+						],
+						"total": [
+							1,
+							2
+						],
+						"spark": [
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								30,
+								80
+							],
+							[
+								0,
+								0
+							],
+							[
+								20,
+								60
+							],
+							[
+								0,
+								0
+							],
+							[
+								10,
+								40
+							]
+						],
+						"hostname": "iphone.anna.home.arpa",
+						"browser_key": true,
+						"config_stale": true,
+						"config_issued": 1794459139,
+						"lan_bypass": true,
+						"mtu": 1300,
+						"keepalive": 0,
+						"mtu_used": 1300,
+						"keepalive_used": 0,
+						"link": {
+							"state": "knocking",
+							"since": 1794459979
+						},
+						"setup": null
+					},
+					{
+						"id": "a1",
+						"name": "iPhone",
+						"kind": "phone",
+						"address": "10.9.0.2",
+						"disabled": false,
+						"created": 1700000300,
+						"created_by": "admin",
+						"online": true,
+						"handshake": 1794460009,
+						"endpoint": "203.0.113.7",
+						"active": true,
+						"month": [
+							120000000.0,
+							405000000.0
+						],
+						"total": [
+							5000000000.0,
+							6000000000.0
+						],
+						"spark": [
+							[
+								4000000.0,
+								15000000.0
+							],
+							[
+								0,
+								0
+							],
+							[
+								3000000.0,
+								12000000.0
+							],
+							[
+								0,
+								0
+							],
+							[
+								2000000.0,
+								9000000.0
+							],
+							[
+								0,
+								0
+							],
+							[
+								1000000.0,
+								6000000.0
+							]
+						],
+						"hostname": "iphone-2.anna.home.arpa",
+						"browser_key": false,
+						"config_stale": false,
+						"config_issued": 1794459539,
+						"lan_bypass": false,
+						"mtu": 0,
+						"keepalive": null,
+						"mtu_used": 1280,
+						"keepalive_used": 25,
+						"link": null,
+						"setup": {
+							"state": "flowing",
+							"since": 1794460009
+						}
+					},
+					{
+						"id": "a3",
+						"name": "Ноутбук",
+						"kind": "computer",
+						"address": "10.9.0.4",
+						"disabled": true,
+						"created": 1700000400,
+						"created_by": "admin",
+						"online": false,
+						"handshake": 0,
+						"endpoint": "",
+						"active": false,
+						"month": [
+							0,
+							0
+						],
+						"total": [
+							0,
+							0
+						],
+						"spark": [
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							]
+						],
+						"hostname": "noutbuk.anna.home.arpa",
+						"browser_key": true,
+						"config_stale": false,
+						"config_issued": 0,
+						"lan_bypass": false,
+						"mtu": 0,
+						"keepalive": null,
+						"mtu_used": 1380,
+						"keepalive_used": 25,
+						"link": null,
+						"setup": null
+					},
+					{
+						"id": "a4",
+						"name": "!!!",
+						"kind": "router",
+						"address": "10.9.0.5",
+						"disabled": false,
+						"created": 1700000500,
+						"created_by": "admin",
+						"online": false,
+						"handshake": 0,
+						"endpoint": "",
+						"active": true,
+						"month": [
+							0,
+							0
+						],
+						"total": [
+							0,
+							0
+						],
+						"spark": [
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							]
+						],
+						"hostname": "device.anna.home.arpa",
+						"browser_key": true,
+						"config_stale": false,
+						"config_issued": 0,
+						"lan_bypass": false,
+						"mtu": 0,
+						"keepalive": null,
+						"mtu_used": 1380,
+						"keepalive_used": 25,
+						"link": null,
+						"setup": null
+					}
+				],
+				"has_link": true,
+				"note": "A note",
+				"services": [
+				],
+				"home_nets": [
+				],
+				"circle": "family",
+				"created": 1700000000,
+				"code_set": 1700000100
+			},
+			"boris": {
+				"id": "boris",
+				"name": "Борис",
+				"server": "main",
+				"access": "lan",
+				"device_limit": 3,
+				"expires": "2099-01-01",
+				"quota_gb": 0,
+				"quota_period": "month",
+				"quota_used": 0,
+				"quota_limit": 0,
+				"quota_month": [
+					0,
+					0
+				],
+				"quota_resets": 0,
+				"quota_reset_day": "",
+				"bonus_gb": 0,
+				"dns_mode": "device",
+				"paused": false,
+				"state": "active",
+				"month": [
+					3,
+					5
+				],
+				"total": [
+					7,
+					8
+				],
+				"online": 0,
+				"last_seen": 0,
+				"devices": [
+					{
+						"id": "b1",
+						"name": "Телефон",
+						"kind": "tablet",
+						"address": "10.9.0.6",
+						"disabled": false,
+						"created": 1700000600,
+						"created_by": "admin",
+						"online": false,
+						"handshake": 0,
+						"endpoint": "192.168.1.9",
+						"active": true,
+						"month": [
+							600,
+							810
+						],
+						"total": [
+							7,
+							8
+						],
+						"spark": [
+							[
+								20,
+								30
+							],
+							[
+								0,
+								0
+							],
+							[
+								15,
+								24
+							],
+							[
+								0,
+								0
+							],
+							[
+								10,
+								18
+							],
+							[
+								0,
+								0
+							],
+							[
+								5,
+								12
+							]
+						],
+						"hostname": "telefon.boris.home.arpa",
+						"browser_key": true,
+						"config_stale": false,
+						"config_issued": 0,
+						"lan_bypass": false,
+						"mtu": 0,
+						"keepalive": null,
+						"mtu_used": 1280,
+						"keepalive_used": 25,
+						"link": null,
+						"setup": null
+					}
+				],
+				"has_link": false,
+				"note": "",
+				"services": [
+				],
+				"home_nets": [
+				],
+				"circle": "",
+				"created": 0,
+				"code_set": 0
+			},
+			"nobody": {
+				"id": "nobody",
+				"name": "Nobody",
+				"server": "gone",
+				"access": "internet",
+				"device_limit": 3,
+				"expires": "",
+				"quota_gb": 0,
+				"quota_period": "month",
+				"quota_used": 0,
+				"quota_limit": 0,
+				"quota_month": [
+					0,
+					0
+				],
+				"quota_resets": 0,
+				"quota_reset_day": "",
+				"bonus_gb": 0,
+				"dns_mode": "device",
+				"paused": false,
+				"state": "no_server",
+				"month": [
+					0,
+					0
+				],
+				"total": [
+					0,
+					0
+				],
+				"online": 0,
+				"last_seen": 0,
+				"devices": [
+					{
+						"id": "n1",
+						"name": "Lost",
+						"kind": "other",
+						"address": "10.99.0.2",
+						"disabled": false,
+						"created": 0,
+						"created_by": "admin",
+						"online": false,
+						"handshake": 0,
+						"endpoint": "",
+						"active": false,
+						"month": [
+							0,
+							0
+						],
+						"total": [
+							0,
+							0
+						],
+						"spark": [
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							]
+						],
+						"hostname": "lost.nobody.home.arpa",
+						"browser_key": true,
+						"config_stale": false,
+						"config_issued": 0,
+						"lan_bypass": false,
+						"mtu": 0,
+						"keepalive": null,
+						"mtu_used": null,
+						"keepalive_used": null,
+						"link": null,
+						"setup": null
+					}
+				],
+				"has_link": false,
+				"note": "",
+				"services": [
+				],
+				"home_nets": [
+				],
+				"circle": "",
+				"created": 0,
+				"code_set": 0
+			},
+			"vera": {
+				"id": "vera",
+				"name": "Vera",
+				"server": "off",
+				"access": "internet",
+				"device_limit": 3,
+				"expires": "",
+				"quota_gb": 0,
+				"quota_period": "month",
+				"quota_used": 0,
+				"quota_limit": 0,
+				"quota_month": [
+					0,
+					0
+				],
+				"quota_resets": 0,
+				"quota_reset_day": "",
+				"bonus_gb": 0,
+				"dns_mode": "device",
+				"paused": true,
+				"state": "server_off",
+				"month": [
+					0,
+					0
+				],
+				"total": [
+					0,
+					0
+				],
+				"online": 0,
+				"last_seen": 0,
+				"devices": [
+					{
+						"id": "v1",
+						"name": "Laptop",
+						"kind": "computer",
+						"address": "10.10.0.2",
+						"disabled": false,
+						"created": 0,
+						"created_by": "admin",
+						"online": false,
+						"handshake": 0,
+						"endpoint": "",
+						"active": false,
+						"month": [
+							0,
+							0
+						],
+						"total": [
+							0,
+							0
+						],
+						"spark": [
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							]
+						],
+						"hostname": "laptop.vera.home.arpa",
+						"browser_key": true,
+						"config_stale": false,
+						"config_issued": 0,
+						"lan_bypass": false,
+						"mtu": 0,
+						"keepalive": null,
+						"mtu_used": 1380,
+						"keepalive_used": 25,
+						"link": null,
+						"setup": null
+					}
+				],
+				"has_link": true,
+				"note": "",
+				"services": [
+				],
+				"home_nets": [
+				],
+				"circle": "",
+				"created": 0,
+				"code_set": 0
+			}
+		},
+		"own": {
+			"anna": {
+				"id": "anna",
+				"name": "Anna",
+				"server": "main",
+				"access": "both",
+				"device_limit": 5,
+				"expires": "",
+				"quota_gb": 10,
+				"quota_period": "month",
+				"quota_used": 3000000000.0,
+				"quota_limit": 16106127360,
+				"quota_month": [
+					1000000000.0,
+					2000000000.0
+				],
+				"quota_resets": 1796965639,
+				"quota_reset_day": "2026-12-11",
+				"bonus_gb": 5,
+				"dns_mode": "device",
+				"paused": false,
+				"state": "active",
+				"month": [
+					240000000.0,
+					540000000.0
+				],
+				"total": [
+					9000000000.0,
+					9000000000.0
+				],
+				"online": 1,
+				"last_seen": 1794460009,
+				"devices": [
+					{
+						"id": "a2",
+						"name": "iPhone!",
+						"kind": "phone",
+						"address": "10.9.0.3",
+						"disabled": false,
+						"created": 1700000200,
+						"created_by": "portal",
+						"online": false,
+						"handshake": 1794459639,
+						"endpoint": "2001:db8::1",
+						"active": true,
+						"month": [
+							60,
+							180
+						],
+						"total": [
+							1,
+							2
+						],
+						"spark": [
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								30,
+								80
+							],
+							[
+								0,
+								0
+							],
+							[
+								20,
+								60
+							],
+							[
+								0,
+								0
+							],
+							[
+								10,
+								40
+							]
+						],
+						"hostname": "iphone.anna.home.arpa",
+						"browser_key": true,
+						"config_stale": true,
+						"config_issued": 1794459139,
+						"lan_bypass": true,
+						"mtu": 1300,
+						"keepalive": 0,
+						"mtu_used": 1300,
+						"keepalive_used": 0,
+						"link": {
+							"state": "knocking",
+							"since": 1794459979
+						},
+						"setup": null
+					},
+					{
+						"id": "a1",
+						"name": "iPhone",
+						"kind": "phone",
+						"address": "10.9.0.2",
+						"disabled": false,
+						"created": 1700000300,
+						"created_by": "admin",
+						"online": true,
+						"handshake": 1794460009,
+						"endpoint": "203.0.113.7",
+						"active": true,
+						"month": [
+							120000000.0,
+							405000000.0
+						],
+						"total": [
+							5000000000.0,
+							6000000000.0
+						],
+						"spark": [
+							[
+								4000000.0,
+								15000000.0
+							],
+							[
+								0,
+								0
+							],
+							[
+								3000000.0,
+								12000000.0
+							],
+							[
+								0,
+								0
+							],
+							[
+								2000000.0,
+								9000000.0
+							],
+							[
+								0,
+								0
+							],
+							[
+								1000000.0,
+								6000000.0
+							]
+						],
+						"hostname": "iphone-2.anna.home.arpa",
+						"browser_key": false,
+						"config_stale": false,
+						"config_issued": 1794459539,
+						"lan_bypass": false,
+						"mtu": 0,
+						"keepalive": null,
+						"mtu_used": 1280,
+						"keepalive_used": 25,
+						"link": null,
+						"setup": {
+							"state": "flowing",
+							"since": 1794460009
+						}
+					},
+					{
+						"id": "a3",
+						"name": "Ноутбук",
+						"kind": "computer",
+						"address": "10.9.0.4",
+						"disabled": true,
+						"created": 1700000400,
+						"created_by": "admin",
+						"online": false,
+						"handshake": 0,
+						"endpoint": "",
+						"active": false,
+						"month": [
+							0,
+							0
+						],
+						"total": [
+							0,
+							0
+						],
+						"spark": [
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							]
+						],
+						"hostname": "noutbuk.anna.home.arpa",
+						"browser_key": true,
+						"config_stale": false,
+						"config_issued": 0,
+						"lan_bypass": false,
+						"mtu": 0,
+						"keepalive": null,
+						"mtu_used": 1380,
+						"keepalive_used": 25,
+						"link": null,
+						"setup": null
+					},
+					{
+						"id": "a4",
+						"name": "!!!",
+						"kind": "router",
+						"address": "10.9.0.5",
+						"disabled": false,
+						"created": 1700000500,
+						"created_by": "admin",
+						"online": false,
+						"handshake": 0,
+						"endpoint": "",
+						"active": true,
+						"month": [
+							0,
+							0
+						],
+						"total": [
+							0,
+							0
+						],
+						"spark": [
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							]
+						],
+						"hostname": "device.anna.home.arpa",
+						"browser_key": true,
+						"config_stale": false,
+						"config_issued": 0,
+						"lan_bypass": false,
+						"mtu": 0,
+						"keepalive": null,
+						"mtu_used": 1380,
+						"keepalive_used": 25,
+						"link": null,
+						"setup": null
+					}
+				]
+			},
+			"boris": {
+				"id": "boris",
+				"name": "Борис",
+				"server": "main",
+				"access": "lan",
+				"device_limit": 3,
+				"expires": "2099-01-01",
+				"quota_gb": 0,
+				"quota_period": "month",
+				"quota_used": 0,
+				"quota_limit": 0,
+				"quota_month": [
+					0,
+					0
+				],
+				"quota_resets": 0,
+				"quota_reset_day": "",
+				"bonus_gb": 0,
+				"dns_mode": "device",
+				"paused": false,
+				"state": "active",
+				"month": [
+					3,
+					5
+				],
+				"total": [
+					7,
+					8
+				],
+				"online": 0,
+				"last_seen": 0,
+				"devices": [
+					{
+						"id": "b1",
+						"name": "Телефон",
+						"kind": "tablet",
+						"address": "10.9.0.6",
+						"disabled": false,
+						"created": 1700000600,
+						"created_by": "admin",
+						"online": false,
+						"handshake": 0,
+						"endpoint": "192.168.1.9",
+						"active": true,
+						"month": [
+							600,
+							810
+						],
+						"total": [
+							7,
+							8
+						],
+						"spark": [
+							[
+								20,
+								30
+							],
+							[
+								0,
+								0
+							],
+							[
+								15,
+								24
+							],
+							[
+								0,
+								0
+							],
+							[
+								10,
+								18
+							],
+							[
+								0,
+								0
+							],
+							[
+								5,
+								12
+							]
+						],
+						"hostname": "telefon.boris.home.arpa",
+						"browser_key": true,
+						"config_stale": false,
+						"config_issued": 0,
+						"lan_bypass": false,
+						"mtu": 0,
+						"keepalive": null,
+						"mtu_used": 1280,
+						"keepalive_used": 25,
+						"link": null,
+						"setup": null
+					}
+				]
+			},
+			"nobody": {
+				"id": "nobody",
+				"name": "Nobody",
+				"server": "gone",
+				"access": "internet",
+				"device_limit": 3,
+				"expires": "",
+				"quota_gb": 0,
+				"quota_period": "month",
+				"quota_used": 0,
+				"quota_limit": 0,
+				"quota_month": [
+					0,
+					0
+				],
+				"quota_resets": 0,
+				"quota_reset_day": "",
+				"bonus_gb": 0,
+				"dns_mode": "device",
+				"paused": false,
+				"state": "no_server",
+				"month": [
+					0,
+					0
+				],
+				"total": [
+					0,
+					0
+				],
+				"online": 0,
+				"last_seen": 0,
+				"devices": [
+					{
+						"id": "n1",
+						"name": "Lost",
+						"kind": "other",
+						"address": "10.99.0.2",
+						"disabled": false,
+						"created": 0,
+						"created_by": "admin",
+						"online": false,
+						"handshake": 0,
+						"endpoint": "",
+						"active": false,
+						"month": [
+							0,
+							0
+						],
+						"total": [
+							0,
+							0
+						],
+						"spark": [
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							]
+						],
+						"hostname": "lost.nobody.home.arpa",
+						"browser_key": true,
+						"config_stale": false,
+						"config_issued": 0,
+						"lan_bypass": false,
+						"mtu": 0,
+						"keepalive": null,
+						"mtu_used": null,
+						"keepalive_used": null,
+						"link": null,
+						"setup": null
+					}
+				]
+			},
+			"vera": {
+				"id": "vera",
+				"name": "Vera",
+				"server": "off",
+				"access": "internet",
+				"device_limit": 3,
+				"expires": "",
+				"quota_gb": 0,
+				"quota_period": "month",
+				"quota_used": 0,
+				"quota_limit": 0,
+				"quota_month": [
+					0,
+					0
+				],
+				"quota_resets": 0,
+				"quota_reset_day": "",
+				"bonus_gb": 0,
+				"dns_mode": "device",
+				"paused": true,
+				"state": "server_off",
+				"month": [
+					0,
+					0
+				],
+				"total": [
+					0,
+					0
+				],
+				"online": 0,
+				"last_seen": 0,
+				"devices": [
+					{
+						"id": "v1",
+						"name": "Laptop",
+						"kind": "computer",
+						"address": "10.10.0.2",
+						"disabled": false,
+						"created": 0,
+						"created_by": "admin",
+						"online": false,
+						"handshake": 0,
+						"endpoint": "",
+						"active": false,
+						"month": [
+							0,
+							0
+						],
+						"total": [
+							0,
+							0
+						],
+						"spark": [
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							]
+						],
+						"hostname": "laptop.vera.home.arpa",
+						"browser_key": true,
+						"config_stale": false,
+						"config_issued": 0,
+						"lan_bypass": false,
+						"mtu": 0,
+						"keepalive": null,
+						"mtu_used": 1380,
+						"keepalive_used": 25,
+						"link": null,
+						"setup": null
+					}
+				]
+			}
+		}
+	},
+	"alone": {
+		"admin": {
+			"anna": {
+				"id": "anna",
+				"name": "Anna",
+				"server": "main",
+				"access": "both",
+				"device_limit": 5,
+				"expires": "",
+				"quota_gb": 10,
+				"quota_period": "month",
+				"quota_used": 3000000000.0,
+				"quota_limit": 16106127360,
+				"quota_month": [
+					1000000000.0,
+					2000000000.0
+				],
+				"quota_resets": 1796965639,
+				"quota_reset_day": "2026-12-11",
+				"bonus_gb": 5,
+				"dns_mode": "device",
+				"paused": false,
+				"state": "active",
+				"month": [
+					240000000.0,
+					540000000.0
+				],
+				"total": [
+					9000000000.0,
+					9000000000.0
+				],
+				"online": 2,
+				"last_seen": 1794460009,
+				"devices": [
+					{
+						"id": "a2",
+						"name": "iPhone!",
+						"kind": "phone",
+						"address": "10.9.0.3",
+						"disabled": false,
+						"created": 1700000200,
+						"created_by": "portal",
+						"online": true,
+						"handshake": 1794459639,
+						"endpoint": "2001:db8::1",
+						"active": true,
+						"month": [
+							60,
+							180
+						],
+						"total": [
+							1,
+							2
+						],
+						"spark": [
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								30,
+								80
+							],
+							[
+								0,
+								0
+							],
+							[
+								20,
+								60
+							],
+							[
+								0,
+								0
+							],
+							[
+								10,
+								40
+							]
+						],
+						"hostname": "iphone.anna.home.arpa",
+						"browser_key": true,
+						"config_stale": true,
+						"config_issued": 1794459139,
+						"lan_bypass": true,
+						"mtu": 1300,
+						"keepalive": 0,
+						"mtu_used": 1300,
+						"keepalive_used": 0,
+						"link": null,
+						"setup": {
+							"state": "flowing",
+							"since": 1794459639
+						}
+					},
+					{
+						"id": "a1",
+						"name": "iPhone",
+						"kind": "phone",
+						"address": "10.9.0.2",
+						"disabled": false,
+						"created": 1700000300,
+						"created_by": "admin",
+						"online": true,
+						"handshake": 1794460009,
+						"endpoint": "203.0.113.7",
+						"active": true,
+						"month": [
+							120000000.0,
+							405000000.0
+						],
+						"total": [
+							5000000000.0,
+							6000000000.0
+						],
+						"spark": [
+							[
+								4000000.0,
+								15000000.0
+							],
+							[
+								0,
+								0
+							],
+							[
+								3000000.0,
+								12000000.0
+							],
+							[
+								0,
+								0
+							],
+							[
+								2000000.0,
+								9000000.0
+							],
+							[
+								0,
+								0
+							],
+							[
+								1000000.0,
+								6000000.0
+							]
+						],
+						"hostname": "iphone-2.anna.home.arpa",
+						"browser_key": false,
+						"config_stale": false,
+						"config_issued": 1794459539,
+						"lan_bypass": false,
+						"mtu": 0,
+						"keepalive": null,
+						"mtu_used": 1280,
+						"keepalive_used": 25,
+						"link": null,
+						"setup": {
+							"state": "flowing",
+							"since": 1794460009
+						}
+					},
+					{
+						"id": "a3",
+						"name": "Ноутбук",
+						"kind": "computer",
+						"address": "10.9.0.4",
+						"disabled": true,
+						"created": 1700000400,
+						"created_by": "admin",
+						"online": false,
+						"handshake": 0,
+						"endpoint": "",
+						"active": false,
+						"month": [
+							0,
+							0
+						],
+						"total": [
+							0,
+							0
+						],
+						"spark": [
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							]
+						],
+						"hostname": "noutbuk.anna.home.arpa",
+						"browser_key": true,
+						"config_stale": false,
+						"config_issued": 0,
+						"lan_bypass": false,
+						"mtu": 0,
+						"keepalive": null,
+						"mtu_used": 1380,
+						"keepalive_used": 25,
+						"link": null,
+						"setup": null
+					},
+					{
+						"id": "a4",
+						"name": "!!!",
+						"kind": "router",
+						"address": "10.9.0.5",
+						"disabled": false,
+						"created": 1700000500,
+						"created_by": "admin",
+						"online": false,
+						"handshake": 0,
+						"endpoint": "",
+						"active": true,
+						"month": [
+							0,
+							0
+						],
+						"total": [
+							0,
+							0
+						],
+						"spark": [
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							]
+						],
+						"hostname": "device.anna.home.arpa",
+						"browser_key": true,
+						"config_stale": false,
+						"config_issued": 0,
+						"lan_bypass": false,
+						"mtu": 0,
+						"keepalive": null,
+						"mtu_used": 1380,
+						"keepalive_used": 25,
+						"link": null,
+						"setup": null
+					}
+				],
+				"has_link": true,
+				"note": "A note",
+				"services": [
+				],
+				"home_nets": [
+				],
+				"circle": "family",
+				"created": 1700000000,
+				"code_set": 1700000100
+			},
+			"boris": {
+				"id": "boris",
+				"name": "Борис",
+				"server": "main",
+				"access": "lan",
+				"device_limit": 3,
+				"expires": "2099-01-01",
+				"quota_gb": 0,
+				"quota_period": "month",
+				"quota_used": 0,
+				"quota_limit": 0,
+				"quota_month": [
+					0,
+					0
+				],
+				"quota_resets": 0,
+				"quota_reset_day": "",
+				"bonus_gb": 0,
+				"dns_mode": "device",
+				"paused": false,
+				"state": "active",
+				"month": [
+					3,
+					5
+				],
+				"total": [
+					7,
+					8
+				],
+				"online": 0,
+				"last_seen": 0,
+				"devices": [
+					{
+						"id": "b1",
+						"name": "Телефон",
+						"kind": "tablet",
+						"address": "10.9.0.6",
+						"disabled": false,
+						"created": 1700000600,
+						"created_by": "admin",
+						"online": false,
+						"handshake": 0,
+						"endpoint": "192.168.1.9",
+						"active": true,
+						"month": [
+							600,
+							810
+						],
+						"total": [
+							7,
+							8
+						],
+						"spark": [
+							[
+								20,
+								30
+							],
+							[
+								0,
+								0
+							],
+							[
+								15,
+								24
+							],
+							[
+								0,
+								0
+							],
+							[
+								10,
+								18
+							],
+							[
+								0,
+								0
+							],
+							[
+								5,
+								12
+							]
+						],
+						"hostname": "telefon.boris.home.arpa",
+						"browser_key": true,
+						"config_stale": false,
+						"config_issued": 0,
+						"lan_bypass": false,
+						"mtu": 0,
+						"keepalive": null,
+						"mtu_used": 1280,
+						"keepalive_used": 25,
+						"link": null,
+						"setup": null
+					}
+				],
+				"has_link": false,
+				"note": "",
+				"services": [
+				],
+				"home_nets": [
+				],
+				"circle": "",
+				"created": 0,
+				"code_set": 0
+			},
+			"nobody": {
+				"id": "nobody",
+				"name": "Nobody",
+				"server": "gone",
+				"access": "internet",
+				"device_limit": 3,
+				"expires": "",
+				"quota_gb": 0,
+				"quota_period": "month",
+				"quota_used": 0,
+				"quota_limit": 0,
+				"quota_month": [
+					0,
+					0
+				],
+				"quota_resets": 0,
+				"quota_reset_day": "",
+				"bonus_gb": 0,
+				"dns_mode": "device",
+				"paused": false,
+				"state": "no_server",
+				"month": [
+					0,
+					0
+				],
+				"total": [
+					0,
+					0
+				],
+				"online": 0,
+				"last_seen": 0,
+				"devices": [
+					{
+						"id": "n1",
+						"name": "Lost",
+						"kind": "other",
+						"address": "10.99.0.2",
+						"disabled": false,
+						"created": 0,
+						"created_by": "admin",
+						"online": false,
+						"handshake": 0,
+						"endpoint": "",
+						"active": false,
+						"month": [
+							0,
+							0
+						],
+						"total": [
+							0,
+							0
+						],
+						"spark": [
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							]
+						],
+						"hostname": "lost.nobody.home.arpa",
+						"browser_key": true,
+						"config_stale": false,
+						"config_issued": 0,
+						"lan_bypass": false,
+						"mtu": 0,
+						"keepalive": null,
+						"mtu_used": null,
+						"keepalive_used": null,
+						"link": null,
+						"setup": null
+					}
+				],
+				"has_link": false,
+				"note": "",
+				"services": [
+				],
+				"home_nets": [
+				],
+				"circle": "",
+				"created": 0,
+				"code_set": 0
+			},
+			"vera": {
+				"id": "vera",
+				"name": "Vera",
+				"server": "off",
+				"access": "internet",
+				"device_limit": 3,
+				"expires": "",
+				"quota_gb": 0,
+				"quota_period": "month",
+				"quota_used": 0,
+				"quota_limit": 0,
+				"quota_month": [
+					0,
+					0
+				],
+				"quota_resets": 0,
+				"quota_reset_day": "",
+				"bonus_gb": 0,
+				"dns_mode": "device",
+				"paused": true,
+				"state": "server_off",
+				"month": [
+					0,
+					0
+				],
+				"total": [
+					0,
+					0
+				],
+				"online": 0,
+				"last_seen": 0,
+				"devices": [
+					{
+						"id": "v1",
+						"name": "Laptop",
+						"kind": "computer",
+						"address": "10.10.0.2",
+						"disabled": false,
+						"created": 0,
+						"created_by": "admin",
+						"online": false,
+						"handshake": 0,
+						"endpoint": "",
+						"active": false,
+						"month": [
+							0,
+							0
+						],
+						"total": [
+							0,
+							0
+						],
+						"spark": [
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							]
+						],
+						"hostname": "laptop.vera.home.arpa",
+						"browser_key": true,
+						"config_stale": false,
+						"config_issued": 0,
+						"lan_bypass": false,
+						"mtu": 0,
+						"keepalive": null,
+						"mtu_used": 1380,
+						"keepalive_used": 25,
+						"link": null,
+						"setup": null
+					}
+				],
+				"has_link": true,
+				"note": "",
+				"services": [
+				],
+				"home_nets": [
+				],
+				"circle": "",
+				"created": 0,
+				"code_set": 0
+			}
+		},
+		"own": {
+			"anna": {
+				"id": "anna",
+				"name": "Anna",
+				"server": "main",
+				"access": "both",
+				"device_limit": 5,
+				"expires": "",
+				"quota_gb": 10,
+				"quota_period": "month",
+				"quota_used": 3000000000.0,
+				"quota_limit": 16106127360,
+				"quota_month": [
+					1000000000.0,
+					2000000000.0
+				],
+				"quota_resets": 1796965639,
+				"quota_reset_day": "2026-12-11",
+				"bonus_gb": 5,
+				"dns_mode": "device",
+				"paused": false,
+				"state": "active",
+				"month": [
+					240000000.0,
+					540000000.0
+				],
+				"total": [
+					9000000000.0,
+					9000000000.0
+				],
+				"online": 2,
+				"last_seen": 1794460009,
+				"devices": [
+					{
+						"id": "a2",
+						"name": "iPhone!",
+						"kind": "phone",
+						"address": "10.9.0.3",
+						"disabled": false,
+						"created": 1700000200,
+						"created_by": "portal",
+						"online": true,
+						"handshake": 1794459639,
+						"endpoint": "2001:db8::1",
+						"active": true,
+						"month": [
+							60,
+							180
+						],
+						"total": [
+							1,
+							2
+						],
+						"spark": [
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								30,
+								80
+							],
+							[
+								0,
+								0
+							],
+							[
+								20,
+								60
+							],
+							[
+								0,
+								0
+							],
+							[
+								10,
+								40
+							]
+						],
+						"hostname": "iphone.anna.home.arpa",
+						"browser_key": true,
+						"config_stale": true,
+						"config_issued": 1794459139,
+						"lan_bypass": true,
+						"mtu": 1300,
+						"keepalive": 0,
+						"mtu_used": 1300,
+						"keepalive_used": 0,
+						"link": null,
+						"setup": {
+							"state": "flowing",
+							"since": 1794459639
+						}
+					},
+					{
+						"id": "a1",
+						"name": "iPhone",
+						"kind": "phone",
+						"address": "10.9.0.2",
+						"disabled": false,
+						"created": 1700000300,
+						"created_by": "admin",
+						"online": true,
+						"handshake": 1794460009,
+						"endpoint": "203.0.113.7",
+						"active": true,
+						"month": [
+							120000000.0,
+							405000000.0
+						],
+						"total": [
+							5000000000.0,
+							6000000000.0
+						],
+						"spark": [
+							[
+								4000000.0,
+								15000000.0
+							],
+							[
+								0,
+								0
+							],
+							[
+								3000000.0,
+								12000000.0
+							],
+							[
+								0,
+								0
+							],
+							[
+								2000000.0,
+								9000000.0
+							],
+							[
+								0,
+								0
+							],
+							[
+								1000000.0,
+								6000000.0
+							]
+						],
+						"hostname": "iphone-2.anna.home.arpa",
+						"browser_key": false,
+						"config_stale": false,
+						"config_issued": 1794459539,
+						"lan_bypass": false,
+						"mtu": 0,
+						"keepalive": null,
+						"mtu_used": 1280,
+						"keepalive_used": 25,
+						"link": null,
+						"setup": {
+							"state": "flowing",
+							"since": 1794460009
+						}
+					},
+					{
+						"id": "a3",
+						"name": "Ноутбук",
+						"kind": "computer",
+						"address": "10.9.0.4",
+						"disabled": true,
+						"created": 1700000400,
+						"created_by": "admin",
+						"online": false,
+						"handshake": 0,
+						"endpoint": "",
+						"active": false,
+						"month": [
+							0,
+							0
+						],
+						"total": [
+							0,
+							0
+						],
+						"spark": [
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							]
+						],
+						"hostname": "noutbuk.anna.home.arpa",
+						"browser_key": true,
+						"config_stale": false,
+						"config_issued": 0,
+						"lan_bypass": false,
+						"mtu": 0,
+						"keepalive": null,
+						"mtu_used": 1380,
+						"keepalive_used": 25,
+						"link": null,
+						"setup": null
+					},
+					{
+						"id": "a4",
+						"name": "!!!",
+						"kind": "router",
+						"address": "10.9.0.5",
+						"disabled": false,
+						"created": 1700000500,
+						"created_by": "admin",
+						"online": false,
+						"handshake": 0,
+						"endpoint": "",
+						"active": true,
+						"month": [
+							0,
+							0
+						],
+						"total": [
+							0,
+							0
+						],
+						"spark": [
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							]
+						],
+						"hostname": "device.anna.home.arpa",
+						"browser_key": true,
+						"config_stale": false,
+						"config_issued": 0,
+						"lan_bypass": false,
+						"mtu": 0,
+						"keepalive": null,
+						"mtu_used": 1380,
+						"keepalive_used": 25,
+						"link": null,
+						"setup": null
+					}
+				]
+			},
+			"boris": {
+				"id": "boris",
+				"name": "Борис",
+				"server": "main",
+				"access": "lan",
+				"device_limit": 3,
+				"expires": "2099-01-01",
+				"quota_gb": 0,
+				"quota_period": "month",
+				"quota_used": 0,
+				"quota_limit": 0,
+				"quota_month": [
+					0,
+					0
+				],
+				"quota_resets": 0,
+				"quota_reset_day": "",
+				"bonus_gb": 0,
+				"dns_mode": "device",
+				"paused": false,
+				"state": "active",
+				"month": [
+					3,
+					5
+				],
+				"total": [
+					7,
+					8
+				],
+				"online": 0,
+				"last_seen": 0,
+				"devices": [
+					{
+						"id": "b1",
+						"name": "Телефон",
+						"kind": "tablet",
+						"address": "10.9.0.6",
+						"disabled": false,
+						"created": 1700000600,
+						"created_by": "admin",
+						"online": false,
+						"handshake": 0,
+						"endpoint": "192.168.1.9",
+						"active": true,
+						"month": [
+							600,
+							810
+						],
+						"total": [
+							7,
+							8
+						],
+						"spark": [
+							[
+								20,
+								30
+							],
+							[
+								0,
+								0
+							],
+							[
+								15,
+								24
+							],
+							[
+								0,
+								0
+							],
+							[
+								10,
+								18
+							],
+							[
+								0,
+								0
+							],
+							[
+								5,
+								12
+							]
+						],
+						"hostname": "telefon.boris.home.arpa",
+						"browser_key": true,
+						"config_stale": false,
+						"config_issued": 0,
+						"lan_bypass": false,
+						"mtu": 0,
+						"keepalive": null,
+						"mtu_used": 1280,
+						"keepalive_used": 25,
+						"link": null,
+						"setup": null
+					}
+				]
+			},
+			"nobody": {
+				"id": "nobody",
+				"name": "Nobody",
+				"server": "gone",
+				"access": "internet",
+				"device_limit": 3,
+				"expires": "",
+				"quota_gb": 0,
+				"quota_period": "month",
+				"quota_used": 0,
+				"quota_limit": 0,
+				"quota_month": [
+					0,
+					0
+				],
+				"quota_resets": 0,
+				"quota_reset_day": "",
+				"bonus_gb": 0,
+				"dns_mode": "device",
+				"paused": false,
+				"state": "no_server",
+				"month": [
+					0,
+					0
+				],
+				"total": [
+					0,
+					0
+				],
+				"online": 0,
+				"last_seen": 0,
+				"devices": [
+					{
+						"id": "n1",
+						"name": "Lost",
+						"kind": "other",
+						"address": "10.99.0.2",
+						"disabled": false,
+						"created": 0,
+						"created_by": "admin",
+						"online": false,
+						"handshake": 0,
+						"endpoint": "",
+						"active": false,
+						"month": [
+							0,
+							0
+						],
+						"total": [
+							0,
+							0
+						],
+						"spark": [
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							]
+						],
+						"hostname": "lost.nobody.home.arpa",
+						"browser_key": true,
+						"config_stale": false,
+						"config_issued": 0,
+						"lan_bypass": false,
+						"mtu": 0,
+						"keepalive": null,
+						"mtu_used": null,
+						"keepalive_used": null,
+						"link": null,
+						"setup": null
+					}
+				]
+			},
+			"vera": {
+				"id": "vera",
+				"name": "Vera",
+				"server": "off",
+				"access": "internet",
+				"device_limit": 3,
+				"expires": "",
+				"quota_gb": 0,
+				"quota_period": "month",
+				"quota_used": 0,
+				"quota_limit": 0,
+				"quota_month": [
+					0,
+					0
+				],
+				"quota_resets": 0,
+				"quota_reset_day": "",
+				"bonus_gb": 0,
+				"dns_mode": "device",
+				"paused": true,
+				"state": "server_off",
+				"month": [
+					0,
+					0
+				],
+				"total": [
+					0,
+					0
+				],
+				"online": 0,
+				"last_seen": 0,
+				"devices": [
+					{
+						"id": "v1",
+						"name": "Laptop",
+						"kind": "computer",
+						"address": "10.10.0.2",
+						"disabled": false,
+						"created": 0,
+						"created_by": "admin",
+						"online": false,
+						"handshake": 0,
+						"endpoint": "",
+						"active": false,
+						"month": [
+							0,
+							0
+						],
+						"total": [
+							0,
+							0
+						],
+						"spark": [
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							],
+							[
+								0,
+								0
+							]
+						],
+						"hostname": "laptop.vera.home.arpa",
+						"browser_key": true,
+						"config_stale": false,
+						"config_issued": 0,
+						"lan_bypass": false,
+						"mtu": 0,
+						"keepalive": null,
+						"mtu_used": 1380,
+						"keepalive_used": 25,
+						"link": null,
+						"setup": null
+					}
+				]
+			}
+		}
+	}
+}

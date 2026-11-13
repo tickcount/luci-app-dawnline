@@ -1,0 +1,402 @@
+[
+	{
+		"seed": 43,
+		"mode": 0,
+		"ka": 32,
+		"steps": 1500,
+		"hash": 509250670,
+		"setups": 53,
+		"changes": [
+			[
+				562,
+				"",
+				"shared"
+			]
+		]
+	},
+	{
+		"seed": 2058,
+		"mode": 0,
+		"ka": 32,
+		"steps": 1500,
+		"hash": 116816300,
+		"setups": 57,
+		"changes": [
+			[
+				301,
+				"",
+				"shared"
+			],
+			[
+				684,
+				"shared",
+				"unstable"
+			],
+			[
+				1100,
+				"unstable",
+				"shared"
+			]
+		]
+	},
+	{
+		"seed": 143,
+		"mode": 0,
+		"ka": 132,
+		"steps": 1500,
+		"hash": 874068518,
+		"setups": 62,
+		"changes": [
+			[
+				877,
+				"",
+				"unstable"
+			],
+			[
+				1178,
+				"unstable",
+				""
+			]
+		]
+	},
+	{
+		"seed": 2158,
+		"mode": 0,
+		"ka": 132,
+		"steps": 1500,
+		"hash": 984212801,
+		"setups": 52,
+		"changes": [
+			[
+				361,
+				"",
+				"shared"
+			]
+		]
+	},
+	{
+		"seed": 1543,
+		"mode": 0,
+		"ka": 1532,
+		"steps": 1500,
+		"hash": 902450080,
+		"setups": 69,
+		"changes": [
+			[
+				255,
+				"",
+				"unstable"
+			],
+			[
+				474,
+				"unstable",
+				""
+			],
+			[
+				729,
+				"",
+				"shared"
+			]
+		]
+	},
+	{
+		"seed": 3558,
+		"mode": 0,
+		"ka": 1532,
+		"steps": 1500,
+		"hash": 322096214,
+		"setups": 60,
+		"changes": [
+			[
+				325,
+				"",
+				"shared"
+			]
+		]
+	},
+	{
+		"seed": 1043,
+		"mode": 1,
+		"ka": 32,
+		"steps": 1500,
+		"hash": 336330855,
+		"setups": 3,
+		"changes": [
+			[
+				187,
+				"",
+				"trying"
+			]
+		]
+	},
+	{
+		"seed": 3058,
+		"mode": 1,
+		"ka": 32,
+		"steps": 1500,
+		"hash": 418109476,
+		"setups": 5,
+		"changes": [
+			[
+				188,
+				"",
+				"trying"
+			]
+		]
+	},
+	{
+		"seed": 1143,
+		"mode": 1,
+		"ka": 132,
+		"steps": 1500,
+		"hash": 984771206,
+		"setups": 3,
+		"changes": [
+			[
+				197,
+				"",
+				"trying"
+			]
+		]
+	},
+	{
+		"seed": 3158,
+		"mode": 1,
+		"ka": 132,
+		"steps": 1500,
+		"hash": 839850834,
+		"setups": 9,
+		"changes": [
+			[
+				186,
+				"",
+				"trying"
+			]
+		]
+	},
+	{
+		"seed": 2543,
+		"mode": 1,
+		"ka": 1532,
+		"steps": 1500,
+		"hash": 243396944,
+		"setups": 1,
+		"changes": [
+			[
+				187,
+				"",
+				"trying"
+			]
+		]
+	},
+	{
+		"seed": 4558,
+		"mode": 1,
+		"ka": 1532,
+		"steps": 1500,
+		"hash": 72908559,
+		"setups": 1,
+		"changes": [
+			[
+				185,
+				"",
+				"trying"
+			]
+		]
+	},
+	{
+		"seed": 2043,
+		"mode": 2,
+		"ka": 32,
+		"steps": 1500,
+		"hash": 493844650,
+		"setups": 3,
+		"changes": [
+			[
+				211,
+				"",
+				"shared"
+			]
+		]
+	},
+	{
+		"seed": 4058,
+		"mode": 2,
+		"ka": 32,
+		"steps": 1500,
+		"hash": 65535240,
+		"setups": 13,
+		"changes": [
+			[
+				196,
+				"",
+				"shared"
+			]
+		]
+	},
+	{
+		"seed": 2143,
+		"mode": 2,
+		"ka": 132,
+		"steps": 1500,
+		"hash": 401228843,
+		"setups": 15,
+		"changes": [
+			[
+				228,
+				"",
+				"shared"
+			]
+		]
+	},
+	{
+		"seed": 4158,
+		"mode": 2,
+		"ka": 132,
+		"steps": 1500,
+		"hash": 984996124,
+		"setups": 9,
+		"changes": [
+			[
+				206,
+				"",
+				"shared"
+			]
+		]
+	},
+	{
+		"seed": 3543,
+		"mode": 2,
+		"ka": 1532,
+		"steps": 1500,
+		"hash": 450519450,
+		"setups": 7,
+		"changes": [
+			[
+				227,
+				"",
+				"shared"
+			]
+		]
+	},
+	{
+		"seed": 5558,
+		"mode": 2,
+		"ka": 1532,
+		"steps": 1500,
+		"hash": 981222292,
+		"setups": 9,
+		"changes": [
+			[
+				207,
+				"",
+				"shared"
+			]
+		]
+	},
+	{
+		"seed": 3043,
+		"mode": 3,
+		"ka": 32,
+		"steps": 1500,
+		"hash": 247211500,
+		"setups": 5,
+		"changes": [
+			[
+				366,
+				"",
+				"dropped"
+			]
+		]
+	},
+	{
+		"seed": 5058,
+		"mode": 3,
+		"ka": 32,
+		"steps": 1500,
+		"hash": 199176889,
+		"setups": 5,
+		"changes": [
+			[
+				726,
+				"",
+				"dropped"
+			],
+			[
+				1296,
+				"dropped",
+				""
+			]
+		]
+	},
+	{
+		"seed": 3143,
+		"mode": 3,
+		"ka": 132,
+		"steps": 1500,
+		"hash": 546318254,
+		"setups": 5,
+		"changes": [
+			[
+				455,
+				"",
+				"unstable"
+			],
+			[
+				652,
+				"unstable",
+				""
+			],
+			[
+				988,
+				"",
+				"dropped"
+			]
+		]
+	},
+	{
+		"seed": 5158,
+		"mode": 3,
+		"ka": 132,
+		"steps": 1500,
+		"hash": 746160914,
+		"setups": 2,
+		"changes": [
+			[
+				361,
+				"",
+				"dropped"
+			]
+		]
+	},
+	{
+		"seed": 4543,
+		"mode": 3,
+		"ka": 1532,
+		"steps": 1500,
+		"hash": 147637710,
+		"setups": 5,
+		"changes": [
+			[
+				362,
+				"",
+				"dropped"
+			]
+		]
+	},
+	{
+		"seed": 6558,
+		"mode": 3,
+		"ka": 1532,
+		"steps": 1500,
+		"hash": 890972522,
+		"setups": 7,
+		"changes": [
+			[
+				1019,
+				"",
+				"dropped"
+			]
+		]
+	}
+]

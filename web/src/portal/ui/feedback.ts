@@ -6,6 +6,7 @@ import { h, ic } from '../dom';
 import { BOUNCY, EASE_IN, POP, calm, play } from '../motion';
 import { platform } from '../state';
 import { BUSY_IN, busyOff, busyOn } from './busy';
+import { layer } from './layer';
 import { morphText, textOf } from './morph';
 
 let slot: HTMLElement | null = null;
@@ -26,7 +27,7 @@ function leave(t: HTMLElement, to: Keyframe, ms: number) {
 
 /** One toast at a time: a new one sends the last away first. */
 export function toast(msg: string, bad = false) {
-  slot ??= document.body.appendChild(h('div', { class: 'toasts' }));
+  slot ??= layer().appendChild(h('div', { class: 'toasts' }));
   if (shown) leave(shown, { opacity: 0, transform: 'scale(.96)', filter: 'blur(4px)' }, 140);
   const t = h('div', { class: `toast${bad ? ' bad' : ''}`, role: 'status' }, ic(bad ? 'alert' : 'check'), h('span', {}, msg));
   slot.appendChild(t);
@@ -95,7 +96,7 @@ export async function copy(text: string, what = _('Copied'), from?: EventTarget 
     await navigator.clipboard.writeText(text);
   } catch {
     const ta = h('textarea', { class: 'offscreen' }, text) as HTMLTextAreaElement;
-    document.body.appendChild(ta);
+    layer().appendChild(ta);
     ta.select();
     const ok = document.execCommand('copy');
     ta.remove();
@@ -135,7 +136,7 @@ export function download(name: string, text: string) {
   // Not text/plain: Safari would save "name.conf.txt".
   const url = URL.createObjectURL(new Blob([text], { type: 'application/octet-stream' }));
   const a = h('a', { href: url, download: name, class: 'offscreen' });
-  document.body.appendChild(a);
+  layer().appendChild(a);
   a.click();
   setTimeout(() => {
     URL.revokeObjectURL(url);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { arc, cityPlaces, devicePlaces, separate, type MapData } from '../src/admin/map';
+import { arc, cityPlaces, devicePlaces, markInitials, separate, type MapData } from '../src/admin/map';
 
 describe('arc (mapcn buildArcCoordinates)', () => {
   it('runs from one point to the other', () => {
@@ -168,5 +168,24 @@ describe('cityPlaces', () => {
     const a = cityPlaces([{ key: 'a', ...msk }], msk).get('a')!;
     expect(km(a, [msk.lon, msk.lat])).toBeGreaterThan(2.4);
     expect(cityPlaces([{ key: 'a', ...msk }], msk).get('a')).toEqual(a);
+  });
+});
+
+describe('markInitials', () => {
+  it('leaves a part in brackets out', () => {
+    expect(markInitials('Кирилл (гость)')).toBe(markInitials('Кирилл'));
+    expect(markInitials('Кирилл (гость)')).not.toContain('(');
+  });
+
+  it('skips words with no letters', () => {
+    expect(markInitials('Офис — 2')).toBe(markInitials('Офис'));
+  });
+
+  it('takes a bracketed name when it is all there is', () => {
+    expect(markInitials('(гость)')).toBe(markInitials('гость'));
+  });
+
+  it('gives the usual two initials for a full name', () => {
+    expect(markInitials('Лена Константинопольская')).toHaveLength(2);
   });
 });

@@ -1,0 +1,405 @@
+/* Settings (the router's own, and a server's on its page): the rail beside the sections from 840 px of the page
+   (196 + 36), one column under it, and what each section's parts need beyond the kit. */
+.st-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+.st-rail {
+  display: none;
+}
+.st-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.st-grp {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+@container dlpage (min-width: 840px) {
+  .st-cols {
+    grid-template-columns: 196px minmax(0, 1fr);
+    column-gap: 36px;
+    align-items: start;
+  }
+  .st-rail {
+    display: block;
+    position: sticky;
+    top: calc(20px - var(--sc-pad, 0px));
+    max-height: calc(100dvh - 92px);
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+  .kt-rl-jump {
+    display: none;
+  }
+  /* the first section's head stands level with the rail's first section: their middles on one line (a rail row
+     is 52 high, a section's head 40) */
+  .st-cols .st-grp > .kt-sx:first-child {
+    margin-top: 6px;
+    padding-top: 0;
+  }
+}
+@container dlpage (max-width: 839px) {
+  .kt-sx {
+    scroll-margin-top: 60px;
+  }
+}
+/* ── Tunnel: what the router is in it ── */
+.tn-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 2px 2px;
+}
+.tn-chip {
+  max-width: 100%;
+  color: var(--text);
+}
+.namechip.still {
+  cursor: default;
+}
+.namechip.still:hover {
+  background: var(--field);
+}
+.namechip.still:active {
+  transform: none;
+}
+
+.kt-sx-card .reach2 {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+}
+
+/* ── a section's own health: what did not pass, with its fix, at the top of its first card ── */
+.st-health {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.kt-sx-st.off {
+  color: var(--text-3);
+}
+
+/* a phone: a section's value that does not fit beside its name wraps under its line instead of ending in «…»
+   (a number someone compares is never cut) */
+@container dlpage (max-width: 559px) {
+  .kt-sx-card .editrow:not(.ed-live) > b:not(.mono) {
+    white-space: normal;
+    overflow: visible;
+  }
+}
+
+/* ── a change that waits for «Apply»: its field says the new value in the pending tone ── */
+.ed.st-waits .editrow > b,
+.kt-vpk.st-wait-v,
+.kt-ep-v.waits {
+  color: var(--warn);
+}
+.ed.st-waits > .ed-hint {
+  color: var(--warn);
+}
+.addr-main.staged {
+  background: color-mix(in srgb, var(--warn) 16%, transparent);
+  color: var(--warn);
+}
+
+/* ── the dock of changes that wait (the glass: kit.css .kt-dock) ── */
+.st-dock {
+  width: min(560px, calc(100vw - 32px));
+  height: auto;
+  min-height: 60px;
+  padding: 8px 10px 8px 18px;
+}
+.st-dock-t {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.st-dock-t b {
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+}
+.st-dock-s {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--warn);
+  white-space: nowrap;
+}
+.st-dock-re {
+  width: 13px;
+  height: 13px;
+  flex: none;
+}
+.st-dock-re[hidden] {
+  display: none;
+}
+.st-dock .btn.soft {
+  background: color-mix(in srgb, var(--glass-text) 8%, transparent);
+  color: var(--glass-text);
+}
+@media (hover: hover) and (pointer: fine) {
+  .st-dock .btn.soft:hover {
+    background: color-mix(in srgb, var(--glass-text) 13%, transparent);
+  }
+}
+/* the page keeps room for the dock under its last section */
+.page.settings {
+  padding-bottom: 96px;
+}
+
+/* the one question before several changes: each named on a line of its own */
+.ask-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 0 10px;
+}
+.ask-list b {
+  font-weight: 500;
+  color: var(--text);
+}
+
+/* ── a note in a section: what did not pass or needs a decision, its action at the end ── */
+.srv-note {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 10px 10px 12px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--warn) 9%, var(--field));
+}
+.srv-note.bad {
+  background: color-mix(in srgb, var(--bad) 9%, var(--field));
+}
+.srv-note > .gi {
+  flex: none;
+  width: 28px;
+  height: 28px;
+}
+.sn-t {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.sn-t b {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+}
+.sn-t span {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+}
+.srv-note > .btn {
+  flex: none;
+}
+
+.ed-hint.warn-t {
+  color: var(--warn);
+}
+
+/* a phone: a note's action goes under its words (beside them it would squeeze them to a column) */
+@container dlpage (max-width: 559px) {
+  .srv-note {
+    flex-wrap: wrap;
+  }
+  .srv-note > .sn-t {
+    flex: 1 1 calc(100% - 44px);
+  }
+  .srv-note > .btn {
+    margin-left: 40px;
+  }
+}
+
+/* circles and services: a small head over chips */
+.sv {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sv-t {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+.sv .chips {
+  justify-content: flex-start;
+}
+.sv .chipb {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+}
+.sv .chipb > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chipb.static {
+  cursor: default;
+}
+.chipb.static:active {
+  transform: none;
+}
+.chipb.act {
+  color: var(--text-2);
+}
+.chip-s {
+  color: var(--text-2);
+  font-weight: 400;
+}
+
+/* who reaches what, and the path check */
+.reach {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.reach-r {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 14px;
+  background: var(--field);
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+.reach-r:first-child {
+  border-radius: 16px 16px 6px 6px;
+}
+.reach-r:last-child {
+  border-radius: 6px 6px 16px 16px;
+}
+.reach-r b {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  color: var(--text);
+}
+.reach-r b i {
+  font-style: normal;
+  font-weight: 400;
+  color: var(--text-3);
+}
+.chk-path {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+/* its question and its verdict start where the card's other lines do */
+.chk-path > .sv-t,
+.chk-v {
+  padding: 0 8px;
+}
+/* the path as it runs: from · the way · to, and the press that walks it; one under the other where two fields
+   do not fit side by side */
+.chk-way {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.chk-way {
+  flex-wrap: wrap;
+}
+/* a field keeps room for a device with its person: narrower, the button takes its own line */
+.chk-way > .kt-cb {
+  flex: 1 1 240px;
+}
+.chk-dots {
+  flex: none;
+  width: 22px;
+  height: 8px;
+  background: var(--text-3);
+  -webkit-mask: radial-gradient(circle, #000 1.4px, transparent 1.9px) 2px 50% / 9px 8px repeat-x;
+  mask: radial-gradient(circle, #000 1.4px, transparent 1.9px) 2px 50% / 9px 8px repeat-x;
+}
+.chk-go {
+  flex: none;
+}
+@container dlpage (max-width: 959px) {
+  .chk-dots {
+    display: none;
+  }
+  .chk-go {
+    flex: 1 1 100%;
+  }
+}
+.chk-res:empty {
+  display: none;
+}
+.chk-out {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.chk-v {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+/* ── no server yet: the portal's single card ── */
+.first-card {
+  align-items: stretch;
+  text-align: center;
+  margin: 24px auto 0;
+}
+.first-card > .gi {
+  align-self: center;
+  width: 56px;
+  height: 56px;
+}
+.first-card h2 {
+  margin: 2px 0 0;
+}
+.first-card > p {
+  text-wrap: balance;
+}
+.first-steps {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+}
+.first-steps li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--field);
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+.first-steps li:first-child {
+  border-radius: 16px 16px 6px 6px;
+}
+.first-steps li:last-child {
+  border-radius: 6px 6px 16px 16px;
+}
+.first-steps .gi {
+  flex: none;
+  width: 28px;
+  height: 28px;
+}
+.first-steps b {
+  display: block;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  color: var(--text);
+}

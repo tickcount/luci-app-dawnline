@@ -1,0 +1,86 @@
+#!/bin/sh
+# Dawnline — put the Go backend's binary (dawnlined) for this router in place. The package is the same for
+# every architecture, so the binary is a release file of its own (dawnlined-<version>-<goarch>), fetched
+# from the release of the installed version and kept only when it matches the sha256 GitHub's API gives.
+#
+#   fetch-backend [version]     version: the package's own when not given
+#
+# Exit 0: the binary of that version is in place, or this architecture has none (the router then runs on
+# the ucode backend, and a binary of another version is removed). Exit 1: it could not be fetched; a binary
+# of another version is removed all the same, so two versions never run side by side.
+# Plain shell on purpose, like postupdate: it runs when no backend does.
+REPO="${DAWNLINE_REPO:-tickcount/luci-app-dawnline}"
+API="${DAWNLINE_API:-https://api.github.com}"
+BIN=/usr/libexec/dawnline/dawnlined
+ver="${1:-$(cat /usr/share/dawnline/version 2>/dev/null)}"
+ver="$(printf '%s' "$ver" | tr -cd 'A-Za-z0-9.-')"
+
+say() { logger -t dawnline -p "daemon.$1" "[$2] [backend] $3"; }
+
+[ -n "$ver" ] || { say err error "the installed version is not known: no binary fetched"; exit 1; }
+[ -x "$BIN" ] && [ "$("$BIN" -version 2>/dev/null)" = "$ver" ] && exit 0
+
+# A binary of another version (or one that does not run here) must not serve this version's pages.
+drop() { [ -e "$BIN" ] && rm -f "$BIN" && say notice info "the backend's binary of another version was removed"; }
+
+arch="$(sed -n "s/^DISTRIB_ARCH='\(.*\)'/\1/p" /etc/openwrt_release 2>/dev/null)"
+case "$arch" in
+aarch64_*) goarch=arm64 ;;
+x86_64) goarch=amd64 ;;
+mipsel_*) goarch=mipsle ;;
+mips_*) goarch=mips ;;
+arm_cortex-a*) goarch=arm ;;
+*) goarch= ;;
+esac
+if [ -z "$goarch" ]; then
+	drop
+	say notice info "no backend is built for $arch: Dawnline runs without it"
+	exit 0
+fi
+
+fail() {
+	drop
+	say err error "the backend $ver could not be put in place: $1 · Dawnline runs without it until it can (tried again at the next start)"
+	rm -rf "$tmp"
+	exit 1
+}
+
+tmp="$(mktemp -d /tmp/dawnline-backend.XXXXXX)" || exit 1
+get() { # get URL FILE [ACCEPT]
+	if command -v curl >/dev/null 2>&1; then
+		curl -fsSL --connect-timeout 15 --max-time 300 ${3:+-H "Accept: $3"} -o "$2" "$1" 2>/dev/null
+	else
+		uclient-fetch -q -T 30 ${3:+--header="Accept: $3"} -O "$2" "$1" 2>/dev/null
+	fi
+}
+
+asset="dawnlined-$ver-$goarch"
+# The release as the API gives it: the file's id (downloaded through the API, whose answer is short: the
+# redirect github.com gives for a release file can outgrow uclient-fetch's header buffer) and its sha256.
+found=
+for tag in "v$ver" "$ver"; do
+	get "$API/repos/$REPO/releases/tags/$tag" "$tmp/release.json" && found=1 && break
+done
+[ -n "$found" ] || fail "GitHub does not answer, or has no release $ver"
+id="$(jsonfilter -i "$tmp/release.json" -e "@.assets[@.name='$asset'].id" 2>/dev/null)"
+want="$(jsonfilter -i "$tmp/release.json" -e "@.assets[@.name='$asset'].digest" 2>/dev/null | sed -n 's/^sha256:\([0-9a-f]\{64\}\)$/\1/p')"
+[ -n "$id" ] || { drop; say notice info "release $ver has no backend for $arch: Dawnline runs without it"; rm -rf "$tmp"; exit 0; }
+[ -n "$want" ] || fail "the release publishes no sha256 for $asset"
+
+# Room for it twice over: the download in memory, the file on flash.
+free="$(df -Pk /usr/libexec/dawnline 2>/dev/null | awk 'NR==2 { print $4 }')"
+size="$(jsonfilter -i "$tmp/release.json" -e "@.assets[@.name='$asset'].size" 2>/dev/null)"
+if [ -n "$free" ] && [ -n "$size" ] && [ "$free" -lt $((size / 1024 + 1024)) ]; then
+	fail "not enough free space ($((free / 1024)) MB free, $((size / 1048576 + 1)) MB needed)"
+fi
+
+get "$API/repos/$REPO/releases/assets/$id" "$tmp/dawnlined" application/octet-stream || fail "the download failed"
+got="$(sha256sum "$tmp/dawnlined" 2>/dev/null | cut -d' ' -f1)"
+[ "$got" = "$want" ] || fail "the file does not match the release's sha256"
+chmod 755 "$tmp/dawnlined"
+[ "$("$tmp/dawnlined" -version 2>/dev/null)" = "$ver" ] || fail "the binary does not run on this router, or is another version"
+# Beside its place first, then renamed: a binary is never half there.
+cp "$tmp/dawnlined" "$BIN.new" && chmod 755 "$BIN.new" && mv -f "$BIN.new" "$BIN" || { rm -f "$BIN.new"; fail "it could not be written"; }
+rm -rf "$tmp"
+say notice info "the backend $ver ($goarch) is in place · sha256 matches the release"
+exit 0

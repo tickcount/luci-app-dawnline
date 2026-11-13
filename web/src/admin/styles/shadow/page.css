@@ -1,0 +1,467 @@
+/* A page inside LuCI's content column: no width of its own (the column is the theme's), columns and
+   narrow layouts by the page's own width (container dlpage), not the window's: beside Outline's sidebar the
+   column is ~910 px on a 1440 screen. The head names the page (ui/page-head.ts): its glass, its name, quiet
+   facts after dots, actions on the right. A way back to a parent above it on a nested or filtered page. */
+.page {
+  container: dlpage / inline-size;
+  padding: 8px 4px 40px;
+}
+
+/* the way back (a filtered or nested page): a quiet link with a left chevron */
+/* the page's way back is a <nav>: by its tag, so the rule never reaches the sheet's Back knob (.knob.back), which
+   it used to turn into a flex box with these margins: its chevron stood at the knob's left and the knob above the
+   title's line in every stepped sheet */
+nav.back {
+  display: flex;
+  margin: -8px 0 14px;
+}
+.back-a {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  color: var(--text-2);
+  font-size: 15px;
+  line-height: 22px;
+  text-decoration: none;
+  transition: color 150ms;
+}
+.back-a span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.back-a .i {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  transform: scaleX(-1);
+  color: var(--text-3);
+  transition: transform 200ms var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .back-a:hover {
+    color: var(--text);
+  }
+  .back-a:hover .i {
+    color: var(--text-2);
+    transform: scaleX(-1) translateX(2px);
+  }
+}
+
+/* the head */
+.ph {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  min-width: 0;
+  margin: 0 0 28px;
+}
+.ph-ic .gi {
+  display: block;
+  width: 44px;
+  height: 44px;
+}
+.ph-t {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.ph-title {
+  margin: 0;
+  font-size: 28px;
+  line-height: 34px;
+  font-weight: 500;
+  letter-spacing: -0.035em;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-wrap: balance;
+  -webkit-user-select: text;
+  user-select: text;
+  cursor: text;
+}
+/* facts after dots: each carries its dot before it; a line's first dot hangs in the clipped gap at the edge */
+.ph-sub {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  row-gap: 2px;
+  column-gap: 12px;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--text-2);
+  overflow: clip;
+  overflow-clip-margin: 4px;
+}
+.ph-f {
+  display: inline-flex;
+  align-items: center;
+  margin-left: -12px;
+  min-width: 0;
+}
+.ph-sep {
+  width: 12px;
+  flex: 0 0 auto;
+  text-align: center;
+  color: var(--text-3);
+}
+.ph-fact {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.ph-fact .i {
+  width: 14px;
+  height: 14px;
+}
+.ph-acts {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  align-self: flex-start;
+  margin-top: 2px;
+}
+/* ⋯ beside the head's buttons is as high as they are (48) */
+.ph-acts > .knob {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  background: var(--on-ground);
+}
+@media (hover: hover) and (pointer: fine) {
+  .ph-acts > .knob:hover {
+    background: color-mix(in srgb, var(--on-ground), var(--text) 6%);
+  }
+}
+@media (pointer: coarse) {
+  .knob {
+    position: relative;
+  }
+  .knob::after {
+    content: '';
+    position: absolute;
+    inset: -6px;
+  }
+}
+@container dlpage (max-width: 559px) {
+  .ph {
+    align-items: flex-start;
+    row-gap: 14px;
+  }
+  .ph-ic {
+    margin-top: 4px;
+  }
+  .ph-ic .gi {
+    width: 40px;
+    height: 40px;
+  }
+  .ph-title {
+    font-size: 24px;
+    line-height: 30px;
+    -webkit-line-clamp: 4;
+    overflow-wrap: anywhere;
+  } /* the actions under the head take the row and wrap: with the head's own action, Link and ⋯ (a person),
+     the action takes a line of its own, as the concept, instead of pushing ⋯ past the screen's edge */
+  .ph-acts {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+  .ph-acts > .btn {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .ph-acts > .btn:first-child:nth-last-child(n + 3) {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+}
+
+/* groups: a section head over a raised card */
+.grp + .grp {
+  margin-top: 28px;
+}
+.card {
+  display: block;
+  background: var(--raised);
+  border-radius: var(--r-card);
+  padding: 8px;
+}
+.flat-list {
+  padding: 4px 8px;
+}
+@container dlpage (max-width: 559px) {
+  .sec-head {
+    flex-wrap: wrap;
+  }
+}
+/* the search field: the portal's field with its icon, smaller, on the page's ground */
+.field.srch {
+  height: 40px;
+  border-radius: 14px;
+  gap: 8px;
+  padding: 0 6px 0 12px;
+  width: 320px;
+  max-width: 100%;
+  color: var(--text-3);
+  background: var(--raised);
+}
+.field.srch input {
+  font-size: 15px;
+}
+@media (pointer: coarse) {
+  .field.srch input {
+    font-size: 16px;
+  }
+}
+.field.srch .i {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+.field.srch .k {
+  flex: none;
+  display: grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 7px;
+  background: var(--knob);
+  color: var(--text-3);
+  font: 500 12px/1 var(--font);
+}
+.field.srch:focus-within .k,
+.field.srch.typed .k {
+  display: none;
+}
+/* "/" means nothing without a keyboard */
+@media (hover: none), (pointer: coarse) {
+  .field.srch .k {
+    display: none;
+  }
+}
+/* the filter a page was opened with (a device, a person): accent, × takes it off */
+
+/* nothing to show: one quiet line in the card's place */
+.empty {
+  padding: 28px 16px;
+  border-radius: var(--r-card);
+  background: var(--raised);
+  color: var(--text-2);
+  text-align: center;
+}
+.more-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+:where(b, strong) {
+  font-weight: 500;
+}
+
+/* a page's bar: its tracks, its search and the filter chip, wrapping (the Log, Places) */
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 0 0 28px;
+}
+.bar .seg {
+  height: 40px;
+}
+@container dlpage (max-width: 899px) {
+  .bar .seg {
+    flex: 1 1 100%;
+  }
+  .bar .field.srch {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 200px;
+  }
+}
+@container dlpage (max-width: 559px) {
+  .bar .field.srch {
+    width: 100%;
+    min-width: 0;
+  }
+}
+@container dlpage (max-width: 559px) {
+  .bar .seg {
+    width: 100%;
+  }
+}
+
+/* two columns by the page's own width: the object's blocks, and beside them its rows (sticky while the page
+   scrolls); narrower, one column, the object's blocks first. The portal's window-wide rule is undone. */
+
+.card + .sec-head,
+.olist + .sec-head,
+.card + .card {
+  margin-top: 28px;
+}
+.card .desc {
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+
+/* a quiet link with a chevron (the way to more: the whole log, a close-up) */
+.pill-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  padding: 0 10px 0 12px;
+  border-radius: 999px;
+  background: var(--knob);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  text-decoration: none;
+  transition:
+    transform 150ms var(--ease-out),
+    background-color 150ms;
+}
+.pill-link .i {
+  width: 14px;
+  height: 14px;
+  color: var(--text-2);
+}
+@media (hover: hover) and (pointer: fine) {
+  .pill-link:hover {
+    background: color-mix(in srgb, var(--knob), var(--text) 6%);
+  }
+}
+.pill-link:active {
+  transform: scale(0.94);
+}
+
+/* something the page cannot show (a device removed, the map off): one card that says why and the way on */
+.gone {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 440px;
+  padding: 28px;
+  border-radius: var(--r-card);
+  background: var(--raised);
+}
+.gone h2 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+}
+.gone p {
+  margin: 0 0 8px;
+  color: var(--text-2);
+}
+
+/* a skip link past what the keyboard would walk through (the map's markers): seen only when it has focus */
+a.skip {
+  position: absolute;
+  z-index: 5;
+  left: 18px;
+  top: 18px;
+  height: 32px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: var(--raised);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+}
+a.skip:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
+}
+
+/* A page that keeps waiting for the router (shell/waiting.ts): the portal's one card (DESIGN.md › Single card mode)
+   under the section row: Dawnline's mark, a 22 px title, a line of what the start is doing, and its three steps as a
+   track of three parts filling in the accent (orange while the router does not answer). It comes after 600 ms, so a
+   quick answer comes with nothing before it. */
+.dl-wait {
+  max-width: 400px;
+  margin: 12vh auto 0;
+  padding: 32px 24px 28px;
+  border-radius: var(--r-sheet);
+  background: var(--raised);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.dl-wait-mark .logo {
+  display: block;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 18px;
+}
+.dl-wait-mark .sun,
+.dl-wait-mark .bar {
+  fill: var(--text);
+}
+.dl-wait-t {
+  margin: 0;
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+}
+/* the line rolls: the old words and the new stand in one cell while they cross */
+.dl-roll {
+  display: grid;
+  justify-items: center;
+}
+.dl-roll > span {
+  grid-area: 1 / 1;
+}
+.dl-wait-l {
+  margin-top: 6px;
+  max-width: 34ch;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--text-2);
+  text-wrap: balance;
+}
+.dl-steps {
+  display: flex;
+  gap: 6px;
+  width: 168px;
+  margin-top: 22px;
+}
+.dl-steps > i {
+  position: relative;
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--knob);
+  overflow: hidden;
+}
+.dl-steps > i > b {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: background-color 300ms var(--ease-out);
+}
+.dl-wait.warn .dl-steps > i > b {
+  background: var(--warn);
+}

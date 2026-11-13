@@ -1,0 +1,25 @@
+
+config interface 'loopback'
+	option device 'lo'
+	option proto 'static'
+	list ipaddr '127.0.0.1/8'
+
+config globals 'globals'
+	option ula_prefix 'fd00:1234::/48'
+
+config device
+	option name 'br-lan'
+	option type 'bridge'
+	list ports 'lan1'
+	list ports 'lan2'
+
+config interface 'lan'
+	option device 'br-lan'
+	option proto 'static'
+	option ipaddr '192.168.77.1/24'
+	option note 'it'\''s the LAN'
+
+config interface 'dawn2'
+	option proto 'wireguard'
+	option private_key 'someone else'\''s'
+

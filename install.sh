@@ -805,7 +805,7 @@ record_state() {
 	[ "$WAS_INSTALLED" -eq 1 ] || return 0
 	WAS_VERSION="$(pkg_version "$PKG_NAME")"
 	ls /etc/rc.d/S*dawnline >/dev/null 2>&1 && WAS_ENABLED=1
-	_r="$(ubus call service list '{"name":"dawnline"}' 2>/dev/null | jsonfilter -q -e '@.dawnline.instances.agent.running' 2>/dev/null)"
+	_r="$(ubus call service list '{"name":"dawnline"}' 2>/dev/null | jsonfilter -q -e '@.dawnline.instances.backend.running' -e '@.dawnline.instances.agent.running' 2>/dev/null | head -n 1)"
 	[ "$_r" = true ] && WAS_RUNNING=1
 	debug "Installed: $WAS_VERSION, enabled=$WAS_ENABLED, running=$WAS_RUNNING"
 }
@@ -1292,10 +1292,23 @@ install_dawnline() {
 	msg "Installing Dawnline $VERSION"
 	# The translation in the same transaction: it depends on this very version.
 	if [ -n "$I18N_FILE" ]; then
-		pkg_install_files dawnline "$_force" "$ASSET_FILE" "$I18N_FILE"
+		pkg_install_files dawnline "$_force" "$ASSET_FILE" "$I18N_FILE" || return 1
 	else
-		pkg_install_files dawnline "$_force" "$ASSET_FILE"
+		pkg_install_files dawnline "$_force" "$ASSET_FILE" || return 1
 	fi
+	# The Go backend's binary for this router's architecture, from the same release, kept only when it
+	# matches the release's sha256 (the package is the same for every architecture). Without it Dawnline
+	# still works, on its older backend: the service asks for it again when it starts.
+	if [ -x /usr/libexec/dawnline/fetch-backend ]; then
+		msg "Fetching the backend for this router"
+		if /usr/libexec/dawnline/fetch-backend "$VERSION"; then
+			[ -x /usr/libexec/dawnline/dawnlined ] && ok "Backend $VERSION is in place" ||
+				warn "No backend is built for this router's architecture: Dawnline runs without it"
+		else
+			warn "The backend could not be fetched: Dawnline runs without it and tries again at its next start (logread -e dawnline says why)"
+		fi
+	fi
+	return 0
 }
 
 healthcheck() {
@@ -1320,26 +1333,27 @@ healthcheck() {
 		return 1
 	}
 	_w=0
-	until ubus list luci.dawnline >/dev/null 2>&1; do
+	# its backend's object on the bus (a version from before the backend did the work: the rpcd plugin's)
+	until ubus list dawnline >/dev/null 2>&1 || ubus list luci.dawnline >/dev/null 2>&1; do
 		_w=$((_w + 1))
 		if [ "$_w" -eq "$UBUS_WAIT" ]; then
 			warn "rpcd has not loaded the Dawnline backend yet; restarting rpcd"
 			/etc/init.d/rpcd restart >/dev/null 2>&1
 		fi
 		[ "$_w" -ge $((UBUS_WAIT + 10)) ] && {
-			err "The LuCI backend does not answer (ubus list luci.dawnline)"
+			err "Dawnline's backend does not answer (ubus list dawnline; logread -e dawnline says why)"
 			return 1
 		}
 		sleep 1
 	done
-	_r="$(ubus call service list '{"name":"dawnline"}' 2>/dev/null | jsonfilter -q -e '@.dawnline.instances.agent.running' 2>/dev/null)"
+	_r="$(ubus call service list '{"name":"dawnline"}' 2>/dev/null | jsonfilter -q -e '@.dawnline.instances.backend.running' -e '@.dawnline.instances.agent.running' 2>/dev/null | head -n 1)"
 	if [ "$_r" != true ]; then
-		warn "The Dawnline agent is not running yet (see Dawnline → Diagnostics)"
+		warn "Dawnline's backend is not running yet (see Dawnline → Diagnostics)"
 	fi
 	if [ -n "$I18N_PKG" ] && [ "$(pkg_version "$I18N_PKG")" != "$VERSION" ]; then
 		warn "$I18N_PKG $VERSION is not installed: Dawnline shows in English"
 	fi
-	ok "Healthcheck passed: $PKG_NAME $VERSION, LuCI backend answers"
+	ok "Healthcheck passed: $PKG_NAME $VERSION, its backend answers"
 }
 
 # An upgrade keeps a service the user had disabled disabled (the package's

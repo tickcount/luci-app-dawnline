@@ -1,0 +1,608 @@
+/* Overview (pages/overview): the router's state in the head as a link down to the checks; Health, the checks as a
+   visible list (the one notice, the failing rows, what passed as marks, the watchdog and «Check again» in the
+   foot) beside the people who wait for a decision; the "now" card (three tiles over the 30-day line); the servers
+   as cards, each with its rollout in short. Laid out by the page's own width (container dlpage); a phone puts
+   "now" right after Health. Page-own classes are ov-*; the rows, checks, chips and cells are the house parts'. */
+
+.ov > .dl-nav {
+  margin-bottom: 22px;
+}
+.ov .ph {
+  margin-bottom: 20px;
+}
+/* the state phrase leads down to Health, in its tone */
+.ov-state {
+  color: var(--text-2);
+  text-decoration: none;
+}
+.ov-state.ok-t {
+  color: var(--ok);
+}
+.ov-state.warn-t {
+  color: var(--warn);
+}
+.ov-state.bad-t {
+  color: var(--bad);
+}
+
+/* the page under its head: one column (the page itself is the container dlpage, so what follows its width is
+   laid out in this box) */
+.ov-body {
+  display: flex;
+  flex-direction: column;
+}
+.ov-health {
+  scroll-margin-top: 16px;
+}
+/* people no server holds, under the servers */
+.ov-lost {
+  margin-top: 24px;
+}
+/* Health closes the page, a section's distance under the servers */
+.ov-body .ov-health {
+  margin-top: 28px;
+}
+
+/* ── Health: the one notice (DESIGN.md › Notice), a link as a whole to where its check is fixed, the way said
+   at its end; the pointer and a press deepen its tint a step ── */
+.ov-health > .notice,
+.ov-health > .notice-a {
+  margin: 0 0 10px;
+}
+.notice-a {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 24px;
+}
+.notice-a > .notice {
+  margin: 0;
+  transition: background-color 150ms;
+}
+.ov-health .notice .t {
+  flex: 1 1 auto;
+}
+.notice-a:active > .notice.warn {
+  background: color-mix(in srgb, var(--warn) 15%, var(--raised));
+  transition: none;
+}
+.notice-a:active > .notice.bad {
+  background: color-mix(in srgb, var(--bad) 15%, var(--raised));
+  transition: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .notice-a:hover > .notice.warn {
+    background: color-mix(in srgb, var(--warn) 15%, var(--raised));
+  }
+  .notice-a:hover > .notice.bad {
+    background: color-mix(in srgb, var(--bad) 15%, var(--raised));
+  }
+}
+:host(.kbd) .notice-a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* a check nothing in Settings is about keeps its fix here: the button under the notice's words (its own words
+   are a button's, not the notice's lines) */
+.ov-health .notice .t > .btn {
+  align-self: flex-start;
+  margin-top: 10px;
+}
+.ov-health .notice .t > .btn span {
+  color: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+.ov-fix {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  padding-left: 8px;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.ov-fix .i {
+  width: 14px;
+  height: 14px;
+  color: var(--text-3);
+}
+/* the list: the failing rows (the house .checks), the marks, the foot */
+/* a card of the Settings' kind (24 round, 8 of padding): the list in it is 16, the one less the other */
+.ov-checks {
+  display: flex;
+  flex-direction: column;
+  border-radius: 24px;
+}
+a.ov-chk {
+  text-decoration: none;
+  padding-right: 12px;
+  transition: background-color 150ms;
+}
+@media (hover: hover) and (pointer: fine) {
+  a.ov-chk:hover {
+    background: color-mix(in srgb, var(--field), var(--knob) 50%);
+  }
+}
+a.ov-chk:active {
+  background: color-mix(in srgb, var(--field), var(--knob) 50%);
+  transition: none;
+}
+/* the list clips its rows: the keyboard's ring goes inside */
+a.ov-chk:focus-visible {
+  outline-offset: -2px;
+}
+/* what passed: a row for each thing the checks are about (the router, a server, the portal): its checks named in
+   one quiet line, counted at the row's end */
+.ov-checks > .checks + .ov-groups {
+  margin-top: 8px;
+}
+/* a row of two lines keeps its words as far from the list's round top as a row of one keeps them from its foot */
+.ov-grp {
+  min-height: 56px;
+  padding-top: 11px;
+  padding-bottom: 11px;
+}
+.ov-grp .chk-t > span {
+  overflow-wrap: break-word;
+}
+/* a skipped check: fainter, why in its title */
+.ov-grp .ov-idle {
+  color: var(--text-3);
+}
+.ov-gn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 6px 0 8px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.ov-gn .i {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2.2;
+}
+.ov-gn.ok-t {
+  color: var(--text-2);
+}
+.ov-gn.ok-t .i {
+  color: var(--ok);
+}
+.ov-gn.warn-t {
+  color: var(--warn);
+}
+.ov-gn.bad-t {
+  color: var(--bad);
+}
+.ov-hfoot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding: 8px 4px 2px 10px;
+}
+.ov-wd {
+  flex: 1 1 200px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+.ov-wd .gi {
+  flex: none;
+  width: 22px;
+  height: 22px;
+}
+.ov-wd .warn-t {
+  color: var(--warn);
+}
+/* the watchdog's line as its switch (a login that may change things) */
+.swrow.ov-wd-sw {
+  width: auto;
+  min-height: 36px;
+  gap: 8px;
+  padding: 0 4px 0 0;
+  border-radius: 12px;
+  background: none;
+  text-align: left;
+  font: inherit;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+.swrow.ov-wd-sw > span:not(.sw) {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.ov-again {
+  flex: none;
+  margin-left: auto;
+  padding: 0 12px 0 10px;
+  gap: 6px;
+  font: 500 14px/20px var(--font);
+  cursor: pointer;
+}
+
+/* ── the people who wait: the People stack's row, dense, its one action beside it ── */
+.ov-waitlist .orow-a {
+  gap: 12px;
+}
+.ov-waitlist .act-slot {
+  width: auto;
+  flex: 0 1 auto;
+  max-width: 52%;
+}
+.ov-waitlist .orow-t {
+  min-width: 96px;
+}
+.ov-waitlist .orow-l {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* ── now: three tiles of one height, what each draws at its foot ── */
+.card.now {
+  margin-bottom: 28px;
+}
+.card.now .stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.card.now .stat {
+  min-height: 132px;
+}
+.stat.has-extra {
+  position: relative;
+  overflow: hidden;
+}
+.card.now .stat > .st-faces,
+.card.now .stat > .hbars,
+.card.now .stat > .ll-wrap > .ll-box {
+  margin-top: auto;
+}
+.card.now .stat-sub {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.st-faces {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding-top: 12px;
+  color: inherit;
+  text-decoration: none;
+}
+.st-faces .pav {
+  width: 26px;
+  height: 26px;
+  font-size: 10px;
+  line-height: 14px;
+}
+.st-faces .pav.more {
+  color: var(--text-2);
+  background: var(--knob);
+  box-shadow: none;
+}
+/* the speed tile: who moves most now, above the live line */
+.ll-wrap {
+  display: contents;
+}
+.ll-top {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+.ll-top:empty {
+  display: none;
+}
+.ll-top a {
+  color: var(--text);
+  text-decoration: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .ll-top a:hover {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+}
+.ll-v {
+  font-weight: 500;
+  color: var(--text);
+}
+.ll-who {
+  white-space: nowrap;
+}
+/* today by the hour: the portal's bars, the hours to come a flat dash */
+.hbars {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 26px;
+  padding-top: 12px;
+  box-sizing: content-box;
+}
+/* an hour: its column answers the pointer over the tile's whole height, its bar stands at the column's foot */
+.hbars .hb {
+  flex: 1;
+  max-width: 8px;
+  align-self: stretch;
+  display: flex;
+  align-items: flex-end;
+  /* up into the row's padding, so a low bar is as easy to point at as a tall one */
+  margin-top: -12px;
+  padding-top: 12px;
+}
+.hbars i {
+  flex: 1;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--live) 45%, transparent);
+}
+.hbars .hb:hover i {
+  background: var(--live);
+}
+.hbars i.now {
+  background: var(--live);
+}
+.hbars i.later {
+  background: var(--knob);
+}
+/* the line under the tiles, and its foot: the legend, the day read, who moved most this month */
+.now-chart:empty {
+  display: none;
+}
+.now-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 12px 8px 6px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+.now-keys {
+  display: inline-flex;
+  gap: 16px;
+}
+.now-topbox:empty {
+  display: none;
+}
+.now-topbox {
+  margin-left: auto;
+}
+.lc-read:not(:empty) + .now-topbox {
+  display: none;
+}
+.now-top a {
+  color: var(--text);
+  font-weight: 500;
+  text-decoration: none;
+}
+.now-top .nb {
+  white-space: nowrap;
+}
+@container dlpage (max-width: 559px) {
+  .card.now .stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* a phone: the number and its line on one row (a tile needs the width only for what it draws) */
+  .card.now .stat {
+    min-height: 0;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 8px;
+  }
+  .card.now .stat > .use-lbl,
+  .card.now .stat > .st-faces,
+  .card.now .stat > .hbars,
+  .card.now .stat > .ll-wrap > * {
+    flex-basis: 100%;
+  }
+  .card.now .stat > .stat-sub {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .now-topbox {
+    margin-left: 0;
+    flex-basis: 100%;
+  }
+}
+
+/* ── servers: a card each, the row and under it the rollout in short ── */
+.ov-servers {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ov-server {
+  border-radius: var(--r-row);
+  background: var(--raised);
+}
+.ov-server > .orow {
+  background: none;
+  border-radius: var(--r-row);
+}
+@media (hover: hover) and (pointer: fine) {
+  .ov-server > .orow:hover {
+    background: color-mix(in srgb, var(--raised), var(--knob) 40%);
+  }
+}
+.ov-srow .orow-t {
+  flex: 1 1 160px;
+}
+/* the server as its page's head names it: its state, then where devices connect, on one line */
+.ov-sline {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+}
+.ov-sline > span:first-child {
+  flex: none;
+}
+.ov-addr {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0;
+  color: var(--text-2);
+}
+.ov-addr::before {
+  content: '·';
+  margin: 0 6px;
+  font-family: var(--font);
+  color: var(--text-3);
+}
+/* its figures: named cells in the same columns on every card, a link to the server as its name is */
+.ov-figs {
+  flex: none;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 10px 0 10px 8px;
+  color: inherit;
+  text-decoration: none;
+}
+.ov-fig {
+  display: flex;
+  flex-direction: column;
+  width: 96px;
+  min-width: 0;
+}
+.ov-fig-l {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ov-fig b {
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+.ov-fig b.warn-t {
+  color: var(--warn);
+}
+.ov-fig .ov-none {
+  color: var(--text-3);
+  font-weight: 400;
+}
+.ov-on {
+  width: auto;
+  flex: none;
+}
+.ov-roll {
+  margin: 0 8px 8px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--field);
+  --ro-ground: var(--field);
+}
+.ov-roll-h {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  font-size: 14px;
+  line-height: 20px;
+}
+.ov-roll-h > .i {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--warn);
+}
+.ov-roll-h b {
+  font-weight: 500;
+}
+.ov-roll-ch {
+  font-size: 13px;
+  color: var(--text-2);
+}
+.ov-roll > .ro-strip,
+.ov-roll > .ro-meter {
+  margin: 10px 0 12px;
+}
+.ov-roll-f {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ov-waiters {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ov-lbl {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+  margin-right: 2px;
+}
+.ov-roll-f > .btn {
+  flex: none;
+  align-self: flex-end;
+}
+
+/* narrower: the figures go under the server's name, sharing the row's width */
+@container dlpage (max-width: 799px) {
+  .ov-srow {
+    flex-wrap: wrap;
+  }
+  /* as many columns as fit a figure whole (a phone: two by two): a number someone compares is never cut */
+  .ov-figs {
+    order: 9;
+    flex: 1 1 100%;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(116px, 1fr));
+    gap: 8px 12px;
+    padding: 0 14px 12px 54px;
+  }
+  .ov-fig {
+    width: auto;
+  }
+}
+/* a phone: the way to a fix is its chevron alone, a person's action goes under their words */
+@container dlpage (max-width: 559px) {
+  .ov-fix > span {
+    display: none;
+  }
+  .ov-waitlist .act-slot {
+    flex: 1 1 100%;
+    max-width: none;
+  }
+  .ov-roll-f {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .ov-roll-f > .btn {
+    align-self: stretch;
+    justify-content: center;
+  }
+}

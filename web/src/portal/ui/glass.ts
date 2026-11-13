@@ -1,23 +1,44 @@
 // Glass icons: a tinted back shape, the same shape blurred behind a frosted
 // front pane, a rim, and the detail strokes on top. The shapes are ours; every
 // colour comes from the stylesheet (tone classes and the --gi-* tokens), never
-// from a style attribute, which the page's CSP would drop.
+// from a style attribute, which the page's CSP would drop. A picture draws
+// the thing its place names, one picture has one meaning, and a named product
+// wears its own mark (DESIGN.md › Glass icon catalogue).
 
 import { iconSvg } from '../../shared/icons';
 import { markup } from '../dom';
 
 export type Tone = 'grey' | 'blue' | 'green' | 'red' | 'orange';
 
-interface Shape {
+export interface GlassShape {
   /** The tinted back shape. */
   b: string;
   /** The frosted front pane. */
   f: string;
-  /** Detail strokes on the pane; null: the AmneziaVPN mark instead. */
-  d: string | null;
+  /** Detail strokes on the pane. */
+  d: string;
+  /** A filled mark on the pane (its shapes in a 24 px box): an app's or a component's, alone or beside the strokes. */
+  m?: () => string;
+  /** The mark's size on the pane, of its 24 px box (default .385: AmneziaVPN's, about 9 px of a 14.5 px pane). */
+  ms?: number;
+  /** The mark's centre (default: the square pane's, 9.75 14.75), where strokes share the pane with it. */
+  mc?: [x: number, y: number];
 }
 
-const GL: Record<string, Shape> = {
+/** The square pane with its dot behind: what a mark, and many a picture, is drawn on. */
+const DOT = '<circle cx="16" cy="8" r="6"/>';
+const PANE = '<rect x="2.5" y="7.5" width="14.5" height="14.5" rx="4.2"/>';
+
+/** A mark's size on the pane, of its 24 px box, grown or shrunk until each reads alike at a row's 28 px. */
+const MARK_SIZE: Record<string, number> = { amnezia: 0.385, amneziawg: 0.46, wireguard: 0.46, v2raytun: 0.42, openwrt: 0.48, github: 0.48 };
+
+/** A filled mark (its shapes in a 24 px box, `ms` of it) on the square pane. */
+export const onPane = (m: () => string, ms: number): GlassShape => ({ b: DOT, f: PANE, d: '', m, ms });
+
+/** A product's mark by its icon's name (shared/logos.ts) on the square pane: an app's, a component's. */
+export const markShape = (mark: string): GlassShape => onPane(() => markOf(mark), MARK_SIZE[mark] ?? 0.385);
+
+const GL: Record<string, GlassShape> = {
   phone: {
     b: '<rect x="10" y="2" width="10" height="16" rx="3"/>',
     f: '<rect x="4" y="5" width="11.5" height="17" rx="3.2"/>',
@@ -74,17 +95,14 @@ const GL: Record<string, Shape> = {
     f: '<rect x="2" y="6" width="15.5" height="16" rx="3.4"/>',
     d: '<path d="M2.4 10.6h14.7" stroke-width="1"/><path d="M6.2 14.6h.4M9.5 14.6h.4M12.8 14.6h.4M6.2 18h.4M9.5 18h.4" stroke-width="2.2"/>',
   },
-  clock: { b: '<circle cx="16" cy="8" r="6"/>', f: '<circle cx="10.5" cy="13.5" r="8.5"/>', d: '<path d="M10.5 9v4.8l3 1.8"/>' },
   pause: {
     b: '<rect x="12" y="2" width="10" height="10" rx="3"/>',
     f: '<circle cx="10.5" cy="13.5" r="8.5"/>',
     d: '<path d="M8.6 10.5v6M12.4 10.5v6"/>',
   },
-  server: {
-    b: '<rect x="7" y="2" width="15" height="8" rx="2.6"/>',
-    f: '<rect x="2" y="8" width="16" height="14" rx="3"/>',
-    d: '<path d="M5.5 12.5h.4M5.5 17.5h.4" stroke-width="2.4"/><path d="M2.4 15h15.2" stroke-width="1"/>',
-  },
+  // a server: a terminal's prompt and, beside it, the mark of the core it runs on (every one runs AmneziaWG
+  // today; another core brings its own mark here)
+  server: { b: DOT, f: PANE, d: '<path d="M5.1 12.5l2.3 2.25-2.3 2.25"/>', m: () => markOf('amneziawg'), ms: 0.34, mc: [12.2, 14.75] },
   link: {
     b: '<rect x="11.5" y="1.5" width="8" height="14" rx="4" transform="rotate(45 15.5 8.5)"/>',
     f: '<rect x="4.5" y="8.5" width="8" height="14" rx="4" transform="rotate(45 8.5 15.5)"/>',
@@ -115,34 +133,48 @@ const GL: Record<string, Shape> = {
     f: '<circle cx="10.5" cy="13.5" r="8.5"/>',
     d: '<path d="M14.2 11.3a4.2 4.2 0 1 0 .3 3.6"/><path d="M14.6 8.8v2.8h-2.8"/>',
   },
-  app: { b: '<circle cx="16" cy="8" r="6"/>', f: '<rect x="2.5" y="7.5" width="14.5" height="14.5" rx="4.2"/>', d: null },
+  // a page in a browser window: the page itself, a browser, the personal portal in the admin
+  browser: {
+    b: '<rect x="8.5" y="2" width="13.5" height="12" rx="3"/>',
+    f: '<rect x="2" y="6.5" width="16.5" height="15" rx="3.4"/>',
+    d: '<path d="M2.4 11h15.7" stroke-width="1"/><path d="M5.3 8.8h.3M7.9 8.8h.3" stroke-width="2"/><path d="M5.8 14.6h6.6M5.8 17.8h3.8"/>',
+  },
+  // an access that reaches both: the internet, with the home behind it
+  both: {
+    b: '<path d="M10.5 9.4 16.4 4.4l5.9 5v6.1a1.6 1.6 0 0 1-1.6 1.6h-8.6a1.6 1.6 0 0 1-1.6-1.6z"/>',
+    f: '<circle cx="10" cy="14" r="8"/>',
+    d: '<path d="M2.4 14h15.2" stroke-width="1.1"/><path d="M10 6.2c2.3 2.5 2.3 13.1 0 15.6M10 6.2c-2.3 2.5-2.3 13.1 0 15.6" stroke-width="1.1"/>',
+  },
   file: {
     b: '<rect x="9" y="2" width="12.5" height="15" rx="3"/>',
     f: '<rect x="2.5" y="6" width="13.5" height="16" rx="3.2"/>',
     d: '<path d="M6.2 11h6.5M6.2 14.5h6.5M6.2 18h4"/>',
   },
   lan: {
-    b: '<circle cx="16" cy="8" r="6"/>',
-    f: '<rect x="2.5" y="7.5" width="14.5" height="14.5" rx="4.2"/>',
+    b: DOT,
+    f: PANE,
     d: '<rect x="8.3" y="10.4" width="2.9" height="2.6" rx=".7"/><rect x="5.2" y="16.4" width="2.9" height="2.6" rx=".7"/><rect x="11.4" y="16.4" width="2.9" height="2.6" rx=".7"/><path d="M9.75 13v1.8M6.65 16.4v-1.6h6.2v1.6"/>',
   },
 };
 
-/** The AmneziaVPN mark without its own svg: drawn on the "app" pane. */
-const amneziaMark = () =>
-  iconSvg('amnezia', '')
+/** A mark of the icons (an app's, shared/logos.ts) without its own svg: to be drawn on a pane. */
+const markOf = (name: string): string =>
+  iconSvg(name, '')
     .replace(/^<svg[^>]*>/, '')
     .replace(/<\/svg>$/, '');
 
+/** A mark of `ms` of its 24 px box, centred at `c` (the square pane's centre unless the shape says). */
+const markAt = (ms: number, [x, y]: [number, number] = [9.75, 14.75]): string =>
+  `translate(${+(x - 12 * ms).toFixed(3)} ${+(y - 12 * ms).toFixed(3)}) scale(${ms})`;
+
 let gid = 0;
-/** A glass icon as markup (`cls`: its classes, e.g. "gi xl"). */
-function glassSvg(name: string, tone: Tone = 'grey', cls = 'gi'): string {
-  const g = GL[name] ?? GL.other;
+/** A shape drawn as glass, as markup (`cls`: its classes, e.g. "gi xl"). */
+function glassSvg(g: GlassShape, tone: Tone, cls: string): string {
   const id = `gl${++gid}`;
+  // strokes, a mark, or both (a server: its prompt and its core's mark)
   const detail =
-    g.d === null
-      ? `<g class="gdf" transform="translate(5.15 10.15) scale(.385)">${amneziaMark()}</g>`
-      : `<g class="gd" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${g.d}</g>`;
+    (g.d || !g.m ? `<g class="gd" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${g.d}</g>` : '') +
+    (g.m ? `<g class="gdf" fill="currentColor" transform="${markAt(g.ms ?? 0.385, g.mc)}">${g.m()}</g>` : '');
   return (
     `<svg class="${cls} t-${tone}" viewBox="0 0 24 24" aria-hidden="true"><defs>` +
     `<linearGradient id="${id}b" x1="0" y1="0" x2="1" y2="1"><stop offset="0" class="ta"/><stop offset="1" class="tb"/></linearGradient>` +
@@ -155,4 +187,7 @@ function glassSvg(name: string, tone: Tone = 'grey', cls = 'gi'): string {
 }
 
 /** A glass icon as an element. */
-export const glass = (name: string, tone: Tone = 'grey', cls = 'gi'): Element => markup(glassSvg(name, tone, cls));
+export const glass = (name: string, tone: Tone = 'grey', cls = 'gi'): Element => markup(glassSvg(GL[name] ?? GL.other, tone, cls));
+
+/** A shape of the caller's own drawn the same way (the admin's objects the portal has no picture for). */
+export const glassOf = (g: GlassShape, tone: Tone = 'grey', cls = 'gi'): Element => markup(glassSvg(g, tone, cls));

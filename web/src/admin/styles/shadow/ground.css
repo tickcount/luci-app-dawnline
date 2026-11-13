@@ -1,0 +1,32 @@
+/* Inside LuCI there is no ground of our own (owner decision, 2026-11-08): the page stands on the theme's
+   background. The portal's root rule (body: a full-height page on --bg) is undone, the type kept.
+   Dark: the theme's black is the ground and the portal's ladder (raised → field → knob) steps up from it
+   unchanged. Light: the theme's near-white is the ground, on which white cards would vanish, so the steps go
+   down in tone instead, the same distance apart (each a little more ink). */
+:host {
+  min-height: 0;
+  background: none;
+  color: var(--text);
+  font: 400 15px/22px var(--font);
+  letter-spacing: -0.011em;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  text-align: left;
+  --on-ground: var(--knob);
+  /* a page's own track (the section row, a server's parts) is a card's surface, its pill a step off it in either theme */
+  --page-pill: color-mix(in srgb, var(--raised), var(--text) 7%);
+}
+:host([data-theme='dark']) {
+  color-scheme: dark;
+  --bg: #000000;
+}
+:host([data-theme='light']) {
+  color-scheme: light;
+  --bg: #fcfcfc;
+  --raised: color-mix(in srgb, #fcfcfc, #0b0b0b 4%);
+  --field: color-mix(in srgb, #fcfcfc, #0b0b0b 7.5%);
+  --knob: color-mix(in srgb, #fcfcfc, #0b0b0b 11%);
+  --on-ground: color-mix(in srgb, #fcfcfc, #0b0b0b 8%);
+  --seg: #ffffff;
+  --glass-hl: color-mix(in srgb, #fcfcfc, #0b0b0b 10%);
+}

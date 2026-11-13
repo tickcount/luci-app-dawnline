@@ -1,10 +1,10 @@
 #!/bin/sh
 # Dawnline — after its own package was replaced: restart, check that the new
-# version answers (the LuCI link and the agent), and put the kept previous
-# version back when it does not. Started detached by the updater
+# version answers (its backend, on the bus and as a process), and put the kept
+# previous version back when it does not. Started detached by the updater
 # (usr/libexec/dawnline/updater) with the version being installed.
 #   postupdate <version>
-# Plain shell on purpose: a release whose ucode does not compile cannot check
+# Plain shell on purpose: a release whose backend does not start cannot check
 # or repair itself, and the admin cannot click Roll back in a page that this
 # same backend serves.
 RUN=/var/run/dawnline
@@ -12,6 +12,9 @@ KEEP=/etc/dawnline/keep/app
 to="${1:-?}"
 
 sleep 2
+# The backend's binary of the new version, before anything of it starts: a binary of another version is
+# removed even when the new one cannot be fetched (the service then runs on the ucode backend).
+/usr/libexec/dawnline/fetch-backend "$to" </dev/null >/dev/null 2>&1
 # LuCI reads a language's catalogs once per web server: a replaced translation
 # needs a fresh one, before the new version answers and the page reloads.
 ls /usr/lib/lua/luci/i18n/dawnline.*.lmo >/dev/null 2>&1 && /etc/init.d/uhttpd restart >/dev/null 2>&1
@@ -19,9 +22,9 @@ ls /usr/lib/lua/luci/i18n/dawnline.*.lmo >/dev/null 2>&1 && /etc/init.d/uhttpd r
 /etc/init.d/dawnline restart >/dev/null 2>&1
 
 up() {
-	ubus list luci.dawnline >/dev/null 2>&1 || return 1
-	ubus -t 10 call luci.dawnline rev >/dev/null 2>&1 || return 1
-	pgrep -f '^/usr/bin/ucode /usr/libexec/dawnline/agent' >/dev/null 2>&1
+	ubus list dawnline >/dev/null 2>&1 || return 1
+	[ "$(ubus -t 10 call dawnline hello 2>/dev/null | jsonfilter -q -e '@.version')" = "$to" ] || return 1
+	pgrep -f '^/usr/libexec/dawnline/dawnlined ' >/dev/null 2>&1
 }
 
 i=0
@@ -31,7 +34,7 @@ while [ "$i" -lt 12 ]; do
 	up && exit 0
 done
 
-logger -t dawnline -p daemon.err "[error] [update] update to $to failed its check: luci.dawnline or the agent is not up"
+logger -t dawnline -p daemon.err "[error] [update] update to $to failed its check: the backend is not up, or is not that version"
 set --
 for f in "$KEEP"/*.ipk "$KEEP"/*.apk; do
 	[ -f "$f" ] && set -- "$@" "$f"
@@ -45,10 +48,12 @@ if command -v apk >/dev/null 2>&1; then
 else
 	opkg install --force-reinstall --force-downgrade "$@" >/dev/null 2>&1
 fi
+# and the backend that goes with the version put back (its own, by the package's files)
+/usr/libexec/dawnline/fetch-backend </dev/null >/dev/null 2>&1
 /etc/init.d/rpcd restart >/dev/null 2>&1
 /etc/init.d/dawnline restart >/dev/null 2>&1
 mkdir -p "$RUN"
-# The restored agent reports it in the service log on its start.
+# The restored backend reports it in the service log on its start.
 echo "$to" > "$RUN/update-rolled-back"
 logger -t dawnline -p daemon.warning "[warn] [update] rolled back from $to to the kept version"
 exit 0

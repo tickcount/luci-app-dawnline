@@ -25,6 +25,7 @@ function dev(o: Partial<Device> = {}): Device {
     hostname: 'pixel-9.user.lan',
     browser_key: false,
     config_stale: false,
+    config_issued: 0,
     lan_bypass: false,
     mtu: 0,
     keepalive: null,

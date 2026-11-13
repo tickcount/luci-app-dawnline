@@ -1,0 +1,1537 @@
+{
+	"bridge": "02:11:22:33:44:55",
+	"dhcp": "config dnsmasq\n\toption domainneeded\t1\n\toption boguspriv\t1\n\toption filterwin2k\t0  # enable for dial on demand\n\toption localise_queries\t1\n\toption rebind_protection 1  # disable if upstream must serve RFC1918 addresses\n\toption rebind_localhost 1  # enable for RBL checking and similar services\n\t#list rebind_domain example.lan  # whitelist RFC1918 responses for domains\n\toption local\t'/lan/'\n\toption domain\t'lan'\n\toption expandhosts\t1\n\toption nonegcache\t0\n\toption cachesize\t1000\n\toption authoritative\t1\n\toption readethers\t1\n\toption leasefile\t'/tmp/dhcp.leases'\n\toption resolvfile\t'/tmp/resolv.conf.d/resolv.conf.auto'\n\t#list server\t\t'/mycompany.local/1.2.3.4'\n\toption nonwildcard\t1 # bind to & keep track of interfaces\n\t#list interface\t\tbr-lan\n\t#list notinterface\tlo\n\t#list bogusnxdomain     '64.94.110.11'\n\toption localservice\t1  # disable to allow DNS requests from non-local subnets\n\toption ednspacket_max\t1232\n\toption filter_aaaa\t0\n\toption filter_a\t\t0\n\t#list addnmount\t\t/some/path # read-only mount path to expose it to dnsmasq\n\nconfig dhcp lan\n\toption interface\tlan\n\toption start \t100\n\toption limit\t150\n\toption leasetime\t12h\n\nconfig dhcp wan\n\toption interface\twan\n\toption ignore\t1\n",
+	"steps": [
+		{
+			"what": "the first time: everything is made",
+			"force": true,
+			"result": {
+				"dev": "br-lan",
+				"gateway": "192.168.77.1",
+				"address": "192.168.77.254",
+				"mac": "aa:a4:a8:84:2d:9d",
+				"prefix": 24,
+				"dns": "192.168.77.1",
+				"transit": 2852015360,
+				"tx_root": "169.254.77.1",
+				"tx_ns": "169.254.77.2",
+				"table": 2077,
+				"servers": [
+					{
+						"ifname": "dawn1",
+						"subnet": "10.78.0.0/24",
+						"direct": [
+							"10.78.0.0/24",
+							"192.168.50.0/24"
+						]
+					},
+					{
+						"ifname": "dawn2",
+						"subnet": "10.79.0.0/24",
+						"direct": [
+							"10.79.0.0/24",
+							"192.168.77.0/24"
+						]
+					}
+				]
+			},
+			"state": {
+				"applied": 1,
+				"plan": {
+					"dev": "br-lan",
+					"gateway": "192.168.77.1",
+					"address": "192.168.77.254",
+					"mac": "aa:a4:a8:84:2d:9d",
+					"prefix": 24,
+					"dns": "192.168.77.1",
+					"transit": 2852015360,
+					"tx_root": "169.254.77.1",
+					"tx_ns": "169.254.77.2",
+					"table": 2077,
+					"servers": [
+						{
+							"ifname": "dawn1",
+							"subnet": "10.78.0.0/24",
+							"direct": [
+								"10.78.0.0/24",
+								"192.168.50.0/24"
+							]
+						},
+						{
+							"ifname": "dawn2",
+							"subnet": "10.79.0.0/24",
+							"direct": [
+								"10.79.0.0/24",
+								"192.168.77.0/24"
+							]
+						}
+					]
+				},
+				"transit": 2852015360,
+				"fast": true
+			},
+			"ns_rules": "table inet dawnline\ndelete table inet dawnline\ntable inet dawnline {\n\tflowtable ft {\n\t\thook ingress priority 0;\n\t\tdevices = { \"dlx1\", \"dll1\" };\n\t}\n\tchain nat_pre {\n\t\ttype nat hook prerouting priority dstnat; policy accept;\n\t\tiifname \"dlx1\" ip daddr 192.168.77.254 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.1:53\n\t}\n\tchain nat_post {\n\t\ttype nat hook postrouting priority srcnat; policy accept;\n\t\toifname \"dll1\" masquerade\n\t}\n\tchain filter_forward {\n\t\ttype filter hook forward priority filter; policy drop;\n\t\tct state established meta l4proto { tcp, udp } flow add @ft\n\t\tct state established,related accept\n\t\tiifname \"dlx1\" oifname \"dll1\" accept\n\t}\n\tchain filter_input {\n\t\ttype filter hook input priority filter; policy drop;\n\t\tct state established,related accept\n\t\tiifname \"lo\" accept\n\t\ticmp type echo-request accept\n\t\tiifname \"dlx1\" meta l4proto { tcp, udp } th dport 53 accept\n\t}\n}\n",
+			"log": [
+				{
+					"src": "dawnline",
+					"level": "up",
+					"msg": "is on · traffic enters br-lan as 192.168.77.254",
+					"who": "Internet like a home device"
+				}
+			],
+			"ran": [
+				"ip netns add dawnline",
+				"ip link add dlx0 type veth peer name dlx1 netns dawnline",
+				"ip link add dll0 type veth peer name dll1 address aa:a4:a8:84:2d:9d netns dawnline",
+				"ip addr flush dev dlx0",
+				"ip addr add 169.254.77.1/30 dev dlx0",
+				"ip link set dlx0 up",
+				"ip link set dll0 master 'br-lan'",
+				"ip link set dll0 up",
+				"ip -n dawnline link set lo up",
+				"ip -n dawnline addr flush dev dlx1",
+				"ip -n dawnline addr add 169.254.77.2/30 dev dlx1",
+				"ip -n dawnline link set dlx1 up",
+				"ip -n dawnline addr flush dev dll1",
+				"ip -n dawnline addr add 192.168.77.254/24 dev dll1",
+				"ip -n dawnline link set dll1 up",
+				"ip -n dawnline route replace default via 192.168.77.1 dev dll1",
+				"ip -n dawnline route replace default via 169.254.77.1 dev dlx1 table 100",
+				"ip -n dawnline rule del from 169.254.77.2 lookup 100 2>/dev/null; ip -n dawnline rule add from 169.254.77.2 lookup 100",
+				"ip netns exec dawnline sh -c 'echo 1 > /proc/sys/net/ipv4/ip_forward; echo 0 > /proc/sys/net/ipv4/conf/all/rp_filter; echo 0 > /proc/sys/net/ipv4/conf/default/rp_filter'",
+				"ip -4 route replace default via 169.254.77.2 dev dlx0 table 2077",
+				"ip -n dawnline route replace '10.78.0.0/24' via '169.254.77.1' dev dlx1",
+				"ip -n dawnline route replace '10.79.0.0/24' via '169.254.77.1' dev dlx1",
+				"ip netns exec dawnline nft -f /var/etc/dawnline-ns.nft",
+				"ip -4 rule add priority 5205 iif 'dawn1' to 192.168.77.254/32 lookup 2077",
+				"ip -4 rule add priority 5210 iif 'dawn1' to 10.78.0.0/24 lookup main",
+				"ip -4 rule add priority 5210 iif 'dawn1' to 192.168.50.0/24 lookup main",
+				"ip -4 rule add priority 5290 iif 'dawn1' lookup 2077",
+				"ip -4 rule add priority 5205 iif 'dawn2' to 192.168.77.254/32 lookup 2077",
+				"ip -4 rule add priority 5210 iif 'dawn2' to 10.79.0.0/24 lookup main",
+				"ip -4 rule add priority 5210 iif 'dawn2' to 192.168.77.0/24 lookup main",
+				"ip -4 rule add priority 5290 iif 'dawn2' lookup 2077"
+			],
+			"failed": [
+			],
+			"pings": [
+				"ping -c 1 -W 1 -I br-lan 192.168.77.254"
+			],
+			"sys": {
+				"dlx0": true,
+				"dll0": true,
+				"netns": true
+			}
+		},
+		{
+			"what": "again, the rules in: nothing to do",
+			"force": false,
+			"result": {
+				"dev": "br-lan",
+				"gateway": "192.168.77.1",
+				"address": "192.168.77.254",
+				"mac": "aa:a4:a8:84:2d:9d",
+				"prefix": 24,
+				"dns": "192.168.77.1",
+				"transit": 2852015360,
+				"tx_root": "169.254.77.1",
+				"tx_ns": "169.254.77.2",
+				"table": 2077,
+				"servers": [
+					{
+						"ifname": "dawn1",
+						"subnet": "10.78.0.0/24",
+						"direct": [
+							"10.78.0.0/24",
+							"192.168.50.0/24"
+						]
+					},
+					{
+						"ifname": "dawn2",
+						"subnet": "10.79.0.0/24",
+						"direct": [
+							"10.79.0.0/24",
+							"192.168.77.0/24"
+						]
+					}
+				]
+			},
+			"state": {
+				"applied": 1,
+				"plan": {
+					"dev": "br-lan",
+					"gateway": "192.168.77.1",
+					"address": "192.168.77.254",
+					"mac": "aa:a4:a8:84:2d:9d",
+					"prefix": 24,
+					"dns": "192.168.77.1",
+					"transit": 2852015360,
+					"tx_root": "169.254.77.1",
+					"tx_ns": "169.254.77.2",
+					"table": 2077,
+					"servers": [
+						{
+							"ifname": "dawn1",
+							"subnet": "10.78.0.0/24",
+							"direct": [
+								"10.78.0.0/24",
+								"192.168.50.0/24"
+							]
+						},
+						{
+							"ifname": "dawn2",
+							"subnet": "10.79.0.0/24",
+							"direct": [
+								"10.79.0.0/24",
+								"192.168.77.0/24"
+							]
+						}
+					]
+				},
+				"transit": 2852015360,
+				"fast": true
+			},
+			"ns_rules": "table inet dawnline\ndelete table inet dawnline\ntable inet dawnline {\n\tflowtable ft {\n\t\thook ingress priority 0;\n\t\tdevices = { \"dlx1\", \"dll1\" };\n\t}\n\tchain nat_pre {\n\t\ttype nat hook prerouting priority dstnat; policy accept;\n\t\tiifname \"dlx1\" ip daddr 192.168.77.254 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.1:53\n\t}\n\tchain nat_post {\n\t\ttype nat hook postrouting priority srcnat; policy accept;\n\t\toifname \"dll1\" masquerade\n\t}\n\tchain filter_forward {\n\t\ttype filter hook forward priority filter; policy drop;\n\t\tct state established meta l4proto { tcp, udp } flow add @ft\n\t\tct state established,related accept\n\t\tiifname \"dlx1\" oifname \"dll1\" accept\n\t}\n\tchain filter_input {\n\t\ttype filter hook input priority filter; policy drop;\n\t\tct state established,related accept\n\t\tiifname \"lo\" accept\n\t\ticmp type echo-request accept\n\t\tiifname \"dlx1\" meta l4proto { tcp, udp } th dport 53 accept\n\t}\n}\n",
+			"log": [
+			],
+			"ran": [
+			],
+			"failed": [
+			],
+			"pings": [
+				"ping -c 1 -W 1 -I br-lan 192.168.77.254"
+			],
+			"sys": {
+				"dlx0": true,
+				"dll0": true,
+				"netns": true
+			}
+		},
+		{
+			"what": "a rule gone, one of ours with a source, one twice, one of a tunnel long gone",
+			"force": false,
+			"result": {
+				"dev": "br-lan",
+				"gateway": "192.168.77.1",
+				"address": "192.168.77.254",
+				"mac": "aa:a4:a8:84:2d:9d",
+				"prefix": 24,
+				"dns": "192.168.77.1",
+				"transit": 2852015360,
+				"tx_root": "169.254.77.1",
+				"tx_ns": "169.254.77.2",
+				"table": 2077,
+				"servers": [
+					{
+						"ifname": "dawn1",
+						"subnet": "10.78.0.0/24",
+						"direct": [
+							"10.78.0.0/24",
+							"192.168.50.0/24"
+						]
+					},
+					{
+						"ifname": "dawn2",
+						"subnet": "10.79.0.0/24",
+						"direct": [
+							"10.79.0.0/24",
+							"192.168.77.0/24"
+						]
+					}
+				]
+			},
+			"state": {
+				"applied": 1,
+				"plan": {
+					"dev": "br-lan",
+					"gateway": "192.168.77.1",
+					"address": "192.168.77.254",
+					"mac": "aa:a4:a8:84:2d:9d",
+					"prefix": 24,
+					"dns": "192.168.77.1",
+					"transit": 2852015360,
+					"tx_root": "169.254.77.1",
+					"tx_ns": "169.254.77.2",
+					"table": 2077,
+					"servers": [
+						{
+							"ifname": "dawn1",
+							"subnet": "10.78.0.0/24",
+							"direct": [
+								"10.78.0.0/24",
+								"192.168.50.0/24"
+							]
+						},
+						{
+							"ifname": "dawn2",
+							"subnet": "10.79.0.0/24",
+							"direct": [
+								"10.79.0.0/24",
+								"192.168.77.0/24"
+							]
+						}
+					]
+				},
+				"transit": 2852015360,
+				"fast": true
+			},
+			"ns_rules": "table inet dawnline\ndelete table inet dawnline\ntable inet dawnline {\n\tflowtable ft {\n\t\thook ingress priority 0;\n\t\tdevices = { \"dlx1\", \"dll1\" };\n\t}\n\tchain nat_pre {\n\t\ttype nat hook prerouting priority dstnat; policy accept;\n\t\tiifname \"dlx1\" ip daddr 192.168.77.254 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.1:53\n\t}\n\tchain nat_post {\n\t\ttype nat hook postrouting priority srcnat; policy accept;\n\t\toifname \"dll1\" masquerade\n\t}\n\tchain filter_forward {\n\t\ttype filter hook forward priority filter; policy drop;\n\t\tct state established meta l4proto { tcp, udp } flow add @ft\n\t\tct state established,related accept\n\t\tiifname \"dlx1\" oifname \"dll1\" accept\n\t}\n\tchain filter_input {\n\t\ttype filter hook input priority filter; policy drop;\n\t\tct state established,related accept\n\t\tiifname \"lo\" accept\n\t\ticmp type echo-request accept\n\t\tiifname \"dlx1\" meta l4proto { tcp, udp } th dport 53 accept\n\t}\n}\n",
+			"log": [
+			],
+			"ran": [
+				"ip addr flush dev dlx0",
+				"ip addr add 169.254.77.1/30 dev dlx0",
+				"ip link set dlx0 up",
+				"ip link set dll0 master 'br-lan'",
+				"ip link set dll0 up",
+				"ip -n dawnline link set lo up",
+				"ip -n dawnline addr flush dev dlx1",
+				"ip -n dawnline addr add 169.254.77.2/30 dev dlx1",
+				"ip -n dawnline link set dlx1 up",
+				"ip -n dawnline addr flush dev dll1",
+				"ip -n dawnline addr add 192.168.77.254/24 dev dll1",
+				"ip -n dawnline link set dll1 up",
+				"ip -n dawnline route replace default via 192.168.77.1 dev dll1",
+				"ip -n dawnline route replace default via 169.254.77.1 dev dlx1 table 100",
+				"ip -n dawnline rule del from 169.254.77.2 lookup 100 2>/dev/null; ip -n dawnline rule add from 169.254.77.2 lookup 100",
+				"ip netns exec dawnline sh -c 'echo 1 > /proc/sys/net/ipv4/ip_forward; echo 0 > /proc/sys/net/ipv4/conf/all/rp_filter; echo 0 > /proc/sys/net/ipv4/conf/default/rp_filter'",
+				"ip -4 route replace default via 169.254.77.2 dev dlx0 table 2077",
+				"ip -n dawnline route replace '10.78.0.0/24' via '169.254.77.1' dev dlx1",
+				"ip -n dawnline route replace '10.79.0.0/24' via '169.254.77.1' dev dlx1",
+				"ip netns exec dawnline nft -f /var/etc/dawnline-ns.nft",
+				"ip -4 rule add priority 5205 iif 'dawn1' to 192.168.77.254/32 lookup 2077",
+				"ip -4 rule del priority 5210 from 10.9.0.2 iif 'dawn1' to 10.1.0.0/16 lookup main",
+				"ip -4 rule del priority 5290 iif 'dawn7' lookup 2077",
+				"ip -4 rule del priority 5210 iif 'dawn1' to 10.78.0.0/24 lookup main"
+			],
+			"failed": [
+			],
+			"pings": [
+				"ping -c 1 -W 1 -I br-lan 192.168.77.254"
+			],
+			"sys": {
+				"dlx0": true,
+				"dll0": true,
+				"netns": true
+			}
+		},
+		{
+			"what": "the kernel has no flowtables: the slow path, said once",
+			"force": true,
+			"result": {
+				"dev": "br-lan",
+				"gateway": "192.168.77.1",
+				"address": "192.168.77.254",
+				"mac": "aa:a4:a8:84:2d:9d",
+				"prefix": 24,
+				"dns": "192.168.77.1",
+				"transit": 2852015360,
+				"tx_root": "169.254.77.1",
+				"tx_ns": "169.254.77.2",
+				"table": 2077,
+				"servers": [
+					{
+						"ifname": "dawn1",
+						"subnet": "10.78.0.0/24",
+						"direct": [
+							"10.78.0.0/24",
+							"192.168.50.0/24"
+						]
+					},
+					{
+						"ifname": "dawn2",
+						"subnet": "10.79.0.0/24",
+						"direct": [
+							"10.79.0.0/24",
+							"192.168.77.0/24"
+						]
+					}
+				]
+			},
+			"state": {
+				"applied": 1,
+				"plan": {
+					"dev": "br-lan",
+					"gateway": "192.168.77.1",
+					"address": "192.168.77.254",
+					"mac": "aa:a4:a8:84:2d:9d",
+					"prefix": 24,
+					"dns": "192.168.77.1",
+					"transit": 2852015360,
+					"tx_root": "169.254.77.1",
+					"tx_ns": "169.254.77.2",
+					"table": 2077,
+					"servers": [
+						{
+							"ifname": "dawn1",
+							"subnet": "10.78.0.0/24",
+							"direct": [
+								"10.78.0.0/24",
+								"192.168.50.0/24"
+							]
+						},
+						{
+							"ifname": "dawn2",
+							"subnet": "10.79.0.0/24",
+							"direct": [
+								"10.79.0.0/24",
+								"192.168.77.0/24"
+							]
+						}
+					]
+				},
+				"transit": 2852015360,
+				"fast": false
+			},
+			"ns_rules": "table inet dawnline\ndelete table inet dawnline\ntable inet dawnline {\n\tchain nat_pre {\n\t\ttype nat hook prerouting priority dstnat; policy accept;\n\t\tiifname \"dlx1\" ip daddr 192.168.77.254 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.1:53\n\t}\n\tchain nat_post {\n\t\ttype nat hook postrouting priority srcnat; policy accept;\n\t\toifname \"dll1\" masquerade\n\t}\n\tchain filter_forward {\n\t\ttype filter hook forward priority filter; policy drop;\n\t\tct state established,related accept\n\t\tiifname \"dlx1\" oifname \"dll1\" accept\n\t}\n\tchain filter_input {\n\t\ttype filter hook input priority filter; policy drop;\n\t\tct state established,related accept\n\t\tiifname \"lo\" accept\n\t\ticmp type echo-request accept\n\t\tiifname \"dlx1\" meta l4proto { tcp, udp } th dport 53 accept\n\t}\n}\n",
+			"log": [
+				{
+					"src": "dawnline",
+					"level": "info",
+					"msg": "runs without its fast path",
+					"who": "Internet like a home device",
+					"detail": "Without kmod-nft-offload every packet on this path passes the firewall twice. Install it and restart Dawnline.\nip netns exec dawnline nft -f /var/etc/dawnline-ns.nft: /var/etc/dawnline-ns.nft:4:2-10: Error: Could not process rule: No such file or directory"
+				}
+			],
+			"ran": [
+				"ip addr flush dev dlx0",
+				"ip addr add 169.254.77.1/30 dev dlx0",
+				"ip link set dlx0 up",
+				"ip link set dll0 master 'br-lan'",
+				"ip link set dll0 up",
+				"ip -n dawnline link set lo up",
+				"ip -n dawnline addr flush dev dlx1",
+				"ip -n dawnline addr add 169.254.77.2/30 dev dlx1",
+				"ip -n dawnline link set dlx1 up",
+				"ip -n dawnline addr flush dev dll1",
+				"ip -n dawnline addr add 192.168.77.254/24 dev dll1",
+				"ip -n dawnline link set dll1 up",
+				"ip -n dawnline route replace default via 192.168.77.1 dev dll1",
+				"ip -n dawnline route replace default via 169.254.77.1 dev dlx1 table 100",
+				"ip -n dawnline rule del from 169.254.77.2 lookup 100 2>/dev/null; ip -n dawnline rule add from 169.254.77.2 lookup 100",
+				"ip netns exec dawnline sh -c 'echo 1 > /proc/sys/net/ipv4/ip_forward; echo 0 > /proc/sys/net/ipv4/conf/all/rp_filter; echo 0 > /proc/sys/net/ipv4/conf/default/rp_filter'",
+				"ip -4 route replace default via 169.254.77.2 dev dlx0 table 2077",
+				"ip -n dawnline route replace '10.78.0.0/24' via '169.254.77.1' dev dlx1",
+				"ip -n dawnline route replace '10.79.0.0/24' via '169.254.77.1' dev dlx1",
+				"ip netns exec dawnline nft -f /var/etc/dawnline-ns.nft",
+				"ip netns exec dawnline nft -f /var/etc/dawnline-ns.nft"
+			],
+			"failed": [
+				"ip netns exec dawnline nft -f /var/etc/dawnline-ns.nft · /var/etc/dawnline-ns.nft:4:2-10: Error: Could not process rule: No such file or directory"
+			],
+			"pings": [
+				"ping -c 1 -W 1 -I br-lan 192.168.77.254"
+			],
+			"sys": {
+				"dlx0": true,
+				"dll0": true,
+				"netns": true
+			}
+		},
+		{
+			"what": "and not said again",
+			"force": true,
+			"result": {
+				"dev": "br-lan",
+				"gateway": "192.168.77.1",
+				"address": "192.168.77.254",
+				"mac": "aa:a4:a8:84:2d:9d",
+				"prefix": 24,
+				"dns": "192.168.77.1",
+				"transit": 2852015360,
+				"tx_root": "169.254.77.1",
+				"tx_ns": "169.254.77.2",
+				"table": 2077,
+				"servers": [
+					{
+						"ifname": "dawn1",
+						"subnet": "10.78.0.0/24",
+						"direct": [
+							"10.78.0.0/24",
+							"192.168.50.0/24"
+						]
+					},
+					{
+						"ifname": "dawn2",
+						"subnet": "10.79.0.0/24",
+						"direct": [
+							"10.79.0.0/24",
+							"192.168.77.0/24"
+						]
+					}
+				]
+			},
+			"state": {
+				"applied": 1,
+				"plan": {
+					"dev": "br-lan",
+					"gateway": "192.168.77.1",
+					"address": "192.168.77.254",
+					"mac": "aa:a4:a8:84:2d:9d",
+					"prefix": 24,
+					"dns": "192.168.77.1",
+					"transit": 2852015360,
+					"tx_root": "169.254.77.1",
+					"tx_ns": "169.254.77.2",
+					"table": 2077,
+					"servers": [
+						{
+							"ifname": "dawn1",
+							"subnet": "10.78.0.0/24",
+							"direct": [
+								"10.78.0.0/24",
+								"192.168.50.0/24"
+							]
+						},
+						{
+							"ifname": "dawn2",
+							"subnet": "10.79.0.0/24",
+							"direct": [
+								"10.79.0.0/24",
+								"192.168.77.0/24"
+							]
+						}
+					]
+				},
+				"transit": 2852015360,
+				"fast": false
+			},
+			"ns_rules": "table inet dawnline\ndelete table inet dawnline\ntable inet dawnline {\n\tchain nat_pre {\n\t\ttype nat hook prerouting priority dstnat; policy accept;\n\t\tiifname \"dlx1\" ip daddr 192.168.77.254 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.1:53\n\t}\n\tchain nat_post {\n\t\ttype nat hook postrouting priority srcnat; policy accept;\n\t\toifname \"dll1\" masquerade\n\t}\n\tchain filter_forward {\n\t\ttype filter hook forward priority filter; policy drop;\n\t\tct state established,related accept\n\t\tiifname \"dlx1\" oifname \"dll1\" accept\n\t}\n\tchain filter_input {\n\t\ttype filter hook input priority filter; policy drop;\n\t\tct state established,related accept\n\t\tiifname \"lo\" accept\n\t\ticmp type echo-request accept\n\t\tiifname \"dlx1\" meta l4proto { tcp, udp } th dport 53 accept\n\t}\n}\n",
+			"log": [
+			],
+			"ran": [
+				"ip addr flush dev dlx0",
+				"ip addr add 169.254.77.1/30 dev dlx0",
+				"ip link set dlx0 up",
+				"ip link set dll0 master 'br-lan'",
+				"ip link set dll0 up",
+				"ip -n dawnline link set lo up",
+				"ip -n dawnline addr flush dev dlx1",
+				"ip -n dawnline addr add 169.254.77.2/30 dev dlx1",
+				"ip -n dawnline link set dlx1 up",
+				"ip -n dawnline addr flush dev dll1",
+				"ip -n dawnline addr add 192.168.77.254/24 dev dll1",
+				"ip -n dawnline link set dll1 up",
+				"ip -n dawnline route replace default via 192.168.77.1 dev dll1",
+				"ip -n dawnline route replace default via 169.254.77.1 dev dlx1 table 100",
+				"ip -n dawnline rule del from 169.254.77.2 lookup 100 2>/dev/null; ip -n dawnline rule add from 169.254.77.2 lookup 100",
+				"ip netns exec dawnline sh -c 'echo 1 > /proc/sys/net/ipv4/ip_forward; echo 0 > /proc/sys/net/ipv4/conf/all/rp_filter; echo 0 > /proc/sys/net/ipv4/conf/default/rp_filter'",
+				"ip -4 route replace default via 169.254.77.2 dev dlx0 table 2077",
+				"ip -n dawnline route replace '10.78.0.0/24' via '169.254.77.1' dev dlx1",
+				"ip -n dawnline route replace '10.79.0.0/24' via '169.254.77.1' dev dlx1",
+				"ip netns exec dawnline nft -f /var/etc/dawnline-ns.nft",
+				"ip netns exec dawnline nft -f /var/etc/dawnline-ns.nft"
+			],
+			"failed": [
+				"ip netns exec dawnline nft -f /var/etc/dawnline-ns.nft · /var/etc/dawnline-ns.nft:4:2-10: Error: Could not process rule: No such file or directory"
+			],
+			"pings": [
+				"ping -c 1 -W 1 -I br-lan 192.168.77.254"
+			],
+			"sys": {
+				"dlx0": true,
+				"dll0": true,
+				"netns": true
+			}
+		},
+		{
+			"what": "a link from an older version, with a MAC of its own",
+			"force": true,
+			"result": {
+				"dev": "br-lan",
+				"gateway": "192.168.77.1",
+				"address": "192.168.77.254",
+				"mac": "aa:a4:a8:84:2d:9d",
+				"prefix": 24,
+				"dns": "192.168.77.1",
+				"transit": 2852015360,
+				"tx_root": "169.254.77.1",
+				"tx_ns": "169.254.77.2",
+				"table": 2077,
+				"servers": [
+					{
+						"ifname": "dawn1",
+						"subnet": "10.78.0.0/24",
+						"direct": [
+							"10.78.0.0/24",
+							"192.168.50.0/24"
+						]
+					},
+					{
+						"ifname": "dawn2",
+						"subnet": "10.79.0.0/24",
+						"direct": [
+							"10.79.0.0/24",
+							"192.168.77.0/24"
+						]
+					}
+				]
+			},
+			"state": {
+				"applied": 1,
+				"plan": {
+					"dev": "br-lan",
+					"gateway": "192.168.77.1",
+					"address": "192.168.77.254",
+					"mac": "aa:a4:a8:84:2d:9d",
+					"prefix": 24,
+					"dns": "192.168.77.1",
+					"transit": 2852015360,
+					"tx_root": "169.254.77.1",
+					"tx_ns": "169.254.77.2",
+					"table": 2077,
+					"servers": [
+						{
+							"ifname": "dawn1",
+							"subnet": "10.78.0.0/24",
+							"direct": [
+								"10.78.0.0/24",
+								"192.168.50.0/24"
+							]
+						},
+						{
+							"ifname": "dawn2",
+							"subnet": "10.79.0.0/24",
+							"direct": [
+								"10.79.0.0/24",
+								"192.168.77.0/24"
+							]
+						}
+					]
+				},
+				"transit": 2852015360,
+				"fast": true
+			},
+			"ns_rules": "table inet dawnline\ndelete table inet dawnline\ntable inet dawnline {\n\tflowtable ft {\n\t\thook ingress priority 0;\n\t\tdevices = { \"dlx1\", \"dll1\" };\n\t}\n\tchain nat_pre {\n\t\ttype nat hook prerouting priority dstnat; policy accept;\n\t\tiifname \"dlx1\" ip daddr 192.168.77.254 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.1:53\n\t}\n\tchain nat_post {\n\t\ttype nat hook postrouting priority srcnat; policy accept;\n\t\toifname \"dll1\" masquerade\n\t}\n\tchain filter_forward {\n\t\ttype filter hook forward priority filter; policy drop;\n\t\tct state established meta l4proto { tcp, udp } flow add @ft\n\t\tct state established,related accept\n\t\tiifname \"dlx1\" oifname \"dll1\" accept\n\t}\n\tchain filter_input {\n\t\ttype filter hook input priority filter; policy drop;\n\t\tct state established,related accept\n\t\tiifname \"lo\" accept\n\t\ticmp type echo-request accept\n\t\tiifname \"dlx1\" meta l4proto { tcp, udp } th dport 53 accept\n\t}\n}\n",
+			"log": [
+			],
+			"ran": [
+				"ip -n dawnline link set dll1 down",
+				"ip -n dawnline link set dll1 address aa:a4:a8:84:2d:9d",
+				"ip addr flush dev dlx0",
+				"ip addr add 169.254.77.1/30 dev dlx0",
+				"ip link set dlx0 up",
+				"ip link set dll0 master 'br-lan'",
+				"ip link set dll0 up",
+				"ip -n dawnline link set lo up",
+				"ip -n dawnline addr flush dev dlx1",
+				"ip -n dawnline addr add 169.254.77.2/30 dev dlx1",
+				"ip -n dawnline link set dlx1 up",
+				"ip -n dawnline addr flush dev dll1",
+				"ip -n dawnline addr add 192.168.77.254/24 dev dll1",
+				"ip -n dawnline link set dll1 up",
+				"ip -n dawnline route replace default via 192.168.77.1 dev dll1",
+				"ip -n dawnline route replace default via 169.254.77.1 dev dlx1 table 100",
+				"ip -n dawnline rule del from 169.254.77.2 lookup 100 2>/dev/null; ip -n dawnline rule add from 169.254.77.2 lookup 100",
+				"ip netns exec dawnline sh -c 'echo 1 > /proc/sys/net/ipv4/ip_forward; echo 0 > /proc/sys/net/ipv4/conf/all/rp_filter; echo 0 > /proc/sys/net/ipv4/conf/default/rp_filter'",
+				"ip -4 route replace default via 169.254.77.2 dev dlx0 table 2077",
+				"ip -n dawnline route replace '10.78.0.0/24' via '169.254.77.1' dev dlx1",
+				"ip -n dawnline route replace '10.79.0.0/24' via '169.254.77.1' dev dlx1",
+				"ip -4 neigh flush to 192.168.77.254 dev 'br-lan'",
+				"ip netns exec dawnline nft -f /var/etc/dawnline-ns.nft"
+			],
+			"failed": [
+			],
+			"pings": [
+				"ping -c 1 -W 1 -I br-lan 192.168.77.254"
+			],
+			"sys": {
+				"dlx0": true,
+				"dll0": true,
+				"netns": true
+			}
+		},
+		{
+			"what": "the saved address held by another device, the next one a static lease, a third in the pool",
+			"force": false,
+			"result": {
+				"dev": "br-lan",
+				"gateway": "192.168.77.1",
+				"address": "192.168.77.254",
+				"mac": "aa:a4:a8:84:2d:9d",
+				"prefix": 24,
+				"dns": "192.168.77.53",
+				"transit": 2852015360,
+				"tx_root": "169.254.77.1",
+				"tx_ns": "169.254.77.2",
+				"table": 2077,
+				"servers": [
+					{
+						"ifname": "dawn1",
+						"subnet": "10.78.0.0/24",
+						"direct": [
+							"10.78.0.0/24",
+							"192.168.50.0/24"
+						]
+					},
+					{
+						"ifname": "dawn2",
+						"subnet": "10.79.0.0/24",
+						"direct": [
+							"10.79.0.0/24",
+							"192.168.77.0/24"
+						]
+					}
+				]
+			},
+			"state": {
+				"applied": 1,
+				"plan": {
+					"dev": "br-lan",
+					"gateway": "192.168.77.1",
+					"address": "192.168.77.254",
+					"mac": "aa:a4:a8:84:2d:9d",
+					"prefix": 24,
+					"dns": "192.168.77.53",
+					"transit": 2852015360,
+					"tx_root": "169.254.77.1",
+					"tx_ns": "169.254.77.2",
+					"table": 2077,
+					"servers": [
+						{
+							"ifname": "dawn1",
+							"subnet": "10.78.0.0/24",
+							"direct": [
+								"10.78.0.0/24",
+								"192.168.50.0/24"
+							]
+						},
+						{
+							"ifname": "dawn2",
+							"subnet": "10.79.0.0/24",
+							"direct": [
+								"10.79.0.0/24",
+								"192.168.77.0/24"
+							]
+						}
+					]
+				},
+				"transit": 2852015360,
+				"fast": true
+			},
+			"ns_rules": "table inet dawnline\ndelete table inet dawnline\ntable inet dawnline {\n\tflowtable ft {\n\t\thook ingress priority 0;\n\t\tdevices = { \"dlx1\", \"dll1\" };\n\t}\n\tchain nat_pre {\n\t\ttype nat hook prerouting priority dstnat; policy accept;\n\t\tiifname \"dlx1\" ip daddr 192.168.77.254 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.53:53\n\t}\n\tchain nat_post {\n\t\ttype nat hook postrouting priority srcnat; policy accept;\n\t\toifname \"dll1\" masquerade\n\t}\n\tchain filter_forward {\n\t\ttype filter hook forward priority filter; policy drop;\n\t\tct state established meta l4proto { tcp, udp } flow add @ft\n\t\tct state established,related accept\n\t\tiifname \"dlx1\" oifname \"dll1\" accept\n\t}\n\tchain filter_input {\n\t\ttype filter hook input priority filter; policy drop;\n\t\tct state established,related accept\n\t\tiifname \"lo\" accept\n\t\ticmp type echo-request accept\n\t\tiifname \"dlx1\" meta l4proto { tcp, udp } th dport 53 accept\n\t}\n}\n",
+			"log": [
+			],
+			"ran": [
+				"ip addr flush dev dlx0",
+				"ip addr add 169.254.77.1/30 dev dlx0",
+				"ip link set dlx0 up",
+				"ip link set dll0 master 'br-lan'",
+				"ip link set dll0 up",
+				"ip -n dawnline link set lo up",
+				"ip -n dawnline addr flush dev dlx1",
+				"ip -n dawnline addr add 169.254.77.2/30 dev dlx1",
+				"ip -n dawnline link set dlx1 up",
+				"ip -n dawnline addr flush dev dll1",
+				"ip -n dawnline addr add 192.168.77.254/24 dev dll1",
+				"ip -n dawnline link set dll1 up",
+				"ip -n dawnline route replace default via 192.168.77.1 dev dll1",
+				"ip -n dawnline route replace default via 169.254.77.1 dev dlx1 table 100",
+				"ip -n dawnline rule del from 169.254.77.2 lookup 100 2>/dev/null; ip -n dawnline rule add from 169.254.77.2 lookup 100",
+				"ip netns exec dawnline sh -c 'echo 1 > /proc/sys/net/ipv4/ip_forward; echo 0 > /proc/sys/net/ipv4/conf/all/rp_filter; echo 0 > /proc/sys/net/ipv4/conf/default/rp_filter'",
+				"ip -4 route replace default via 169.254.77.2 dev dlx0 table 2077",
+				"ip -n dawnline route replace '10.78.0.0/24' via '169.254.77.1' dev dlx1",
+				"ip -n dawnline route replace '10.79.0.0/24' via '169.254.77.1' dev dlx1",
+				"ip netns exec dawnline nft -f /var/etc/dawnline-ns.nft"
+			],
+			"failed": [
+			],
+			"pings": [
+				"ping -c 1 -W 1 -I br-lan 192.168.77.254"
+			],
+			"sys": {
+				"dlx0": true,
+				"dll0": true,
+				"netns": true
+			}
+		},
+		{
+			"what": "the saved address free: kept",
+			"force": false,
+			"result": {
+				"dev": "br-lan",
+				"gateway": "192.168.77.1",
+				"address": "192.168.77.201",
+				"mac": "aa:a4:a8:84:2d:9d",
+				"prefix": 24,
+				"dns": "192.168.77.53",
+				"transit": 2852015360,
+				"tx_root": "169.254.77.1",
+				"tx_ns": "169.254.77.2",
+				"table": 2077,
+				"servers": [
+					{
+						"ifname": "dawn1",
+						"subnet": "10.78.0.0/24",
+						"direct": [
+							"10.78.0.0/24",
+							"192.168.50.0/24"
+						]
+					},
+					{
+						"ifname": "dawn2",
+						"subnet": "10.79.0.0/24",
+						"direct": [
+							"10.79.0.0/24",
+							"192.168.77.0/24"
+						]
+					}
+				]
+			},
+			"state": {
+				"applied": 1,
+				"plan": {
+					"dev": "br-lan",
+					"gateway": "192.168.77.1",
+					"address": "192.168.77.201",
+					"mac": "aa:a4:a8:84:2d:9d",
+					"prefix": 24,
+					"dns": "192.168.77.53",
+					"transit": 2852015360,
+					"tx_root": "169.254.77.1",
+					"tx_ns": "169.254.77.2",
+					"table": 2077,
+					"servers": [
+						{
+							"ifname": "dawn1",
+							"subnet": "10.78.0.0/24",
+							"direct": [
+								"10.78.0.0/24",
+								"192.168.50.0/24"
+							]
+						},
+						{
+							"ifname": "dawn2",
+							"subnet": "10.79.0.0/24",
+							"direct": [
+								"10.79.0.0/24",
+								"192.168.77.0/24"
+							]
+						}
+					]
+				},
+				"transit": 2852015360,
+				"fast": true
+			},
+			"ns_rules": "table inet dawnline\ndelete table inet dawnline\ntable inet dawnline {\n\tflowtable ft {\n\t\thook ingress priority 0;\n\t\tdevices = { \"dlx1\", \"dll1\" };\n\t}\n\tchain nat_pre {\n\t\ttype nat hook prerouting priority dstnat; policy accept;\n\t\tiifname \"dlx1\" ip daddr 192.168.77.201 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.53:53\n\t}\n\tchain nat_post {\n\t\ttype nat hook postrouting priority srcnat; policy accept;\n\t\toifname \"dll1\" masquerade\n\t}\n\tchain filter_forward {\n\t\ttype filter hook forward priority filter; policy drop;\n\t\tct state established meta l4proto { tcp, udp } flow add @ft\n\t\tct state established,related accept\n\t\tiifname \"dlx1\" oifname \"dll1\" accept\n\t}\n\tchain filter_input {\n\t\ttype filter hook input priority filter; policy drop;\n\t\tct state established,related accept\n\t\tiifname \"lo\" accept\n\t\ticmp type echo-request accept\n\t\tiifname \"dlx1\" meta l4proto { tcp, udp } th dport 53 accept\n\t}\n}\n",
+			"log": [
+				{
+					"src": "dawnline",
+					"level": "up",
+					"msg": "is on · traffic enters br-lan as 192.168.77.201",
+					"who": "Internet like a home device"
+				}
+			],
+			"ran": [
+				"ip addr flush dev dlx0",
+				"ip addr add 169.254.77.1/30 dev dlx0",
+				"ip link set dlx0 up",
+				"ip link set dll0 master 'br-lan'",
+				"ip link set dll0 up",
+				"ip -n dawnline link set lo up",
+				"ip -n dawnline addr flush dev dlx1",
+				"ip -n dawnline addr add 169.254.77.2/30 dev dlx1",
+				"ip -n dawnline link set dlx1 up",
+				"ip -n dawnline addr flush dev dll1",
+				"ip -n dawnline addr add 192.168.77.201/24 dev dll1",
+				"ip -n dawnline link set dll1 up",
+				"ip -n dawnline route replace default via 192.168.77.1 dev dll1",
+				"ip -n dawnline route replace default via 169.254.77.1 dev dlx1 table 100",
+				"ip -n dawnline rule del from 169.254.77.2 lookup 100 2>/dev/null; ip -n dawnline rule add from 169.254.77.2 lookup 100",
+				"ip netns exec dawnline sh -c 'echo 1 > /proc/sys/net/ipv4/ip_forward; echo 0 > /proc/sys/net/ipv4/conf/all/rp_filter; echo 0 > /proc/sys/net/ipv4/conf/default/rp_filter'",
+				"ip -4 route replace default via 169.254.77.2 dev dlx0 table 2077",
+				"ip -n dawnline route replace '10.78.0.0/24' via '169.254.77.1' dev dlx1",
+				"ip -n dawnline route replace '10.79.0.0/24' via '169.254.77.1' dev dlx1",
+				"ip netns exec dawnline nft -f /var/etc/dawnline-ns.nft",
+				"ip -4 rule add priority 5205 iif 'dawn1' to 192.168.77.201/32 lookup 2077",
+				"ip -4 rule add priority 5205 iif 'dawn2' to 192.168.77.201/32 lookup 2077",
+				"ip -4 rule del priority 5205 iif 'dawn1' to 192.168.77.254 lookup 2077",
+				"ip -4 rule del priority 5205 iif 'dawn2' to 192.168.77.254 lookup 2077"
+			],
+			"failed": [
+			],
+			"pings": [
+			],
+			"sys": {
+				"dlx0": true,
+				"dll0": true,
+				"netns": true
+			}
+		},
+		{
+			"what": "a table of ours taken by someone else, the transit range too",
+			"force": false,
+			"result": {
+				"dev": "br-lan",
+				"gateway": "192.168.77.1",
+				"address": "192.168.77.201",
+				"mac": "aa:a4:a8:84:2d:9d",
+				"prefix": 24,
+				"dns": "192.168.77.53",
+				"transit": 2852015360,
+				"tx_root": "169.254.77.1",
+				"tx_ns": "169.254.77.2",
+				"table": 2078,
+				"servers": [
+					{
+						"ifname": "dawn1",
+						"subnet": "10.78.0.0/24",
+						"direct": [
+							"10.78.0.0/24",
+							"192.168.50.0/24"
+						]
+					},
+					{
+						"ifname": "dawn2",
+						"subnet": "10.79.0.0/24",
+						"direct": [
+							"10.79.0.0/24",
+							"192.168.77.0/24"
+						]
+					}
+				]
+			},
+			"state": {
+				"applied": 1,
+				"plan": {
+					"dev": "br-lan",
+					"gateway": "192.168.77.1",
+					"address": "192.168.77.201",
+					"mac": "aa:a4:a8:84:2d:9d",
+					"prefix": 24,
+					"dns": "192.168.77.53",
+					"transit": 2852015360,
+					"tx_root": "169.254.77.1",
+					"tx_ns": "169.254.77.2",
+					"table": 2078,
+					"servers": [
+						{
+							"ifname": "dawn1",
+							"subnet": "10.78.0.0/24",
+							"direct": [
+								"10.78.0.0/24",
+								"192.168.50.0/24"
+							]
+						},
+						{
+							"ifname": "dawn2",
+							"subnet": "10.79.0.0/24",
+							"direct": [
+								"10.79.0.0/24",
+								"192.168.77.0/24"
+							]
+						}
+					]
+				},
+				"transit": 2852015360,
+				"fast": true
+			},
+			"ns_rules": "table inet dawnline\ndelete table inet dawnline\ntable inet dawnline {\n\tflowtable ft {\n\t\thook ingress priority 0;\n\t\tdevices = { \"dlx1\", \"dll1\" };\n\t}\n\tchain nat_pre {\n\t\ttype nat hook prerouting priority dstnat; policy accept;\n\t\tiifname \"dlx1\" ip daddr 192.168.77.201 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.53:53\n\t}\n\tchain nat_post {\n\t\ttype nat hook postrouting priority srcnat; policy accept;\n\t\toifname \"dll1\" masquerade\n\t}\n\tchain filter_forward {\n\t\ttype filter hook forward priority filter; policy drop;\n\t\tct state established meta l4proto { tcp, udp } flow add @ft\n\t\tct state established,related accept\n\t\tiifname \"dlx1\" oifname \"dll1\" accept\n\t}\n\tchain filter_input {\n\t\ttype filter hook input priority filter; policy drop;\n\t\tct state established,related accept\n\t\tiifname \"lo\" accept\n\t\ticmp type echo-request accept\n\t\tiifname \"dlx1\" meta l4proto { tcp, udp } th dport 53 accept\n\t}\n}\n",
+			"log": [
+			],
+			"ran": [
+				"ip addr flush dev dlx0",
+				"ip addr add 169.254.77.1/30 dev dlx0",
+				"ip link set dlx0 up",
+				"ip link set dll0 master 'br-lan'",
+				"ip link set dll0 up",
+				"ip -n dawnline link set lo up",
+				"ip -n dawnline addr flush dev dlx1",
+				"ip -n dawnline addr add 169.254.77.2/30 dev dlx1",
+				"ip -n dawnline link set dlx1 up",
+				"ip -n dawnline addr flush dev dll1",
+				"ip -n dawnline addr add 192.168.77.201/24 dev dll1",
+				"ip -n dawnline link set dll1 up",
+				"ip -n dawnline route replace default via 192.168.77.1 dev dll1",
+				"ip -n dawnline route replace default via 169.254.77.1 dev dlx1 table 100",
+				"ip -n dawnline rule del from 169.254.77.2 lookup 100 2>/dev/null; ip -n dawnline rule add from 169.254.77.2 lookup 100",
+				"ip netns exec dawnline sh -c 'echo 1 > /proc/sys/net/ipv4/ip_forward; echo 0 > /proc/sys/net/ipv4/conf/all/rp_filter; echo 0 > /proc/sys/net/ipv4/conf/default/rp_filter'",
+				"ip -4 route replace default via 169.254.77.2 dev dlx0 table 2078",
+				"ip -n dawnline route replace '10.78.0.0/24' via '169.254.77.1' dev dlx1",
+				"ip -n dawnline route replace '10.79.0.0/24' via '169.254.77.1' dev dlx1",
+				"ip netns exec dawnline nft -f /var/etc/dawnline-ns.nft",
+				"ip -4 rule add priority 5205 iif 'dawn1' to 192.168.77.201/32 lookup 2078",
+				"ip -4 rule add priority 5290 iif 'dawn1' lookup 2078",
+				"ip -4 rule add priority 5205 iif 'dawn2' to 192.168.77.201/32 lookup 2078",
+				"ip -4 rule add priority 5290 iif 'dawn2' lookup 2078",
+				"ip -4 rule del priority 5205 iif 'dawn1' to 192.168.77.201 lookup 2077",
+				"ip -4 rule del priority 5290 iif 'dawn1' lookup 2077",
+				"ip -4 rule del priority 5205 iif 'dawn2' to 192.168.77.201 lookup 2077",
+				"ip -4 rule del priority 5290 iif 'dawn2' lookup 2077"
+			],
+			"failed": [
+			],
+			"pings": [
+			],
+			"sys": {
+				"dlx0": true,
+				"dll0": true,
+				"netns": true
+			}
+		},
+		{
+			"what": "a command fails: taken down, the direct path stays",
+			"force": true,
+			"result": {
+				"error": {
+					"code": "setup",
+					"detail": "ip -n dawnline route replace default via 192.168.77.1 dev dll1: RTNETLINK answers: a made-up failure"
+				}
+			},
+			"state": {
+				"error": {
+					"code": "setup",
+					"detail": "ip -n dawnline route replace default via 192.168.77.1 dev dll1: RTNETLINK answers: a made-up failure"
+				}
+			},
+			"ns_rules": "table inet dawnline\ndelete table inet dawnline\ntable inet dawnline {\n\tflowtable ft {\n\t\thook ingress priority 0;\n\t\tdevices = { \"dlx1\", \"dll1\" };\n\t}\n\tchain nat_pre {\n\t\ttype nat hook prerouting priority dstnat; policy accept;\n\t\tiifname \"dlx1\" ip daddr 192.168.77.201 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.53:53\n\t}\n\tchain nat_post {\n\t\ttype nat hook postrouting priority srcnat; policy accept;\n\t\toifname \"dll1\" masquerade\n\t}\n\tchain filter_forward {\n\t\ttype filter hook forward priority filter; policy drop;\n\t\tct state established meta l4proto { tcp, udp } flow add @ft\n\t\tct state established,related accept\n\t\tiifname \"dlx1\" oifname \"dll1\" accept\n\t}\n\tchain filter_input {\n\t\ttype filter hook input priority filter; policy drop;\n\t\tct state established,related accept\n\t\tiifname \"lo\" accept\n\t\ticmp type echo-request accept\n\t\tiifname \"dlx1\" meta l4proto { tcp, udp } th dport 53 accept\n\t}\n}\n",
+			"log": [
+				{
+					"src": "dawnline",
+					"level": "error",
+					"msg": "failed - internet goes out directly for now",
+					"who": "Internet like a home device",
+					"detail": "ip -n dawnline route replace default via 192.168.77.1 dev dll1: RTNETLINK answers: a made-up failure"
+				}
+			],
+			"ran": [
+				"ip addr flush dev dlx0",
+				"ip addr add 169.254.77.1/30 dev dlx0",
+				"ip link set dlx0 up",
+				"ip link set dll0 master 'br-lan'",
+				"ip link set dll0 up",
+				"ip -n dawnline link set lo up",
+				"ip -n dawnline addr flush dev dlx1",
+				"ip -n dawnline addr add 169.254.77.2/30 dev dlx1",
+				"ip -n dawnline link set dlx1 up",
+				"ip -n dawnline addr flush dev dll1",
+				"ip -n dawnline addr add 192.168.77.201/24 dev dll1",
+				"ip -n dawnline link set dll1 up",
+				"ip -n dawnline route replace default via 192.168.77.1 dev dll1",
+				"ip -n dawnline route replace default via 169.254.77.1 dev dlx1 table 100",
+				"ip -n dawnline rule del from 169.254.77.2 lookup 100 2>/dev/null; ip -n dawnline rule add from 169.254.77.2 lookup 100",
+				"ip netns exec dawnline sh -c 'echo 1 > /proc/sys/net/ipv4/ip_forward; echo 0 > /proc/sys/net/ipv4/conf/all/rp_filter; echo 0 > /proc/sys/net/ipv4/conf/default/rp_filter'",
+				"ip -4 route replace default via 169.254.77.2 dev dlx0 table 2078",
+				"ip -n dawnline route replace '10.78.0.0/24' via '169.254.77.1' dev dlx1",
+				"ip -n dawnline route replace '10.79.0.0/24' via '169.254.77.1' dev dlx1",
+				"ip netns exec dawnline nft -f /var/etc/dawnline-ns.nft",
+				"ip -4 rule del priority 5205 iif 'dawn1' to 192.168.77.201 lookup 2078",
+				"ip -4 rule del priority 5210 iif 'dawn1' to 10.78.0.0/24 lookup main",
+				"ip -4 rule del priority 5210 iif 'dawn1' to 192.168.50.0/24 lookup main",
+				"ip -4 rule del priority 5290 iif 'dawn1' lookup 2078",
+				"ip -4 rule del priority 5205 iif 'dawn2' to 192.168.77.201 lookup 2078",
+				"ip -4 rule del priority 5210 iif 'dawn2' to 10.79.0.0/24 lookup main",
+				"ip -4 rule del priority 5210 iif 'dawn2' to 192.168.77.0/24 lookup main",
+				"ip -4 rule del priority 5290 iif 'dawn2' lookup 2078",
+				"ip -4 route flush table 2078",
+				"ip link del dlx0",
+				"ip link del dll0",
+				"ip netns del dawnline"
+			],
+			"failed": [
+				"ip -n dawnline route replace default via 192.168.77.1 dev dll1 · RTNETLINK answers: a made-up failure"
+			],
+			"pings": [
+			],
+			"sys": {
+				"dlx0": false,
+				"dll0": false,
+				"netns": false
+			}
+		},
+		{
+			"what": "the same failure: not said again",
+			"force": true,
+			"result": {
+				"error": {
+					"code": "setup",
+					"detail": "ip -n dawnline route replace default via 192.168.77.1 dev dll1: RTNETLINK answers: a made-up failure"
+				}
+			},
+			"state": {
+				"error": {
+					"code": "setup",
+					"detail": "ip -n dawnline route replace default via 192.168.77.1 dev dll1: RTNETLINK answers: a made-up failure"
+				}
+			},
+			"ns_rules": "table inet dawnline\ndelete table inet dawnline\ntable inet dawnline {\n\tflowtable ft {\n\t\thook ingress priority 0;\n\t\tdevices = { \"dlx1\", \"dll1\" };\n\t}\n\tchain nat_pre {\n\t\ttype nat hook prerouting priority dstnat; policy accept;\n\t\tiifname \"dlx1\" ip daddr 192.168.77.201 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.53:53\n\t}\n\tchain nat_post {\n\t\ttype nat hook postrouting priority srcnat; policy accept;\n\t\toifname \"dll1\" masquerade\n\t}\n\tchain filter_forward {\n\t\ttype filter hook forward priority filter; policy drop;\n\t\tct state established meta l4proto { tcp, udp } flow add @ft\n\t\tct state established,related accept\n\t\tiifname \"dlx1\" oifname \"dll1\" accept\n\t}\n\tchain filter_input {\n\t\ttype filter hook input priority filter; policy drop;\n\t\tct state established,related accept\n\t\tiifname \"lo\" accept\n\t\ticmp type echo-request accept\n\t\tiifname \"dlx1\" meta l4proto { tcp, udp } th dport 53 accept\n\t}\n}\n",
+			"log": [
+			],
+			"ran": [
+				"ip netns add dawnline",
+				"ip link add dlx0 type veth peer name dlx1 netns dawnline",
+				"ip link add dll0 type veth peer name dll1 address aa:a4:a8:84:2d:9d netns dawnline",
+				"ip addr flush dev dlx0",
+				"ip addr add 169.254.77.1/30 dev dlx0",
+				"ip link set dlx0 up",
+				"ip link set dll0 master 'br-lan'",
+				"ip link set dll0 up",
+				"ip -n dawnline link set lo up",
+				"ip -n dawnline addr flush dev dlx1",
+				"ip -n dawnline addr add 169.254.77.2/30 dev dlx1",
+				"ip -n dawnline link set dlx1 up",
+				"ip -n dawnline addr flush dev dll1",
+				"ip -n dawnline addr add 192.168.77.201/24 dev dll1",
+				"ip -n dawnline link set dll1 up",
+				"ip -n dawnline route replace default via 192.168.77.1 dev dll1",
+				"ip -n dawnline route replace default via 169.254.77.1 dev dlx1 table 100",
+				"ip -n dawnline rule del from 169.254.77.2 lookup 100 2>/dev/null; ip -n dawnline rule add from 169.254.77.2 lookup 100",
+				"ip netns exec dawnline sh -c 'echo 1 > /proc/sys/net/ipv4/ip_forward; echo 0 > /proc/sys/net/ipv4/conf/all/rp_filter; echo 0 > /proc/sys/net/ipv4/conf/default/rp_filter'",
+				"ip -4 route replace default via 169.254.77.2 dev dlx0 table 2078",
+				"ip -n dawnline route replace '10.78.0.0/24' via '169.254.77.1' dev dlx1",
+				"ip -n dawnline route replace '10.79.0.0/24' via '169.254.77.1' dev dlx1",
+				"ip netns exec dawnline nft -f /var/etc/dawnline-ns.nft",
+				"ip -4 rule del priority 5205 iif 'dawn1' to 192.168.77.201 lookup 2078",
+				"ip -4 rule del priority 5210 iif 'dawn1' to 10.78.0.0/24 lookup main",
+				"ip -4 rule del priority 5210 iif 'dawn1' to 192.168.50.0/24 lookup main",
+				"ip -4 rule del priority 5290 iif 'dawn1' lookup 2078",
+				"ip -4 rule del priority 5205 iif 'dawn2' to 192.168.77.201 lookup 2078",
+				"ip -4 rule del priority 5210 iif 'dawn2' to 10.79.0.0/24 lookup main",
+				"ip -4 rule del priority 5210 iif 'dawn2' to 192.168.77.0/24 lookup main",
+				"ip -4 rule del priority 5290 iif 'dawn2' lookup 2078",
+				"ip link del dlx0",
+				"ip link del dll0",
+				"ip netns del dawnline"
+			],
+			"failed": [
+				"ip -n dawnline route replace default via 192.168.77.1 dev dll1 · RTNETLINK answers: a made-up failure"
+			],
+			"pings": [
+			],
+			"sys": {
+				"dlx0": false,
+				"dll0": false,
+				"netns": false
+			}
+		},
+		{
+			"what": "it works again",
+			"force": true,
+			"result": {
+				"dev": "br-lan",
+				"gateway": "192.168.77.1",
+				"address": "192.168.77.201",
+				"mac": "aa:a4:a8:84:2d:9d",
+				"prefix": 24,
+				"dns": "192.168.77.53",
+				"transit": 2852015360,
+				"tx_root": "169.254.77.1",
+				"tx_ns": "169.254.77.2",
+				"table": 2078,
+				"servers": [
+					{
+						"ifname": "dawn1",
+						"subnet": "10.78.0.0/24",
+						"direct": [
+							"10.78.0.0/24",
+							"192.168.50.0/24"
+						]
+					},
+					{
+						"ifname": "dawn2",
+						"subnet": "10.79.0.0/24",
+						"direct": [
+							"10.79.0.0/24",
+							"192.168.77.0/24"
+						]
+					}
+				]
+			},
+			"state": {
+				"applied": 1,
+				"plan": {
+					"dev": "br-lan",
+					"gateway": "192.168.77.1",
+					"address": "192.168.77.201",
+					"mac": "aa:a4:a8:84:2d:9d",
+					"prefix": 24,
+					"dns": "192.168.77.53",
+					"transit": 2852015360,
+					"tx_root": "169.254.77.1",
+					"tx_ns": "169.254.77.2",
+					"table": 2078,
+					"servers": [
+						{
+							"ifname": "dawn1",
+							"subnet": "10.78.0.0/24",
+							"direct": [
+								"10.78.0.0/24",
+								"192.168.50.0/24"
+							]
+						},
+						{
+							"ifname": "dawn2",
+							"subnet": "10.79.0.0/24",
+							"direct": [
+								"10.79.0.0/24",
+								"192.168.77.0/24"
+							]
+						}
+					]
+				},
+				"transit": 2852015360,
+				"fast": true
+			},
+			"ns_rules": "table inet dawnline\ndelete table inet dawnline\ntable inet dawnline {\n\tflowtable ft {\n\t\thook ingress priority 0;\n\t\tdevices = { \"dlx1\", \"dll1\" };\n\t}\n\tchain nat_pre {\n\t\ttype nat hook prerouting priority dstnat; policy accept;\n\t\tiifname \"dlx1\" ip daddr 192.168.77.201 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.53:53\n\t}\n\tchain nat_post {\n\t\ttype nat hook postrouting priority srcnat; policy accept;\n\t\toifname \"dll1\" masquerade\n\t}\n\tchain filter_forward {\n\t\ttype filter hook forward priority filter; policy drop;\n\t\tct state established meta l4proto { tcp, udp } flow add @ft\n\t\tct state established,related accept\n\t\tiifname \"dlx1\" oifname \"dll1\" accept\n\t}\n\tchain filter_input {\n\t\ttype filter hook input priority filter; policy drop;\n\t\tct state established,related accept\n\t\tiifname \"lo\" accept\n\t\ticmp type echo-request accept\n\t\tiifname \"dlx1\" meta l4proto { tcp, udp } th dport 53 accept\n\t}\n}\n",
+			"log": [
+				{
+					"src": "dawnline",
+					"level": "up",
+					"msg": "is on · traffic enters br-lan as 192.168.77.201",
+					"who": "Internet like a home device"
+				}
+			],
+			"ran": [
+				"ip netns add dawnline",
+				"ip link add dlx0 type veth peer name dlx1 netns dawnline",
+				"ip link add dll0 type veth peer name dll1 address aa:a4:a8:84:2d:9d netns dawnline",
+				"ip addr flush dev dlx0",
+				"ip addr add 169.254.77.1/30 dev dlx0",
+				"ip link set dlx0 up",
+				"ip link set dll0 master 'br-lan'",
+				"ip link set dll0 up",
+				"ip -n dawnline link set lo up",
+				"ip -n dawnline addr flush dev dlx1",
+				"ip -n dawnline addr add 169.254.77.2/30 dev dlx1",
+				"ip -n dawnline link set dlx1 up",
+				"ip -n dawnline addr flush dev dll1",
+				"ip -n dawnline addr add 192.168.77.201/24 dev dll1",
+				"ip -n dawnline link set dll1 up",
+				"ip -n dawnline route replace default via 192.168.77.1 dev dll1",
+				"ip -n dawnline route replace default via 169.254.77.1 dev dlx1 table 100",
+				"ip -n dawnline rule del from 169.254.77.2 lookup 100 2>/dev/null; ip -n dawnline rule add from 169.254.77.2 lookup 100",
+				"ip netns exec dawnline sh -c 'echo 1 > /proc/sys/net/ipv4/ip_forward; echo 0 > /proc/sys/net/ipv4/conf/all/rp_filter; echo 0 > /proc/sys/net/ipv4/conf/default/rp_filter'",
+				"ip -4 route replace default via 169.254.77.2 dev dlx0 table 2078",
+				"ip -n dawnline route replace '10.78.0.0/24' via '169.254.77.1' dev dlx1",
+				"ip -n dawnline route replace '10.79.0.0/24' via '169.254.77.1' dev dlx1",
+				"ip netns exec dawnline nft -f /var/etc/dawnline-ns.nft"
+			],
+			"failed": [
+			],
+			"pings": [
+			],
+			"sys": {
+				"dlx0": true,
+				"dll0": true,
+				"netns": true
+			}
+		},
+		{
+			"what": "one server only",
+			"force": false,
+			"result": {
+				"dev": "br-lan",
+				"gateway": "192.168.77.1",
+				"address": "192.168.77.201",
+				"mac": "aa:a4:a8:84:2d:9d",
+				"prefix": 24,
+				"dns": "192.168.77.53",
+				"transit": 2852015360,
+				"tx_root": "169.254.77.1",
+				"tx_ns": "169.254.77.2",
+				"table": 2078,
+				"servers": [
+					{
+						"ifname": "dawn2",
+						"subnet": "10.79.0.0/24",
+						"direct": [
+							"10.79.0.0/24",
+							"192.168.77.0/24"
+						]
+					}
+				]
+			},
+			"state": {
+				"applied": 1,
+				"plan": {
+					"dev": "br-lan",
+					"gateway": "192.168.77.1",
+					"address": "192.168.77.201",
+					"mac": "aa:a4:a8:84:2d:9d",
+					"prefix": 24,
+					"dns": "192.168.77.53",
+					"transit": 2852015360,
+					"tx_root": "169.254.77.1",
+					"tx_ns": "169.254.77.2",
+					"table": 2078,
+					"servers": [
+						{
+							"ifname": "dawn2",
+							"subnet": "10.79.0.0/24",
+							"direct": [
+								"10.79.0.0/24",
+								"192.168.77.0/24"
+							]
+						}
+					]
+				},
+				"transit": 2852015360,
+				"fast": true
+			},
+			"ns_rules": "table inet dawnline\ndelete table inet dawnline\ntable inet dawnline {\n\tflowtable ft {\n\t\thook ingress priority 0;\n\t\tdevices = { \"dlx1\", \"dll1\" };\n\t}\n\tchain nat_pre {\n\t\ttype nat hook prerouting priority dstnat; policy accept;\n\t\tiifname \"dlx1\" ip daddr 192.168.77.201 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.53:53\n\t}\n\tchain nat_post {\n\t\ttype nat hook postrouting priority srcnat; policy accept;\n\t\toifname \"dll1\" masquerade\n\t}\n\tchain filter_forward {\n\t\ttype filter hook forward priority filter; policy drop;\n\t\tct state established meta l4proto { tcp, udp } flow add @ft\n\t\tct state established,related accept\n\t\tiifname \"dlx1\" oifname \"dll1\" accept\n\t}\n\tchain filter_input {\n\t\ttype filter hook input priority filter; policy drop;\n\t\tct state established,related accept\n\t\tiifname \"lo\" accept\n\t\ticmp type echo-request accept\n\t\tiifname \"dlx1\" meta l4proto { tcp, udp } th dport 53 accept\n\t}\n}\n",
+			"log": [
+			],
+			"ran": [
+				"ip addr flush dev dlx0",
+				"ip addr add 169.254.77.1/30 dev dlx0",
+				"ip link set dlx0 up",
+				"ip link set dll0 master 'br-lan'",
+				"ip link set dll0 up",
+				"ip -n dawnline link set lo up",
+				"ip -n dawnline addr flush dev dlx1",
+				"ip -n dawnline addr add 169.254.77.2/30 dev dlx1",
+				"ip -n dawnline link set dlx1 up",
+				"ip -n dawnline addr flush dev dll1",
+				"ip -n dawnline addr add 192.168.77.201/24 dev dll1",
+				"ip -n dawnline link set dll1 up",
+				"ip -n dawnline route replace default via 192.168.77.1 dev dll1",
+				"ip -n dawnline route replace default via 169.254.77.1 dev dlx1 table 100",
+				"ip -n dawnline rule del from 169.254.77.2 lookup 100 2>/dev/null; ip -n dawnline rule add from 169.254.77.2 lookup 100",
+				"ip netns exec dawnline sh -c 'echo 1 > /proc/sys/net/ipv4/ip_forward; echo 0 > /proc/sys/net/ipv4/conf/all/rp_filter; echo 0 > /proc/sys/net/ipv4/conf/default/rp_filter'",
+				"ip -4 route replace default via 169.254.77.2 dev dlx0 table 2078",
+				"ip -n dawnline route replace '10.79.0.0/24' via '169.254.77.1' dev dlx1",
+				"ip netns exec dawnline nft -f /var/etc/dawnline-ns.nft",
+				"ip -4 rule del priority 5205 iif 'dawn1' to 192.168.77.201 lookup 2078",
+				"ip -4 rule del priority 5210 iif 'dawn1' to 10.78.0.0/24 lookup main",
+				"ip -4 rule del priority 5210 iif 'dawn1' to 192.168.50.0/24 lookup main",
+				"ip -4 rule del priority 5290 iif 'dawn1' lookup 2078"
+			],
+			"failed": [
+			],
+			"pings": [
+			],
+			"sys": {
+				"dlx0": true,
+				"dll0": true,
+				"netns": true
+			}
+		},
+		{
+			"what": "nobody wants it: taken away",
+			"force": false,
+			"result": {
+				"off": true
+			},
+			"state": {
+				"error": null,
+				"off": true
+			},
+			"ns_rules": "table inet dawnline\ndelete table inet dawnline\ntable inet dawnline {\n\tflowtable ft {\n\t\thook ingress priority 0;\n\t\tdevices = { \"dlx1\", \"dll1\" };\n\t}\n\tchain nat_pre {\n\t\ttype nat hook prerouting priority dstnat; policy accept;\n\t\tiifname \"dlx1\" ip daddr 192.168.77.201 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.53:53\n\t}\n\tchain nat_post {\n\t\ttype nat hook postrouting priority srcnat; policy accept;\n\t\toifname \"dll1\" masquerade\n\t}\n\tchain filter_forward {\n\t\ttype filter hook forward priority filter; policy drop;\n\t\tct state established meta l4proto { tcp, udp } flow add @ft\n\t\tct state established,related accept\n\t\tiifname \"dlx1\" oifname \"dll1\" accept\n\t}\n\tchain filter_input {\n\t\ttype filter hook input priority filter; policy drop;\n\t\tct state established,related accept\n\t\tiifname \"lo\" accept\n\t\ticmp type echo-request accept\n\t\tiifname \"dlx1\" meta l4proto { tcp, udp } th dport 53 accept\n\t}\n}\n",
+			"log": [
+			],
+			"ran": [
+				"ip -4 rule del priority 5205 iif 'dawn2' to 192.168.77.201 lookup 2078",
+				"ip -4 rule del priority 5210 iif 'dawn2' to 10.79.0.0/24 lookup main",
+				"ip -4 rule del priority 5210 iif 'dawn2' to 192.168.77.0/24 lookup main",
+				"ip -4 rule del priority 5290 iif 'dawn2' lookup 2078",
+				"ip -4 route flush table 2078",
+				"ip link del dlx0",
+				"ip link del dll0",
+				"ip netns del dawnline"
+			],
+			"failed": [
+			],
+			"pings": [
+			],
+			"sys": {
+				"dlx0": false,
+				"dll0": false,
+				"netns": false
+			}
+		},
+		{
+			"what": "and nothing more to take",
+			"force": false,
+			"result": {
+				"off": true
+			},
+			"state": {
+				"error": null,
+				"off": true
+			},
+			"ns_rules": "table inet dawnline\ndelete table inet dawnline\ntable inet dawnline {\n\tflowtable ft {\n\t\thook ingress priority 0;\n\t\tdevices = { \"dlx1\", \"dll1\" };\n\t}\n\tchain nat_pre {\n\t\ttype nat hook prerouting priority dstnat; policy accept;\n\t\tiifname \"dlx1\" ip daddr 192.168.77.201 meta l4proto { tcp, udp } th dport 53 dnat ip to 192.168.77.53:53\n\t}\n\tchain nat_post {\n\t\ttype nat hook postrouting priority srcnat; policy accept;\n\t\toifname \"dll1\" masquerade\n\t}\n\tchain filter_forward {\n\t\ttype filter hook forward priority filter; policy drop;\n\t\tct state established meta l4proto { tcp, udp } flow add @ft\n\t\tct state established,related accept\n\t\tiifname \"dlx1\" oifname \"dll1\" accept\n\t}\n\tchain filter_input {\n\t\ttype filter hook input priority filter; policy drop;\n\t\tct state established,related accept\n\t\tiifname \"lo\" accept\n\t\ticmp type echo-request accept\n\t\tiifname \"dlx1\" meta l4proto { tcp, udp } th dport 53 accept\n\t}\n}\n",
+			"log": [
+			],
+			"ran": [
+			],
+			"failed": [
+			],
+			"pings": [
+			],
+			"sys": {
+				"dlx0": false,
+				"dll0": false,
+				"netns": false
+			}
+		}
+	],
+	"macs": [
+		[
+			"02:11:22:33:44:55",
+			"aa:a4:a8:84:2d:9d"
+		],
+		[
+			" 00:1A:2B:3C:4D:5E\n",
+			"e6:d0:59:0a:12:23"
+		],
+		[
+			"",
+			"aa:0b:2a:56:aa:0b"
+		],
+		[
+			"ff:ff:ff:ff:ff:ff",
+			"1e:b1:22:bc:0d:2c"
+		],
+		[
+			null,
+			"aa:0b:2a:56:aa:0b"
+		]
+	],
+	"rules": {
+		"plan": {
+			"address": "10.0.1.250",
+			"dns": "10.0.1.53",
+			"table": 2077,
+			"servers": [
+				{
+					"ifname": "dawn0",
+					"subnet": "10.8.0.0/24",
+					"direct": [
+						"10.0.1.0/24",
+						"10.8.0.0/24"
+					]
+				},
+				{
+					"ifname": "wg'x",
+					"subnet": "10.9.0.0/24",
+					"direct": [
+					]
+				}
+			]
+		},
+		"want": [
+			{
+				"pref": 5205,
+				"iif": "dawn0",
+				"to": "10.0.1.250/32",
+				"table": "2077"
+			},
+			{
+				"pref": 5210,
+				"iif": "dawn0",
+				"to": "10.0.1.0/24",
+				"table": "main"
+			},
+			{
+				"pref": 5210,
+				"iif": "dawn0",
+				"to": "10.8.0.0/24",
+				"table": "main"
+			},
+			{
+				"pref": 5290,
+				"iif": "dawn0",
+				"to": null,
+				"table": "2077"
+			},
+			{
+				"pref": 5205,
+				"iif": "wg'x",
+				"to": "10.0.1.250/32",
+				"table": "2077"
+			},
+			{
+				"pref": 5290,
+				"iif": "wg'x",
+				"to": null,
+				"table": "2077"
+			}
+		],
+		"none": [
+		],
+		"current": [
+			{
+				"priority": 5205,
+				"src": "all",
+				"iif": "dawn0",
+				"dst": "10.0.1.250",
+				"table": "2077"
+			},
+			{
+				"priority": 5210,
+				"src": "all",
+				"iif": "dawn0",
+				"dst": "10.0.1.0",
+				"dstlen": 24,
+				"table": "main"
+			},
+			{
+				"priority": 5210,
+				"src": "all",
+				"iif": "dawn0",
+				"dst": "10.0.1.0",
+				"dstlen": 24,
+				"table": "main"
+			},
+			{
+				"priority": 5210,
+				"src": "10.8.0.7",
+				"iif": "dawn0",
+				"dst": "10.0.9.0",
+				"dstlen": 24,
+				"table": "main"
+			},
+			{
+				"priority": 5210,
+				"src": "10.8.1.0",
+				"srclen": 24,
+				"iif": "dawn0",
+				"table": "main"
+			},
+			{
+				"priority": 5290,
+				"src": "all",
+				"iif": "dawn0",
+				"table": "2099"
+			}
+		],
+		"cmds": [
+			"ip -4 rule add priority 5210 iif 'dawn0' to 10.8.0.0/24 lookup main",
+			"ip -4 rule add priority 5290 iif 'dawn0' lookup 2077",
+			"ip -4 rule add priority 5205 iif 'wg'\\''x' to 10.0.1.250/32 lookup 2077",
+			"ip -4 rule add priority 5290 iif 'wg'\\''x' lookup 2077",
+			"ip -4 rule del priority 5210 from 10.8.0.7 iif 'dawn0' to 10.0.9.0/24 lookup main",
+			"ip -4 rule del priority 5210 from 10.8.1.0/24 iif 'dawn0' lookup main",
+			"ip -4 rule del priority 5290 iif 'dawn0' lookup 2099",
+			"ip -4 rule del priority 5210 iif 'dawn0' to 10.0.1.0/24 lookup main"
+		],
+		"from_nothing": [
+			"ip -4 rule add priority 5205 iif 'dawn0' to 10.0.1.250/32 lookup 2077",
+			"ip -4 rule add priority 5210 iif 'dawn0' to 10.0.1.0/24 lookup main",
+			"ip -4 rule add priority 5210 iif 'dawn0' to 10.8.0.0/24 lookup main",
+			"ip -4 rule add priority 5290 iif 'dawn0' lookup 2077",
+			"ip -4 rule add priority 5205 iif 'wg'\\''x' to 10.0.1.250/32 lookup 2077",
+			"ip -4 rule add priority 5290 iif 'wg'\\''x' lookup 2077"
+		],
+		"to_nothing": [
+			"ip -4 rule del priority 5205 iif 'dawn0' to 10.0.1.250 lookup 2077",
+			"ip -4 rule del priority 5210 iif 'dawn0' to 10.0.1.0/24 lookup main",
+			"ip -4 rule del priority 5210 from 10.8.0.7 iif 'dawn0' to 10.0.9.0/24 lookup main",
+			"ip -4 rule del priority 5210 from 10.8.1.0/24 iif 'dawn0' lookup main",
+			"ip -4 rule del priority 5290 iif 'dawn0' lookup 2099",
+			"ip -4 rule del priority 5210 iif 'dawn0' to 10.0.1.0/24 lookup main"
+		]
+	},
+	"ns_rules": [
+		"table inet dawnline\ndelete table inet dawnline\ntable inet dawnline {\n\tflowtable ft {\n\t\thook ingress priority 0;\n\t\tdevices = { \"dlx1\", \"dll1\" };\n\t}\n\tchain nat_pre {\n\t\ttype nat hook prerouting priority dstnat; policy accept;\n\t\tiifname \"dlx1\" ip daddr 10.0.1.250 meta l4proto { tcp, udp } th dport 53 dnat ip to 10.0.1.53:53\n\t}\n\tchain nat_post {\n\t\ttype nat hook postrouting priority srcnat; policy accept;\n\t\toifname \"dll1\" masquerade\n\t}\n\tchain filter_forward {\n\t\ttype filter hook forward priority filter; policy drop;\n\t\tct state established meta l4proto { tcp, udp } flow add @ft\n\t\tct state established,related accept\n\t\tiifname \"dlx1\" oifname \"dll1\" accept\n\t}\n\tchain filter_input {\n\t\ttype filter hook input priority filter; policy drop;\n\t\tct state established,related accept\n\t\tiifname \"lo\" accept\n\t\ticmp type echo-request accept\n\t\tiifname \"dlx1\" meta l4proto { tcp, udp } th dport 53 accept\n\t}\n}\n",
+		"table inet dawnline\ndelete table inet dawnline\ntable inet dawnline {\n\tchain nat_pre {\n\t\ttype nat hook prerouting priority dstnat; policy accept;\n\t\tiifname \"dlx1\" ip daddr 10.0.1.250 meta l4proto { tcp, udp } th dport 53 dnat ip to 10.0.1.53:53\n\t}\n\tchain nat_post {\n\t\ttype nat hook postrouting priority srcnat; policy accept;\n\t\toifname \"dll1\" masquerade\n\t}\n\tchain filter_forward {\n\t\ttype filter hook forward priority filter; policy drop;\n\t\tct state established,related accept\n\t\tiifname \"dlx1\" oifname \"dll1\" accept\n\t}\n\tchain filter_input {\n\t\ttype filter hook input priority filter; policy drop;\n\t\tct state established,related accept\n\t\tiifname \"lo\" accept\n\t\ticmp type echo-request accept\n\t\tiifname \"dlx1\" meta l4proto { tcp, udp } th dport 53 accept\n\t}\n}\n"
+	],
+	"notes": [
+		"No LAN detected.",
+		"eth1 is not a bridge, so Dawnline cannot join the LAN as a device.",
+		"br-lan has no IPv4 address.",
+		"No free address on 10.0.1.0/24.",
+		"No free link-local range for the internal link.",
+		"No free routing table."
+	]
+}

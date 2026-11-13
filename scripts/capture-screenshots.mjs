@@ -1,294 +1,200 @@
 #!/usr/bin/env node
-// Capture the raw README screenshots of the admin pages from a live router into
-// docs/screenshots/raw/<name>.png (2x PNG); scripts/frame-screenshots.py then
-// frames them for the README. The portal's come from its demo instead
-// (scripts/capture-portal.mjs): no one's real page, and adding a device there adds none.
+// Capture the raw README screenshots of the admin into docs/screenshots/raw/ (2x PNG): People (people.png), a
+// person's page (person.png), Places (places.png), a server's core settings (core.png), each cut to the content
+// column, and a device's dialog alone on a transparent page (device.png). The Russian ones take a -ru suffix.
+// scripts/frame-screenshots.py then frames them for the README.
 //
-// Drives a headless Chromium (BROWSER=/path/to/chrome, default: Brave or Chrome
-// on macOS) over the DevTools protocol (scripts/cdp.mjs). Signs in to LuCI with
-// the password from LUCI_PASSWORD or asked on the terminal; the session lives
-// only in a throwaway profile (LUCI_USER picks another user than root). Nothing on the router is changed.
+// No router is involved, and nothing real can be in a picture: the admin is its demo build (web/dist/admin-demo,
+// `npm run build:demo`, built first unless --no-build), the real pages over a router that lives in the page with a
+// made-up cast (web/src/admin/demo: eight people, fifteen devices, one fixed day). It is opened at LuCI's own
+// addresses on https://router.example and every file is answered over the DevTools protocol (scripts/cdp.mjs).
 //
-//   scripts/capture-screenshots.mjs [--router https://router.lan] [--person id]
-//                                   [--mask real=shown ...] [--name real=shown ...]
-//                                   [--only overview,people] [--demo] [--lang ru]
+// The Outline theme around the pages is not this repository's: its built files (main.css, icons, fonts) are read
+// from --theme, by default the luci-theme-outline checkout beside this one (run `pnpm build` in its .dev/ first).
+// The theme is shown with its navbar on top. The Places map draws its tiles from the network, as it does on a
+// router, so that one shot needs the internet.
 //
-// --lang asks LuCI for the pages in that language (its catalog, po/<lang>/dawnline.po;
-// the router's LuCI language left on auto) and names the captures <name>-<lang>.png
-// for that README (README_ru.md); English (the default) keeps <name>.png.
-// --mask replaces text on every page before the capture (a domain, a name);
-// --name does the same for a person's name in any case, and for their initials.
-// Public IPv4 addresses are always swapped for documentation ones (203.0.113.x).
-// --demo shows a made-up cast instead of the router's people (scripts/screenshot-demo.mjs):
-// the router's answers are rewritten in the headless browser on their way to the page.
+//   scripts/capture-screenshots.mjs [--lang en,ru] [--only people,core] [--theme <luci-static/outline>] [--no-build]
 
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, extname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createInterface } from 'node:readline';
 import { die, launch, sleep } from './cdp.mjs';
-import { demoRpc } from './screenshot-demo.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const WEB = join(ROOT, 'web');
+const DEMO = join(WEB, 'dist', 'admin-demo');
 const RAW = join(ROOT, 'docs', 'screenshots', 'raw');
 const SCALE = 2;
+/** The window: wide enough for the theme's content column, and tall, since Outline scrolls #maincontent, not the page. */
+const WIDTH = 1400;
+const HEIGHT = 2600;
+/** Either side of the content column in a page's capture, and under the last thing it shows. */
+const SIDE = 48;
+const FOOT = 40;
+/** Around the dialog in its capture: left, top, right, bottom (frame-screenshots.py FLOW_MARGIN). */
+const MARGIN = [56, 40, 56, 72];
+const ORIGIN = 'https://router.example';
+const LUCI = `${ORIGIN}/cgi-bin/luci/admin/services/dawnline`;
+/** The cast's server, the person whose page is shown and the device whose dialog is (web/src/admin/demo/cast.ts). */
+const SERVER = 's_home';
+const PERSON = 'p_artem';
+const DEVICE = 'd_a1';
 
 const args = {
-  router: 'https://outline.lan',
-  person: '',
-  mask: [],
-  names: [],
+  langs: ['en', 'ru'],
   only: [],
-  demo: false,
-  lang: 'en',
+  build: true,
+  theme: resolve(ROOT, '..', 'luci-theme-outline', 'htdocs', 'luci-static', 'outline'),
 };
 for (let i = 2; i < process.argv.length; i++) {
   const a = process.argv[i];
   const v = () => process.argv[++i] ?? die(`${a} needs a value`);
-  if (a === '--router') args.router = v().replace(/\/+$/, '');
-  else if (a === '--person') args.person = v();
-  else if (a === '--mask') args.mask.push(v().split('=', 2));
-  else if (a === '--name') args.names.push(v().split('=', 2));
+  if (a === '--lang') args.langs = v().split(',');
   else if (a === '--only') args.only = v().split(',');
-  else if (a === '--demo') args.demo = true;
-  else if (a === '--lang') args.lang = v();
+  else if (a === '--theme') args.theme = resolve(v());
+  else if (a === '--no-build') args.build = false;
   else die(`unknown argument ${a}`);
 }
-const SUFFIX = args.lang === 'en' ? '' : `-${args.lang}`;
 
-/** The admin's catalog for --lang: msgid -> msgstr, the entries without a context (English: none). */
-const CATALOG = (() => {
-  const out = new Map();
-  if (args.lang === 'en') return out;
-  let po;
-  try {
-    po = readFileSync(join(ROOT, 'package', 'luci-app-dawnline', 'po', args.lang, 'dawnline.po'), 'utf8');
-  } catch {
-    die(`no admin catalog for --lang ${args.lang}`);
-  }
-  for (const m of po.matchAll(/^(msgctxt .*\n)?msgid "(.*)"\nmsgstr "(.*)"$/gm)) if (!m[1] && m[3]) out.set(m[2], m[3]);
-  return out;
-})();
-/** A button's words as the page shows them in --lang (the pages are clicked by what they say). */
-const tr = (id) => CATALOG.get(id) ?? id;
-if ([...args.mask, ...args.names].some((m) => m.length !== 2 || !m[0])) die('--mask and --name take real=shown');
+// In the page: the pages' shadow root and the layer's (what floats: a dialog), and whether the page has been drawn.
+const HOST = `document.querySelector('.dl-host')?.shadowRoot`;
+const LAYER = `document.querySelector('.dl-layer')?.shadowRoot`;
+const has = (sel) => `${HOST}?.querySelector(${JSON.stringify(sel)})`;
 
-/** As shared/format initials(): first letters of the first and last word, or the first two of one word. */
-const initials = (name) => {
-  const p = name.trim().split(/\s+/);
-  return (p[0][0] + (p.length > 1 ? p[p.length - 1][0] : (p[0][1] ?? ''))).toUpperCase();
-};
-for (const [real, shown] of args.names)
-  args.mask.push([real, shown], [real.toLowerCase(), shown.toLowerCase()], [real.toUpperCase(), shown.toUpperCase()]);
-const INITIALS = args.names.map(([real, shown]) => [initials(real), initials(shown)]);
-
-const LUCI = `${args.router}/cgi-bin/luci/admin/services/dawnline`;
-const USER = process.env.LUCI_USER || 'root';
-
-/*
- * Each shot: the page, what must be on it before the capture, what to do
- * first (in the page), and the area to keep (in the page, CSS pixels).
- * Admin pages keep the theme's header and the content column, 48px either side.
- */
-const column = `(() => {
-  const r = document.querySelector('.dl-root').getBoundingClientRect();
-  return { x: r.left - 48, w: r.width + 96 };
-})()`;
-// From the top down to an element; whatever follows it is hidden, not cut through.
-const below = (sel) => `(() => {
-  const c = ${column}, el = document.querySelector(${JSON.stringify(sel)});
-  for (let e = el; e && !e.classList.contains('dl-root'); e = e.parentElement)
-    for (let n = e.nextElementSibling; n; n = n.nextElementSibling) n.style.visibility = 'hidden';
-  return { x: c.x, y: 0, width: c.w, height: el.getBoundingClientRect().bottom + 40 };
-})()`;
-
+/** Each shot: its address, what must stand before it is taken, and how long what it draws takes to come to rest. */
 const SHOTS = [
-  {
-    name: 'overview',
-    url: () => `${LUCI}/server`,
-    width: 1400,
-    ready: '.dl-srvov .dl-panel.flush .maplibregl-canvas',
-    // The map shows the last 30 days, not only who is online now.
-    prep: `(() => {
-      const b = [...document.querySelectorAll('.dl-srvov .dl-panel.flush button')].find((x) => x.textContent.trim() === ${JSON.stringify(tr('30 days'))});
-      b?.click();
-    })()`,
-    settle: 6000,
-    clip: below('.dl-srvov .dl-panel.flush'),
-  },
-  {
-    name: 'people',
-    url: () => `${LUCI}/server?section=people`,
-    width: 1400,
-    ready: '.dl-srvbody a[href*="dawnline/person"]',
-    clip: below('.dl-srvbody'),
-  },
-  {
-    name: 'person',
-    url: (s) => `${LUCI}/person?id=${encodeURIComponent(s.person)}`,
-    width: 1400,
-    ready: '.dl-grid-person .dl-row',
-    // Where they connected from, on the map.
-    prep: `(() => {
-      const b = [...document.querySelectorAll('.dl-grid-person button')].find((x) => x.textContent.trim() === ${JSON.stringify(tr('Show map'))});
-      b?.click();
-    })()`,
-    settle: 6000,
-    // Down to the end of Access & limits or of the map, whichever is lower; activity rows that would be cut are hidden.
-    clip: `(() => {
-      const c = ${column}, cols = document.querySelectorAll('.dl-grid-person > .dl-col');
-      const places = cols[0].children[2];
-      const cut = Math.max(cols[1].getBoundingClientRect().bottom, places ? places.getBoundingClientRect().bottom : 0) + 40;
-      document.querySelectorAll('.dl-grid-person .dl-row').forEach((r) => {
-        if (r.getBoundingClientRect().bottom > cut - 8) r.style.visibility = 'hidden';
-      });
-      // Activity that would start right at the cut goes too, its heading with it.
-      const act = cols[0].children[3];
-      if (act && act.getBoundingClientRect().top > cut - 120) act.style.visibility = 'hidden';
-      return { x: c.x, y: 0, width: c.w, height: cut };
-    })()`,
-  },
+  { name: 'people', at: `people?server=${SERVER}`, ready: has('.pp-card') },
+  { name: 'person', at: `people?server=${SERVER}&id=${PERSON}`, ready: has('.pp-cols') },
+  // the map's module, then its tiles from the network
+  { name: 'places', at: `people?server=${SERVER}&view=map`, ready: has('.maplibregl-canvas'), settle: 7000 },
+  { name: 'core', at: `server?server=${SERVER}&p=core`, ready: has('.sv-core') },
+  { name: 'device', at: `people?device=${DEVICE}`, ready: `${LAYER}?.querySelector('.sheet[role=dialog]')`, dialog: true },
 ];
+const unknown = args.only.filter((n) => !SHOTS.some((s) => s.name === n));
+if (unknown.length) die(`unknown shot ${unknown.join(', ')} (one of ${SHOTS.map((s) => s.name).join(', ')})`);
+if (!existsSync(join(args.theme, 'main.css')))
+  die(
+    `No build of the Outline theme in ${args.theme}: run \`pnpm build\` in luci-theme-outline/.dev, or point --theme at its luci-static/outline`,
+  );
 
-const MASK = `((pairs, inits) => {
-  const doc = new Map();
-  const isPrivate = (a) => a[0] === 10 || a[0] === 127 || (a[0] === 172 && a[1] >= 16 && a[1] < 32) ||
-    (a[0] === 192 && a[1] === 168) || (a[0] === 100 && a[1] >= 64 && a[1] < 128) || a[0] === 0 || a[0] >= 224;
-  const ip = (m) => {
-    const a = m.split('.').map(Number);
-    if (a.some((x) => x > 255) || isPrivate(a)) return m;
-    if (!doc.has(m)) doc.set(m, '203.0.113.' + (24 + doc.size));
-    return doc.get(m);
-  };
-  // IPv6 too, unless link-local or private (fe80::, fc00::/7).
-  const ip6 = (m) => {
-    if (/^(fe8|fe9|fea|feb|fc|fd)/i.test(m)) return m;
-    if (!doc.has(m)) doc.set(m, '2001:db8::' + (24 + doc.size));
-    return doc.get(m);
-  };
-  const swap = (s) =>
-    pairs
-      .reduce((t, [a, b]) => t.split(a).join(b), s)
-      .replace(/\\b\\d{1,3}(?:\\.\\d{1,3}){3}\\b/g, ip)
-      .replace(/\\b(?:[0-9a-f]{1,4}:){3,7}[0-9a-f]{1,4}\\b/gi, ip6);
-  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-  for (let n; (n = w.nextNode()); ) {
-    const ini = inits.find(([a]) => n.nodeValue.trim() === a);
-    const v = ini ? n.nodeValue.replace(ini[0], ini[1]) : swap(n.nodeValue);
-    if (v !== n.nodeValue) n.nodeValue = v;
-  }
-  document.querySelectorAll('input').forEach((i) => { const v = swap(i.value); if (v !== i.value) i.value = v; });
-})(${JSON.stringify(args.mask)}, ${JSON.stringify(INITIALS)})`;
+// The content column: the page's host, SIDE either side, from the top of the window (the theme's navbar) down to
+// the last thing the page shows (the room it keeps under itself for a dock is not shown).
+const PAGE_CLIP = `(() => {
+  const host = document.querySelector('.dl-host');
+  const r = host.getBoundingClientRect();
+  let end = 0;
+  for (const e of host.shadowRoot.querySelectorAll('*'))
+    if (!e.firstElementChild && e.getClientRects().length) end = Math.max(end, e.getBoundingClientRect().bottom);
+  return { x: r.left - ${SIDE}, y: 0, width: r.width + ${2 * SIDE}, height: Math.min(r.bottom, end + 24) + ${FOOT} };
+})()`;
 
-async function password() {
-  if (process.env.LUCI_PASSWORD) return process.env.LUCI_PASSWORD;
-  if (!process.stdin.isTTY) die('Set LUCI_PASSWORD or run on a terminal');
-  process.stdout.write(`LuCI password for ${USER}: `);
-  execFileSync('stty', ['-echo'], { stdio: 'inherit' });
-  try {
-    const rl = createInterface({ input: process.stdin });
-    const line = await new Promise((ok) => rl.once('line', ok));
-    rl.close();
-    return line.replace(/\r$/, '');
-  } finally {
-    execFileSync('stty', ['echo'], { stdio: 'inherit' });
-    process.stdout.write('\n');
-  }
+// The dialog alone: the page under it, its scrim and the theme's ground are not drawn, MARGIN around the dialog.
+const DIALOG_CLIP = `(() => {
+  const layer = document.querySelector('.dl-layer');
+  for (const k of document.body.children) if (k !== layer) k.style.opacity = '0';
+  document.documentElement.style.background = 'transparent';
+  document.body.style.background = 'transparent';
+  const s = document.createElement('style');
+  s.textContent = '.sheet-root, .sheet-root::before, .sheet-root::after { background: transparent !important; backdrop-filter: none !important; }' +
+    ' .sheet-root > *:not(.sheet) { visibility: hidden !important; }';
+  layer.shadowRoot.append(s);
+  const r = layer.shadowRoot.querySelector('.sheet[role=dialog]').getBoundingClientRect();
+  const [l, t, rr, b] = ${JSON.stringify(MARGIN)};
+  return { x: r.left - l, y: r.top - t, width: r.width + l + rr, height: r.height + t + b };
+})()`;
+
+const TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript',
+  '.css': 'text/css',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.ico': 'image/x-icon',
+  '.woff2': 'font/woff2',
+};
+
+/** The file an address of the made-up router stands for: the demo's page at any LuCI address, its script, the theme's files. */
+function fileFor(path, lang) {
+  if (path.startsWith('/cgi-bin/luci/'))
+    // the page's language is its <html lang>, which LuCI's server sets
+    return {
+      type: TYPES['.html'],
+      body: Buffer.from(readFileSync(join(DEMO, 'index.html'), 'utf8').replace('<html lang="en"', `<html lang="${lang}"`)),
+    };
+  const from = [
+    ['/dawnline-demo/', DEMO],
+    ['/luci-static/outline/', args.theme],
+  ].find(([prefix]) => path.startsWith(prefix));
+  if (!from) return null;
+  const file = resolve(from[1], path.slice(from[0].length));
+  if (!file.startsWith(from[1] + sep) || !existsSync(file)) return null;
+  return { type: TYPES[extname(file)] ?? 'application/octet-stream', body: readFileSync(file) };
 }
 
-async function main() {
-  const pass = await password();
-  // The router's certificate is usually for its public name, not router.lan.
-  const b = await launch(['--ignore-certificate-errors', `--lang=${args.lang}`]);
-  const { page, evaluate, go, waitSel } = b;
+/** Answer everything the page asks of the router's origin; the rest (the map's tiles) goes to the network. */
+async function serve(page, lang) {
+  page.on('Fetch.requestPaused', async (e) => {
+    const f = fileFor(decodeURIComponent(new URL(e.request.url).pathname), lang);
+    await page
+      .send('Fetch.fulfillRequest', {
+        requestId: e.requestId,
+        responseCode: f ? 200 : 404,
+        responseHeaders: f ? [{ name: 'Content-Type', value: f.type }] : [],
+        body: f ? f.body.toString('base64') : '',
+      })
+      .catch(() => {});
+  });
+  await page.send('Fetch.enable', { patterns: [{ urlPattern: `${ORIGIN}/*`, requestStage: 'Request' }] });
+}
+
+/** What the page complains of goes to the terminal: a question the demo's router does not answer, an error. */
+async function listen(page, problems) {
+  page.on('Runtime.consoleAPICalled', (e) => {
+    if (e.type === 'warning' || e.type === 'error') problems.push(e.args.map((a) => a.value ?? a.description ?? '').join(' '));
+  });
+  page.on('Runtime.exceptionThrown', (e) => problems.push(e.exceptionDetails.exception?.description ?? e.exceptionDetails.text));
+  await page.send('Runtime.enable');
+}
+
+async function capture(lang) {
+  const suffix = lang === 'en' ? '' : `-${lang}`;
+  const b = await launch([`--lang=${lang}`]);
+  const { page, evaluate, go, waitFor } = b;
+  const problems = [];
   try {
-    // LuCI on auto speaks the browser's language: this one, whatever this computer's is.
-    await page.send('Network.enable');
-    await page.send('Network.setExtraHTTPHeaders', { headers: { 'Accept-Language': args.lang } });
-    await page.send('Emulation.setEmulatedMedia', {
-      features: [{ name: 'prefers-color-scheme', value: 'dark' }],
-    });
-    // The person shown on the Person page; known once People has loaded (or from --person).
-    const s = { person: args.person };
-    if (args.demo) {
-      page.on('Fetch.requestPaused', async (e) => {
-        try {
-          const r = await page.send('Fetch.getResponseBody', {
-            requestId: e.requestId,
-          });
-          const body = r.base64Encoded ? Buffer.from(r.body, 'base64').toString('utf8') : r.body;
-          const out = demoRpc(e.request.postData ?? '', body, s.person);
-          await page.send('Fetch.fulfillRequest', {
-            requestId: e.requestId,
-            responseCode: e.responseStatusCode ?? 200,
-            responseHeaders: e.responseHeaders ?? [],
-            body: Buffer.from(out, 'utf8').toString('base64'),
-          });
-        } catch {
-          await page.send('Fetch.continueRequest', { requestId: e.requestId }).catch(() => {});
-        }
-      });
-      await page.send('Fetch.enable', {
-        patterns: [{ urlPattern: '*ubus*', requestStage: 'Response' }],
-      });
-    }
-
-    // A tall window: Outline scrolls #maincontent, not the page, so it must hold everything.
-    const viewport = (width, height = 2600) =>
-      page.send('Emulation.setDeviceMetricsOverride', {
-        width,
-        height,
-        deviceScaleFactor: SCALE,
-        mobile: false,
-      });
-
-    await viewport(1400);
-    await go(`${args.router}/cgi-bin/luci/`);
-    if (await evaluate(`!!document.querySelector('input[name=luci_password]')`)) {
-      await evaluate(`(() => {
-        document.querySelector('input[name=luci_username]').value = ${JSON.stringify(USER)};
-        document.querySelector('input[name=luci_password]').value = ${JSON.stringify(pass)};
-      })()`);
-      const loaded = page.waitFor('Page.loadEventFired');
-      await evaluate(`document.querySelector('form.login-form, form').submit()`);
-      await loaded;
-      if (await evaluate(`!!document.querySelector('input[name=luci_password]')`))
-        die(
-          (await evaluate(`!!document.querySelector('.login-error')`))
-            ? `LuCI login failed: wrong password for ${USER} (LUCI_USER sets the user)`
-            : `LuCI login failed: still on the login page (${await evaluate('location.href')})`,
-        );
-    }
-
-    // The person to show: the first one on People unless --person.
-    await go(`${LUCI}/server?section=people`);
-    await waitSel('.dl-srvbody a[href*="dawnline/person"]');
-    if (!s.person)
-      s.person = await evaluate(`new URL(document.querySelector('.dl-srvbody a[href*="dawnline/person"]').href).searchParams.get('id')`);
-
+    await page.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'dark' }] });
+    await page.send('Emulation.setDeviceMetricsOverride', { width: WIDTH, height: HEIGHT, deviceScaleFactor: SCALE, mobile: false });
+    await listen(page, problems);
+    await serve(page, lang);
     for (const shot of SHOTS) {
       if (args.only.length && !args.only.includes(shot.name)) continue;
-      await viewport(shot.width);
-      await go(shot.url(s));
-      await waitSel(shot.ready);
-      await sleep(2000);
-      if (shot.prep) await evaluate(shot.prep);
-      await sleep(shot.settle ?? 1500);
-      await evaluate(MASK);
-      const clip = await evaluate(shot.clip);
+      // Where the page paints nothing (around a dialog taken alone), the capture is transparent.
+      await page.send('Emulation.setDefaultBackgroundColorOverride', shot.dialog ? { color: { r: 0, g: 0, b: 0, a: 0 } } : {});
+      await go(`${LUCI}/${shot.at}`);
+      await waitFor(shot.ready, `the ${shot.name} page`);
+      await sleep(shot.settle ?? 3000);
+      const clip = await evaluate(shot.dialog ? DIALOG_CLIP : PAGE_CLIP);
+      if (shot.dialog) await sleep(400);
       const { data } = await page.send('Page.captureScreenshot', {
         format: 'png',
         clip: { ...clip, scale: 1 },
         captureBeyondViewport: true,
       });
-      writeFileSync(join(RAW, `${shot.name}${SUFFIX}.png`), Buffer.from(data, 'base64'));
-      console.log(`${shot.name}${SUFFIX}: ${Math.round(clip.width)}x${Math.round(clip.height)} (x${SCALE})`);
+      writeFileSync(join(RAW, `${shot.name}${suffix}.png`), Buffer.from(data, 'base64'));
+      console.log(`${shot.name}${suffix}: ${Math.round(clip.width)}x${Math.round(clip.height)} (x${SCALE})`);
     }
     page.close();
   } finally {
     await b.close();
   }
+  for (const p of new Set(problems)) console.error(`  the page (${lang}): ${p}`);
+}
+
+async function main() {
+  if (args.build) execFileSync('npm', ['run', '--silent', 'build:demo'], { cwd: WEB, stdio: 'inherit' });
+  for (const lang of args.langs) await capture(lang);
 }
 
 main().catch((e) => die(e.message));

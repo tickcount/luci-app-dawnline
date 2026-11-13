@@ -11,6 +11,7 @@ import { onLang } from './i18n';
 import { put, h } from './dom';
 import { EASE_OUT, play, publishSprings } from './motion';
 import { gone, call } from './api';
+import { followLive, hasLive } from './live';
 import { base, code, onRepaint, placeName, setState, state, type RepaintOpts, type State } from './state';
 import { setupFromHash, wantsAdd } from './setup';
 import { frame, crumbs, single } from './page/frame';
@@ -18,6 +19,7 @@ import { fillNotice, stateNotice } from './page/notices';
 import { devicesNow, devicesSection, fillDevices } from './page/devices';
 import { accessSection, fillAccess } from './page/access';
 import { glass, type Tone } from './ui/glass';
+import { rise } from './ui/rise';
 import { closeDrop, dropOpen } from './ui/drop';
 import { closeSheet, sheetOpen } from './ui/sheet';
 import { renaming } from './flows/rename';
@@ -25,6 +27,12 @@ import { keepPressFootprint } from './ui/press';
 import { pageSelection } from './ui/selection';
 import { startAdd } from './flows/add';
 import { openSetup } from './flows/setup-view';
+import { tipsWrap } from './ui/tip';
+import { addIcons } from '../shared/icons';
+import { LOGOS } from '../shared/logos';
+
+// The apps' and stores' marks among the icons (kept apart for the admin's sake: shared/logos.ts).
+addIcons(LOGOS);
 
 publishSprings(document.documentElement);
 const app = document.getElementById('app')!;
@@ -36,30 +44,8 @@ let redraw: () => void = () => {};
 
 /** The first paint comes in: the blocks rise one after the other, the sun rises behind its line. */
 function intro() {
-  // In the order they stand on screen, top to bottom and then left to right: on a phone "Your access" comes before the devices.
-  const blocks = [...app.querySelectorAll('.crumbs, .notice, .sec-head, .dgrid > *, .note-s:not([hidden]), .acc-slot .acc-row, .gone')]
-    .map((el) => ({ el, at: el.getBoundingClientRect() }))
-    .sort((a, b) => Math.round(a.at.top) - Math.round(b.at.top) || a.at.left - b.at.left);
-  const els = blocks.map((x) => x.el);
-  // The wave starts at the first block on screen (a reload goes back deep into the page): those above it rise with it.
-  const above = blocks.filter((x) => x.at.bottom <= 0).length;
-  // Each block rises to its own opacity: a card the admin disabled is dimmed all the way, not at the end.
-  const own = els.map((el) => getComputedStyle(el).opacity);
-  els.forEach((el, i) =>
-    play(
-      el,
-      [
-        { opacity: 0, transform: 'translateY(10px)', filter: 'blur(4px)' },
-        { opacity: own[i], transform: 'none', filter: 'none' },
-      ],
-      {
-        duration: 520,
-        delay: 60 + Math.max(0, i - above) * 40,
-        easing: EASE_OUT,
-        fill: 'backwards',
-      },
-    ),
-  );
+  // In the order they stand on screen (ui/rise.ts): on a phone "Your access" comes before the devices.
+  rise([...app.querySelectorAll('.crumbs, .notice, .sec-head, .dgrid > *, .note-s:not([hidden]), .acc-slot .acc-row, .gone')]);
   app.querySelectorAll('.logo .sun').forEach((s) =>
     play(s, [{ transform: 'translateY(7px)' }, { transform: 'none' }], {
       duration: 900,
@@ -161,13 +147,13 @@ function linkGone() {
   setState(null);
   closeSheet(true);
   redraw = linkGone;
-  only('key', _('This link no longer works'), _('Ask for a new one.'), true);
+  only('link', _('This link no longer works'), _('Ask for a new one.'), true);
 }
 
 /** Nothing could load: the reason as the router or the browser gave it. */
 function notLoaded(why: string) {
   redraw = () => notLoaded(why);
-  only('server', _('The page could not load'), why);
+  only('browser', _('The page could not load'), why);
 }
 
 /**
@@ -189,12 +175,17 @@ function openFromLink() {
 }
 addEventListener('hashchange', openFromLink);
 
+/** A state from the router: the page is drawn from it, in place. */
+function took(st: State) {
+  setState(st);
+  // Not under an open sheet or menu, nor a name being edited on its card.
+  if (!sheetOpen() && !dropOpen() && !renaming()) render();
+  openFromLink();
+}
+
 async function refresh() {
   try {
-    setState(await call<State>('state'));
-    // Not under an open sheet or menu, nor a name being edited on its card.
-    if (!sheetOpen() && !dropOpen() && !renaming()) render();
-    openFromLink();
+    took(await call<State>('state'));
   } catch (e) {
     if (gone(e)) linkGone();
     // A network hiccup: keep showing the last state (the page loads fresh data on reload).
@@ -217,6 +208,8 @@ pageSelection();
 
 // The focus ring only while the keyboard moves focus (base.css .kbd): on from Tab or an arrow, off at a press.
 const KEYS = new Set(['Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
+// a tooltip here may say a whole status cut short on its card: it takes a second line
+tipsWrap();
 document.addEventListener('keydown', (e) => KEYS.has(e.key) && document.documentElement.classList.add('kbd'), true);
 document.addEventListener('pointerdown', () => document.documentElement.classList.remove('kbd'), true);
 
@@ -225,15 +218,19 @@ document.addEventListener('pointerdown', () => document.documentElement.classLis
 for (const ev of ['gesturestart', 'gesturechange', 'gestureend'])
   document.addEventListener(ev, (e) => e.preventDefault(), { passive: false });
 
-// What the keyboard does never animates.
+// Escape: a menu is gone at once (what the keyboard does to a menu never animates); a sheet goes as its × sends it,
+// by the same way out (the owner, 2026-11-12: a sheet there one frame and gone the next read as a fault).
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   if (dropOpen()) closeDrop(true);
-  else if (sheetOpen()) closeSheet(true);
+  else if (sheetOpen()) closeSheet();
 });
 
 // No periodic refresh: every portal request runs a CGI process on the router.
 // The page reloads its data after the visitor's own changes and while it waits
 // for a new device's first connection.
-if (!base || !code) linkGone();
+// Where the router offers a stream (live.ts) the page follows it instead: its first event is the state, and
+// every change of the person's comes by itself.
+if (!base() || !code()) linkGone();
+else if (hasLive()) followLive({ state: took, gone: linkGone, failed: () => void refresh() });
 else void refresh();

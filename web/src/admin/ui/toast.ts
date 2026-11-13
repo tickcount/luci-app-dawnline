@@ -1,38 +1,20 @@
-// Toasts at the bottom of the screen (above modals) instead of LuCI's banner,
-// and the helpers that turn failures into one.
+// Toasts and the helpers that turn failures into one. They go to the portal's
+// toast in the pages' layer (shell/toast.ts): the pollers, the live revision
+// and the actions below say things the same way on every page.
 
 import type { Child } from '../luci.d';
-import { E } from '../e';
-import { icon } from '../../shared/icons';
+import { sayNotice } from '../shell/toast';
+import { failureText } from '../failure';
 
 export type Tone = 'info' | 'error' | 'warning' | 'success';
 
-/** A small toast; errors stay longer and can be closed. */
+/** A toast; errors and warnings stay longer. */
 export function notify(message: Child, tone: Tone = 'info', timeout = 0) {
-  let stack = document.querySelector('.dl-toasts') as HTMLElement | null;
-  if (!stack) {
-    stack = E('div', { class: 'dl-toasts dl-root', role: 'status', 'aria-live': 'polite' });
-    document.body.appendChild(stack);
-  }
-  const ic = tone === 'error' ? 'x' : tone === 'warning' ? 'alert' : tone === 'success' ? 'check' : null;
-  const close = () => {
-    t.classList.remove('show');
-    setTimeout(() => t.remove(), 200);
-  };
-  const t = E('div', { class: `dl-toast ${tone}` }, [
-    ic ? icon(ic) : '',
-    E('span', {}, message),
-    tone === 'error' ? E('button', { type: 'button', 'aria-label': _('Close'), click: close }, icon('x')) : '',
-  ]);
-  stack.appendChild(t);
-  requestAnimationFrame(() => t.classList.add('show'));
-  setTimeout(close, timeout || (tone === 'error' ? 8000 : tone === 'warning' ? 5000 : 2600));
+  sayNotice(message, tone, timeout);
 }
 
-/** A failure's message as it came: the router's own text for RPC failures. */
-export function errorText(e: unknown): string {
-  return e instanceof Error ? e.message : String(e);
-}
+/** A failure as a person reads it (failure.ts): the router's or the page's own sentence, else plain words for what happened. */
+export const errorText = (e: unknown): string => failureText(e);
 
 /** Run an action; failures become a toast. Returns undefined on error. */
 export async function attempt<T>(fn: () => Promise<T>, ok?: Child): Promise<T | undefined> {
@@ -43,15 +25,5 @@ export async function attempt<T>(fn: () => Promise<T>, ok?: Child): Promise<T | 
   } catch (e) {
     notify(errorText(e), 'error', 10000);
     return undefined;
-  }
-}
-
-/** Call something that may throw or reject without waiting for it; failures become a toast. */
-export function run(fn: () => unknown): void {
-  try {
-    const r = fn();
-    if (r && typeof (r as Promise<unknown>).then === 'function') (r as Promise<unknown>).catch((e) => notify(errorText(e), 'error'));
-  } catch (e) {
-    notify(errorText(e), 'error');
   }
 }

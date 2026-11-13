@@ -13,6 +13,7 @@
 import { h } from '../dom';
 import { calm } from '../motion';
 import { FRAME, glideStep, type Glide } from './caret';
+import { layer as overlay } from './layer';
 
 /** One run of a line the selection covers, on screen. */
 interface Box {
@@ -208,7 +209,7 @@ export function pageSelection() {
           l: { x, v: 0, t: x },
           r: { x, v: 0, t: x },
         };
-        document.body.append(b.el);
+        overlay().append(b.el);
       }
       b.top = box.top;
       b.height = box.height;
@@ -221,7 +222,7 @@ export function pageSelection() {
     bands.filter((b) => !kept.includes(b)).forEach((b) => b.el.remove());
     bands = kept;
     h0.style.zIndex = h1.style.zIndex = String(z + 1);
-    if (!h0.isConnected) document.body.append(h0, h1);
+    if (!h0.isConnected) overlay().append(h0, h1);
     clearTimeout(gone);
     draw();
     // Drawn where they start before they fade in (a style read in between, so the fade runs).

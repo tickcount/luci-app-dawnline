@@ -5,6 +5,8 @@
 import { onLiveChange } from './live';
 import { onNavigate } from '../ui/nav';
 import { notify } from '../ui/toast';
+import { refill } from '../ui/reshape';
+import { putChildren } from '../../portal/ui/put';
 
 /** Failed ticks in a row before the page says the router is out of reach. */
 const LOST_AFTER = 3;
@@ -88,18 +90,28 @@ export function createPoller<T>(o: PollerOptions<T>): Poller<T> {
   return { refresh, claim: () => seq.claim(), stop };
 }
 
-/** The keyboard focus (or an open native picker's input) is inside `el`. */
+/**
+ * The keyboard focus (or an open native picker's input) is inside `el`. Read
+ * in `el`'s own tree: inside a Shadow DOM (the pages) the document's
+ * activeElement is the host, the shadow root's is the focused element.
+ */
 export function focusInside(el: Element | null | undefined): boolean {
-  const a = document.activeElement;
-  return !!el && !!a && a !== document.body && el.contains(a);
+  if (!el) return false;
+  const root = el.getRootNode() as Document | ShadowRoot;
+  const a = root.activeElement ?? null;
+  return !!a && a !== document.body && el.contains(a);
 }
 
 /**
- * Replace a region's content, unless this is a quiet repaint and the focus is
- * inside it; then it keeps what is on screen until the next one.
+ * Refill a region in place (ui/reshape.ts: what stays stays, what is new blurs in, what left fades, the region
+ * glides to its height), unless this is a quiet repaint and the focus is inside it; then it keeps what is on screen
+ * until the next one.
  */
-export function repaint(el: HTMLElement, content: Parameters<typeof dom.content>[1], quiet = false): boolean {
+export function repaint(el: HTMLElement, content: Node | Node[], quiet = false, still = false): boolean {
   if (quiet && focusInside(el)) return false;
-  dom.content(el, content);
+  const kids = Array.isArray(content) ? content : [content];
+  // `still`: what follows typing (a search) is drawn at once, as the letters are
+  if (still) putChildren(el, kids);
+  else refill(el, kids);
   return true;
 }

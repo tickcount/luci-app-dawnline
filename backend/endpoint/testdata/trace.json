@@ -1,0 +1,985 @@
+{
+	"rows": [
+		{
+			"host": "",
+			"reads": {
+				"ips": [
+				],
+				"wan": "203.0.113.7"
+			},
+			"facts": {
+				"host": "",
+				"ips": [
+				],
+				"ips4": [
+				],
+				"ips6": [
+				],
+				"wan": "203.0.113.7",
+				"kind": "public",
+				"cloudflare": false,
+				"here": false,
+				"v6_only": false,
+				"router6": null,
+				"foreign6": null,
+				"here6": false
+			},
+			"words": {
+				"status": "error",
+				"text": "No public address: devices will not know where to connect."
+			}
+		},
+		{
+			"host": "vpn.example.org",
+			"reads": {
+				"ips": [
+				],
+				"wan": "203.0.113.7"
+			},
+			"facts": {
+				"host": "vpn.example.org",
+				"ips": [
+				],
+				"ips4": [
+				],
+				"ips6": [
+				],
+				"wan": "203.0.113.7",
+				"kind": "public",
+				"cloudflare": false,
+				"here": false,
+				"v6_only": false,
+				"router6": null,
+				"foreign6": null,
+				"here6": false
+			},
+			"words": {
+				"status": "error",
+				"text": "vpn.example.org does not resolve."
+			}
+		},
+		{
+			"host": "vpn.example.org",
+			"reads": {
+				"ips": [
+					"203.0.113.7"
+				],
+				"wan": "203.0.113.7"
+			},
+			"facts": {
+				"host": "vpn.example.org",
+				"ips": [
+					"203.0.113.7"
+				],
+				"ips4": [
+					"203.0.113.7"
+				],
+				"ips6": [
+				],
+				"wan": "203.0.113.7",
+				"kind": "public",
+				"cloudflare": false,
+				"here": true,
+				"v6_only": false,
+				"router6": null,
+				"foreign6": null,
+				"here6": false
+			},
+			"words": {
+				"status": "ok",
+				"text": "vpn.example.org points at this router (203.0.113.7)."
+			}
+		},
+		{
+			"host": "vpn.example.org",
+			"reads": {
+				"ips": [
+					"198.51.100.4"
+				],
+				"wan": "203.0.113.7"
+			},
+			"facts": {
+				"host": "vpn.example.org",
+				"ips": [
+					"198.51.100.4"
+				],
+				"ips4": [
+					"198.51.100.4"
+				],
+				"ips6": [
+				],
+				"wan": "203.0.113.7",
+				"kind": "public",
+				"cloudflare": false,
+				"here": false,
+				"v6_only": false,
+				"router6": null,
+				"foreign6": null,
+				"here6": false
+			},
+			"words": {
+				"status": "warn",
+				"text": "vpn.example.org points at 198.51.100.4, not this router (WAN 203.0.113.7). Check your DNS / DDNS."
+			}
+		},
+		{
+			"host": "vpn.example.org",
+			"reads": {
+				"ips": [
+					"198.51.100.4",
+					"198.51.100.5"
+				],
+				"wan": null
+			},
+			"facts": {
+				"host": "vpn.example.org",
+				"ips": [
+					"198.51.100.4",
+					"198.51.100.5"
+				],
+				"ips4": [
+					"198.51.100.4",
+					"198.51.100.5"
+				],
+				"ips6": [
+				],
+				"wan": null,
+				"kind": "none",
+				"cloudflare": false,
+				"here": false,
+				"v6_only": false,
+				"router6": null,
+				"foreign6": null,
+				"here6": false
+			},
+			"words": {
+				"status": "ok",
+				"text": "vpn.example.org → 198.51.100.4, 198.51.100.5"
+			}
+		},
+		{
+			"host": "vpn.example.org",
+			"reads": {
+				"ips": [
+					"104.16.1.1"
+				],
+				"wan": "203.0.113.7"
+			},
+			"facts": {
+				"host": "vpn.example.org",
+				"ips": [
+					"104.16.1.1"
+				],
+				"ips4": [
+					"104.16.1.1"
+				],
+				"ips6": [
+				],
+				"wan": "203.0.113.7",
+				"kind": "public",
+				"cloudflare": true,
+				"here": false,
+				"v6_only": false,
+				"router6": null,
+				"foreign6": null,
+				"here6": false
+			},
+			"words": {
+				"status": "error",
+				"text": "vpn.example.org → 104.16.1.1 (Cloudflare). UDP 4500 reaches the router only if this name is DNS-only there, or use the router's IP."
+			}
+		},
+		{
+			"host": "vpn.example.org",
+			"reads": {
+				"ips": [
+					"2606:4700::1"
+				],
+				"wan": "203.0.113.7",
+				"router6": [
+				]
+			},
+			"facts": {
+				"host": "vpn.example.org",
+				"ips": [
+					"2606:4700::1"
+				],
+				"ips4": [
+				],
+				"ips6": [
+					"2606:4700::1"
+				],
+				"wan": "203.0.113.7",
+				"kind": "public",
+				"cloudflare": true,
+				"here": false,
+				"v6_only": true,
+				"router6": [
+				],
+				"foreign6": [
+					"2606:4700::1"
+				],
+				"here6": false
+			},
+			"words": {
+				"status": "error",
+				"text": "vpn.example.org → 2606:4700::1 (Cloudflare). UDP 4500 reaches the router only if this name is DNS-only there, or use the router's IP."
+			}
+		},
+		{
+			"host": "vpn.example.org",
+			"reads": {
+				"ips": [
+					"203.0.113.7"
+				],
+				"wan": "100.70.1.2"
+			},
+			"facts": {
+				"host": "vpn.example.org",
+				"ips": [
+					"203.0.113.7"
+				],
+				"ips4": [
+					"203.0.113.7"
+				],
+				"ips6": [
+				],
+				"wan": "100.70.1.2",
+				"kind": "cgnat",
+				"cloudflare": false,
+				"here": false,
+				"v6_only": false,
+				"router6": null,
+				"foreign6": null,
+				"here6": false
+			},
+			"words": {
+				"status": "warn",
+				"text": "The WAN address 100.70.1.2 is CGNAT (shared by the ISP): UDP 4500 cannot be forwarded to this router from outside unless the ISP gives a public address or IPv6."
+			}
+		},
+		{
+			"host": "vpn.example.org",
+			"reads": {
+				"ips": [
+					"203.0.113.7"
+				],
+				"wan": "192.168.1.2"
+			},
+			"facts": {
+				"host": "vpn.example.org",
+				"ips": [
+					"203.0.113.7"
+				],
+				"ips4": [
+					"203.0.113.7"
+				],
+				"ips6": [
+				],
+				"wan": "192.168.1.2",
+				"kind": "private",
+				"cloudflare": false,
+				"here": false,
+				"v6_only": false,
+				"router6": null,
+				"foreign6": null,
+				"here6": false
+			},
+			"words": {
+				"status": "warn",
+				"text": "The WAN address 192.168.1.2 is private: this router is behind another one. Forward UDP 4500 on it, or devices cannot connect."
+			}
+		},
+		{
+			"host": "203.0.113.7",
+			"reads": {
+				"ips": [
+					"203.0.113.7"
+				],
+				"wan": "10.0.0.2"
+			},
+			"facts": {
+				"host": "203.0.113.7",
+				"ips": [
+					"203.0.113.7"
+				],
+				"ips4": [
+					"203.0.113.7"
+				],
+				"ips6": [
+				],
+				"wan": "10.0.0.2",
+				"kind": "private",
+				"cloudflare": false,
+				"here": false,
+				"v6_only": false,
+				"router6": null,
+				"foreign6": null,
+				"here6": false
+			},
+			"words": {
+				"status": "warn",
+				"text": "The WAN address 10.0.0.2 is private: this router is behind another one. Forward UDP 4500 on it, or devices cannot connect."
+			}
+		},
+		{
+			"host": "vpn.example.org",
+			"reads": {
+				"ips": [
+					"203.0.113.7",
+					"2001:db8::7"
+				],
+				"wan": "203.0.113.7",
+				"router6": [
+					"2001:DB8:0::7"
+				]
+			},
+			"facts": {
+				"host": "vpn.example.org",
+				"ips": [
+					"203.0.113.7",
+					"2001:db8::7"
+				],
+				"ips4": [
+					"203.0.113.7"
+				],
+				"ips6": [
+					"2001:db8::7"
+				],
+				"wan": "203.0.113.7",
+				"kind": "public",
+				"cloudflare": false,
+				"here": true,
+				"v6_only": false,
+				"router6": [
+					"2001:DB8:0::7"
+				],
+				"foreign6": [
+				],
+				"here6": true
+			},
+			"words": {
+				"status": "ok",
+				"text": "vpn.example.org points at this router (203.0.113.7, 2001:db8::7)."
+			}
+		},
+		{
+			"host": "vpn.example.org",
+			"reads": {
+				"ips": [
+					"203.0.113.7",
+					"2001:db8::7"
+				],
+				"wan": "203.0.113.7",
+				"router6": [
+				]
+			},
+			"facts": {
+				"host": "vpn.example.org",
+				"ips": [
+					"203.0.113.7",
+					"2001:db8::7"
+				],
+				"ips4": [
+					"203.0.113.7"
+				],
+				"ips6": [
+					"2001:db8::7"
+				],
+				"wan": "203.0.113.7",
+				"kind": "public",
+				"cloudflare": false,
+				"here": true,
+				"v6_only": false,
+				"router6": [
+				],
+				"foreign6": [
+					"2001:db8::7"
+				],
+				"here6": false
+			},
+			"words": {
+				"status": "warn",
+				"text": "vpn.example.org AAAA → 2001:db8::7, but this router has no public IPv6 address: devices that prefer IPv6 will fail to connect. Remove this AAAA record or set up IPv6 on the router."
+			}
+		},
+		{
+			"host": "vpn.example.org",
+			"reads": {
+				"ips": [
+					"203.0.113.7",
+					"2001:db8::7",
+					"2001:db8::8"
+				],
+				"wan": "203.0.113.7",
+				"router6": [
+				]
+			},
+			"facts": {
+				"host": "vpn.example.org",
+				"ips": [
+					"203.0.113.7",
+					"2001:db8::7",
+					"2001:db8::8"
+				],
+				"ips4": [
+					"203.0.113.7"
+				],
+				"ips6": [
+					"2001:db8::7",
+					"2001:db8::8"
+				],
+				"wan": "203.0.113.7",
+				"kind": "public",
+				"cloudflare": false,
+				"here": true,
+				"v6_only": false,
+				"router6": [
+				],
+				"foreign6": [
+					"2001:db8::7",
+					"2001:db8::8"
+				],
+				"here6": false
+			},
+			"words": {
+				"status": "warn",
+				"text": "vpn.example.org AAAA → 2001:db8::7, 2001:db8::8, but this router has no public IPv6 address: devices that prefer IPv6 will fail to connect. Remove these AAAA records or set up IPv6 on the router."
+			}
+		},
+		{
+			"host": "vpn.example.org",
+			"reads": {
+				"ips": [
+					"203.0.113.7",
+					"2001:db8::7"
+				],
+				"wan": "203.0.113.7",
+				"router6": [
+					"2001:db8::99"
+				]
+			},
+			"facts": {
+				"host": "vpn.example.org",
+				"ips": [
+					"203.0.113.7",
+					"2001:db8::7"
+				],
+				"ips4": [
+					"203.0.113.7"
+				],
+				"ips6": [
+					"2001:db8::7"
+				],
+				"wan": "203.0.113.7",
+				"kind": "public",
+				"cloudflare": false,
+				"here": true,
+				"v6_only": false,
+				"router6": [
+					"2001:db8::99"
+				],
+				"foreign6": [
+					"2001:db8::7"
+				],
+				"here6": false
+			},
+			"words": {
+				"status": "warn",
+				"text": "vpn.example.org AAAA → 2001:db8::7 is not a public address of this router: devices that prefer IPv6 will fail to connect. Fix or remove this AAAA record."
+			}
+		},
+		{
+			"host": "vpn.example.org",
+			"reads": {
+				"ips": [
+					"203.0.113.7",
+					"2001:db8::7",
+					"2001:db8::8"
+				],
+				"wan": "203.0.113.7",
+				"router6": [
+					"2001:db8::99",
+					"2001:db8::7"
+				]
+			},
+			"facts": {
+				"host": "vpn.example.org",
+				"ips": [
+					"203.0.113.7",
+					"2001:db8::7",
+					"2001:db8::8"
+				],
+				"ips4": [
+					"203.0.113.7"
+				],
+				"ips6": [
+					"2001:db8::7",
+					"2001:db8::8"
+				],
+				"wan": "203.0.113.7",
+				"kind": "public",
+				"cloudflare": false,
+				"here": true,
+				"v6_only": false,
+				"router6": [
+					"2001:db8::99",
+					"2001:db8::7"
+				],
+				"foreign6": [
+					"2001:db8::8"
+				],
+				"here6": false
+			},
+			"words": {
+				"status": "warn",
+				"text": "vpn.example.org AAAA → 2001:db8::8 is not a public address of this router: devices that prefer IPv6 will fail to connect. Fix or remove this AAAA record."
+			}
+		},
+		{
+			"host": "vpn.example.org",
+			"reads": {
+				"ips": [
+					"203.0.113.7",
+					"2001:db8::7"
+				],
+				"wan": "203.0.113.7",
+				"router6": null
+			},
+			"facts": {
+				"host": "vpn.example.org",
+				"ips": [
+					"203.0.113.7",
+					"2001:db8::7"
+				],
+				"ips4": [
+					"203.0.113.7"
+				],
+				"ips6": [
+					"2001:db8::7"
+				],
+				"wan": "203.0.113.7",
+				"kind": "public",
+				"cloudflare": false,
+				"here": true,
+				"v6_only": false,
+				"router6": null,
+				"foreign6": null,
+				"here6": false
+			},
+			"words": {
+				"status": "ok",
+				"text": "vpn.example.org points at this router (203.0.113.7)."
+			}
+		},
+		{
+			"host": "vpn.example.org",
+			"reads": {
+				"ips": [
+					"198.51.100.4",
+					"2001:db8::7"
+				],
+				"wan": "203.0.113.7",
+				"router6": [
+					"2001:db8::99"
+				]
+			},
+			"facts": {
+				"host": "vpn.example.org",
+				"ips": [
+					"198.51.100.4",
+					"2001:db8::7"
+				],
+				"ips4": [
+					"198.51.100.4"
+				],
+				"ips6": [
+					"2001:db8::7"
+				],
+				"wan": "203.0.113.7",
+				"kind": "public",
+				"cloudflare": false,
+				"here": false,
+				"v6_only": false,
+				"router6": [
+					"2001:db8::99"
+				],
+				"foreign6": [
+					"2001:db8::7"
+				],
+				"here6": false
+			},
+			"words": {
+				"status": "warn",
+				"text": "vpn.example.org points at 198.51.100.4, not this router (WAN 203.0.113.7). Check your DNS / DDNS. vpn.example.org AAAA → 2001:db8::7 is not a public address of this router: devices that prefer IPv6 will fail to connect. Fix or remove this AAAA record."
+			}
+		},
+		{
+			"host": "six.example.org",
+			"reads": {
+				"ips": [
+					"2001:db8::7"
+				],
+				"wan": "203.0.113.7",
+				"router6": [
+					"2001:db8::7"
+				]
+			},
+			"facts": {
+				"host": "six.example.org",
+				"ips": [
+					"2001:db8::7"
+				],
+				"ips4": [
+				],
+				"ips6": [
+					"2001:db8::7"
+				],
+				"wan": "203.0.113.7",
+				"kind": "public",
+				"cloudflare": false,
+				"here": false,
+				"v6_only": true,
+				"router6": [
+					"2001:db8::7"
+				],
+				"foreign6": [
+				],
+				"here6": true
+			},
+			"words": {
+				"status": "warn",
+				"text": "six.example.org → 2001:db8::7: IPv6 only, so only devices with IPv6 connect (the router's IPv4 203.0.113.7 has no name)."
+			}
+		},
+		{
+			"host": "six.example.org",
+			"reads": {
+				"ips": [
+					"2001:db8::7"
+				],
+				"wan": null,
+				"router6": [
+					"2001:db8::7"
+				]
+			},
+			"facts": {
+				"host": "six.example.org",
+				"ips": [
+					"2001:db8::7"
+				],
+				"ips4": [
+				],
+				"ips6": [
+					"2001:db8::7"
+				],
+				"wan": null,
+				"kind": "none",
+				"cloudflare": false,
+				"here": false,
+				"v6_only": true,
+				"router6": [
+					"2001:db8::7"
+				],
+				"foreign6": [
+				],
+				"here6": true
+			},
+			"words": {
+				"status": "ok",
+				"text": "six.example.org → 2001:db8::7: IPv6 only, so only devices with IPv6 connect."
+			}
+		},
+		{
+			"host": "six.example.org",
+			"reads": {
+				"ips": [
+					"2001:db8::7"
+				],
+				"wan": "192.168.1.2",
+				"router6": [
+					"2001:db8::7"
+				]
+			},
+			"facts": {
+				"host": "six.example.org",
+				"ips": [
+					"2001:db8::7"
+				],
+				"ips4": [
+				],
+				"ips6": [
+					"2001:db8::7"
+				],
+				"wan": "192.168.1.2",
+				"kind": "private",
+				"cloudflare": false,
+				"here": false,
+				"v6_only": true,
+				"router6": [
+					"2001:db8::7"
+				],
+				"foreign6": [
+				],
+				"here6": true
+			},
+			"words": {
+				"status": "ok",
+				"text": "six.example.org → 2001:db8::7: IPv6 only, so only devices with IPv6 connect."
+			}
+		},
+		{
+			"host": "six.example.org",
+			"reads": {
+				"ips": [
+					"2001:db8::7"
+				],
+				"wan": "203.0.113.7",
+				"router6": [
+				]
+			},
+			"facts": {
+				"host": "six.example.org",
+				"ips": [
+					"2001:db8::7"
+				],
+				"ips4": [
+				],
+				"ips6": [
+					"2001:db8::7"
+				],
+				"wan": "203.0.113.7",
+				"kind": "public",
+				"cloudflare": false,
+				"here": false,
+				"v6_only": true,
+				"router6": [
+				],
+				"foreign6": [
+					"2001:db8::7"
+				],
+				"here6": false
+			},
+			"words": {
+				"status": "warn",
+				"text": "six.example.org → 2001:db8::7: IPv6 only, but this router has no public IPv6 address: no device can connect. Check your DNS / DDNS, or set up IPv6 on the router."
+			}
+		},
+		{
+			"host": "six.example.org",
+			"reads": {
+				"ips": [
+					"2001:db8::7",
+					"2001:db8::8"
+				],
+				"wan": "203.0.113.7",
+				"router6": [
+					"2001:db8::99"
+				]
+			},
+			"facts": {
+				"host": "six.example.org",
+				"ips": [
+					"2001:db8::7",
+					"2001:db8::8"
+				],
+				"ips4": [
+				],
+				"ips6": [
+					"2001:db8::7",
+					"2001:db8::8"
+				],
+				"wan": "203.0.113.7",
+				"kind": "public",
+				"cloudflare": false,
+				"here": false,
+				"v6_only": true,
+				"router6": [
+					"2001:db8::99"
+				],
+				"foreign6": [
+					"2001:db8::7",
+					"2001:db8::8"
+				],
+				"here6": false
+			},
+			"words": {
+				"status": "warn",
+				"text": "six.example.org → 2001:db8::7, 2001:db8::8: IPv6 only, and not public addresses of this router: no device can connect. Check your DNS / DDNS."
+			}
+		},
+		{
+			"host": "six.example.org",
+			"reads": {
+				"ips": [
+					"2001:db8::7"
+				],
+				"wan": "203.0.113.7",
+				"router6": [
+					"2001:db8::99"
+				]
+			},
+			"facts": {
+				"host": "six.example.org",
+				"ips": [
+					"2001:db8::7"
+				],
+				"ips4": [
+				],
+				"ips6": [
+					"2001:db8::7"
+				],
+				"wan": "203.0.113.7",
+				"kind": "public",
+				"cloudflare": false,
+				"here": false,
+				"v6_only": true,
+				"router6": [
+					"2001:db8::99"
+				],
+				"foreign6": [
+					"2001:db8::7"
+				],
+				"here6": false
+			},
+			"words": {
+				"status": "warn",
+				"text": "six.example.org → 2001:db8::7: IPv6 only, and not a public address of this router: no device can connect. Check your DNS / DDNS."
+			}
+		},
+		{
+			"host": "six.example.org",
+			"reads": {
+				"ips": [
+					"2001:db8::7",
+					"2001:db8::8"
+				],
+				"wan": "203.0.113.7",
+				"router6": [
+					"2001:db8::8"
+				]
+			},
+			"facts": {
+				"host": "six.example.org",
+				"ips": [
+					"2001:db8::7",
+					"2001:db8::8"
+				],
+				"ips4": [
+				],
+				"ips6": [
+					"2001:db8::7",
+					"2001:db8::8"
+				],
+				"wan": "203.0.113.7",
+				"kind": "public",
+				"cloudflare": false,
+				"here": false,
+				"v6_only": true,
+				"router6": [
+					"2001:db8::8"
+				],
+				"foreign6": [
+					"2001:db8::7"
+				],
+				"here6": false
+			},
+			"words": {
+				"status": "warn",
+				"text": "six.example.org AAAA → 2001:db8::7 is not a public address of this router: devices that prefer IPv6 will fail to connect. Fix or remove this AAAA record."
+			}
+		},
+		{
+			"host": "six.example.org",
+			"reads": {
+				"ips": [
+					"2001:db8::7"
+				],
+				"wan": "203.0.113.7",
+				"router6": null
+			},
+			"facts": {
+				"host": "six.example.org",
+				"ips": [
+					"2001:db8::7"
+				],
+				"ips4": [
+				],
+				"ips6": [
+					"2001:db8::7"
+				],
+				"wan": "203.0.113.7",
+				"kind": "public",
+				"cloudflare": false,
+				"here": false,
+				"v6_only": true,
+				"router6": null,
+				"foreign6": null,
+				"here6": false
+			},
+			"words": {
+				"status": "warn",
+				"text": "six.example.org → 2001:db8::7: IPv6 only, so only devices with IPv6 connect (the router's IPv4 203.0.113.7 has no name)."
+			}
+		},
+		{
+			"host": "odd.example.org",
+			"reads": {
+				"ips": [
+					"not:an:address",
+					"2001:db8::1::2"
+				],
+				"wan": "203.0.113.7",
+				"router6": [
+					"2001:db8::7"
+				]
+			},
+			"facts": {
+				"host": "odd.example.org",
+				"ips": [
+					"not:an:address",
+					"2001:db8::1::2"
+				],
+				"ips4": [
+				],
+				"ips6": [
+					"not:an:address",
+					"2001:db8::1::2"
+				],
+				"wan": "203.0.113.7",
+				"kind": "public",
+				"cloudflare": false,
+				"here": false,
+				"v6_only": true,
+				"router6": [
+					"2001:db8::7"
+				],
+				"foreign6": [
+					"not:an:address",
+					"2001:db8::1::2"
+				],
+				"here6": false
+			},
+			"words": {
+				"status": "warn",
+				"text": "odd.example.org → not:an:address, 2001:db8::1::2: IPv6 only, and not public addresses of this router: no device can connect. Check your DNS / DDNS."
+			}
+		}
+	],
+	"hosts": {
+		"vpn.example.org": true,
+		"a": true,
+		"a-b.c": true,
+		"-a.example": false,
+		"a-.example": false,
+		"a..b": false,
+		"a_b.example": false,
+		"203.0.113.7": true,
+		"2001:db8::1": true,
+		":::1": false,
+		"exa mple": false,
+		"": false,
+		"xn--80a.example": true,
+		"a.": false
+	}
+}

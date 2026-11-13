@@ -46,13 +46,12 @@ describe('router days', () => {
     expect(daysLeft('2026-10-13', '2026-10-14')).toBe(-1);
     expect(daysLeft('', '2026-10-14')).toBeNull();
   });
-  it('warns by the person’s own window, never with 0', () => {
-    expect(endsSoon({ expire_warn: 3 }, 1)).toBe(true);
-    expect(endsSoon({ expire_warn: 3 }, 3)).toBe(true);
-    expect(endsSoon({ expire_warn: 3 }, 4)).toBe(false);
-    expect(endsSoon({ expire_warn: 0 }, 1)).toBe(false);
-    expect(endsSoon({ expire_warn: 3 }, -1)).toBe(false);
-    expect(endsSoon({ expire_warn: 3 }, null)).toBe(false);
+  it('warns in the last three days of a term, for everyone alike', () => {
+    expect(endsSoon(1)).toBe(true);
+    expect(endsSoon(3)).toBe(true);
+    expect(endsSoon(4)).toBe(false);
+    expect(endsSoon(-1)).toBe(false);
+    expect(endsSoon(null)).toBe(false);
   });
   it('says when access ends', () => {
     expect(endsIn(1)).toBe('ends today');

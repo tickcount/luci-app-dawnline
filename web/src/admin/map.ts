@@ -8,11 +8,15 @@
 import type { Geo, GeoPoint, Person } from '../shared/types';
 import { E } from './e';
 import { ago, initials } from '../shared/format';
-import { fmt, num, plural } from '../shared/i18n';
+import { fmt, lang, num, plural } from '../shared/i18n';
 import { icon, iconSvg } from '../shared/icons';
 import { onNavigate } from './ui/nav';
 import { isDark } from './ui/theme';
 import { placeKey, shimmerOpacity } from './places/model';
+import { layer } from '../portal/ui/layer';
+import { EASE_IN, EASE_OUT, SMOOTH, calm, play } from '../portal/motion';
+import { appear } from '../portal/ui/morph';
+import { failureText } from './failure';
 
 // mapcn requires maplibre-gl ^6 (the globe projection came with 5): an ES module, its worker beside it.
 const MAPLIBRE = 'https://unpkg.com/maplibre-gl@6.14.0/dist';
@@ -29,6 +33,25 @@ const STYLE_DARK = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.
 const STYLE_LIGHT = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
 
 export type Range = 'online' | '24h' | '7d' | '30d';
+
+/** A CSS cubic-bezier as a function of progress (0–1), for what a script moves frame by frame (the zones' fades). */
+function bezier(x1: number, y1: number, x2: number, y2: number): (x: number) => number {
+  const at = (a: number, b: number, t: number) => 3 * a * t * (1 - t) ** 2 + 3 * b * t * t * (1 - t) + t ** 3;
+  return (x) => {
+    if (x <= 0 || x >= 1) return Math.min(1, Math.max(0, x));
+    let lo = 0;
+    let hi = 1;
+    for (let i = 0; i < 24; i++) {
+      const m = (lo + hi) / 2;
+      if (at(x1, x2, m) < x) lo = m;
+      else hi = m;
+    }
+    return at(y1, y2, (lo + hi) / 2);
+  };
+}
+const curve = (css: string) => bezier(...((css.match(/[\d.]+/g) ?? []).map(Number) as [number, number, number, number]));
+const EASE_IN_FN = curve(EASE_IN);
+const EASE_OUT_FN = curve(EASE_OUT);
 const WINDOW: Record<Range, number> = { online: 0, '24h': 86400, '7d': 7 * 86400, '30d': 30 * 86400 };
 
 let loading: Promise<any> | null = null;
@@ -74,6 +97,8 @@ function loadMapLibre(host: HTMLElement): Promise<any> {
 }
 
 /** A click on a marker brings the map at least this close (a city). */
+/** The map fades in over this long once its first whole frame is drawn (ms). */
+const MAP_IN = 420;
 const CLICK_ZOOM = 10;
 /** Places closer than this are one city: a click shows them together at city level. */
 const CITY_KM = 30;
@@ -88,6 +113,47 @@ const LOD_MID = 7;
 /** mapcn's arc colours: its default blue for live tunnels, a neutral gray for recently seen. */
 const LIVE = '#3b82f6';
 const RECENT = '#8a8a8a';
+/** Markers' names stay this far inside the map's edges. */
+const EDGE_PX = 6;
+/** The basemap's place names (CARTO's layer ids): towns and cities, not countries or seas. */
+const BASE_PLACES = /^place_(city|capital|town|villages|hamlet|suburbs)/;
+/** The basemap's names that can be in the page's language: places, waters. */
+const BASE_NAMES = /^(place_|water)/;
+
+/**
+ * Initials for a marker, from the name's words alone: a part in brackets ("Kirill (guest)")
+ * or a word with no letters ("—", "2") would give "K(" or "K2".
+ */
+export function markInitials(name: string): string {
+  const words = (s: string) =>
+    s
+      .split(/\s+/)
+      .map((w) => w.replace(/[^\p{L}\p{N}]/gu, ''))
+      .filter((w) => /\p{L}/u.test(w));
+  // Brackets and all ("(guest)" alone): its letters.
+  const own = words(name.replace(/\([^)]*\)|\[[^\]]*\]/g, ' '));
+  const all = own.length ? own : words(name);
+  return initials(all.length ? all.join(' ') : name);
+}
+
+/**
+ * A basemap name in language `lg` where the tiles have it, else as the style writes it. A zoom
+ * step stays on top (MapLibre takes zoom there alone): each of its outputs gets the name.
+ */
+function inLanguage(field: unknown, lg: string): unknown {
+  const own = ['get', `name:${lg}`];
+  if (Array.isArray(field) && field[0] === 'step') return field.map((x, i) => (i >= 2 && i % 2 === 0 ? ['coalesce', own, x] : x));
+  return ['coalesce', own, field];
+}
+
+/** A rectangle on the map (px from its top left corner). */
+interface Box {
+  l: number;
+  t: number;
+  r: number;
+  b: number;
+}
+const hits = (a: Box, b: Box, gap = 2) => a.l < b.r + gap && b.l < a.r + gap && a.t < b.b + gap && b.t < a.b + gap;
 
 /**
  * mapcn's arc (buildArcCoordinates): a quadratic Bézier between two
@@ -122,6 +188,8 @@ export function arc(from: [number, number], to: [number, number], curvature = 0.
 export interface MapCallbacks {
   openPerson: (personId: string) => void;
   openDevice: (personId: string, deviceId: string) => void;
+  /** A page that lists the places beside the map (People › Map): a marker picks its city there (placeKey) instead of opening its card. */
+  pickPlace?: (key: string) => void;
 }
 
 export interface MapData {
@@ -198,7 +266,20 @@ export class ConnectionMap {
   private before: { center: [number, number]; zoom: number } | null = null;
   /** The folded keys the layers were last filtered for (a filter only changes when they do). */
   private hiddenKey = '';
+  /** Each group's accuracy zone (one per city: placeKey), for hiding it once all of the city's people fold away. */
+  private zoneOf = new Map<string, string>();
+  /** The basemap's town layers and their own filters (namePlaces adds to them); the names last hidden. */
+  private baseFilters = new Map<string, unknown>();
+  private namesKey: string | null = null;
+  /** The plates of people (pileUp) where they stand this frame, for their names (layoutLabels). */
+  private pileSpots: { el: HTMLElement; x: number; y: number; city: string }[] = [];
+  /** Each name's first gap from its marker (its CSS margin), kept while it is flipped to the other side. */
+  private labelGap = new WeakMap<HTMLElement, number>();
   private focused: string | null = null;
+  /** What the last fit framed: the way back from a city (showCity). */
+  private lastFit: [number, number][] = [];
+  /** A city the page holds the camera on (showCity): a fresh status does not frame everyone again meanwhile. */
+  private held: string | null = null;
   /** Destroyed: a mount still waiting for the library stops there instead of drawing into a dropped element. */
   private dead = false;
   /** A device's places (its window) by placeKey: what the replay switches on and off. */
@@ -213,6 +294,19 @@ export class ConnectionMap {
   private card: HTMLElement;
   readonly el: HTMLElement;
   private status: HTMLElement;
+  /** In a rescope's redraw: what goes fades, what comes blurs in, the camera glides on SMOOTH. */
+  private crossing = false;
+  /** The zones on the map (by place) and their last features; a crossing's fades under way, by zone. */
+  private zoneShown = new Set<string>();
+  private zoneFeat = new Map<string, { properties: { zone: string } }>();
+  private zoneFade = new Map<
+    string,
+    { f: { properties: { zone: string } }; k: number; from: number; to: number; t0: number; ms: number; ease: (x: number) => number }
+  >();
+  private zoneRaf = 0;
+  private drew!: () => void;
+  /** Once the map has drawn its first whole frame (its style and what it shows are in): it fades in then (mount). */
+  readonly drawn = new Promise<void>((r) => (this.drew = r));
 
   constructor(
     private cb: MapCallbacks,
@@ -230,7 +324,7 @@ export class ConnectionMap {
     try {
       this.gl = await loadMapLibre(this.el);
     } catch (e) {
-      this.status.textContent = (e as Error).message;
+      this.status.textContent = failureText(e);
       return;
     }
     if (this.dead) return;
@@ -250,6 +344,21 @@ export class ConnectionMap {
     this.map.on('style.load', () => this.layers());
     // Crowded markers spread and come back together as the map zooms and pans.
     this.map.on('move', () => this.declutter());
+    // The map comes in, it does not strike (the owner, 2026-11-12: «сделай чтобы карты появлялись плавно»): its
+    // canvas and its markers stay unseen until the first whole frame is drawn (the style, the tiles in sight, our
+    // layers), then fade in together. Every map of the admin is this one, so it is done here, once; the box it
+    // stands in is there from the first frame. With less motion asked for the fade is short.
+    const stage = this.map.getCanvasContainer();
+    stage.style.opacity = '0';
+    this.map.once('load', () => {
+      this.drew();
+      stage.style.opacity = '';
+      if (this.dead) return;
+      stage.animate(
+        { opacity: [0, 1] },
+        { duration: matchMedia('(prefers-reduced-motion: reduce)').matches ? 160 : MAP_IN, easing: 'cubic-bezier(0.23, 1, 0.32, 1)' },
+      );
+    });
     // MapLibre opens the credits once the sources have them: fold them away when the map is drawn.
     this.map.once('idle', () => {
       const attrib = this.el.querySelector('.maplibregl-ctrl-attrib');
@@ -282,7 +391,8 @@ export class ConnectionMap {
     this.hiddenKey = '';
     this.map.setProjection({ type: 'globe' });
     // City-level accuracy: a soft zone instead of a precise pin.
-    this.map.addSource('dl-areas', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+    this.map.addSource('dl-areas', { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, promoteId: 'zone' });
+    this.zoneFade.clear();
     this.map.addLayer({
       id: 'dl-area',
       type: 'circle',
@@ -290,10 +400,13 @@ export class ConnectionMap {
       paint: {
         'circle-radius': ['interpolate', ['exponential', 2], ['zoom'], 2, 6, 6, 26, 9, 140, 12, 900],
         'circle-color': ['case', ['get', 'online'], LIVE, RECENT],
-        'circle-opacity': ['case', ['get', 'online'], 0.12, 0.06],
+        // ×k: a zone coming or going in a crossing (rescope) fades by its feature state
+        'circle-opacity': ['*', ['coalesce', ['feature-state', 'k'], 1], ['case', ['get', 'online'], 0.12, 0.06]],
         'circle-stroke-width': 1,
         'circle-stroke-color': ['case', ['get', 'online'], LIVE, RECENT],
-        'circle-stroke-opacity': ['case', ['get', 'online'], 0.35, 0.15],
+        'circle-stroke-opacity': ['*', ['coalesce', ['feature-state', 'k'], 1], ['case', ['get', 'online'], 0.35, 0.15]],
+        // Soft at the edge as it grows: an approximate place has no sharp border.
+        'circle-blur': ['interpolate', ['linear'], ['zoom'], 5, 0, 8, 0.25],
       },
     });
     // A device's move in its replay: a dotted arc, transparent but where the shimmer is (band, bandAt).
@@ -316,7 +429,43 @@ export class ConnectionMap {
         layout: { 'line-join': 'round', 'line-cap': 'round' },
         paint: { 'line-color': live ? LIVE : RECENT, 'line-width': 2, 'line-opacity': 0.85, 'line-dasharray': [2, 2] },
       });
+    this.baseLabels();
     this.draw();
+  }
+
+  /**
+   * The basemap's words in the page's language where the tiles have it (CARTO writes places in
+   * English); its own filters kept, to hide the towns our markers name (namePlaces).
+   */
+  private baseLabels() {
+    this.baseFilters.clear();
+    this.namesKey = null;
+    const lg = lang().split('-')[0];
+    for (const l of this.map.getStyle()?.layers ?? []) {
+      if (l.type !== 'symbol' || !l.layout?.['text-field']) continue;
+      if (lg !== 'en' && BASE_NAMES.test(l.id)) this.map.setLayoutProperty(l.id, 'text-field', inLanguage(l.layout['text-field'], lg));
+      if (BASE_PLACES.test(l.id)) this.baseFilters.set(l.id, l.filter ?? null);
+    }
+  }
+
+  /**
+   * The basemap's town names where our markers name the place (the server's chip, a place's
+   * label): a second name, often in another language, under or beside ours. A person's page
+   * and a device's window name every place they show: the basemap's towns go there.
+   */
+  private namePlaces(cities: string[]) {
+    const all = !!(this.data?.person || this.data?.device);
+    const key = all ? '*' : [...new Set(cities.filter(Boolean))].sort().join('|');
+    if (key === this.namesKey) return;
+    this.namesKey = key;
+    const lg = lang().split('-')[0];
+    const named = ['literal', key.split('|')];
+    const ours = ['any', ...['name', `name:${lg}`, 'name:en'].map((f) => ['in', ['coalesce', ['get', f], ''], named])];
+    for (const [id, base] of this.baseFilters) {
+      if (!this.map.getLayer(id)) continue;
+      this.map.setLayoutProperty(id, 'visibility', all ? 'none' : 'visible');
+      if (!all) this.map.setFilter(id, key ? (base ? ['all', base, ['!', ours]] : ['!', ours]) : base);
+    }
   }
 
   setRange(r: Range) {
@@ -330,8 +479,105 @@ export class ConnectionMap {
     this.draw();
   }
 
+  /**
+   * Another scope of the same map (a person's places ↔ one device's): the markers that go fade where they stand
+   * (out, b4, 180 EASE_IN), the new ones blur in (280 / 60 EASE_OUT), the zones fade with them, and the camera glides
+   * from where it is to the new framing on SMOOTH; a second rescope takes each on from where it is.
+   */
+  rescope(data: MapData) {
+    this.dropCard();
+    this.before = null;
+    this.data = data;
+    this.crossing = true;
+    try {
+      this.draw();
+    } finally {
+      this.crossing = false;
+    }
+  }
+
+  /** A marker of the old scope fades where it stands (from how it shows: one still coming in, from as far as it came). */
+  private leave(m: any) {
+    const el = m.getElement() as HTMLElement;
+    const cs = getComputedStyle(el);
+    const o = +cs.opacity;
+    const prior = el.getAnimations();
+    el.style.pointerEvents = 'none';
+    el.setAttribute('aria-hidden', 'true');
+    const a = play(
+      el,
+      [
+        { opacity: o, filter: cs.filter === 'none' ? 'blur(0px)' : cs.filter },
+        { opacity: 0, filter: 'blur(4px)' },
+      ],
+      { duration: 180 * o, easing: EASE_IN, fill: 'forwards' },
+    );
+    prior.forEach((x) => x.cancel());
+    a.onfinish = () => m.remove();
+  }
+
+  /**
+   * The zones, by place: at once, or in a crossing faded (feature state k): the ones that go 1 → 0 (180 EASE_IN),
+   * the new ones 0 → 1 (280 / 60 EASE_OUT), each from where it is; the gone ones leave the source once faded.
+   */
+  private setZones(features: { properties: { zone: string } }[]) {
+    const src = this.map.getSource('dl-areas');
+    const now = performance.now();
+    if (!this.crossing || calm()) {
+      cancelAnimationFrame(this.zoneRaf);
+      this.zoneRaf = 0;
+      this.zoneFade.clear();
+      this.map.removeFeatureState({ source: 'dl-areas' });
+      src.setData({ type: 'FeatureCollection', features });
+      this.zoneShown = new Set(features.map((f) => f.properties.zone));
+      this.zoneFeat = new Map(features.map((f) => [f.properties.zone, f]));
+      return;
+    }
+    const next = new Map(features.map((f) => [f.properties.zone, f]));
+    const was = new Map(this.zoneFade);
+    this.zoneFade.clear();
+    for (const [z, f] of next) {
+      const o = was.get(z);
+      const k = o ? o.k : this.zoneShown.has(z) ? 1 : 0;
+      this.zoneFade.set(z, { f, k, from: k, to: 1, t0: now + 60, ms: 280 * (1 - k), ease: EASE_OUT_FN });
+    }
+    for (const z of new Set([...this.zoneShown, ...was.keys()])) {
+      if (next.has(z)) continue;
+      const o = was.get(z);
+      const f = o?.f ?? this.zoneFeat.get(z);
+      const k = o ? o.k : 1;
+      if (f && k > 0) this.zoneFade.set(z, { f, k, from: k, to: 0, t0: now, ms: 180 * k, ease: EASE_IN_FN });
+    }
+    for (const [z, x] of this.zoneFade) this.map.setFeatureState({ source: 'dl-areas', id: z }, { k: x.k });
+    src.setData({ type: 'FeatureCollection', features: [...this.zoneFade.values()].map((x) => x.f) });
+    this.zoneShown = new Set(next.keys());
+    this.zoneFeat = new Map([...this.zoneFade].map(([z, x]) => [z, x.f]));
+    cancelAnimationFrame(this.zoneRaf);
+    const step = (t: number) => {
+      if (!this.map) return;
+      let busy = false;
+      for (const [z, x] of this.zoneFade) {
+        const q = x.ms ? Math.min(1, Math.max(0, (t - x.t0) / x.ms)) : 1;
+        x.k = x.from + (x.to - x.from) * x.ease(q);
+        this.map.setFeatureState({ source: 'dl-areas', id: z }, { k: x.k });
+        if (q < 1) busy = true;
+      }
+      if (busy) {
+        this.zoneRaf = requestAnimationFrame(step);
+        return;
+      }
+      this.zoneRaf = 0;
+      const gone = [...this.zoneFade].filter(([, x]) => x.to === 0).map(([z]) => z);
+      if (!gone.length) return;
+      gone.forEach((z) => this.zoneFade.delete(z));
+      src.setData({ type: 'FeatureCollection', features: [...this.zoneFade.values()].map((x) => x.f) });
+    };
+    this.zoneRaf = requestAnimationFrame(step);
+  }
+
   destroy() {
     this.dead = true;
+    cancelAnimationFrame(this.zoneRaf);
     this.dropCard();
     for (const p of this.piles.values()) p.marker.remove();
     this.piles.clear();
@@ -377,7 +623,10 @@ export class ConnectionMap {
     const groups = this.groups(visiblePoints(data, this.range));
     // A person's page and a device's window are about their places alone: no server, no arcs to it.
     const home = data.person || data.device ? null : data.geo.home;
-    for (const m of this.markers) m.remove();
+    for (const m of this.markers) {
+      if (this.crossing) this.leave(m);
+      else m.remove();
+    }
     this.markers = [];
 
     // Every marker in its city: the IP gives no more, so people sharing a city (or the server's)
@@ -386,15 +635,27 @@ export class ConnectionMap {
     const placed = groups.map((g) => ({ g, at: spots?.get(g.key) ?? ([g.lon, g.lat] as [number, number]) }));
     this.slots = [];
 
-    this.map.getSource('dl-areas').setData({
-      type: 'FeatureCollection',
-      // The accuracy zone stays on the city itself.
-      features: placed.map(({ g }) => ({
+    // The accuracy zone stays on the city itself, once per city: a zone per person there would
+    // stack their translucent discs into an opaque one. Live while anyone there is.
+    const zones = new Map<string, { online: boolean; at: [number, number] }>();
+    this.zoneOf.clear();
+    for (const { g } of placed) {
+      const k = placeKey(g);
+      this.zoneOf.set(g.key, k);
+      const z = zones.get(k);
+      if (z) z.online ||= g.online;
+      else zones.set(k, { online: g.online, at: [g.lon, g.lat] });
+    }
+    // the zones' filter again at the next declutter (who is in which zone may have changed)
+    this.hiddenKey = '\0';
+    this.setZones(
+      [...zones].map(([zone, z]) => ({
         type: 'Feature',
-        properties: { online: g.online, key: g.key },
-        geometry: { type: 'Point', coordinates: [g.lon, g.lat] },
+        properties: { online: z.online, zone },
+        geometry: { type: 'Point', coordinates: z.at },
       })),
-    });
+    );
+    this.namePlaces([home?.city ?? '', ...placed.map(({ g }) => g.city)]);
     this.map.getSource('dl-arcs').setData({
       type: 'FeatureCollection',
       features: home
@@ -409,6 +670,12 @@ export class ConnectionMap {
     // The server, where every arc starts: a tile in the theme's inverse colours (as the white
     // main buttons) on a frosted plate, its city on a blurred chip. People are round: who (their
     // initials) and from what (a device badge), blue while live, gray when seen recently.
+    // No server on the map (the scope became a person's or a device's places): its plate goes with it, or
+    // paintDock() would look for the hub of a map that has none.
+    if (!home) {
+      this.dock = null;
+      this.dockKey = '';
+    }
     if (home) {
       const host = E('span', { class: 'dl-mk-host' });
       host.innerHTML = `<span class="dl-mk-host-tile">${iconSvg('server', 'dl-mk-host-ic')}</span>`;
@@ -437,6 +704,7 @@ export class ConnectionMap {
       const person = data.people.find((x) => x.id === g.person);
       if (data.person) {
         const el = data.device ? this.deviceMarker(g, at, person, numbers.get(placeKey(g)) ?? 0) : this.placeMarker(g, at, person);
+        el.dataset.city = placeKey(g);
         this.add(el, at);
         continue;
       }
@@ -454,7 +722,7 @@ export class ConnectionMap {
             : fmt(N_(n, '%s: %s device in an unknown city', '%s: %s devices in an unknown city'), person?.name ?? _('Someone'), num(n)),
         },
         [
-          E('span', { class: 'dl-mk-av' }, [initials(person?.name ?? '?'), badge]),
+          E('span', { class: 'dl-mk-av' }, [markInitials(person?.name ?? '?'), badge]),
           E('span', { class: 'dl-mk-label below' }, g.city || g.cc || '?'),
         ],
       );
@@ -483,7 +751,13 @@ export class ConnectionMap {
       .map((x) => x.g.key)
       .sort()
       .join(';');
-    if (key !== this.fitKey && !this.popup) {
+    if (key !== this.fitKey && !this.popup && this.held) {
+      // the page holds a city: framed again when it lets go
+      this.fitKey = key;
+      const coords: [number, number][] = placed.map((x) => x.at);
+      if (home && (!coords.length || this.range !== 'online' || placed.some((x) => x.g.online))) coords.push([home.lon, home.lat]);
+      this.lastFit = coords;
+    } else if (key !== this.fitKey && !this.popup) {
       const animate = this.fitted && !this.fitBlind;
       this.fitBlind = !this.el.clientWidth || !this.el.clientHeight;
       this.fitKey = key;
@@ -496,7 +770,8 @@ export class ConnectionMap {
       } else {
         const coords: [number, number][] = placed.map((x) => x.at);
         if (home && (coords.length === 0 || this.range !== 'online' || placed.some((x) => x.g.online))) coords.push([home.lon, home.lat]);
-        this.fit(coords, animate);
+        this.lastFit = coords;
+        this.fit(coords, animate, this.crossing);
       }
     }
     this.status.textContent = placed.length || home ? '' : _('No locations yet');
@@ -505,6 +780,7 @@ export class ConnectionMap {
   }
 
   private add(el: HTMLElement, at: [number, number], fixed = false, who?: string, where?: string, key?: string, g?: Group) {
+    if (g) el.dataset.city = placeKey(g);
     // A redrawn marker keeps how it was (folded or not), with no fade in its first frame.
     if (key && this.foldedKeys.has(key)) el.classList.add('merged');
     if (key && this.piledKeys.has(key)) el.classList.add('piled');
@@ -512,6 +788,8 @@ export class ConnectionMap {
     el.classList.add('dl-mk-new');
     requestAnimationFrame(() => requestAnimationFrame(() => el.classList.remove('dl-mk-new')));
     const marker = new this.gl.Marker({ element: el }).setLngLat(at).addTo(this.map);
+    // a crossing's new marker blurs in where it stands
+    if (this.crossing) appear(el);
     this.markers.push(marker);
     this.slots.push({ marker, el, at, fixed, who, where, g });
   }
@@ -554,12 +832,15 @@ export class ConnectionMap {
       Object.assign(it, { r: 0, fixed: true });
     });
     this.pileUp(items);
-    // A folded person leaves no trace either: their accuracy zone and arc go with their marker.
+    // A folded person leaves no trace either: their arc goes with their marker, and their city's
+    // zone once everyone there has folded away.
     const hidden = [...this.foldedKeys].sort().join('|');
     if (hidden !== this.hiddenKey) {
       this.hiddenKey = hidden;
       const shown = ['!', ['in', ['get', 'key'], ['literal', [...this.foldedKeys]]]];
-      if (this.map.getLayer('dl-area')) this.map.setFilter('dl-area', shown);
+      const open = new Set([...this.zoneOf].filter(([g]) => !this.foldedKeys.has(g)).map(([, z]) => z));
+      const gone = [...new Set(this.zoneOf.values())].filter((z) => !open.has(z));
+      if (this.map.getLayer('dl-area')) this.map.setFilter('dl-area', ['!', ['in', ['get', 'zone'], ['literal', gone]]]);
       for (const live of [false, true]) {
         const id = live ? 'dl-arc-live' : 'dl-arc-recent';
         if (this.map.getLayer(id)) this.map.setFilter(id, ['all', ['==', ['get', 'online'], live], shown]);
@@ -569,14 +850,161 @@ export class ConnectionMap {
     // Hovering lights a person. A marker or avatar that went from under the pointer (a plate split
     // or closed as the map zoomed) sends no mouseleave: the light goes once nothing is hovered.
     if (this.focused && !this.el.querySelector('.dl-mk:hover, .dl-mk-face:hover')) this.focus(null);
+    // The server's plate reaches right while people ride in it: markers keep clear of all of it,
+    // not only of the server's tile (a row of circles along it, as tall as the plate).
+    const hub = this.slots.findIndex((s) => s.fixed);
+    if (hub >= 0 && this.merged.length && this.dock) {
+      const host = this.dock.parentElement as HTMLElement;
+      const r = host.offsetHeight / 2;
+      const from = items[hub].x + host.offsetWidth / 2;
+      const to = from + this.dock.offsetWidth;
+      for (let x = from + r; x < to + r / 2; x += r) items.push({ x: Math.min(x, to - r), y: items[hub].y, r: r + 3, fixed: true });
+    }
     // Past the markers come the people plates (fixed, in the spreading only to be moved clear of).
+    const at = items.map((it) => ({ x: it.x, y: it.y }));
     separate(items).forEach(([dx, dy], i) => {
       const m = this.slots[i];
       if (!m || m.fixed) return;
       if (items[i].fixed) [dx, dy] = [0, 0];
       m.marker.setOffset([dx, dy]);
       pointer(m.el, dx, dy);
+      at[i] = { x: items[i].x + dx, y: items[i].y + dy };
     });
+    this.layoutLabels(at);
+  }
+
+  /**
+   * Markers' names, where the markers now stand (`at`, by slot): each inside the map (moved
+   * sideways at its edges, under the marker still; to the marker's other side at the top or
+   * bottom), clear of the other names, the markers and the map's own controls (the credits'
+   * "i", a device window's replay plate); a name with no room fades out. Where people are, a
+   * city is named once: on the server's chip when it is the server's, else on its first plate or
+   * marker (live, then most recent first). The server's name and the place the replay is on
+   * always show.
+   */
+  private layoutLabels(at: { x: number; y: number }[]) {
+    const W = this.el.clientWidth;
+    const H = this.el.clientHeight;
+    if (!W || !H || !this.data) return;
+    const far = this.el.classList.contains('dl-lod-far');
+    const people = !this.data.person && !this.data.device;
+    const bodyOf = (el: HTMLElement) =>
+      el.querySelector(':scope > .dl-mk-host, :scope > .dl-mk-av, :scope > .dl-mk-tile, :scope > .dl-mk-pile-box') as HTMLElement | null;
+    type Cand = {
+      lab: HTMLElement;
+      owner: HTMLElement;
+      x: number;
+      y: number;
+      h: number;
+      w: number;
+      lh: number;
+      down: boolean;
+      rank: number;
+      ts: number;
+      city: string;
+      keep: boolean;
+    };
+    const cands: Cand[] = [];
+    const bodies: { owner: HTMLElement; box: Box }[] = [];
+    // Reads first, all of them (one layout), then the writes.
+    const add = (
+      owner: HTMLElement,
+      x: number,
+      y: number,
+      o: { rank: number; ts?: number; city?: string; keep?: boolean; named?: boolean },
+    ) => {
+      const body = bodyOf(owner);
+      const bw = body?.offsetWidth ?? 0;
+      const bh = body?.offsetHeight ?? 0;
+      // The server's plate reaches right while people ride in it.
+      const dock = body?.classList.contains('docked') ? ((body.querySelector('.dl-mk-dock') as HTMLElement | null)?.offsetWidth ?? 0) : 0;
+      bodies.push({ owner, box: { l: x - bw / 2, r: x + bw / 2 + dock, t: y - bh / 2, b: y + bh / 2 } });
+      const lab = owner.querySelector(':scope > .dl-mk-label') as HTMLElement | null;
+      if (!lab || o.named === false) return;
+      if (!this.labelGap.has(lab)) {
+        const cs = getComputedStyle(lab);
+        this.labelGap.set(lab, parseFloat(lab.classList.contains('below') ? cs.marginTop : cs.marginBottom) || 4);
+      }
+      cands.push({
+        lab,
+        owner,
+        x,
+        y,
+        h: owner.offsetHeight,
+        w: lab.offsetWidth,
+        lh: lab.offsetHeight,
+        down: lab.classList.contains('below'),
+        rank: o.rank,
+        ts: o.ts ?? 0,
+        city: people ? (o.city ?? '') : '',
+        keep: !!o.keep,
+      });
+    };
+    this.slots.forEach((s, i) => {
+      if (s.el.classList.contains('merged') || s.el.classList.contains('piled')) return;
+      const on = s.el.classList.contains('online');
+      // Far out people's names are off (map.css): no room taken.
+      const named = !(far && s.el.classList.contains('dl-mk') && !s.el.classList.contains('step'));
+      if (s.fixed) add(s.el, at[i].x, at[i].y, { rank: 0, city: this.data!.geo.home?.city ?? '', keep: true });
+      else {
+        const keep = (!!this.replaying && on) || s.el.classList.contains('hl');
+        add(s.el, at[i].x, at[i].y, { rank: keep ? 1 : on ? 2 : 3, ts: s.g?.ts, city: s.g?.city || s.g?.cc || '', named, keep });
+      }
+    });
+    for (const p of this.pileSpots) add(p.el, p.x, p.y, { rank: 1, city: p.city, ts: Infinity });
+    const m = this.el.getBoundingClientRect();
+    const k = m.width / W || 1;
+    const controls: Box[] = [];
+    for (const c of [this.el.querySelector('.maplibregl-ctrl-attrib'), this.el.parentElement?.querySelector(':scope > .dl-map-replay')]) {
+      const r = c?.getBoundingClientRect();
+      if (r?.width)
+        controls.push({ l: (r.left - m.left) / k, t: (r.top - m.top) / k, r: (r.right - m.left) / k, b: (r.bottom - m.top) / k });
+    }
+    cands.sort((a, b) => a.rank - b.rank || b.ts - a.ts);
+    const shown: Box[] = [];
+    const named = new Set<string>();
+    const writes: (() => void)[] = [];
+    for (const c of cands) {
+      // Sideways: centred, else ending or starting just past the marker; always inside the map's
+      // edges and still under (or over) its marker.
+      const lefts = [c.x - c.w / 2, c.x + 10 - c.w, c.x - 10].map((l) =>
+        Math.min(Math.max(Math.min(Math.max(l, EDGE_PX), W - EDGE_PX - c.w), c.x - c.w + 8), c.x - 8),
+      );
+      const gap = this.labelGap.get(c.lab) ?? 4;
+      // Its own side first (in each of the three places), then the marker's other side.
+      const spots = [c.down, !c.down].flatMap((down) =>
+        lefts.map((l) => {
+          const t =
+            down === c.down
+              ? down
+                ? c.y + c.h / 2 + gap
+                : c.y - c.h / 2 - gap - c.lh
+              : down
+                ? c.y + c.h / 2 + 4
+                : c.y - c.h / 2 - 4 - c.lh;
+          return { flip: down !== c.down, l, box: { l, r: l + c.w, t, b: t + c.lh } };
+        }),
+      );
+      const inside = (b: Box) => b.t >= EDGE_PX && b.b <= H - EDGE_PX;
+      const clear = (b: Box) =>
+        !shown.some((x) => hits(x, b)) &&
+        !controls.some((x) => hits(x, b, 0)) &&
+        !bodies.some((x) => x.owner !== c.owner && hits(x.box, b, 1));
+      let pick = c.city && named.has(c.city) ? undefined : spots.find((x) => inside(x.box) && clear(x.box));
+      if (!pick && c.keep) pick = spots.find((x) => inside(x.box)) ?? spots[0];
+      const shift = pick ? pick.l - (c.x - c.w / 2) : 0;
+      const flip = !!pick?.flip;
+      writes.push(() => {
+        c.lab.classList.toggle('off', !pick);
+        if (!pick) return;
+        c.lab.classList.toggle('flip', flip);
+        c.lab.style.translate = Math.abs(shift) > 0.5 ? `${shift.toFixed(1)}px 0` : '';
+      });
+      if (!pick) continue;
+      shown.push(pick.box);
+      if (c.city) named.add(c.city);
+    }
+    for (const w of writes) w();
   }
 
   /**
@@ -638,12 +1066,12 @@ export class ConnectionMap {
     this.dockKey = key;
     dock.parentElement?.classList.toggle('docked', this.merged.length > 0);
     // Emptied, it keeps its last avatars while it slides back.
-    const home = this.slots.find((x) => x.fixed)!.at;
-    if (this.merged.length)
+    const hub = this.slots.find((x) => x.fixed);
+    if (hub && this.merged.length)
       fillFaces(
         dock,
         this.merged,
-        this.faceActions(() => [home]),
+        this.faceActions(() => [hub.at]),
         this.dockQuiet,
       );
     this.dockQuiet = false;
@@ -664,6 +1092,7 @@ export class ConnectionMap {
    */
   private pileUp(items: { x: number; y: number; r: number; fixed: boolean }[]) {
     const live = new Set<string>();
+    this.pileSpots = [];
     if (!this.data?.person && !this.data?.device) {
       const free = items.flatMap((it, i) => (!it.fixed && this.slots[i].el.querySelector(':scope > .dl-mk-av') ? [i] : []));
       const root = new Map(free.map((i) => [i, i]));
@@ -724,6 +1153,8 @@ export class ConnectionMap {
         }
         const c = this.map.project(at);
         items.push({ x: c.x, y: c.y, r: (pile.el.offsetWidth || 60) / 2 + 3, fixed: true });
+        const cities = new Set(slots.map((x) => x.g?.city || x.g?.cc || '?'));
+        this.pileSpots.push({ el: pile.el, x: c.x, y: c.y, city: cities.size === 1 ? [...cities][0] : '' });
       }
     }
     this.piledKeys = new Set(this.slots.filter((x) => x.el.classList.contains('piled')).map((x) => x.el.dataset.key ?? ''));
@@ -889,7 +1320,12 @@ export class ConnectionMap {
     // The same place a moment later: only its time changes.
     if (prev && state && prev.active === state.active) {
       const x = state.active ? this.places.get(state.active) : null;
-      if (x?.when) x.when.textContent = state.when;
+      if (x?.when && x.when.textContent !== state.when) {
+        const grew = x.when.textContent?.length !== state.when.length;
+        x.when.textContent = state.when;
+        // a name of another length: kept inside the map again
+        if (grew) this.declutter();
+      }
       return;
     }
     for (const key of this.places.keys()) if (key !== state?.active) this.paintPlace(key, animate);
@@ -900,8 +1336,53 @@ export class ConnectionMap {
   }
 
   /** A device's place lit while its row under the map is hovered; null for none. */
+  /**
+   * A city's markers in focus (a row of the page's list under the pointer, or the city it opened): they stay, the
+   * others and their arcs fade, as hovering a person does. null: as it was.
+   */
+  hoverCity(key: string | null) {
+    if (!key) {
+      for (const s of this.slots) s.el.classList.remove('dim', 'hl');
+      return this.focus(this.focused);
+    }
+    for (const s of this.slots) {
+      if (s.fixed) continue;
+      s.el.classList.toggle('dim', s.el.dataset.city !== key);
+      s.el.classList.toggle('hl', s.el.dataset.city === key);
+    }
+    const keys = this.slots.filter((s) => s.el.dataset.city === key && s.el.dataset.key).map((s) => s.el.dataset.key!);
+    const opacity = ['case', ['in', ['get', 'key'], ['literal', keys]], 0.85, 0.15];
+    for (const id of ['dl-arc-live', 'dl-arc-recent']) if (this.map?.getLayer(id)) this.map.setPaintProperty(id, 'line-opacity', opacity);
+  }
+
+  /**
+   * The camera on a city (the page opened it): from where it is to the city's own framing on one SMOOTH curve, held
+   * there while it is open; null: back to everyone's framing the same way.
+   */
+  showCity(key: string | null) {
+    this.held = key;
+    if (!this.map || !this.gl) return;
+    const pts = key ? this.slots.filter((s) => s.el.dataset.city === key).map((s) => s.at) : this.lastFit;
+    if (!pts.length) return;
+    if (!key) return this.fit(pts, true, true);
+    const b = new this.gl.LngLatBounds(pts[0], pts[0]);
+    pts.forEach((p) => b.extend(p));
+    const cam = this.map.cameraForBounds(b, { padding: 80, maxZoom: CLICK_ZOOM });
+    if (!cam) return;
+    this.glide(cam.zoom ?? null, () =>
+      this.map.easeTo({
+        center: cam.center,
+        zoom: cam.zoom,
+        duration: calm() ? 0 : SMOOTH.duration,
+        easing: (t: number) => SMOOTH.at(t * SMOOTH.duration),
+      }),
+    );
+  }
+
   hoverPlace(key: string | null) {
     for (const [k, x] of this.places) x.el.classList.toggle('hl', k === key);
+    // its name shows, over whichever it shares the room with
+    this.declutter();
   }
 
   /**
@@ -972,7 +1453,7 @@ export class ConnectionMap {
    * outliers never shrink everything to a continent (the farthest 10% are
    * left out when the rest are clustered).
    */
-  private fit(coords: [number, number][], animate = false) {
+  private fit(coords: [number, number][], animate = false, smooth = false) {
     if (!coords.length) return;
     const km = (a: [number, number], b: [number, number]) => {
       const r = Math.PI / 180;
@@ -993,36 +1474,54 @@ export class ConnectionMap {
     const b = new this.gl.LngLatBounds(pts[0], pts[0]);
     pts.forEach((c) => b.extend(c));
     const h = this.el.clientHeight || 380;
+    const w = this.el.clientWidth || 600;
     // A person's and a device's places have their name (and "now") under the tile; a device's
-    // window has the replay's controls in its top corner.
-    const below = !!this.data?.person;
+    // window has the replay's controls in its top corner: its places come in below them (half a
+    // tile and a gap), so the moment's plate, as wide as the map while it plays, covers none.
+    const plate = this.el.parentElement?.querySelector(':scope > .dl-map-replay') as HTMLElement | null;
+    const under = Math.max(38, plate?.offsetHeight ? plate.offsetTop + plate.offsetHeight : 0) + 21;
     const opts = {
-      // Just enough room for the labels: the server's chip above its plate, a place's name above its dot.
+      // Room for the labels: the server's chip above its plate, names under markers (two lines on
+      // a person's page); at the sides half a name, less what layoutLabels moves inwards.
       padding: {
-        top: this.data?.device ? Math.min(56, h / 4) : Math.min(60, h / 5),
-        bottom: below ? Math.min(52, h / 4) : Math.min(40, h / 8),
-        left: 48,
-        right: 48,
+        top: this.data?.device ? Math.min(under, h / 3) : Math.min(60, h / 5),
+        bottom: this.data?.person && !this.data.device ? Math.min(56, h / 4) : Math.min(44, h / 5),
+        left: Math.min(64, w / 6),
+        right: Math.min(64, w / 6),
       },
       // A person's page shows a little more around a single place.
       maxZoom: this.data?.person ? 11 : 12,
     };
     if (!animate) this.map.fitBounds(b, { ...opts, duration: 0 });
+    // a crossing: from where the camera is (a glide under way included) to the new framing, one smooth curve
+    else if (smooth)
+      this.glide(this.map.cameraForBounds(b, opts)?.zoom ?? null, () =>
+        this.map.fitBounds(b, {
+          ...opts,
+          linear: true,
+          duration: calm() ? 0 : SMOOTH.duration,
+          easing: (t: number) => SMOOTH.at(t * SMOOTH.duration),
+        }),
+      );
     else this.glide(this.map.cameraForBounds(b, opts)?.zoom ?? null, () => this.map.fitBounds(b, { ...opts, duration: 1200 }));
   }
 
   /** A programmatic move to `zoom`: markers are decluttered for where it ends, then follow it. */
   private glide(zoom: number | null, move: () => void) {
+    // a move under way stops where it is (its own end handler runs now), this one goes on from there
+    this.map.stop();
     this.targetZoom = zoom;
     this.declutter();
+    move();
     this.map.once('moveend', () => {
       this.targetZoom = null;
       this.declutter();
     });
-    move();
   }
 
   private openPopup(g: Group, at: [number, number], el?: HTMLElement) {
+    // the page lists the places beside the map: the marker picks its city there
+    if (this.cb.pickPlace) return this.cb.pickPlace(placeKey(g));
     const data = this.data!;
     const where = [g.city, g.cc || g.country].filter(Boolean).join(', ');
     const people = [...new Set(g.points.map((p) => p.person))];
@@ -1064,7 +1563,8 @@ export class ConnectionMap {
     this.zoomInTo(this.nearby(at), true);
     this.dropCard();
     const card = E('div', { class: 'dl-root dl-popcard', role: 'dialog' }, [E('span', { class: 'dl-popcard-tip' }), body]);
-    document.body.appendChild(card);
+    // In the pages' floating layer (a shadow root on <body>, handed in by bind: map-module.ts): never clipped by the map.
+    layer().appendChild(card);
     const mapEl = this.el;
     const marker = (el?.querySelector('.dl-mk-av, .dl-mk-tile') as HTMLElement | null) ?? el ?? null;
     // Above the marker when the window has room there, else below; inside the window sideways;
@@ -1088,14 +1588,16 @@ export class ConnectionMap {
     };
     // A press anywhere but the card or a marker (a marker opens its own) closes it, as do Esc,
     // scrolling the page (not the card's own list) and going to another page.
+    // Read along the event's path: from a shadow root the document sees only its host as the target.
+    const inside = (ev: Event, sel: string) => ev.composedPath().some((n) => n instanceof Element && n.matches(sel));
     const outside = (ev: Event) => {
-      if (!(ev.target as HTMLElement | null)?.closest('.dl-popcard, .maplibregl-marker')) this.closePopup(true);
+      if (!inside(ev, '.dl-popcard, .maplibregl-marker')) this.closePopup(true);
     };
     const esc = (ev: KeyboardEvent) => {
       if (ev.key === 'Escape') this.closePopup();
     };
     const scrolled = (ev: Event) => {
-      if (!(ev.target instanceof Element && ev.target.closest('.dl-popcard'))) this.closePopup();
+      if (!inside(ev, '.dl-popcard')) this.closePopup();
     };
     const close = () => this.closePopup();
     this.map.on('move', place);
@@ -1258,7 +1760,7 @@ function fillFaces(
     keep.delete(f.key);
     if (!b) {
       const nb = E('button', { type: 'button', class: `dl-mk-face${quiet ? '' : ' in'}`, 'data-key': f.key }, [
-        E('span', { class: 'dl-mk-av' }, initials(f.who)),
+        E('span', { class: 'dl-mk-av' }, markInitials(f.who)),
         // Beside the avatar, not over it: the plate makes room for one icon, two, or a number.
         E('span', { class: 'dl-mk-badge' }),
       ]);
@@ -1365,35 +1867,4 @@ interface Group {
   online: boolean;
   ts: number;
   points: GeoPoint[];
-}
-
-/** Segmented range control for the map header. */
-export function rangeControl(initial: Range, onChange: (r: Range) => void, online = true): HTMLElement {
-  const opts: [Range, string][] = [
-    ['online', _('Online now')],
-    ['24h', _('24h')],
-    ['7d', _('7 days')],
-    ['30d', _('30 days')],
-  ];
-  const el = E('div', { class: 'dl-seg', role: 'tablist' });
-  for (const [v, label] of opts) {
-    if (v === 'online' && !online) continue;
-    el.appendChild(
-      E(
-        'button',
-        {
-          type: 'button',
-          role: 'tab',
-          class: v === initial ? 'on' : '',
-          'data-v': v,
-          click: () => {
-            el.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.v === v));
-            onChange(v);
-          },
-        },
-        label,
-      ),
-    );
-  }
-  return el;
 }

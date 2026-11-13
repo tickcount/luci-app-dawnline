@@ -1,0 +1,288 @@
+{
+	"settings": {
+		"portal_enabled": true,
+		"portal_port": 8443,
+		"portal_host": "vpn.example.com",
+		"portal_alt": [
+			"alt.example.com",
+			"203.0.113.7"
+		],
+		"portal_cert": "",
+		"portal_key": "",
+		"portal_redirect": "https://example.com/",
+		"default_device_limit": 5,
+		"geo_enabled": true,
+		"geo_provider": "ipwho.is",
+		"hostnames": false,
+		"domain": "home.arpa",
+		"log_connections": true,
+		"log_level": "debug",
+		"watchdog": false,
+		"home_dns_fallback": "",
+		"updates": {
+			"check": false,
+			"interval": "12h",
+			"auto": true,
+			"mode": "immediate",
+			"time": "04:00",
+			"targets": [
+				"app",
+				"amneziawg"
+			],
+			"keep": true,
+			"mirrors": true
+		},
+		"retention": {
+			"log_keep_days": "14",
+			"log_max": "50",
+			"log_category": [
+				"connections",
+				"problems"
+			],
+			"log_connections": null,
+			"log_persist": "10min",
+			"usage_keep_days": " 90 ",
+			"usage_keep_months": "many"
+		}
+	},
+	"servers": {
+		"home": {
+			"id": "home",
+			"name": "Home",
+			"ifname": "dawn0",
+			"port": 4500,
+			"subnet": "10.77.0.0/24",
+			"endpoint": "vpn.example.com",
+			"mtu": 0,
+			"dns": [
+				"10.77.0.1",
+				"1.1.1.1"
+			],
+			"keepalive": 0,
+			"private_key": "yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk=",
+			"public_key": "xTIBA5rboUvnH4htodjb6e697QjLERt1NAB4mZqp8Dg=",
+			"preset": "quiet",
+			"lan_zone": "lan",
+			"wan_zone": "wan",
+			"auto_wan": false,
+			"wan_device": "pppoe-wan",
+			"auto_lan": true,
+			"lan_devices": [
+				"br-lan",
+				"br-guest"
+			],
+			"detected_wan": "",
+			"detected_lan": "",
+			"lan_like": false,
+			"mesh": "circles",
+			"portal_routers": "ask",
+			"portal_nets": "ask",
+			"enabled": true,
+			"obf": {
+				"jc": "5",
+				"jmin": "11",
+				"jmax": "42",
+				"s1": "12",
+				"h1": "1",
+				"i1": "<r 2><b 0x01000001000000000000>",
+				"header_protection_key": "yvVKA41To0000000000000000000IUdcl4ZiyFE=",
+				"rekey_after_time": "100-120",
+				"random_trailers": "on"
+			},
+			"device_mesh": true
+		},
+		"cabin": {
+			"id": "cabin",
+			"name": "cabin",
+			"ifname": "cabin",
+			"port": 51820,
+			"subnet": "",
+			"endpoint": "",
+			"mtu": 0,
+			"dns": [
+				"9.9.9.9",
+				"149.112.112.112"
+			],
+			"keepalive": 25,
+			"private_key": "",
+			"public_key": "",
+			"preset": "standard",
+			"lan_zone": "lan",
+			"wan_zone": "wan",
+			"auto_wan": true,
+			"wan_device": "",
+			"auto_lan": true,
+			"lan_devices": [
+			],
+			"detected_wan": "",
+			"detected_lan": "",
+			"lan_like": true,
+			"mesh": "off",
+			"portal_routers": "ask",
+			"portal_nets": "ask",
+			"enabled": false,
+			"obf": {
+			},
+			"device_mesh": false
+		}
+	},
+	"people": {
+		"anna": {
+			"id": "anna",
+			"server": "home",
+			"name": "Anna",
+			"access": "both",
+			"device_limit": 2,
+			"code": "abcdef-ghijkl-mnopqr",
+			"code_set": 1790000000,
+			"expires": "2026-12-31",
+			"quota_gb": 1.5,
+			"quota_period": "total",
+			"paused": false,
+			"dns_mode": "home",
+			"bonus_gb": 20,
+			"bonus_until": 1795000000,
+			"services": [
+				"nas"
+			],
+			"home_nets": [
+				"br-lan"
+			],
+			"circle": "family",
+			"note": "A note, with a comma",
+			"created": 1780000000,
+			"devices": [
+				"d_1",
+				"d_2"
+			]
+		},
+		"boris": {
+			"id": "boris",
+			"server": "cabin",
+			"name": "boris",
+			"access": "internet",
+			"device_limit": 5,
+			"code": "",
+			"code_set": 0,
+			"expires": "",
+			"quota_gb": 0,
+			"quota_period": "month",
+			"paused": true,
+			"dns_mode": "device",
+			"bonus_gb": 0,
+			"bonus_until": 1798761600,
+			"services": [
+				"nas",
+				"printer"
+			],
+			"home_nets": [
+			],
+			"circle": "",
+			"note": "",
+			"created": 0,
+			"devices": [
+			]
+		},
+		"nobody": {
+			"id": "nobody",
+			"server": "",
+			"name": "nobody",
+			"access": "internet",
+			"device_limit": 5,
+			"code": "",
+			"code_set": 0,
+			"expires": "",
+			"quota_gb": 0,
+			"quota_period": "month",
+			"paused": false,
+			"dns_mode": "device",
+			"bonus_gb": 0,
+			"bonus_until": 0,
+			"services": [
+			],
+			"home_nets": [
+			],
+			"circle": "",
+			"note": "",
+			"created": 0,
+			"devices": [
+			]
+		}
+	},
+	"devices": {
+		"d_1": {
+			"id": "d_1",
+			"person": "anna",
+			"name": "Phone",
+			"kind": "phone",
+			"address": "10.77.0.2",
+			"public_key": "u4pL0000000000000000000000000000DyRrogDM=",
+			"private_key": "",
+			"preshared_key": "Yc0000000000000000000000000000bRABGUovbrNy4=",
+			"created": 1780000100,
+			"created_by": "portal",
+			"disabled": false,
+			"mtu": 1280,
+			"keepalive": 0,
+			"lan_bypass": true
+		},
+		"d_2": {
+			"id": "d_2",
+			"person": "anna",
+			"name": "d_2",
+			"kind": "other",
+			"address": "",
+			"public_key": "",
+			"private_key": "",
+			"preshared_key": "",
+			"created": 0,
+			"created_by": "admin",
+			"disabled": true,
+			"mtu": 0,
+			"keepalive": null,
+			"lan_bypass": false
+		},
+		"d_3": {
+			"id": "d_3",
+			"person": "gone",
+			"name": "Orphan",
+			"kind": "router",
+			"address": "",
+			"public_key": "",
+			"private_key": "",
+			"preshared_key": "",
+			"created": 0,
+			"created_by": "admin",
+			"disabled": false,
+			"mtu": 0,
+			"keepalive": 60,
+			"lan_bypass": false
+		}
+	},
+	"services": {
+		"nas": {
+			"id": "nas",
+			"name": "NAS",
+			"address": "192.168.1.10",
+			"ports": [
+				"445",
+				"8080-8090"
+			]
+		},
+		"printer": {
+			"id": "printer",
+			"name": "printer",
+			"address": "192.168.1.20",
+			"ports": [
+			]
+		}
+	},
+	"circles": {
+		"family": {
+			"id": "family",
+			"server": "home",
+			"name": "Family",
+			"color": 3
+		}
+	}
+}

@@ -6,7 +6,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-dawnline
-PKG_VERSION:=0.18.0
+PKG_VERSION:=0.20.0
 PKG_RELEASE:=1
 PKG_LICENSE:=MIT
 # po/<lang>/dawnline.po becomes luci-i18n-dawnline-<lang> (luci.mk), released
@@ -19,11 +19,10 @@ LUCI_TITLE:=Dawnline - AmneziaWG access server
 # the router's firmware. The portal's HTTPS needs any libustream TLS module and
 # openssl-util; Settings offers to install them when the portal is turned on.
 # Runtime dependencies only (control file Depends): the package ships scripts
-# and web files, so the SDK has nothing to build for them, and as build
+# and web files (its backend, dawnlined, is a static binary fetched beside it: fetch-backend), so the SDK has nothing to build for them, and as build
 # dependencies ip-full (iproute2) and kmod-veth would pull in the whole kernel.
 # OpenWrt 25.12's luci.mk wants a version on each; (>=0) means any.
-LUCI_EXTRA_DEPENDS:=luci-base (>=0), rpcd-mod-ucode (>=0), ucode (>=0), ucode-mod-fs (>=0), ucode-mod-uci (>=0), \
-	ucode-mod-ubus (>=0), ucode-mod-uloop (>=0), ip-full (>=0), kmod-veth (>=0), uhttpd (>=0)
+LUCI_EXTRA_DEPENDS:=luci-base (>=0), ip-full (>=0), kmod-veth (>=0), uhttpd (>=0), uhttpd-mod-ubus (>=0)
 LUCI_PKGARCH:=all
 # The web bundles are already minified by esbuild (LuCI's jsmin cannot parse modern JS).
 LUCI_MINIFY_JS:=0
@@ -48,6 +47,8 @@ define Package/luci-app-dawnline/prerm
 [ "$$1" = "upgrade" ] && exit 0
 /etc/init.d/dawnline stop 2>/dev/null
 /usr/bin/dawnline teardown 2>/dev/null
+# The backend's binary is fetched beside the package (fetch-backend), so the package manager does not own it.
+rm -f /usr/libexec/dawnline/dawnlined /usr/libexec/dawnline/dawnlined.new
 # The heartbeat check would point at a removed file.
 grep -qs /usr/libexec/dawnline/ /etc/crontabs/root && {
 	sed -i '\#/usr/libexec/dawnline/#d' /etc/crontabs/root

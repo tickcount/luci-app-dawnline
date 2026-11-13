@@ -2,28 +2,25 @@
 // access reaches (home and internet as two tiles, and the names devices at
 // home reach this person's devices by); the data, as a ring in the head and
 // the month day by day inside; and until when, as the days left over a
-// calendar of the weeks, with the admin's hours as a bar of the day. A repaint
-// keeps the rows on the page and changes what they hold in place.
+// calendar of the weeks. A repaint keeps the rows on the page and changes
+// what they hold in place.
 
 import type { Pair, Person } from '../../shared/types';
-import { accessLabel, byDeviceState, bytes, date, daysLeft, duration, endsSoon, parseDay } from '../../shared/format';
+import { accessLabel, addDays, bytes, date, daysLeft, endsSoon, parseDay, until } from '../../shared/format';
 import { paceOf, paceWords, vsAverage } from '../../shared/pace';
-import { fill, fmt, locale, num, plural } from '../../shared/i18n';
+import { fmt, locale, num, plural } from '../../shared/i18n';
 import { h, ic, markup } from '../dom';
-import { calendar, clockOf, hoursFor, minuteAt, monthOf, stretches } from '../days';
+import { calendar } from '../days';
 import { SMOOTH, play } from '../motion';
 import { now, today, type State } from '../state';
 import { accordion, regrow, type Accordion } from '../ui/accordion';
 import { bars, readBars, upDown } from '../ui/bars';
-import { copy } from '../ui/feedback';
 import { glass } from '../ui/glass';
 import { morphChanged, morphInto, setText, textOf, textsOf } from '../ui/morph';
-import { reachableFromHome } from './devices';
 import { holdFoot } from './frame';
+import { putChildren } from '../ui/put';
 
 const desc = (text: string) => h('p', { class: 'desc' }, text);
-/** A share of a length, as a CSS percentage. */
-const pc = (part: number, whole: number) => `${((part / whole) * 100).toFixed(2)}%`;
 /** A router day (YYYY-MM-DD) as "13 Oct", without the year. */
 const dayMonth = (d: string) => parseDay(d).toLocaleDateString(locale(), { day: 'numeric', month: 'short' });
 
@@ -46,42 +43,6 @@ function reachTiles(access: Person['access']): HTMLElement {
   );
 }
 
-/** How other devices at home reach this person's devices: once, here, only where the router lets them through. */
-function namesAtHome(p: Person, mesh: boolean): Node[] {
-  const named = byDeviceState(p.devices).filter((d) => d.hostname && reachableFromHome(p, d));
-  if (!named.length) return [];
-  const first = named[0].hostname;
-  const dot0 = first.indexOf('.');
-  const domain = dot0 > 0 ? first.slice(dot0) : '';
-  const pattern = h('span', { class: 'mono' }, `${_('name')}${domain}`);
-  return [
-    h(
-      'span',
-      { class: 'lbl-s' },
-      ...fill(mesh ? _('Devices at home and on this VPN reach yours as %s') : _('Other devices at home reach yours as %s'), pattern),
-    ),
-    h(
-      'div',
-      { class: 'names' },
-      named.map((d) => {
-        const dot = d.hostname.indexOf('.');
-        return h(
-          'button',
-          {
-            type: 'button',
-            class: 'namechip',
-            title: d.name,
-            'aria-label': fmt(_('Copy %s'), d.hostname),
-            onclick: (ev: Event) => copy(d.hostname, _('Address copied'), ev.currentTarget),
-          },
-          h('span', {}, dot > 0 ? [d.hostname.slice(0, dot), h('span', { class: 'faint' }, d.hostname.slice(dot))] : d.hostname),
-          ic('copy'),
-        );
-      }),
-    ),
-  ];
-}
-
 /** Used against the limit, as a small ring (its colour: fine, nearly full, full). */
 function ring(pct: number): Element {
   const c = 2 * Math.PI * 6;
@@ -98,18 +59,36 @@ function meter(pct: number): HTMLElement {
   return h('div', { class: 'meter' }, i);
 }
 
-/** The month a day at a time, down and up (today in blue, days to come flat), what came and went under it. */
+/**
+ * When a monthly limit starts again. The month is yours, not the calendar's: it began with your first connection
+ * and ends a month later; the next one begins when you connect again.
+ */
+function resetWords(p: Person): string {
+  if (!p.quota_resets) return _('Your month begins when you next connect.');
+  return fmt(
+    _('Resets on %s, in %s. Your month began with your first connection.'),
+    dayMonth(p.quota_reset_day),
+    until(p.quota_resets - now()),
+  );
+}
+
+/** How many days the chart shows: the last 30, today included (not the calendar month). */
+const SPAN_DAYS = 30;
+
+/** The last 30 days a day at a time, down and up (today in blue, last), what came and went under it. */
 function month(p: Person, used: number, pct: number): HTMLElement {
-  const { days, day } = monthOf(today());
-  const series = Array.from({ length: day }, (_x, i): Pair => p.month_days?.[i] ?? [0, 0]);
-  const short = (d: number) => dayMonth(`${today().slice(0, 8)}${String(d).padStart(2, '0')}`);
-  // The month's down and up; a day under the pointer puts its own in their place and its date where "left" stands,
+  const series = Array.from(
+    { length: SPAN_DAYS },
+    (_x, i): Pair => p.month_days?.[i - (SPAN_DAYS - (p.month_days?.length ?? 0))] ?? [0, 0],
+  );
+  const short = (i: number) => dayMonth(addDays(today(), i - (SPAN_DAYS - 1)));
+  // The 30 days' down and up; a day under the pointer puts its own in their place and its date where "left" stands,
   // at once: no morph while the pointer moves.
   const read = upDown('m');
   const left = p.quota_limit ? fmt(_('%s left'), bytes(Math.max(0, p.quota_limit - used))) : _('No limit');
   const side = h('span', { class: 'num', 'data-t': 'm-left' }, left);
   const totals = series.map(([rx, tx]) => rx + tx);
-  // A picked day says its date and how it compares with the month's other days ("21 Oct · +62%").
+  // A picked day says its date and how it compares with the other days ("21 Oct · +62%").
   const against = (i: number) => {
     if (i === totals.length - 1) return _('so far');
     const v = vsAverage(totals, i);
@@ -117,38 +96,23 @@ function month(p: Person, used: number, pct: number): HTMLElement {
   };
   const say = (i: number) => {
     read.set(i >= 0 ? series[i] : p.month);
-    setText(side, i >= 0 ? `${short(i + 1)} · ${against(i)}` : left);
+    setText(side, i >= 0 ? `${short(i)} · ${against(i)}` : left);
     side.classList.toggle('bad-t', i < 0 && p.state === 'quota');
   };
   say(-1);
-  const chart = bars(series, 'bars-month', 64, days - day);
-  readBars(chart, _('Your data this month'), say);
-  // "Today" under its bar, kept inside the axis; the month's ends step aside where it comes within 6 px of
-  // either of them, measured (the words' widths follow the language and the axis the screen). Until the first
-  // measure, which comes before the first paint: under its bar, and the ends by the day.
-  const td = h('span', { class: 'td' }, _('Today'));
-  td.style.left = pc(day - 0.5, days);
-  const first = h('span', { class: day <= 4 ? 'hide' : '' }, short(1));
-  const last = h('span', { class: day >= days - 3 ? 'hide' : '' }, short(days));
-  const axis = h('div', { class: 'month-axis' }, first, td, last);
-  const fit = () => {
-    const room = axis.clientWidth;
-    const w = td.offsetWidth;
-    if (!room || !w) return;
-    const x = Math.min(Math.max(((day - 0.5) / days) * room, w / 2), room - w / 2);
-    td.style.left = `${x}px`;
-    first.classList.toggle('hide', x - w / 2 < first.offsetWidth + 6);
-    last.classList.toggle('hide', x + w / 2 > room - last.offsetWidth - 6);
-  };
-  // The axis on another width (a phone turned, the card's columns), or the words on theirs (the font arrived).
-  const ro = new ResizeObserver(fit);
-  for (const x of [axis, td, first, last]) ro.observe(x);
+  const chart = bars(series, 'bars-month', 64);
+  readBars(chart, _('Your data in the last 30 days'), say);
+  // the axis: the first day's date at one end, «Today» under the last bar at the other
+  const axis = h('div', { class: 'month-axis' }, h('span', {}, short(0)), h('span', { class: 'td' }, _('Today')));
   // With a limit not yet reached: the pace lately (the devices' last 7 days, so the month's first days have one
   // too) and when the limit fills at it, orange within a week.
   const pace = paceOf(
     Array.from({ length: 7 }, (_x, k) => p.devices.reduce((a, d) => a + (d.spark[k]?.[0] ?? 0) + (d.spark[k]?.[1] ?? 0), 0)),
   );
-  const words = p.quota_limit && used < p.quota_limit ? paceWords(used, p.quota_limit, pace, p.quota_period === 'month', today()) : '';
+  const words =
+    p.quota_limit && used < p.quota_limit
+      ? paceWords(used, p.quota_limit, pace, p.quota_period === 'month' ? p.quota_reset_day || null : null, today())
+      : '';
   const soon = pace > 0 && (p.quota_limit - used) / pace <= 7;
   return h(
     'div',
@@ -189,7 +153,7 @@ function untilCal(p: Person, left: number): HTMLElement {
     : null;
   return h(
     'div',
-    { class: `until${endsSoon(p, left) ? ' soon' : ''}` },
+    { class: `until${endsSoon(left) ? ' soon' : ''}` },
     h(
       'div',
       { class: 'until-num' },
@@ -201,54 +165,13 @@ function untilCal(p: Person, left: number): HTMLElement {
   );
 }
 
-/** The day as 24 hours in the visitor's time: the admin's window filled, now marked. */
-function hoursBar(hours: string, tzOffset: number | undefined): HTMLElement | null {
-  const visitor = -new Date().getTimezoneOffset();
-  const hw = hoursFor(hours, tzOffset, visitor);
-  if (!hw) return null;
-  // The router's clock, read in the visitor's zone (or the router's, without its offset).
-  const at = minuteAt(now(), hw.yours ? visitor : (tzOffset ?? visitor));
-  const segs = stretches(hw);
-  const inside = segs.some(([a, b]) => at >= a && at < b);
-  const bar = h('div', { class: 'hours-bar' });
-  for (const [a, b] of segs) {
-    const i = h('i');
-    i.style.left = pc(a, 1440);
-    i.style.width = pc(b - a, 1440);
-    bar.appendChild(i);
-  }
-  const mark = h('span', { class: `hours-now${inside ? '' : ' out'}`, title: fmt(_('Now, %s'), clockOf(at)) });
-  mark.style.left = pc(at, 1440);
-  bar.appendChild(mark);
-  // How long the window still runs, or until it opens (a stretch may run past midnight: the next starts are a day on).
-  const end = segs.find(([a, b]) => at >= a && at < b)?.[1];
-  const next = Math.min(...segs.map(([a]) => (a > at ? a : a + 1440)));
-  const runs = inside ? fmt(_('%s left'), duration((end! - at) * 60)) : fmt(_('opens in %s'), duration((next - at) * 60));
-  return h(
-    'div',
-    { class: 'hours' },
-    h(
-      'div',
-      { class: 'hours-top' },
-      h('span', {}, hw.yours ? _('Hours, your time') : _('Hours, router time')),
-      h('b', { class: 'num' }, `${clockOf(hw.from)}–${clockOf(hw.to)}`),
-    ),
-    bar,
-    h(
-      'div',
-      { class: 'hours-axis' },
-      ['00', '06', '12', '18', '24'].map((x) => h('span', {}, x)),
-    ),
-    h('div', { class: `hours-left${inside ? '' : ' warn-t'}` }, runs),
-  );
-}
-
 /** The access accordion for this state; `open`: the row to keep open (a repaint), else the data. */
 function accessAccordion(st: State, open = 1): Accordion {
   const p = st.person;
-  const used = p.quota_used || p.month[0] + p.month[1];
+  // Of a limit: what its period has counted (your limit month, or all time); with none: the last 30 days.
+  const used = p.quota_limit ? p.quota_used : p.month[0] + p.month[1];
   const pct = p.quota_limit ? Math.min(100, (used / p.quota_limit) * 100) : 0;
-  // A total over the whole access only with a limit; otherwise it is this month's count.
+  // A total over the whole access only with a limit.
   const total = p.quota_period === 'total' && !!p.quota_gb;
   const left = daysLeft(p.expires, today());
   const untilVal = p.expires
@@ -259,7 +182,7 @@ function accessAccordion(st: State, open = 1): Accordion {
         left != null
           ? h(
               'span',
-              { class: `num ${left < 0 ? 'bad-t' : endsSoon(p, left) ? 'warn-t' : 'ok-t'}`, 'data-t': 'until-left' },
+              { class: `num ${left < 0 ? 'bad-t' : endsSoon(left) ? 'warn-t' : 'ok-t'}`, 'data-t': 'until-left' },
               left >= 0 ? plural(left, '%s day', '%s days') : _('ended'),
             )
           : null,
@@ -267,18 +190,19 @@ function accessAccordion(st: State, open = 1): Accordion {
     : h('span', {}, _('No end date'));
   const untilBody = [
     !p.expires ? null : left != null && left < 0 ? desc(fmt(_('It ended on %s.'), date(p.expires))) : untilCal(p, left ?? 0),
-    p.hours ? hoursBar(p.hours, st.tz_offset) : null,
   ];
   return accordion(
     [
       {
-        icon: glass(p.access === 'internet' ? 'globe' : p.access === 'lan' ? 'home' : 'shield'),
+        icon: glass(p.access === 'internet' ? 'globe' : p.access === 'lan' ? 'home' : 'both'),
         title: accessLabel(p.access),
-        body: [reachTiles(p.access), ...namesAtHome(p, !!st.server.device_mesh)],
+        // (a device's own address is copied from its ⋯ menu, and a router's networks stand in its own sheet)
+        body: [reachTiles(p.access)],
       },
       {
         icon: glass('chart'),
-        title: total ? _('Data used') : _('Data this month'),
+        // of a limit: all time, or your month (yours, not the calendar's); with none: the last 30 days
+        title: total ? _('Data used') : p.quota_limit ? _('Data this month') : _('Data in 30 days'),
         val: h(
           'span',
           { class: 'data-val' },
@@ -292,16 +216,10 @@ function accessAccordion(st: State, open = 1): Accordion {
         valHide: true,
         body: [
           total ? desc(fmt(_('%s of %s in total.'), bytes(used), bytes(p.quota_limit))) : month(p, used, pct),
-          desc(
-            !p.quota_limit
-              ? _('No data limit. The count starts again on the 1st.')
-              : total
-                ? _('A total for your whole access, it does not reset.')
-                : _('Resets on the 1st.'),
-          ),
+          desc(!p.quota_limit ? _('No data limit.') : total ? _('A total for your whole access, it does not reset.') : resetWords(p)),
         ],
       },
-      // No end date and no hours: nothing to open, the row just says so.
+      // No end date: nothing to open, the row just says so.
       { icon: glass('calendar'), title: _('Access until'), val: untilVal, valHide: !!p.expires && (left ?? 0) >= 0, body: untilBody },
     ],
     { open, hold: holdFoot },
@@ -385,7 +303,7 @@ function refillBody(r: HTMLElement, body: HTMLElement, nb: HTMLElement): Element
   }
   if (plain(body, true) === plain(nb, true)) return [];
   if (!r.classList.contains('open') && !r.classList.contains('closing')) {
-    body.replaceChildren(...nb.childNodes);
+    putChildren(body, [...nb.childNodes]);
     return [];
   }
   const days = [...body.querySelectorAll('.cal-g i')].flatMap((c) => c.getAnimations());

@@ -1,0 +1,257 @@
+/* The link timeline (widgets/timeline.ts): a field block on the device's Connection card, under the way (the
+   usage block's roles), the strip a calm 8 px track with its runs in their state's colour. Only the portal's tokens
+   and recipes. */
+
+.lt {
+  padding: 14px 16px;
+  border-radius: 20px;
+  background: var(--field);
+}
+/* on the link card: under the way (field on raised, 8 px apart as the card's blocks), the diagnosis after it */
+.way.dway + .lt {
+  margin-top: 8px;
+}
+.lt + .dg {
+  margin-top: 14px;
+}
+.lt-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.lt-txt {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.lt-val {
+  font-size: 17px;
+  line-height: 24px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  text-wrap: balance;
+  /* a status that takes another colour turns (DESIGN.md › Repaint choreography) */
+  transition: color 280ms var(--ease-out);
+}
+.lt-val.ok-t {
+  color: var(--ok);
+}
+.lt-val.warn-t {
+  color: var(--warn);
+}
+.lt-val.bad-t {
+  color: var(--bad);
+}
+.lt-sub {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+  text-wrap: pretty;
+}
+.lt-lbl,
+.lt-val,
+.lt-sub {
+  font-variant-numeric: tabular-nums;
+}
+/* the period: the labelled track, small, one step up inside the field (knob 65 % over field, the app picker's) */
+.tabs.lt-range {
+  flex: none;
+  width: auto;
+  padding: 3px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--knob) 65%, var(--field));
+  grid-auto-flow: column;
+  grid-template-columns: none;
+  grid-auto-columns: max-content;
+}
+.lt-range .tabs-pill {
+  top: 3px;
+  bottom: 3px;
+  border-radius: 11px;
+}
+.lt-range .tab {
+  height: 30px;
+  padding: 0 11px;
+  border-radius: 11px;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+}
+.lt-viz {
+  position: relative;
+  margin-top: 12px;
+}
+/* the strip: an 8 px track in a 24 px hit area (Places' strip keeps one too) */
+.lt-band {
+  position: relative;
+  height: 24px;
+  cursor: ew-resize;
+  outline: none;
+  touch-action: pan-y;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.lt-band::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 8px;
+  height: 8px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+}
+/* a run: ok 70 % on dark; on light 70 % washes out on the field, so it is the full ok there */
+.lt-s {
+  position: absolute;
+  z-index: 1;
+  top: 8px;
+  height: 8px;
+  min-width: 3px;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px var(--field);
+  transition: box-shadow 120ms var(--ease-out);
+}
+.lt-s.ok,
+.lt-key i.ok {
+  background: color-mix(in srgb, var(--ok) 70%, transparent);
+}
+:host([data-theme='light']) .lt-s.ok,
+:host([data-theme='light']) .lt-key i.ok {
+  background: var(--ok);
+}
+.lt-s.warn,
+.lt-key i.warn {
+  background: var(--warn);
+}
+.lt-s.bad,
+.lt-key i.bad {
+  background: var(--bad);
+}
+.lt-s.on {
+  box-shadow:
+    0 0 0 1.5px var(--field),
+    0 0 0 3px color-mix(in srgb, var(--text) 45%, transparent);
+}
+/* ⟳: a 2 × 18 mark across the strip in text-2, ringed in its ground (the strip's "now" marker, quieter) */
+.lt-k {
+  position: absolute;
+  z-index: 2;
+  top: 3px;
+  width: 2px;
+  height: 18px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--text-2);
+  box-shadow: 0 0 0 2px var(--field);
+}
+.lt-k.on {
+  background: var(--text);
+}
+.lt-now {
+  position: absolute;
+  z-index: 2;
+  right: -1px;
+  top: 4px;
+  width: 2px;
+  height: 16px;
+  border-radius: 1px;
+  background: var(--text);
+  box-shadow: 0 0 0 2px var(--field);
+}
+/* the pointer's ghost (Places' strip) */
+.lt-band::before {
+  content: '';
+  position: absolute;
+  z-index: 3;
+  left: var(--hx, 0);
+  top: 2px;
+  bottom: 2px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--text) 45%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms var(--ease-out);
+}
+.lt-band.aim::before {
+  opacity: 1;
+}
+.kbd .lt-band:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 65%, transparent);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+/* the axis (DESIGN.md Axis 11) and the legend read: text-2 on the field, not text-3 */
+.lt-axis {
+  position: relative;
+  height: 16px;
+  margin-top: 2px;
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 500;
+  color: var(--text-2);
+}
+.lt-axis span {
+  position: absolute;
+  top: 0;
+  white-space: nowrap;
+}
+.lt-axis span:not(.last) {
+  transform: translateX(-50%);
+}
+.lt-axis span.last {
+  right: 0;
+}
+.lt-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 12px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-2);
+}
+.lt-key span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.lt-key i {
+  flex: none;
+  width: 10px;
+  height: 6px;
+  border-radius: 3px;
+}
+.lt-key i.k {
+  width: 2px;
+  height: 12px;
+  border-radius: 1px;
+  background: var(--text-2);
+}
+@container dlpage (max-width: 559px) {
+  .lt {
+    padding: 14px 14px;
+  }
+  .lt-top {
+    flex-direction: column;
+  }
+  .tabs.lt-range {
+    order: -1;
+    align-self: stretch;
+    margin-bottom: 4px;
+    grid-auto-columns: minmax(0, 1fr);
+  }
+  .lt-val {
+    white-space: normal;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lt-band::before,
+  .lt-s {
+    transition: none;
+  }
+}

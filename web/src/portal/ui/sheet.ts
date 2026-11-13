@@ -9,6 +9,7 @@
 import { h, ic } from '../dom';
 import { BOUNCY, DRAWER, EASE_IN, EASE_OUT, SMOOTH, SOFT, dismisses, play, rubber, unrubber } from '../motion';
 import { closeDrop } from './drop';
+import { layer, lockScroll } from './layer';
 
 /** A view: its root, and what the sheet reads from it. */
 export interface View {
@@ -133,7 +134,7 @@ function build() {
     },
     true,
   );
-  document.body.appendChild(root);
+  layer().appendChild(root);
   // What changes the sheet's width says so itself (a view, a row opening, a code swapped: planWidth); left is the
   // window, a phone turned or a desktop window crossing the dialog's width. Once a frame at most.
   let resizing = 0;
@@ -203,7 +204,7 @@ export function openSheet(factory: ViewFactory) {
   label(v);
   root.classList.add('open');
   root.setAttribute('aria-hidden', 'false');
-  document.body.classList.add('locked');
+  lockScroll(true);
   const p0 = planWidth();
   if (p0) startWidth({ ...p0, from: p0.want });
   sheetEl.getAnimations().forEach((a) => a.cancel());
@@ -256,7 +257,7 @@ export function closeSheet(now = false) {
     ownsHistory = false;
     history.back();
   }
-  document.body.classList.remove('locked');
+  lockScroll(false);
   if (now) return gone();
   root.dataset.closing = '1';
   // From where it stands: a dialog still coming up leaves from its present fade, blur and scale.
@@ -311,6 +312,16 @@ function gone() {
   const n = next;
   next = null;
   if (n) openSheet(n);
+}
+
+/**
+ * Gone at once, its history entry left where it is: the page itself is being
+ * left (the admin inside LuCI, whose router has moved on already). Back steps
+ * over the entry (the popstate handler below).
+ */
+export function dropSheet() {
+  ownsHistory = false;
+  closeSheet(true);
 }
 
 /** On the history entry a sheet pushed (openSheet): closing it steps back to the page's own. */
@@ -527,7 +538,7 @@ function pullToClose() {
   let drag: { y: number; t: number; dy: number; v: number; y0: number; off: number } | null = null;
   sheetEl.addEventListener('pointerdown', (e) => {
     const t = e.target as Element;
-    if (!t.closest('.vhead') || t.closest('button, a, input')) return;
+    if (!t.closest('.vhead, .vgrab') || t.closest('button, a, input')) return;
     // Not while it leaves, nor while a dialog pops up: its fade and blur ride the same animation as its scale.
     if (root.dataset.closing || running(sheetEl, 'opacity').length) return;
     // Taken where it stands (still rising, or settling back from the last pull), and the dim with it.

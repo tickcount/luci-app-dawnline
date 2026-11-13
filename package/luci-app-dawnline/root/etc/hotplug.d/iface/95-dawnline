@@ -6,6 +6,6 @@ case "$ACTION" in ifup|ifdown|ifup-failed) ;; *) exit 0 ;; esac
 # In order (a quick down/up must not log up first).
 /usr/bin/dawnline iface-event "$ACTION" "$INTERFACE" >/dev/null 2>&1
 # A disabled Dawnline leaves the tunnels empty: nothing would enforce end
-# dates, limits or hours once the devices were loaded.
+# dates or limits once the devices were loaded.
 [ "$ACTION" = ifup ] && /etc/init.d/dawnline enabled && /usr/bin/dawnline sync >/dev/null 2>&1 &
 exit 0

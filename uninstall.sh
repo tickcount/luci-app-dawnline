@@ -451,22 +451,29 @@ do_backup() {
 
 do_teardown() {
 	step "Running Dawnline's own removal"
-	if ubus list luci.dawnline >/dev/null 2>&1; then
-		# The removal takes the update lock itself: hand it over (the service is
-		# stopped first, so no automatic update can slip in between).
-		[ "$DRY_RUN" -eq 1 ] || /etc/init.d/dawnline stop >/dev/null 2>&1
+	# The same call as Settings → Remove Dawnline from this router. The backend's own object stops the
+	# service itself, last; a version from before it answers through rpcd, with the service stopped first
+	# (so no automatic update can slip in between).
+	for _obj in dawnline luci.dawnline; do
+		ubus list "$_obj" >/dev/null 2>&1 || continue
+		ubus -v list "$_obj" 2>/dev/null | grep -q '"uninstall"' || continue
+		if [ "$_obj" = luci.dawnline ] && [ "$DRY_RUN" -ne 1 ]; then
+			/etc/init.d/dawnline stop >/dev/null 2>&1
+		fi
+		# The removal takes the update lock itself: hand it over.
 		exec 8>&- 2>/dev/null
-		# The same call as Settings → Remove Dawnline from this router.
-		if act "call luci.dawnline uninstall (Settings → Remove Dawnline)" rpc \
-			ubus -t 120 call luci.dawnline uninstall '{"confirm":"remove"}'; then
+		if act "call $_obj uninstall (Settings → Remove Dawnline)" rpc \
+			ubus -t 120 call "$_obj" uninstall '{"confirm":"remove"}'; then
 			[ "$DRY_RUN" -eq 1 ] && return 0
 			if grep -q '"ok": *true' "$TMP_DIR/last.out" 2>/dev/null; then
+				# the backend stops the service a moment after it answers
+				[ "$_obj" = dawnline ] && sleep 3 && /etc/init.d/dawnline stop >/dev/null 2>&1
 				ok "Tunnels, firewall rules, portal and routing removed; service stopped"
 				return 0
 			fi
 		fi
-		warn "luci.dawnline uninstall failed: $(sed -n 's/.*"error": *"\(.*\)".*/\1/p' "$TMP_DIR/last.out" 2>/dev/null | head -n 1)"
-	fi
+		warn "$_obj uninstall failed: $(sed -n 's/.*"error": *"\(.*\)".*/\1/p' "$TMP_DIR/last.out" 2>/dev/null | head -n 1)"
+	done
 	if [ -x /usr/bin/dawnline ]; then
 		act "stop the Dawnline service" stop /etc/init.d/dawnline stop
 		if act "run 'dawnline teardown'" teardown /usr/bin/dawnline teardown; then

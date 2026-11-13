@@ -1,0 +1,75 @@
+/* A person's panel (pages/people/person): the head's note chip and server link, the device cards as links (the
+   portal's .dev, its hit area stretched over the card). */
+
+.ph-fact .chip {
+  /* a block, not a flex row: a long note ends in an ellipsis */
+  display: inline-block;
+  vertical-align: middle;
+  max-width: 220px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--knob);
+  color: var(--text);
+  font: 500 13px/24px var(--font);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+button.chip {
+  cursor: pointer;
+  transition: transform 150ms var(--ease-out);
+}
+button.chip:active {
+  transform: scale(0.96);
+}
+.ph-link {
+  color: var(--text);
+  text-decoration: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .ph-link:hover {
+    color: var(--accent);
+  }
+}
+.ph-speed {
+  color: var(--text-2);
+}
+
+/* the device cards: each a link to its page; ⋯ and the card's own button stand above the stretched link */
+.dev.as-link {
+  position: relative;
+  transition: background-color 200ms var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .dev.as-link:hover {
+    background: color-mix(in srgb, var(--raised), var(--knob) 40%);
+  }
+}
+.dev.as-link:has(.dev-a:active) {
+  background: color-mix(in srgb, var(--raised), var(--knob) 40%);
+  transition: none;
+}
+.dev.as-link .dev-a {
+  color: inherit;
+  text-decoration: none;
+}
+.dev.as-link .dev-a::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--r-card);
+}
+.dev.as-link .knob,
+.dev.as-link .btn,
+.dev.as-link .bars {
+  position: relative;
+  z-index: 1;
+}
+:host(.kbd) .dev.as-link .dev-a:focus-visible {
+  outline: none;
+}
+:host(.kbd) .dev.as-link:has(.dev-a:focus-visible) {
+  outline: 2px solid color-mix(in srgb, var(--accent) 65%, transparent);
+  outline-offset: 2px;
+}

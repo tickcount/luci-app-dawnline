@@ -1,0 +1,576 @@
+{
+	"sets": [
+		{
+			"o": {
+			},
+			"errs": [
+			],
+			"all": [
+			]
+		},
+		{
+			"o": {
+				"jc": "4",
+				"jmin": "10",
+				"jmax": "50",
+				"s1": "20",
+				"s2": "30",
+				"h1": "100",
+				"h2": "200",
+				"h3": "300",
+				"h4": "400"
+			},
+			"errs": [
+			],
+			"all": [
+			]
+		},
+		{
+			"o": {
+				"jc": "70000",
+				"jmin": "x",
+				"jmax": "",
+				"s1": " 12 ",
+				"s2": "1 2",
+				"s3": "-1",
+				"s4": "00000000012"
+			},
+			"errs": [
+				"Jc must be a whole number from 0 to 65535.",
+				"Jmin must be a whole number from 0 to 65535.",
+				"S2 must be a whole number from 0 to 65535.",
+				"S3 must be a whole number from 0 to 65535.",
+				"S4 must be a whole number from 0 to 65535."
+			],
+			"all": [
+				"Jc must be a whole number from 0 to 65535.",
+				"Jmin must be a whole number from 0 to 65535.",
+				"S2 must be a whole number from 0 to 65535.",
+				"S3 must be a whole number from 0 to 65535.",
+				"S4 must be a whole number from 0 to 65535."
+			]
+		},
+		{
+			"o": {
+				"jmin": "60",
+				"jmax": "50"
+			},
+			"errs": [
+				"Jmin must not be larger than Jmax."
+			],
+			"all": [
+				"Jmin must not be larger than Jmax."
+			]
+		},
+		{
+			"o": {
+				"jmin": "60"
+			},
+			"errs": [
+			],
+			"all": [
+			]
+		},
+		{
+			"o": {
+				"h1": "100-200",
+				"h2": "150-300",
+				"h3": "5",
+				"h4": "4294967295"
+			},
+			"errs": [
+				"H1 and H2 overlap: each packet type needs values of its own."
+			],
+			"all": [
+				"H1 and H2 overlap: each packet type needs values of its own."
+			]
+		},
+		{
+			"o": {
+				"h1": "1",
+				"h2": "1"
+			},
+			"errs": [
+				"H1 and H2 overlap: each packet type needs values of its own."
+			],
+			"all": [
+				"H1 and H2 overlap: each packet type needs values of its own."
+			]
+		},
+		{
+			"o": {
+				"h1": "3"
+			},
+			"errs": [
+				"H1 and H3 overlap: each packet type needs values of its own."
+			],
+			"all": [
+				"H1 and H3 overlap: each packet type needs values of its own."
+			]
+		},
+		{
+			"o": {
+				"h1": "200-100",
+				"h2": "5-",
+				"h3": "-5",
+				"h4": "1-2-3"
+			},
+			"errs": [
+				"H1 must be a number or a range like 100-200, up to 4294967295.",
+				"H2 must be a number or a range like 100-200, up to 4294967295.",
+				"H3 must be a number or a range like 100-200, up to 4294967295.",
+				"H4 must be a number or a range like 100-200, up to 4294967295."
+			],
+			"all": [
+				"H1 must be a number or a range like 100-200, up to 4294967295.",
+				"H2 must be a number or a range like 100-200, up to 4294967295.",
+				"H3 must be a number or a range like 100-200, up to 4294967295.",
+				"H4 must be a number or a range like 100-200, up to 4294967295."
+			]
+		},
+		{
+			"o": {
+				"h1": "4294967296",
+				"h2": " 77 "
+			},
+			"errs": [
+				"H1 must be a number or a range like 100-200, up to 4294967295."
+			],
+			"all": [
+				"H1 must be a number or a range like 100-200, up to 4294967295."
+			]
+		},
+		{
+			"o": {
+				"header_protection_key": "yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk=",
+				"s1": "12",
+				"s2": "11",
+				"s3": "64",
+				"s4": "0"
+			},
+			"errs": [
+				"S2 must be at least 12 with header protection.",
+				"S4 must be at least 12 with header protection."
+			],
+			"all": [
+				"S2 must be at least 12 with header protection.",
+				"S4 must be at least 12 with header protection."
+			]
+		},
+		{
+			"o": {
+				"header_protection_key": "yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk="
+			},
+			"errs": [
+				"S1 must be at least 12 with header protection.",
+				"S2 must be at least 12 with header protection.",
+				"S3 must be at least 12 with header protection.",
+				"S4 must be at least 12 with header protection."
+			],
+			"all": [
+				"S1 must be at least 12 with header protection.",
+				"S2 must be at least 12 with header protection.",
+				"S3 must be at least 12 with header protection.",
+				"S4 must be at least 12 with header protection."
+			]
+		},
+		{
+			"o": {
+				"header_protection_key": "not a key",
+				"s1": "20",
+				"s2": "20",
+				"s3": "20",
+				"s4": "20"
+			},
+			"errs": [
+				"The header protection key is not a key."
+			],
+			"all": [
+				"The header protection key is not a key."
+			]
+		},
+		{
+			"o": {
+				"header_protection_key": "yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBml=",
+				"s1": "99999"
+			},
+			"errs": [
+				"S1 must be a whole number from 0 to 65535.",
+				"The header protection key is not a key.",
+				"S2 must be at least 12 with header protection.",
+				"S3 must be at least 12 with header protection.",
+				"S4 must be at least 12 with header protection."
+			],
+			"all": [
+				"S1 must be a whole number from 0 to 65535.",
+				"The header protection key is not a key.",
+				"S2 must be at least 12 with header protection.",
+				"S3 must be at least 12 with header protection.",
+				"S4 must be at least 12 with header protection."
+			]
+		},
+		{
+			"o": {
+				"rekey_after_time": "0",
+				"rekey_timeout": "0-5",
+				"reject_after_time": "181",
+				"keepalive_timeout": "5-15",
+				"max_handshake_attempts": "many"
+			},
+			"errs": [
+				"RekeyTimeout must be a number or a range like 5-15, from 1 to 65535.",
+				"RejectAfterTime must be at most 180 seconds.",
+				"MaxHandshakeAttempts must be a number or a range like 5-15, from 1 to 65535."
+			],
+			"all": [
+				"RekeyTimeout must be a number or a range like 5-15, from 1 to 65535.",
+				"RejectAfterTime must be at most 180 seconds.",
+				"MaxHandshakeAttempts must be a number or a range like 5-15, from 1 to 65535."
+			]
+		},
+		{
+			"o": {
+				"rekey_after_time": "120",
+				"rekey_timeout": "5",
+				"reject_after_time": "100-180",
+				"keepalive_timeout": "65536",
+				"max_handshake_attempts": "0-0"
+			},
+			"errs": [
+				"KeepaliveTimeout must be a number or a range like 5-15, from 1 to 65535."
+			],
+			"all": [
+				"KeepaliveTimeout must be a number or a range like 5-15, from 1 to 65535."
+			]
+		},
+		{
+			"o": {
+				"reject_after_time": "10-999"
+			},
+			"errs": [
+				"RejectAfterTime must be at most 180 seconds."
+			],
+			"all": [
+				"RejectAfterTime must be at most 180 seconds."
+			]
+		},
+		{
+			"o": {
+				"content_padding_addition": "10-100"
+			},
+			"errs": [
+			],
+			"all": [
+			]
+		},
+		{
+			"o": {
+				"content_padding_addition": "100-10"
+			},
+			"errs": [
+				"ContentPaddingAddition must be a number or a range like 10-100, up to 65535."
+			],
+			"all": [
+				"ContentPaddingAddition must be a number or a range like 10-100, up to 65535."
+			]
+		},
+		{
+			"o": {
+				"content_padding_addition": "0"
+			},
+			"errs": [
+			],
+			"all": [
+			]
+		},
+		{
+			"o": {
+				"content_padding_addition": "lots"
+			},
+			"errs": [
+				"ContentPaddingAddition must be a number or a range like 10-100, up to 65535."
+			],
+			"all": [
+				"ContentPaddingAddition must be a number or a range like 10-100, up to 65535."
+			]
+		},
+		{
+			"o": {
+				"random_trailers": "on",
+				"disable_cookies": "0"
+			},
+			"errs": [
+			],
+			"all": [
+			]
+		},
+		{
+			"o": {
+				"random_trailers": "yes",
+				"disable_cookies": "true"
+			},
+			"errs": [
+				"RandomTrailers must be on or off.",
+				"DisableCookies must be on or off."
+			],
+			"all": [
+				"RandomTrailers must be on or off.",
+				"DisableCookies must be on or off."
+			]
+		},
+		{
+			"o": {
+				"i1": "<b 0x0a0b><r 16><t>",
+				"i2": "text <rc 8> between <rd 1000>",
+				"i3": "<t>"
+			},
+			"errs": [
+			],
+			"all": [
+			]
+		},
+		{
+			"o": {
+				"i1": "<b 0xabc>",
+				"i2": "<b 0x>",
+				"i3": "<b 0xzz>",
+				"i4": "<b abcd>",
+				"i5": "<B 0x00>"
+			},
+			"errs": [
+				"I1: <b 0xabc> is not a tag AmneziaWG apps accept: use <b 0x…> with an even number of hex digits, <r N>, <rc N> or <rd N> with N from 1 to 1000, or <t>.",
+				"I2: <b 0x> is not a tag AmneziaWG apps accept: use <b 0x…> with an even number of hex digits, <r N>, <rc N> or <rd N> with N from 1 to 1000, or <t>.",
+				"I3: <b 0xzz> is not a tag AmneziaWG apps accept: use <b 0x…> with an even number of hex digits, <r N>, <rc N> or <rd N> with N from 1 to 1000, or <t>.",
+				"I4: <b abcd> is not a tag AmneziaWG apps accept: use <b 0x…> with an even number of hex digits, <r N>, <rc N> or <rd N> with N from 1 to 1000, or <t>.",
+				"I5: <B 0x00> is not a tag AmneziaWG apps accept: use <b 0x…> with an even number of hex digits, <r N>, <rc N> or <rd N> with N from 1 to 1000, or <t>."
+			],
+			"all": [
+				"I1: <b 0xabc> is not a tag AmneziaWG apps accept: use <b 0x…> with an even number of hex digits, <r N>, <rc N> or <rd N> with N from 1 to 1000, or <t>.",
+				"I2: <b 0x> is not a tag AmneziaWG apps accept: use <b 0x…> with an even number of hex digits, <r N>, <rc N> or <rd N> with N from 1 to 1000, or <t>.",
+				"I3: <b 0xzz> is not a tag AmneziaWG apps accept: use <b 0x…> with an even number of hex digits, <r N>, <rc N> or <rd N> with N from 1 to 1000, or <t>.",
+				"I4: <b abcd> is not a tag AmneziaWG apps accept: use <b 0x…> with an even number of hex digits, <r N>, <rc N> or <rd N> with N from 1 to 1000, or <t>.",
+				"I5: <B 0x00> is not a tag AmneziaWG apps accept: use <b 0x…> with an even number of hex digits, <r N>, <rc N> or <rd N> with N from 1 to 1000, or <t>."
+			]
+		},
+		{
+			"o": {
+				"i1": "<r 0>",
+				"i2": "<r 1001>",
+				"i3": "<r -5>",
+				"i4": "<rc>",
+				"i5": "<c>"
+			},
+			"errs": [
+				"I1: <r 0> is not a tag AmneziaWG apps accept: use <b 0x…> with an even number of hex digits, <r N>, <rc N> or <rd N> with N from 1 to 1000, or <t>.",
+				"I2: <r 1001> is not a tag AmneziaWG apps accept: use <b 0x…> with an even number of hex digits, <r N>, <rc N> or <rd N> with N from 1 to 1000, or <t>.",
+				"I3: <r -5> is not a tag AmneziaWG apps accept: use <b 0x…> with an even number of hex digits, <r N>, <rc N> or <rd N> with N from 1 to 1000, or <t>.",
+				"I4: <rc> is not a tag AmneziaWG apps accept: use <b 0x…> with an even number of hex digits, <r N>, <rc N> or <rd N> with N from 1 to 1000, or <t>.",
+				"I5: <c> is not a tag AmneziaWG apps accept: use <b 0x…> with an even number of hex digits, <r N>, <rc N> or <rd N> with N from 1 to 1000, or <t>."
+			],
+			"all": [
+				"I1: <r 0> is not a tag AmneziaWG apps accept: use <b 0x…> with an even number of hex digits, <r N>, <rc N> or <rd N> with N from 1 to 1000, or <t>.",
+				"I2: <r 1001> is not a tag AmneziaWG apps accept: use <b 0x…> with an even number of hex digits, <r N>, <rc N> or <rd N> with N from 1 to 1000, or <t>.",
+				"I3: <r -5> is not a tag AmneziaWG apps accept: use <b 0x…> with an even number of hex digits, <r N>, <rc N> or <rd N> with N from 1 to 1000, or <t>.",
+				"I4: <rc> is not a tag AmneziaWG apps accept: use <b 0x…> with an even number of hex digits, <r N>, <rc N> or <rd N> with N from 1 to 1000, or <t>.",
+				"I5: <c> is not a tag AmneziaWG apps accept: use <b 0x…> with an even number of hex digits, <r N>, <rc N> or <rd N> with N from 1 to 1000, or <t>."
+			]
+		},
+		{
+			"o": {
+				"i1": "<d>",
+				"i2": "<ds 4>",
+				"i3": "<dz 4>",
+				"i4": "<r 5",
+				"i5": "no tags at all"
+			},
+			"errs": [
+				"I1: <d> is not a tag AmneziaWG apps accept: use <b 0x…> with an even number of hex digits, <r N>, <rc N> or <rd N> with N from 1 to 1000, or <t>.",
+				"I2: <ds 4> is not a tag AmneziaWG apps accept: use <b 0x…> with an even number of hex digits, <r N>, <rc N> or <rd N> with N from 1 to 1000, or <t>.",
+				"I3: <dz 4> is not a tag AmneziaWG apps accept: use <b 0x…> with an even number of hex digits, <r N>, <rc N> or <rd N> with N from 1 to 1000, or <t>.",
+				"I4 has a tag that is not closed with >."
+			],
+			"all": [
+				"I1: <d> is not a tag AmneziaWG apps accept: use <b 0x…> with an even number of hex digits, <r N>, <rc N> or <rd N> with N from 1 to 1000, or <t>.",
+				"I2: <ds 4> is not a tag AmneziaWG apps accept: use <b 0x…> with an even number of hex digits, <r N>, <rc N> or <rd N> with N from 1 to 1000, or <t>.",
+				"I3: <dz 4> is not a tag AmneziaWG apps accept: use <b 0x…> with an even number of hex digits, <r N>, <rc N> or <rd N> with N from 1 to 1000, or <t>.",
+				"I4 has a tag that is not closed with >."
+			]
+		},
+		{
+			"o": {
+				"i1": "<b 0x00> # a comment",
+				"i2": "<r 5>\n<r 6>",
+				"i3": "<r 5>\r"
+			},
+			"errs": [
+				"I1 may not contain # or a line break.",
+				"I2 may not contain # or a line break.",
+				"I3 may not contain # or a line break."
+			],
+			"all": [
+				"I1 may not contain # or a line break.",
+				"I2 may not contain # or a line break.",
+				"I3 may not contain # or a line break."
+			]
+		},
+		{
+			"o": {
+				"i1": "<this tag is far longer than twenty-four characters>",
+				"i2": "<t><t ><r  5>"
+			},
+			"errs": [
+				"I1: <this tag is far longer t…> is not a tag AmneziaWG apps accept: use <b 0x…> with an even number of hex digits, <r N>, <rc N> or <rd N> with N from 1 to 1000, or <t>.",
+				"I2: <t > is not a tag AmneziaWG apps accept: use <b 0x…> with an even number of hex digits, <r N>, <rc N> or <rd N> with N from 1 to 1000, or <t>."
+			],
+			"all": [
+				"I1: <this tag is far longer t…> is not a tag AmneziaWG apps accept: use <b 0x…> with an even number of hex digits, <r N>, <rc N> or <rd N> with N from 1 to 1000, or <t>.",
+				"I2: <t > is not a tag AmneziaWG apps accept: use <b 0x…> with an even number of hex digits, <r N>, <rc N> or <rd N> with N from 1 to 1000, or <t>."
+			]
+		},
+		{
+			"o": {
+				"i1": "<b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899><b 0x0011223344556677889900112233445566778899>",
+				"i2": "<t>"
+			},
+			"errs": [
+				"I1-I5 together must be at most 2000 characters, not 2073."
+			],
+			"all": [
+				"I1-I5 together must be at most 2000 characters, not 2073."
+			]
+		},
+		{
+			"o": {
+				"i1": "<r 1>>",
+				"i2": "><t>",
+				"i3": "<<t>"
+			},
+			"errs": [
+				"I3: <<t> is not a tag AmneziaWG apps accept: use <b 0x…> with an even number of hex digits, <r N>, <rc N> or <rd N> with N from 1 to 1000, or <t>."
+			],
+			"all": [
+				"I3: <<t> is not a tag AmneziaWG apps accept: use <b 0x…> with an even number of hex digits, <r N>, <rc N> or <rd N> with N from 1 to 1000, or <t>."
+			]
+		},
+		{
+			"o": {
+				"jc": "5",
+				"jmin": "50",
+				"jmax": "1000",
+				"s1": "15",
+				"s2": "20",
+				"s3": "25",
+				"s4": "30",
+				"h1": "1000-2000",
+				"h2": "3000-4000",
+				"h3": "5000-6000",
+				"h4": "7000-8000",
+				"i1": "<b 0x1234><r 20>",
+				"header_protection_key": "yAnz5TF+lXXJte14tji3zlMNq+hd2rYUIgJBgB3fBmk=",
+				"content_padding_addition": "5-50",
+				"rekey_after_time": "100-120",
+				"rekey_timeout": "4-6",
+				"reject_after_time": "150-180",
+				"keepalive_timeout": "8-12",
+				"max_handshake_attempts": "15-20",
+				"random_trailers": "off",
+				"disable_cookies": "1"
+			},
+			"errs": [
+			],
+			"all": [
+			]
+		},
+		{
+			"o": {
+				"s1": "8",
+				"s2": "64"
+			},
+			"errs": [
+			],
+			"all": [
+				"S2 must not be S1 + 56: the handshake initiation and response would have the same size."
+			]
+		},
+		{
+			"o": {
+				"s1": "8",
+				"s2": " 64 "
+			},
+			"errs": [
+			],
+			"all": [
+				"S2 must not be S1 + 56: the handshake initiation and response would have the same size."
+			]
+		},
+		{
+			"o": {
+				"s1": "0",
+				"s2": "56"
+			},
+			"errs": [
+			],
+			"all": [
+				"S2 must not be S1 + 56: the handshake initiation and response would have the same size."
+			]
+		},
+		{
+			"o": {
+				"jc": "11",
+				"jmin": "1025",
+				"jmax": "2000",
+				"s1": "65",
+				"s2": "70",
+				"s3": "65",
+				"s4": "33"
+			},
+			"errs": [
+			],
+			"all": [
+				"Jc must be from 0 to 10.",
+				"Jmin must be from 0 to 1024.",
+				"Jmax must be from 0 to 1024.",
+				"S1 must be from 0 to 64.",
+				"S2 must be from 0 to 64.",
+				"S3 must be from 0 to 64.",
+				"S4 must be from 0 to 32."
+			]
+		},
+		{
+			"o": {
+				"jc": "10",
+				"jmin": "1024",
+				"jmax": "1024",
+				"s1": "64",
+				"s2": "64",
+				"s3": "64",
+				"s4": "32"
+			},
+			"errs": [
+			],
+			"all": [
+			]
+		},
+		{
+			"o": {
+				"s1": "x",
+				"s2": "56"
+			},
+			"errs": [
+				"S1 must be a whole number from 0 to 65535."
+			],
+			"all": [
+				"S1 must be a whole number from 0 to 65535."
+			]
+		},
+		{
+			"o": {
+				"s2": "56"
+			},
+			"errs": [
+			],
+			"all": [
+			]
+		}
+	]
+}

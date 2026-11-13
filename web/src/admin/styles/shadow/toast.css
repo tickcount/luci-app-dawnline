@@ -1,0 +1,40 @@
+/* The toast (portal menu-toast.css) carries the admin's longer sentences (the router not answering, an
+   update under the page): it wraps instead of running off a phone's screen, and grows upwards. An undo
+   beside the words (owner decision: a reversible one-tap action says what it did, «Undo» beside it). */
+.toast {
+  height: auto;
+  min-height: 42px;
+  max-width: min(560px, 100%);
+  padding-top: 10px;
+  padding-bottom: 10px;
+  line-height: 20px;
+  white-space: normal;
+  bottom: 0;
+}
+.toast .i {
+  flex: none;
+}
+.toast.has-undo {
+  padding-right: 6px;
+  gap: 10px;
+}
+.toast-undo {
+  flex: none;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--toast-fg) 8%, transparent);
+  color: var(--toast-fg);
+  font-size: 14px;
+  font-weight: 500;
+  pointer-events: auto;
+  transition: background-color 150ms;
+}
+@media (hover: hover) and (pointer: fine) {
+  .toast-undo:hover {
+    background: color-mix(in srgb, var(--toast-fg) 14%, transparent);
+  }
+}
+.toast-undo:active {
+  background: color-mix(in srgb, var(--toast-fg) 14%, transparent);
+}

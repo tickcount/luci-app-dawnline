@@ -1,0 +1,211 @@
+/* The rollout of a new configuration, open on the page (widgets/rollout.ts): the strip of one cell a device (a
+   meter past 60), the devices that still wait as rows with their portal-link knob, and the whole strip as a card
+   of Settings («.roo»); Overview's server cards use the cells in their own short form. Only the portal's tokens
+   and recipes. */
+
+/* one cell a device: the calendar's cells (radius 3) in a row; done in ok 70 % (the link timeline's runs; full ok on light,
+   where 70 % washes out), waiting in warn */
+.ro-strip {
+  display: flex;
+  gap: 2px;
+  height: 16px;
+  margin: 12px 8px 2px;
+}
+.ro-c {
+  flex: 1 1 0;
+  min-width: 2px;
+  border-radius: 3px;
+  background: var(--warn);
+  transition: background-color 280ms var(--ease-out);
+}
+.ro-c.done,
+.ro-meter > i {
+  background: color-mix(in srgb, var(--ok) 70%, transparent);
+}
+@media (prefers-color-scheme: light) {
+  .ro-c.done,
+  .ro-meter > i {
+    background: var(--ok);
+  }
+}
+/* many devices: the Portal's 6 px meter in the same pair (waiting the track) */
+.ro-meter {
+  display: flex;
+  height: 6px;
+  margin: 14px 8px 4px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--warn);
+}
+.ro-meter > i {
+  height: 100%;
+  border-right: 2px solid var(--ro-ground);
+  transition: width 524ms var(--spring-smooth, ease-out);
+}
+
+.ro-lbl {
+  padding: 14px 8px 6px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  color: var(--ro-sub);
+}
+/* a row: the ⋯ menu's row, taller for two lines; concentric with the glass (24 − 10) */
+.ro-i {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 0 6px 0 10px;
+  border-radius: 14px;
+  color: var(--ro-text);
+  -webkit-touch-callout: none;
+  transition: scale 150ms var(--ease-out);
+}
+.ro-i:active {
+  scale: 0.97;
+}
+.ro-i > .gi {
+  flex: none;
+  width: 28px;
+  height: 28px;
+}
+.ro-it {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ro-it b,
+.ro-it span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ro-it b {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.ro-it span {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--ro-sub);
+}
+.ro-more {
+  padding: 6px 10px 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--ro-sub);
+}
+.ro-more[hidden] {
+  display: none;
+}
+
+/* ── the whole strip, a card of a page ── */
+.roo {
+  --ro-text: var(--text);
+  --ro-sub: var(--text-2);
+  --ro-ground: var(--raised);
+  display: flex;
+  flex-direction: column;
+  padding: 14px 8px 8px;
+  border-radius: 24px;
+}
+.roo {
+  scroll-margin-top: 16px;
+}
+.roo-h {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  padding: 0 6px 0 8px;
+}
+.roo-ic {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+  color: var(--warn);
+}
+.roo-ic .i {
+  width: 16px;
+  height: 16px;
+}
+.roo-t {
+  flex: 1 1 220px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.roo-t .roo-n {
+  margin: 0;
+  outline: none;
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+.roo-t span {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-2);
+}
+.roo-a {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.roo .ro-strip {
+  margin: 14px 8px 2px;
+}
+.roo .ro-lbl {
+  padding: 12px 8px 4px;
+}
+.roo-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 8px;
+}
+@container dlpage (max-width: 699px) {
+  .roo-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.roo .ro-i {
+  text-decoration: none;
+  transition:
+    scale 150ms var(--ease-out),
+    background-color 150ms;
+}
+@media (hover: hover) and (pointer: fine) {
+  .roo .ro-i:hover {
+    background: color-mix(in srgb, var(--raised), var(--knob) 40%);
+  }
+}
+.roo .ro-k {
+  flex: none;
+  width: 36px;
+  height: 36px;
+}
+.roo .ro-more {
+  padding: 6px 10px 4px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ro-c,
+  .ro-meter > i {
+    transition: none;
+  }
+}

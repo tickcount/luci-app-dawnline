@@ -9,7 +9,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP="$ROOT/package/luci-app-dawnline"
-VERSION="$(sed -n "s/^export const VERSION = '\(.*\)';/\1/p" "$APP/root/usr/share/ucode/dawnline/util.uc")"
+VERSION="$(cat "$APP/root/usr/share/dawnline/version")"
 OUT="$ROOT/dist"
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
@@ -19,13 +19,21 @@ grep -q "\"version\": \"$VERSION\"" "$ROOT/web/package.json" || { echo "web/pack
 
 [ "${SKIP_WEB:-0}" = 1 ] || (cd "$ROOT/web" && npm run --silent ci)
 # With SKIP_WEB=1 the bundles come from an earlier build (they are not committed).
-for f in htdocs/luci-static/resources/dawnline/app.js root/usr/share/dawnline/portal/assets/portal.js root/usr/share/dawnline/portal/assets/portal.css; do
+for f in htdocs/luci-static/resources/dawnline/app.js htdocs/luci-static/resources/dawnline/style.js htdocs/luci-static/resources/dawnline/map.js htdocs/luci-static/resources/dawnline/qr.js root/usr/share/dawnline/portal/assets/portal.js root/usr/share/dawnline/portal/assets/portal.css; do
 	[ -f "$APP/$f" ] || { echo "$APP/$f is missing: run 'npm run build' in web/" >&2; exit 1; }
 done
 
 mkdir -p "$STAGE/www" "$OUT"
 cp -R "$APP/root/." "$STAGE/"
 cp -R "$APP/htdocs/." "$STAGE/www/"
+# The Go backend, for the one router this tarball goes to (BACKEND_ARCH: its `uname -m`; deploy.sh asks it).
+# Without it the tarball has none and the pages ask the router themselves, as a release package does
+# until the backend is built for every architecture (docs/backend.md).
+if [ -n "${BACKEND_ARCH:-}" ]; then
+	BIN="$("$ROOT/scripts/build-backend.sh" "$BACKEND_ARCH" | tail -n1)"
+	cp "$BIN" "$STAGE/usr/libexec/dawnline/dawnlined"
+	chmod 755 "$STAGE/usr/libexec/dawnline/dawnlined"
+fi
 for po in "$APP"/po/*/dawnline.po; do
 	l="$(basename "$(dirname "$po")")"
 	[ "$l" = templates ] && continue
@@ -35,9 +43,8 @@ for po in "$APP"/po/*/dawnline.po; do
 	case "$l" in ru) name='Русский (Russian)' ;; *) name="$l" ;; esac
 	printf "uci set luci.languages.%s='%s'; uci commit luci\n" "$l" "$name" > "$STAGE/etc/uci-defaults/luci-i18n-dawnline-$l"
 done
-chmod 755 "$STAGE/usr/bin/dawnline" "$STAGE/usr/libexec/dawnline/agent" "$STAGE/usr/libexec/dawnline/updater" "$STAGE/usr/libexec/dawnline/resolver" "$STAGE/usr/libexec/dawnline/postupdate" \
-	"$STAGE/etc/init.d/dawnline" "$STAGE/etc/uci-defaults/90_dawnline" "$STAGE/etc/hotplug.d/iface/95-dawnline" \
-	"$STAGE/usr/share/dawnline/portal/www/cgi-bin/portal" "$STAGE/usr/share/dawnline/portal/cgi.uc"
+chmod 755 "$STAGE/usr/bin/dawnline" "$STAGE/usr/libexec/dawnline/updater" "$STAGE/usr/libexec/dawnline/fetch-backend" "$STAGE/usr/libexec/dawnline/resolver" "$STAGE/usr/libexec/dawnline/postupdate" \
+	"$STAGE/etc/init.d/dawnline" "$STAGE/etc/uci-defaults/90_dawnline" "$STAGE/etc/hotplug.d/iface/95-dawnline"
 find "$STAGE" -name '.DS_Store' -delete
 
 TAR="$OUT/luci-app-dawnline-$VERSION.tar.gz"

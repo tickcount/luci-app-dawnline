@@ -1,0 +1,170 @@
+{
+	"ts": 1800000000,
+	"errors": [
+		"Person Boris: server gone does not exist.",
+		"Person Boris: circle nowhere does not exist.",
+		"Person Boris: has the same personal link as Anna.",
+		"Device Tablet of Anna: address 10.77.0.2 is also used by device Phone of Anna.",
+		"Device Laptop of Anna: the public key is not a key.",
+		"Device Laptop of Anna: the private key is not a key.",
+		"Device Laptop of Anna: the preshared key is not a key.",
+		"Device Laptop of Anna: MTU 9000 is not between 1280 and 1500.",
+		"Device Laptop of Anna: keep-alive 9999 is not between 0 and 600 seconds.",
+		"Device Watch of Anna: address (none) is not a plain IPv4 address.",
+		"Device TV of Anna: address 10.77.0.300 is not a plain IPv4 address.",
+		"Device Console of Anna: address 10.99.0.4 is outside Home's tunnel 10.77.0.0/24.",
+		"Device Camera of Anna: address 10.77.0.1 is the router's own address on Home.",
+		"Device Mirror of Anna: the public key is the server's own.",
+		"Device Orphan: person nobody does not exist.",
+		"Circle Lost: server gone does not exist."
+	],
+	"states": {
+		"anna": "active",
+		"boris": "no_server",
+		"clara": "paused",
+		"dmitri": "expired"
+	},
+	"tunnels": {
+		"home": [
+			"good",
+			"same",
+			"outside",
+			"routers"
+		],
+		"cabin": [
+		]
+	},
+	"diffs": [
+		{
+			"server": "home",
+			"loaded": [
+				"HIgo9xNzJMWLKASShiTqIybxZ0U3wGLiUeJ1PKf8ykw=",
+				"TrMvSoP4jYQlY6RIzBgbssQqY3vxI2Pi+y71lOWWXX0=",
+				"DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDA=",
+				"EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEA="
+			],
+			"diff": {
+				"loaded": 4,
+				"missing": 0,
+				"extra": 0
+			}
+		},
+		{
+			"server": "home",
+			"loaded": [
+				"TrMvSoP4jYQlY6RIzBgbssQqY3vxI2Pi+y71lOWWXX0=",
+				"DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDA=",
+				"EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEA="
+			],
+			"diff": {
+				"loaded": 3,
+				"missing": 1,
+				"extra": 0
+			}
+		},
+		{
+			"server": "home",
+			"loaded": [
+				"HIgo9xNzJMWLKASShiTqIybxZ0U3wGLiUeJ1PKf8ykw=",
+				"TrMvSoP4jYQlY6RIzBgbssQqY3vxI2Pi+y71lOWWXX0=",
+				"DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDA=",
+				"EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEA=",
+				"ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZA="
+			],
+			"diff": {
+				"loaded": 5,
+				"missing": 0,
+				"extra": 1
+			}
+		},
+		{
+			"server": "home",
+			"loaded": [
+				"ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZA="
+			],
+			"diff": {
+				"loaded": 1,
+				"missing": 4,
+				"extra": 1
+			}
+		},
+		{
+			"server": "home",
+			"loaded": [
+			],
+			"diff": {
+				"loaded": 0,
+				"missing": 4,
+				"extra": 0
+			}
+		},
+		{
+			"server": "cabin",
+			"loaded": [
+			],
+			"diff": {
+				"loaded": 0,
+				"missing": 0,
+				"extra": 0
+			}
+		},
+		{
+			"server": "cabin",
+			"loaded": [
+			],
+			"diff": {
+				"loaded": 0,
+				"missing": 0,
+				"extra": 0
+			}
+		},
+		{
+			"server": "cabin",
+			"loaded": [
+				"ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZA="
+			],
+			"diff": {
+				"loaded": 1,
+				"missing": 0,
+				"extra": 1
+			}
+		},
+		{
+			"server": "cabin",
+			"loaded": [
+				"ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZA="
+			],
+			"diff": {
+				"loaded": 1,
+				"missing": 0,
+				"extra": 1
+			}
+		},
+		{
+			"server": "cabin",
+			"loaded": [
+			],
+			"diff": {
+				"loaded": 0,
+				"missing": 0,
+				"extra": 0
+			}
+		}
+	],
+	"network": "config interface 'lan'\n\toption proto 'static'\n\nconfig device 'odd'\n\nconfig interface 'dawn5'\n\toption proto 'amneziawg'\n\toption _dawnline '1'\n",
+	"config_errors": [
+		"Person Anna: server gone does not exist.",
+		"Server Twin: Subnet overlaps 10.77.0.0/24.",
+		"Server Twin: Endpoint must be a hostname or IP address.",
+		"Server Twin: interface dawn0 is also used by Home.",
+		"Server Twin: UDP 4500 is also used by Home.",
+		"Server Lan name: lan is one of the router's own network interfaces.",
+		"Server Internal: Port must be 1-65535.",
+		"Server Internal: Subnet must look like 10.77.0.0/24.",
+		"Server Internal: dlx0 is one of the router's own network interfaces.",
+		"Server Odd: Interface name: 1-12 lowercase letters, digits or _.",
+		"Server Odd: Port must be 1-65535.",
+		"Server Odd: Jmin must not be larger than Jmax.",
+		"Server Odd: H1 and H2 overlap: each packet type needs values of its own."
+	]
+}

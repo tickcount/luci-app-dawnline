@@ -19,12 +19,12 @@ const LOOK: Record<ScenarioId, [string, Tone]> = {
   first: ['plus', 'blue'],
   stale: ['refresh', 'orange'],
   quota: ['chart', 'red'],
-  hours: ['clock', 'orange'],
   paused: ['pause', 'orange'],
   expired: ['calendar', 'red'],
   http: ['lock', 'orange'],
   plain: ['shield', 'grey'],
   full: ['phone', 'grey'],
+  site: ['router', 'blue'],
 };
 
 /** What opens the scenarios' drawer. */
