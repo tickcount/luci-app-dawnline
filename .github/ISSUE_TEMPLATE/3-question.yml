@@ -1,6 +1,6 @@
 name: Question
 description: How something works, or how to set it up
-labels: ["question"]
+type: Question
 body:
   - type: markdown
     attributes:

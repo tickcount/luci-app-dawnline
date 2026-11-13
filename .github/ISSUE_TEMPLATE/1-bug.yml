@@ -8,7 +8,7 @@ body:
       value: |
         Thanks for taking the time. A report that can be reproduced gets fixed much sooner, so the fields below ask for what is usually needed.
 
-        **Before you send it, remove from everything you paste:** private and preshared keys, people's personal links (`https://…/p/…`) and public IP addresses. The service log masks keys by itself; `awg show` does not.
+        **Before you send it, remove from everything you paste:** private and preshared keys, people's personal links (the address a person opens their portal with) and public IP addresses. The service log masks keys by itself; `awg show` does not.
 
   - type: dropdown
     id: area
@@ -76,7 +76,7 @@ body:
     id: router
     attributes:
       label: Router and architecture
-      description: The model, and the architecture from `ubus call system board` (the `target` line) or `/etc/openwrt_release`.
+      description: The model, and the architecture (`grep ARCH /etc/openwrt_release` on the router).
       placeholder: Xiaomi AX3000T, aarch64_cortex-a53
     validations:
       required: true
