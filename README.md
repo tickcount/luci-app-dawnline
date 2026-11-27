@@ -321,6 +321,37 @@ By hand: <kbd>Settings</kbd> › <kbd>Remove Dawnline</kbd>
 ## ❓ FAQ
 
 <details>
+<summary><b>How is it different from wg-easy, Tailscale and Headscale?</b></summary>
+
+<br>
+
+They solve neighbouring problems. [wg-easy](https://github.com/wg-easy/wg-easy)
+is a web page for making WireGuard clients, usually run in Docker on a server.
+[Tailscale](https://tailscale.com/) joins your own devices into one private
+network through its coordination service.
+[Headscale](https://github.com/juanfont/headscale) is a self-hosted
+replacement for that service, used with the Tailscale apps. Dawnline is for
+**sharing your router's VPN with other people**, each of whom looks after their
+own devices.
+
+| | Dawnline | wg-easy | Tailscale | Headscale |
+|---|---|---|---|---|
+| **Runs on** | Your OpenWrt router, as a LuCI app | A server or NAS, usually in Docker | Your devices; Tailscale runs the coordination service | A server you run; the Tailscale apps on the devices |
+| **Who adds a device** | The person, from their own link | You make the client and hand over the config | Each person signs in to an account | You register the node (a key or a sign-in you set up) |
+| **A person's own page** | Yes: devices, access, limits | No: a list of clients | No: an account and its access rules | No: users and access rules |
+| **What a person may reach** | Home, internet or both, with a date or a data limit | Per client | Access rules, built for a team's network | Access rules, built for a team's network |
+| **Disguised for networks that block VPNs** | Yes, AmneziaWG | No, plain WireGuard | Not by itself | Not by itself |
+| **A third party in the middle** | No | No | Yes, Tailscale's service | No, but you run the server |
+
+**Choose Dawnline** to give family, friends or a small team a VPN through your
+own router, without making or sending configs, and where the network may block
+plain WireGuard. **Choose another** to join your own devices into one network
+that works behind any NAT (Tailscale, or Headscale to host it yourself), or to
+run a plain WireGuard server on a machine that is not a router (wg-easy).
+
+</details>
+
+<details>
 <summary><b>Which apps do people use?</b></summary>
 
 <br>
