@@ -18,7 +18,7 @@
 <a href="https://openwrt.org/"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/badge/OpenWrt-25.12%20%C2%B7%20apk.svg?variant=secondary&font=geist&logo=openwrt&mode=dark"><img alt="OpenWrt 25.12" src="https://shieldcn.dev/badge/OpenWrt-25.12%20%C2%B7%20apk.svg?variant=secondary&font=geist&logo=openwrt&mode=light"></picture></a>
 <a href="https://docs.amnezia.org/"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/badge/AmneziaWG-2.0%20%C2%B7%203.1.svg?variant=secondary&font=geist&logo=wireguard&mode=dark"><img alt="AmneziaWG 2.0 и 3.1" src="https://shieldcn.dev/badge/AmneziaWG-2.0%20%C2%B7%203.1.svg?variant=secondary&font=geist&logo=wireguard&mode=light"></picture></a>
 
-[**Быстрый старт**](#-быстрый-старт) &nbsp;·&nbsp; [**Демо**](https://dawnline-demo.vercel.app) &nbsp;·&nbsp; [Возможности](#-возможности) &nbsp;·&nbsp; [Как это работает](#-как-это-работает) &nbsp;·&nbsp; [Скриншоты](#-как-это-выглядит) &nbsp;·&nbsp; [Вопросы](#-вопросы-и-ответы) &nbsp;·&nbsp; [Разработка](#-разработка)
+[**Быстрый старт**](#-быстрый-старт) &nbsp;·&nbsp; [**Демо**](https://dawnline-demo.vercel.app) &nbsp;·&nbsp; [Возможности](#-возможности) &nbsp;·&nbsp; [Как это работает](#-как-это-работает) &nbsp;·&nbsp; [Скриншоты](#-как-это-выглядит) &nbsp;·&nbsp; [Вопросы](#-вопросы-и-ответы) &nbsp;·&nbsp; [Обсуждения](https://github.com/tickcount/luci-app-dawnline/discussions) &nbsp;·&nbsp; [Разработка](#-разработка)
 
 [English](README.md) &nbsp;·&nbsp; **Русский**
 
@@ -427,6 +427,10 @@ AmneziaVPN или AmneziaWG на телефонах и компьютерах, V
 кешируется на роутере. Это можно выключить в <kbd>Настройки</kbd> › <kbd>История и хранение</kbd>.
 
 </details>
+
+Нет ответа здесь? Спросите в [обсуждениях](https://github.com/tickcount/luci-app-dawnline/discussions)
+(вопросы, идеи, как вы пользуетесь), или создайте
+[сообщение об ошибке](https://github.com/tickcount/luci-app-dawnline/issues/new/choose).
 
 ## 🧾 Что Dawnline меняет на роутере
 

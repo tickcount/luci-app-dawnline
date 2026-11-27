@@ -18,7 +18,7 @@
 <a href="https://openwrt.org/"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/badge/OpenWrt-25.12%20%C2%B7%20apk.svg?variant=secondary&font=geist&logo=openwrt&mode=dark"><img alt="OpenWrt 25.12" src="https://shieldcn.dev/badge/OpenWrt-25.12%20%C2%B7%20apk.svg?variant=secondary&font=geist&logo=openwrt&mode=light"></picture></a>
 <a href="https://docs.amnezia.org/"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/badge/AmneziaWG-2.0%20%C2%B7%203.1.svg?variant=secondary&font=geist&logo=wireguard&mode=dark"><img alt="AmneziaWG 2.0 and 3.1" src="https://shieldcn.dev/badge/AmneziaWG-2.0%20%C2%B7%203.1.svg?variant=secondary&font=geist&logo=wireguard&mode=light"></picture></a>
 
-[**Quick start**](#-quick-start) &nbsp;·&nbsp; [**Live demo**](https://dawnline-demo.vercel.app) &nbsp;·&nbsp; [Features](#-features) &nbsp;·&nbsp; [How it works](#-how-it-works) &nbsp;·&nbsp; [Screenshots](#-a-closer-look) &nbsp;·&nbsp; [FAQ](#-faq) &nbsp;·&nbsp; [Development](#-development)
+[**Quick start**](#-quick-start) &nbsp;·&nbsp; [**Live demo**](https://dawnline-demo.vercel.app) &nbsp;·&nbsp; [Features](#-features) &nbsp;·&nbsp; [How it works](#-how-it-works) &nbsp;·&nbsp; [Screenshots](#-a-closer-look) &nbsp;·&nbsp; [FAQ](#-faq) &nbsp;·&nbsp; [Discussions](https://github.com/tickcount/luci-app-dawnline/discussions) &nbsp;·&nbsp; [Development](#-development)
 
 **English** &nbsp;·&nbsp; [Русский](README_ru.md)
 
@@ -422,6 +422,10 @@ From the address a device connects from, looked up at city level and cached on
 the router. It can be turned off in <kbd>Settings</kbd> › <kbd>History and storage</kbd>.
 
 </details>
+
+Not answered here? Ask in [Discussions](https://github.com/tickcount/luci-app-dawnline/discussions)
+(questions, ideas, how you use it), or open a
+[bug report](https://github.com/tickcount/luci-app-dawnline/issues/new/choose).
 
 ## 🧾 What Dawnline changes on the router
 
