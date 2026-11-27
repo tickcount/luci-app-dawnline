@@ -346,3 +346,30 @@ body.scrolled .edge-fade.top {
 .pc-copy.copied {
   color: var(--ok);
 }
+/* On an iPhone not yet opened from the Home Screen: how to keep the page there, under the buttons, in the glass's
+   second tone, the menu's items in its first. */
+.pc-home {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 2px 8px 4px;
+  color: var(--glass-sub);
+  font-size: 13px;
+  line-height: 18px;
+}
+.pc-how {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 4px;
+  color: var(--glass-text);
+}
+.pc-how b {
+  font-weight: 500;
+}
+.pc-how .i {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}

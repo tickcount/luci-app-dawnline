@@ -9,6 +9,7 @@ import {
   importSteps,
   inWebview,
   keyFileName,
+  keyIntent,
   opensKeyLinks,
   platformOf,
   sameDevice,
@@ -194,6 +195,8 @@ describe('setup', () => {
     expect(opensKeyLinks('mac')).toBe(false);
     expect(keyFileName('outline-iphone.conf')).toBe('outline-iphone.vpn');
     expect(keyFileName('home')).toBe('home.vpn');
+    // Android: the key in an intent that names AmneziaVPN (Google Play where it is missing), its letters as they were.
+    expect(keyIntent('vpn://AAAAbX-_9z')).toBe('intent://AAAAbX-_9z#Intent;scheme=vpn;package=org.amnezia.vpn;end');
   });
 
   it('words the import as each platform’s app does', () => {

@@ -1,9 +1,11 @@
 // This page on another device: a dropdown from the breadcrumb's QR knob (ui/drop.ts: placed, coming and going and
 // shut as every dropdown is), the page's link as a code for a phone's camera, and under it Copy link (it says
-// Copied for a moment) and Share where the system has it.
+// Copied for a moment) and Share where the system has it. On an iPhone or iPad, until the page is opened from
+// the Home Screen, a line under them says how to keep it there: the menu's items word for word.
 
 import { h, ic } from '../dom';
-import { placeName, pageUrl } from '../state';
+import { inWebview } from '../setup';
+import { placeName, platform, pageUrl } from '../state';
 import { qrBox } from '../ui/codes';
 import { appear, closeDrop, EDGE, GAP, opened, vanish } from '../ui/drop';
 import { copy } from '../ui/feedback';
@@ -12,6 +14,22 @@ import { copy } from '../ui/feedback';
 let open: ((now?: boolean) => void) | null = null;
 
 export const closePageCode = (now = false) => open?.(now);
+
+/** A browser of its own on an iPhone or iPad, the page not opened from the Home Screen: it can be kept there. */
+const homeScreenCan = (): boolean =>
+  platform() === 'ios' &&
+  !inWebview(navigator.userAgent) &&
+  !(navigator as Navigator & { standalone?: boolean }).standalone &&
+  !matchMedia('(display-mode: standalone)').matches;
+
+/** How to keep the page on the Home Screen: the system's Share, then its item, as iOS names them. */
+const homeScreenLine = () =>
+  h(
+    'p',
+    { class: 'pc-home' },
+    h('span', {}, _('From the Home Screen it opens as an app:')),
+    h('span', { class: 'pc-how' }, ic('share'), h('b', {}, _('Share', 'iOS')), ' › ', h('b', {}, _('Add to Home Screen', 'iOS'))),
+  );
 
 export function showPageCode(knob: HTMLElement) {
   if (knob.getAttribute('aria-expanded') === 'true') return closeDrop();
@@ -48,6 +66,7 @@ export function showPageCode(knob: HTMLElement) {
           )
         : null,
     ),
+    homeScreenCan() ? homeScreenLine() : null,
   );
   document.body.append(card);
   // Under the knob where it fits, else over it; centred on it inside the screen's edge, growing from its side.

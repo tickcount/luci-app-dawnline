@@ -620,6 +620,7 @@ Frosted pane: dark `--gi-a .58 / --gi-b .14` white with a `.5` rim and no edge s
 - **Edge fades** sit above the page and under every overlay:
   - **top:** 80 px plus the safe area, a `bg → 75% → 0` gradient with `backdrop-filter: blur(12px)` (not on a touch screen, where it would be drawn again on every frame of a scroll), masked `1 → .88 @44% → 0`. It shows only once `scrollY > 2`, so the breadcrumb at rest stays crisp.
   - **bottom:** 96 px, a plain `bg → transparent` gradient interpolated `in oklab`.
+- **Around the page** (the shell's head, `backend/methods/portal.go`): numbers are never phone numbers (`format-detection`: iOS made long numbers links to call). `theme-color` is `--bg` in each scheme, so the browser's bar and, opened from the home screen, the status bar are the page's own ground. On an iPhone, Safari puts AmneziaWG's App Store banner over the page (the app the set-up sheet opens on). Added to the home screen, the page opens without Safari around it, under `touch-icon.png`: the mark white on the near-black tile, a full 180 px square that iOS rounds itself (`scripts/portal-touch-icon.mjs` draws it from `icon.svg`). There is no web app manifest: Chrome on Android installs one through Google, and its start URL is the person's link.
 
 ### Columns and order
 
@@ -767,6 +768,7 @@ The ⋯ menu, the pick pills' popups and the page code card are one kind of thin
 ### Page code card · `flows/page-code.ts`
 
 - **What it is:** a dropdown (see *Dropdowns*) from the QR knob, scrolling with the page: radius 24, padding 10, gap 8. The page's code (224 px, radius 14: concentric with the card) on top; under it Copy link (36 high, pill, `glass-text` 6% on the glass (11% on hover; Share's knob the same), in `glass-text`, 14 px 500, a 16 px link icon; it says Copied with a check for a moment) and Share (a 36 px knob) where the system has it. No ×. The knob stays where it is.
+- **Home Screen line** (`.pc-home`): on an iPhone or iPad, in a browser of its own and not opened from the Home Screen, a line under the buttons says how to keep the page there: «From the Home Screen it opens as an app:» in 13/18 `glass-sub`, then the menu's path in `glass-text` 500 — a 14 px share icon, iOS's «Share» › «Add to Home Screen» word for word (in Russian, iOS's own «Поделиться» › «На экран «Домой»»), wrapping where it must. Padding `2 8 4`. Nowhere else, and nothing to close: it is where the page's link lives.
 
 ### Knob · `styles/controls.css`
 
@@ -998,6 +1000,8 @@ One choice with a switch (Add a device's **LAN Bypass**). A line that unfolds un
 ### Set-up sheet · `flows/setup-view.ts`
 
 **Structure.** The way sits on top, 18 px above what is under it. Under it come numbered steps, inset accordion rows, or both. A row holds what a step would: a QR with its link row, the app picker with a code and its scan line, small soft buttons, or a file card with a nested inset row for the `.conf`. Pinned Download / Copy keys sit in the head where the view has them.
+
+**AmneziaVPN on Android:** «Open in AmneziaVPN» is an intent that names the app (`keyIntent`), not the bare `vpn://` key: no other app that claims vpn:// gets the key, and a phone without the app goes to its page in Google Play.
 
 **Steps:** a 24 px round number (knob, 13 px 600), a 16/24 500 title and a body with gap 10. Steps sit 20 px apart.
 

@@ -173,6 +173,8 @@ export default defineConfig([
       for (const f of ['portal.js', 'portal.css'])
         fs.writeFileSync(path.join(PORTAL_OUT, `${f}.gz`), zlib.gzipSync(fs.readFileSync(path.join(PORTAL_OUT, f)), { level: 9 }));
       fs.copyFileSync('src/portal/icon.svg', path.join(PORTAL_OUT, 'icon.svg'));
+      // The home-screen icon (scripts/portal-touch-icon.mjs draws it from icon.svg).
+      fs.copyFileSync('src/portal/touch-icon.png', path.join(PORTAL_OUT, 'touch-icon.png'));
     },
   },
 ]);

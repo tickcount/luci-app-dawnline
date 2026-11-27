@@ -234,3 +234,58 @@ func TestPortalLimits(t *testing.T) {
 		t.Errorf("the forty-first change: %d", last)
 	}
 }
+
+// The shell tells Safari what the page is on an iPhone: the app to offer in its banner, the ground's colour in
+// each scheme, and the home-screen icon, which comes from the link's own assets. The icon Safari looks for at
+// the root is no link: a bare 404, not counted as a wrong code.
+func TestPortalShell(t *testing.T) {
+	dir := t.TempDir()
+	text, _ := os.ReadFile("../access/testdata/access.uci")
+	c, _ := uci.Parse(string(text))
+	c.Set(c.OfType("person")[0].Name, "code", "kamiro-telosu-bavine")
+	os.WriteFile(dir+"/dawnline", []byte(c.Format()), 0o600)
+	st := &store.Store{Config: dir + "/dawnline", RunDir: dir}
+	d := Deps{Store: st, Config: dir + "/dawnline", RunDir: dir, DataDir: dir + "/data", World: func() *view.World {
+		_, m, _ := st.Read()
+		return &view.World{M: m, Usage: usage.Empty(), Now: time.Now().Unix()}
+	}}
+	was := PortalAssets
+	PortalAssets = dir + "/assets"
+	t.Cleanup(func() { PortalAssets = was })
+	os.MkdirAll(PortalAssets, 0o755)
+	icon := []byte("\x89PNG\r\n\x1a\nicon")
+	os.WriteFile(PortalAssets+"/touch-icon.png", icon, 0o644)
+	get := func(path string) PortalAnswer {
+		return Portal(d, PortalRequest{Method: "GET", Path: path, Host: "vpn.example.org:4500", HTTPS: true, Remote: "203.0.113.70"})
+	}
+	page := string(get("/kamiro-telosu-bavine").Body)
+	for _, want := range []string{
+		`<meta name="apple-itunes-app" content="app-id=6478942365">`,
+		`<meta name="theme-color" content="#080808" media="(prefers-color-scheme: dark)">`,
+		`<meta name="theme-color" content="#f2f2f1" media="(prefers-color-scheme: light)">`,
+		`<meta name="apple-mobile-web-app-capable" content="yes">`,
+		`<meta name="format-detection" content="telephone=no">`,
+		`<link rel="apple-touch-icon" href="/kamiro-telosu-bavine/assets/touch-icon.png?v=`,
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the shell has no %s:\n%s", want, page)
+		}
+	}
+	if strings.Contains(page, `rel="manifest"`) {
+		t.Error("the shell links a manifest: Chrome would hand the link to Google to install it")
+	}
+	a := get("/kamiro-telosu-bavine/assets/touch-icon.png")
+	head := map[string]string{}
+	for _, kv := range a.Header {
+		head[kv[0]] = kv[1]
+	}
+	if a.Status != 200 || string(a.Body) != string(icon) || head["Content-Type"] != "image/png" || !strings.Contains(head["Cache-Control"], "immutable") {
+		t.Errorf("the icon: %d %v", a.Status, head)
+	}
+	if a := get("/apple-touch-icon.png"); a.Status != 404 || string(a.Body) != "Not found\n" {
+		t.Errorf("the icon at the root: %d %q", a.Status, a.Body)
+	}
+	if raw, _ := os.ReadFile(dir + "/portal-rate.json"); strings.Contains(string(raw), "203.0.113.70") {
+		t.Errorf("the icon at the root was counted as a wrong code: %s", raw)
+	}
+}

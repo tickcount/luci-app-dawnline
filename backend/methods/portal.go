@@ -32,7 +32,7 @@ import (
 // The personal portal's answers (dawnline.portal):
 //
 //	GET  /<code>                          the app shell
-//	GET  /<code>/assets/<file>            its script and styles (gzipped when the browser takes it)
+//	GET  /<code>/assets/<file>            its script and styles (gzipped when the browser takes it), its home-screen icon
 //	GET  /<code>/api/state
 //	POST /<code>/api/devices              { name, kind, public_key?, lan_bypass?, networks? }
 //	GET  /<code>/api/devices/<id>/config
@@ -292,7 +292,20 @@ func (c *portalCall) action() {
 
 var htmlEscape = strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", `"`, "&quot;", "'", "&#39;")
 
-// shell is the app shell; it reads the code from its own URL and sends it along.
+const (
+	// amneziaWGOnAppStore is AmneziaWG's id in the App Store, the app the set-up sheet opens on: Safari on an
+	// iPhone offers it in a banner of its own over the page. Its twin is the App Store link in storeFor
+	// (web/src/portal/setup.ts).
+	amneziaWGOnAppStore = "6478942365"
+	// The page's ground in each scheme (--bg in web/src/portal/styles/tokens.css): the browser's bar, and
+	// the status bar of the page opened from the home screen, take it.
+	groundDark  = "#080808"
+	groundLight = "#f2f2f1"
+)
+
+// shell is the app shell; it reads the code from its own URL and sends it along. No web app manifest: Chrome
+// on Android installs one through Google's servers, and the start URL it would hand them is the person's key.
+// Safari's own tags give the iPhone's home screen the icon and a page without the browser around it.
 func (c *portalCall) shell() {
 	// the build's time joins the version: every update gives the assets new URLs, so they are kept for good
 	var built int64
@@ -320,8 +333,14 @@ func (c *portalCall) shell() {
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <meta name="robots" content="noindex, nofollow">
+<meta name="format-detection" content="telephone=no">
+<meta name="theme-color" content="` + groundDark + `" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="` + groundLight + `" media="(prefers-color-scheme: light)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-itunes-app" content="app-id=` + amneziaWGOnAppStore + `">
 <title>` + htmlEscape.Replace(title) + `</title>
-` + favicon + `<link rel="stylesheet" href="` + c.base + `/assets/portal.css` + v + `">
+` + favicon + `<link rel="apple-touch-icon" href="` + c.base + `/assets/touch-icon.png` + v + `">
+<link rel="stylesheet" href="` + c.base + `/assets/portal.css` + v + `">
 </head>
 <body>
 <div id="app" data-base="` + htmlEscape.Replace(c.base) + `" data-title="` + htmlEscape.Replace(title) + `"` + live + `></div>
@@ -334,7 +353,7 @@ func (c *portalCall) shell() {
 			"connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"}}, []byte(page))
 }
 
-// asset is the script and the styles; the shell's ?v= changes with every build, so they never go stale.
+// asset is the script, the styles and the home-screen icon; the shell's ?v= changes with every build, so they never go stale.
 func (c *portalCall) asset(name string) {
 	m := assetName.FindStringSubmatch(name)
 	if m == nil {

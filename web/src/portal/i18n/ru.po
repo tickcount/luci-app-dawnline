@@ -306,6 +306,11 @@ msgstr "Добавить это устройство"
 msgid "Add this phone"
 msgstr "Добавить этот телефон"
 
+#: web/src/portal/flows/page-code.ts
+msgctxt "iOS"
+msgid "Add to Home Screen"
+msgstr "На экран «Домой»"
+
 #: web/src/portal/page/devices.ts
 msgid "Add your first device"
 msgstr "Добавьте первое устройство"
@@ -715,6 +720,10 @@ msgstr "Дополнительный трафик должен быть поло
 #: web/src/portal/flows/setup-parts.ts
 msgid "For computers and routers"
 msgstr "Для компьютеров и роутеров"
+
+#: web/src/portal/flows/page-code.ts
+msgid "From the Home Screen it opens as an app:"
+msgstr "С экрана «Домой» страница открывается как приложение:"
 
 #: web/src/shared/format.ts
 msgid "GB"
@@ -1344,6 +1353,11 @@ msgstr "Настройки изменились"
 #: web/src/portal/page/devices.ts
 msgid "Settings changed, update needed"
 msgstr "Настройки изменились, нужно обновить"
+
+#: web/src/portal/flows/page-code.ts
+msgctxt "iOS"
+msgid "Share"
+msgstr "Поделиться"
 
 #: web/src/portal/flows/setup-parts.ts
 msgid "Share as a file"

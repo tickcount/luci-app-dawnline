@@ -14,6 +14,7 @@ import {
   importPath,
   importSteps,
   keyFileName,
+  keyIntent,
   opensKeyLinks,
   platformLabel,
   routerStore,
@@ -82,14 +83,16 @@ function badge(
   const inner = [
     h('span', { class: 'b-ic' }, ic(st.mark)),
     h('span', { class: 'b-t' }, h('span', { class: 'b-top' }, st.top), h('span', { class: 'b-main' }, st.main)),
-    ic(st.onclick || st.href?.startsWith('vpn:') ? 'chevron' : 'open'),
+    ic(st.onclick || opensApp(st.href) ? 'chevron' : 'open'),
   ];
   const cls = `badge${primary ? ' primary' : ''}`;
   if (st.onclick) return h('button', { type: 'button', class: cls, onclick: st.onclick }, inner);
-  // A vpn:// key opens the app in place: no new tab.
-  const app = st.href?.startsWith('vpn:');
-  return h('a', { class: cls, href: st.href, target: app ? null : '_blank', rel: 'noopener noreferrer' }, inner);
+  // A key opens the app in place: no new tab.
+  return h('a', { class: cls, href: st.href, target: opensApp(st.href) ? null : '_blank', rel: 'noopener noreferrer' }, inner);
 }
+
+/** A link that opens an app (a vpn:// key, or the intent that carries one), not a page. */
+const opensApp = (href?: string): boolean => !!href && /^(vpn|intent):/.test(href);
 
 /**
  * Where the app comes from: the store (and, on Android, the APK beside it), or
@@ -168,7 +171,7 @@ export function connectKids(c: SetupCtx): Kid[] {
     return [
       send
         ? badge({ top: _('Then come back here and tap'), main: _('Send to AmneziaVPN'), mark: 'amnezia', onclick: () => void send() }, true)
-        : badge({ href: c.key, top: _('Then come back here and tap'), main: _('Open in AmneziaVPN'), mark: 'amnezia' }, true),
+        : badge({ href: keyIntent(c.key), top: _('Then come back here and tap'), main: _('Open in AmneziaVPN'), mark: 'amnezia' }, true),
       hint(
         ...fill(
           send

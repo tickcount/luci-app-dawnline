@@ -300,6 +300,11 @@ msgstr ""
 msgid "Add this phone"
 msgstr ""
 
+#: web/src/portal/flows/page-code.ts
+msgctxt "iOS"
+msgid "Add to Home Screen"
+msgstr ""
+
 #: web/src/portal/page/devices.ts
 msgid "Add your first device"
 msgstr ""
@@ -708,6 +713,10 @@ msgstr ""
 
 #: web/src/portal/flows/setup-parts.ts
 msgid "For computers and routers"
+msgstr ""
+
+#: web/src/portal/flows/page-code.ts
+msgid "From the Home Screen it opens as an app:"
 msgstr ""
 
 #: web/src/shared/format.ts
@@ -1337,6 +1346,11 @@ msgstr ""
 
 #: web/src/portal/page/devices.ts
 msgid "Settings changed, update needed"
+msgstr ""
+
+#: web/src/portal/flows/page-code.ts
+msgctxt "iOS"
+msgid "Share"
 msgstr ""
 
 #: web/src/portal/flows/setup-parts.ts

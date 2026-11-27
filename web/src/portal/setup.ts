@@ -102,6 +102,8 @@ export interface Store {
 }
 
 const GH_CLIENT = 'https://github.com/amnezia-vpn/amnezia-client/releases/latest';
+/** AmneziaVPN's Android package: its Google Play page, and the app a key's intent names. */
+const AMNEZIA_VPN_ANDROID = 'org.amnezia.vpn';
 /** V2RayTun's channel (linked from v2raytun.com): its news and updates, beside its store. */
 const v2rChannel = (): NonNullable<Store['alt']> => ({
   href: 'https://t.me/v2raytun',
@@ -127,7 +129,7 @@ export function storeFor(app: AppId, platform: Platform): Store | null {
     vpn: {
       ios: { href: 'https://apps.apple.com/app/amneziavpn/id1600529900', top: onAppStore, main: 'App Store', mark: 'appstore' },
       android: {
-        href: 'https://play.google.com/store/apps/details?id=org.amnezia.vpn',
+        href: `https://play.google.com/store/apps/details?id=${AMNEZIA_VPN_ANDROID}`,
         top: onPlay,
         main: 'Google Play',
         mark: 'googleplay',
@@ -212,6 +214,14 @@ export const routerStore = (app: AppId): Store =>
  * invalid"), or another app that claims vpn:// gets the key.
  */
 export const opensKeyLinks = (platform: Platform): boolean => platform === 'android';
+
+/**
+ * A `vpn://` key as the link that hands it to AmneziaVPN on Android: an intent
+ * naming the app, so no other app that claims vpn:// gets the key, and a phone
+ * without the app goes to its page in Google Play instead of nowhere.
+ */
+export const keyIntent = (key: string): string =>
+  `intent://${key.replace(/^vpn:\/\//, '')}#Intent;scheme=vpn;package=${AMNEZIA_VPN_ANDROID};end`;
 
 /** The key as a file for the share sheet: AmneziaVPN on iOS imports `.vpn` files (the key as text). */
 export const keyFileName = (confName: string): string => `${confName.replace(/\.conf$/i, '')}.vpn`;
